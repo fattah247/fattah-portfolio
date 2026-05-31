@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { CopyEmailButton } from "@/components/copy-email-button";
+import { ParallaxBlock } from "@/components/parallax-block";
 
 const navLinks = [
   { label: "Work", href: "#work" },
@@ -97,7 +98,7 @@ function RepoShot({
 }) {
   return (
     <a className="artifact group" href={href} target="_blank" rel="noreferrer">
-      <div className={`artifact-frame ${tone} ${wide ? "artifact-frame-wide" : ""}`}>
+      <ParallaxBlock className={`artifact-frame ${tone} ${wide ? "artifact-frame-wide" : ""}`}>
         <Image
           src={src}
           alt={alt}
@@ -105,10 +106,10 @@ function RepoShot({
           className="object-cover object-top transition duration-150 group-hover:scale-[1.02] group-focus-visible:scale-[1.02]"
           sizes={sizes}
         />
-      </div>
+      </ParallaxBlock>
       <div className="mt-3 flex items-start justify-between gap-4">
         <p className="text-sm leading-6 text-[color:var(--muted)]">{caption}</p>
-        <span className="open-link shrink-0">Open repo<ExternalArrow /></span>
+        <span className="open-link shrink-0">Repo<ExternalArrow /></span>
       </div>
     </a>
   );
@@ -166,13 +167,16 @@ export default function Home() {
             <h1 className="hero-name">Muhammad A. Fattah</h1>
             <p className="hero-line mt-3">Payment systems. Android. Reliability.</p>
             <p className="mt-6 max-w-3xl text-lg leading-8 text-[color:var(--muted)] sm:text-xl">
-              I work on Android/payment systems and build public-safe labs around
-              transaction reliability, observability, and mobile-client trust boundaries.
+              I work on Android payment systems and backend reliability: failed states,
+              duplicate callbacks, service health, observability, and mobile-client trust.
+            </p>
+            <p className="mt-5 max-w-4xl text-base leading-7 text-[color:var(--body)]">
+              These labs model the same problems I keep running into: unclear
+              transaction states, weak visibility, and clients that trust too much.
             </p>
             <p className="mt-5 max-w-4xl text-base leading-7 text-[color:var(--muted)]">
-              The projects below focus on the boring parts that keep software useful:
-              failed states, duplicate callbacks, trusted dashboards, and mobile
-              clients that should not treat every device the same.
+              I build public-safe labs around
+              transaction reliability, observability, and mobile-client trust boundaries.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -240,6 +244,17 @@ export default function Home() {
         </section>
 
         <section className="rise py-12 sm:py-16">
+          <div className="max-w-5xl">
+            <h2 className="thesis-heading">I build around three failure cases:</h2>
+            <ol className="mt-8 grid gap-4 sm:grid-cols-3">
+              <li className="thesis-item">Payments that fail without clear state.</li>
+              <li className="thesis-item">Dashboards that show numbers but not causes.</li>
+              <li className="thesis-item">Android clients that trust unsafe devices.</li>
+            </ol>
+          </div>
+        </section>
+
+        <section className="rise py-12 sm:py-16">
           <div className="max-w-4xl">
             <h2 className="section-heading">Why these projects exist</h2>
             <div className="mt-6 space-y-4 text-xl leading-9 tracking-[-0.02em] text-[color:var(--text)] sm:text-2xl sm:leading-10">
@@ -260,33 +275,31 @@ export default function Home() {
         </section>
 
         <section className="rise pb-12 sm:pb-16">
-          <div className="artifact-ledger">
-            <div className="max-w-2xl">
-              <h2 className="section-heading">Failure cases I care about</h2>
-              <p className="mt-3 text-base leading-7 text-[color:var(--muted)]">
-                One reason these repos belong together is that they model different
-                failure surfaces from the same operating view.
-              </p>
-            </div>
+          <div className="max-w-5xl">
+            <h2 className="section-heading">Failure cases I care about</h2>
+            <p className="mt-3 max-w-3xl text-base leading-7 text-[color:var(--muted)]">
+              One reason these repos belong together: they model different failure
+              surfaces from the same kind of system.
+            </p>
+          </div>
 
-            <div className="mt-6 overflow-x-auto">
-              <table className="ledger-table">
-                <thead>
-                  <tr>
-                    <th>Failure case</th>
-                    <th>What the portfolio uses to model it</th>
+          <div className="mt-6 overflow-x-auto">
+            <table className="ledger-table">
+              <thead>
+                <tr>
+                  <th>Failure case</th>
+                  <th>Portfolio proof</th>
+                </tr>
+              </thead>
+              <tbody>
+                {failureCases.map(([failure, model]) => (
+                  <tr key={failure}>
+                    <td>{failure}</td>
+                    <td>{model}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {failureCases.map(([failure, model]) => (
-                    <tr key={failure}>
-                      <td>{failure}</td>
-                      <td>{model}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
 

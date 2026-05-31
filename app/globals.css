@@ -1,17 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f3f0e8;
-  --surface: #fbf8f1;
-  --text: #141414;
-  --muted: #5f5a50;
-  --line: #b8b1a4;
+  --background: #f8f9f7;
+  --surface: #ffffff;
+  --surface-muted: #eef1f4;
+  --text: #101820;
+  --body: #243447;
+  --muted: #5b6675;
+  --line: #cad2dc;
   --accent: #1f4e79;
+  --accent-strong: #0b2742;
+  --accent-soft: #dce8f3;
   --accent-secondary: #8a5a12;
   --success: #2f6f5e;
-  --code-bg: #111111;
-  --code-text: #e8e2d6;
-  --shadow: 0 16px 40px rgba(20, 20, 20, 0.08);
+  --code-bg: #0e1621;
+  --code-text: #eaf1f7;
+  --shadow: 0 18px 44px rgba(16, 24, 32, 0.08);
 }
 
 * {
@@ -26,10 +30,13 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0)),
+    radial-gradient(circle at top right, rgba(18, 59, 99, 0.06), transparent 22rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0)),
     var(--background);
   color: var(--text);
   font-family: var(--font-body), sans-serif;
+  font-size: 16px;
+  line-height: 1.65;
 }
 
 a {
@@ -60,12 +67,12 @@ button {
   .hero-name {
     letter-spacing: -0.04em;
     line-height: 0.96;
-    @apply text-5xl font-semibold sm:text-6xl lg:text-7xl;
+    @apply text-5xl font-semibold sm:text-6xl lg:text-[4.5rem];
   }
 
   .hero-line {
     color: var(--text);
-    @apply text-xl font-semibold tracking-[-0.02em] sm:text-2xl;
+    @apply text-2xl font-semibold tracking-[-0.02em] sm:text-[1.9rem];
   }
 
   .section-tag {
@@ -77,12 +84,12 @@ button {
 
   .section-heading {
     letter-spacing: -0.03em;
-    @apply text-3xl font-semibold sm:text-4xl;
+    @apply text-[2rem] font-semibold sm:text-[2.5rem];
   }
 
   .lede {
-    color: var(--muted);
-    @apply text-base leading-7 sm:text-lg;
+    color: var(--body);
+    @apply text-[1.04rem] leading-8 sm:text-[1.08rem];
   }
 
   .major-rule {
@@ -99,7 +106,7 @@ button {
 
   .action-link {
     border: 1px solid var(--line);
-    background: rgba(255, 255, 255, 0.42);
+    background: rgba(255, 255, 255, 0.75);
     @apply inline-flex items-center justify-center gap-1 rounded-[10px] px-4 py-2.5 text-sm font-semibold transition duration-150;
   }
 
@@ -148,7 +155,7 @@ button {
     border: 1px solid rgba(138, 90, 18, 0.22);
     color: var(--accent-secondary);
     font-family: var(--font-mono), monospace;
-    @apply inline-flex items-center rounded-[9px] px-3 py-1 text-[0.76rem] font-medium;
+    @apply inline-flex items-center rounded-[9px] px-3 py-1 text-[0.82rem] font-medium;
   }
 
   .mono-pill-blue {
@@ -165,12 +172,6 @@ button {
     @apply font-semibold;
   }
 
-  .artifact-ledger {
-    background: rgba(255, 255, 255, 0.34);
-    border: 1px solid var(--line);
-    @apply rounded-[14px] p-5 sm:p-6;
-  }
-
   .ledger-table,
   .signal-table {
     width: 100%;
@@ -184,14 +185,14 @@ button {
     border-top: 1px solid var(--line);
     text-align: left;
     vertical-align: top;
-    @apply px-0 py-3 text-sm leading-6;
+    @apply px-0 py-3 text-[0.96rem] leading-7;
   }
 
   .ledger-table th,
   .signal-table th {
     color: var(--muted);
     font-family: var(--font-mono), monospace;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -208,7 +209,7 @@ button {
 
   .project-block {
     border-top: 1px solid var(--line);
-    @apply mt-14 grid gap-8 pt-10 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)];
+    @apply mt-16 grid gap-10 pt-12 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)];
   }
 
   .project-marker {
@@ -232,11 +233,11 @@ button {
 
   .project-title {
     letter-spacing: -0.03em;
-    @apply text-3xl font-semibold;
+    @apply text-[2rem] font-semibold;
   }
 
   .proof-list {
-    @apply grid gap-3 text-sm leading-6 text-[color:var(--muted)] sm:grid-cols-2;
+    @apply grid gap-3 text-[1rem] leading-7 text-[color:var(--body)] sm:grid-cols-2;
   }
 
   .proof-list li::before {
@@ -246,14 +247,14 @@ button {
   }
 
   .project-tech {
-    color: var(--muted);
+    color: var(--body);
     font-family: var(--font-mono), monospace;
-    @apply text-[0.8rem] leading-6;
+    @apply text-[0.84rem] leading-6;
   }
 
   .flow-strip {
     border: 1px solid var(--line);
-    background: rgba(255, 255, 255, 0.42);
+    background: var(--surface-muted);
     @apply flex flex-wrap items-center gap-2 rounded-[12px] p-3;
   }
 
@@ -274,8 +275,7 @@ button {
   }
 
   .toggle-panel {
-    border-top: 1px dashed var(--line);
-    @apply pt-4;
+    @apply pt-2;
   }
 
   .toggle-panel summary {
@@ -300,12 +300,12 @@ button {
 
   .detail-heading {
     color: var(--text);
-    @apply text-sm font-semibold;
+    @apply text-base font-semibold;
   }
 
   .detail-list {
-    color: var(--muted);
-    @apply mt-3 space-y-2 text-sm leading-6;
+    color: var(--body);
+    @apply mt-3 space-y-2 text-[0.98rem] leading-7;
   }
 
   .detail-list li::before {
@@ -314,8 +314,8 @@ button {
   }
 
   .detail-copy {
-    color: var(--muted);
-    @apply mt-3 text-sm leading-6;
+    color: var(--body);
+    @apply mt-3 text-[0.98rem] leading-7;
   }
 
   .artifact {
@@ -333,23 +333,23 @@ button {
     overflow: hidden;
     border: 1px solid var(--line);
     box-shadow: var(--shadow);
+    background: var(--surface);
     @apply aspect-[4/3] rounded-[14px];
   }
 
   .artifact-frame-wide {
-    @apply aspect-[16/10];
+    @apply aspect-[16/9];
   }
 
   .open-link {
     color: var(--accent);
     font-family: var(--font-mono), monospace;
-    @apply text-[0.72rem] font-semibold uppercase tracking-[0.08em];
+    @apply text-[0.76rem] font-semibold uppercase tracking-[0.08em];
   }
 
   .signal-table-wrap {
-    background: rgba(255, 255, 255, 0.3);
-    border: 1px solid var(--line);
-    @apply rounded-[14px] p-4;
+    background: var(--surface);
+    @apply p-0;
   }
 
   .stack-row {
@@ -376,6 +376,18 @@ button {
   .project-link-row:hover {
     color: var(--accent);
   }
+
+  .thesis-heading {
+    color: var(--accent-strong);
+    letter-spacing: -0.03em;
+    @apply max-w-4xl text-[2rem] font-semibold leading-tight sm:text-[2.75rem];
+  }
+
+  .thesis-item {
+    border-left: 4px solid var(--accent);
+    color: var(--text);
+    @apply pl-4 text-lg font-semibold leading-8;
+  }
 }
 
 @keyframes rise {
@@ -392,6 +404,11 @@ button {
 
 .rise {
   animation: rise 560ms ease-out forwards;
+}
+
+[data-parallax] {
+  will-change: transform;
+  transition: transform 140ms linear;
 }
 
 @media (prefers-reduced-motion: reduce) {
