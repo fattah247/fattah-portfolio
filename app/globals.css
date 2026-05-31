@@ -8,10 +8,10 @@
   --body: #243447;
   --muted: #5b6675;
   --line: #cad2dc;
-  --accent: #1f4e79;
+  --accent: #123b63;
   --accent-strong: #0b2742;
   --accent-soft: #dce8f3;
-  --accent-secondary: #8a5a12;
+  --warning: #8a5a12;
   --success: #2f6f5e;
   --code-bg: #0e1621;
   --code-text: #eaf1f7;
@@ -30,8 +30,8 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top right, rgba(18, 59, 99, 0.06), transparent 22rem),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0)),
+    radial-gradient(circle at top right, rgba(18, 59, 99, 0.05), transparent 22rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0)),
     var(--background);
   color: var(--text);
   font-family: var(--font-body), sans-serif;
@@ -49,6 +49,7 @@ button:focus-visible,
 summary:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
+  border-radius: 3px;
 }
 
 button {
@@ -56,25 +57,147 @@ button {
 }
 
 ::selection {
-  background: rgba(31, 78, 121, 0.18);
+  background: rgba(18, 59, 99, 0.15);
+}
+
+/* ─── Scroll progress bar ─────────────────────────────────── */
+#scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0%;
+  background: var(--accent);
+  z-index: 100;
+  transition: width 80ms linear;
+  pointer-events: none;
+}
+
+/* ─── Section reveal (scroll-driven, not load-driven) ────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 320ms ease-out,
+    transform 320ms ease-out;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-child {
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 280ms ease-out,
+    transform 280ms ease-out;
+}
+
+.reveal-child.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ─── Ambient floating marks ──────────────────────────────── */
+@keyframes drift-a {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+}
+
+@keyframes drift-b {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(7px);
+  }
+}
+
+@keyframes drift-c {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-11px);
+  }
+}
+
+.ambient-mark {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  opacity: 0.18;
+}
+
+.ambient-mark[data-drift="a"] {
+  animation: drift-a 8s ease-in-out infinite;
+}
+
+.ambient-mark[data-drift="b"] {
+  animation: drift-b 11s ease-in-out infinite;
+}
+
+.ambient-mark[data-drift="c"] {
+  animation: drift-c 14s ease-in-out infinite;
 }
 
 @layer components {
+  /* ─── Layout ──────────────────────────────────────────────── */
   .shell {
     @apply mx-auto w-full max-w-6xl px-5 sm:px-6 lg:px-8;
   }
 
+  /* ─── Navigation ──────────────────────────────────────────── */
+  .nav-link {
+    position: relative;
+    @apply transition-colors duration-150;
+  }
+
+  .nav-link::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 1px;
+    background: var(--accent);
+    transition: width 180ms ease-out;
+  }
+
+  .nav-link:hover {
+    color: var(--accent);
+  }
+
+  .nav-link:hover::after {
+    width: 100%;
+  }
+
+  /* ─── Hero typography ─────────────────────────────────────── */
   .hero-name {
     letter-spacing: -0.04em;
-    line-height: 0.96;
-    @apply text-5xl font-semibold sm:text-6xl lg:text-[4.5rem];
+    line-height: 0.95;
+    @apply text-5xl font-semibold sm:text-6xl lg:text-[4.75rem];
   }
 
   .hero-line {
-    color: var(--text);
-    @apply text-2xl font-semibold tracking-[-0.02em] sm:text-[1.9rem];
+    color: var(--body);
+    @apply text-2xl font-semibold tracking-[-0.02em] sm:text-[1.95rem];
   }
 
+  /* ─── Section typography ──────────────────────────────────── */
   .section-tag {
     color: var(--accent);
     font-family: var(--font-mono), monospace;
@@ -84,26 +207,20 @@ button {
 
   .section-heading {
     letter-spacing: -0.03em;
-    @apply text-[2rem] font-semibold sm:text-[2.5rem];
+    @apply text-[2.1rem] font-semibold sm:text-[2.6rem];
   }
 
   .lede {
     color: var(--body);
-    @apply text-[1.04rem] leading-8 sm:text-[1.08rem];
+    @apply text-[1.05rem] leading-8 sm:text-[1.1rem];
   }
 
+  /* ─── Dividers ────────────────────────────────────────────── */
   .major-rule {
     border-top: 1px solid var(--line);
   }
 
-  .nav-link {
-    @apply transition duration-150;
-  }
-
-  .nav-link:hover {
-    color: var(--accent);
-  }
-
+  /* ─── Action buttons ──────────────────────────────────────── */
   .action-link {
     border: 1px solid var(--line);
     background: rgba(255, 255, 255, 0.75);
@@ -113,7 +230,11 @@ button {
   .action-link:hover {
     border-color: var(--accent);
     color: var(--accent);
-    transform: translateY(-1px);
+    transform: translateY(-1px) scale(1.02);
+  }
+
+  .action-link:active {
+    transform: scale(0.98);
   }
 
   .action-link-primary {
@@ -123,8 +244,9 @@ button {
   }
 
   .action-link-primary:hover {
+    background: var(--accent-strong);
+    border-color: var(--accent-strong);
     color: #fff;
-    filter: brightness(0.95);
   }
 
   .ghost-link {
@@ -139,11 +261,17 @@ button {
     color: var(--accent);
   }
 
+  .ghost-link:active {
+    transform: scale(0.98);
+  }
+
+  /* ─── Text links ──────────────────────────────────────────── */
   .underline-link {
     color: var(--accent);
+    position: relative;
     text-decoration: underline;
-    text-decoration-color: rgba(31, 78, 121, 0.35);
-    text-underline-offset: 0.25rem;
+    text-decoration-color: rgba(18, 59, 99, 0.3);
+    text-underline-offset: 0.28rem;
     @apply transition duration-150;
   }
 
@@ -151,27 +279,49 @@ button {
     text-decoration-color: var(--accent);
   }
 
-  .mono-pill {
-    border: 1px solid rgba(138, 90, 18, 0.22);
-    color: var(--accent-secondary);
-    font-family: var(--font-mono), monospace;
-    @apply inline-flex items-center rounded-[9px] px-3 py-1 text-[0.82rem] font-medium;
+  /* ─── Thesis / anchor section ─────────────────────────────── */
+  .thesis-heading {
+    color: var(--accent-strong);
+    letter-spacing: -0.03em;
+    @apply max-w-3xl text-[2rem] font-semibold leading-tight sm:text-[2.6rem];
   }
 
-  .mono-pill-blue {
-    border-color: rgba(31, 78, 121, 0.2);
-    color: var(--accent);
+  .thesis-list {
+    border-left: 3px solid var(--accent);
+    @apply mt-8 space-y-6 pl-6;
   }
 
-  .numbered-note {
-    @apply max-w-2xl;
-  }
-
-  .field-note-quote {
+  .thesis-item {
     color: var(--text);
-    @apply font-semibold;
+    @apply text-[1.15rem] font-semibold leading-8 sm:text-[1.25rem];
   }
 
+  .thesis-item-num {
+    color: var(--accent);
+    font-family: var(--font-mono), monospace;
+    @apply mr-3 text-[0.85rem] font-semibold;
+  }
+
+  /* ─── Work focus numbered notes ───────────────────────────── */
+  .note-number {
+    color: var(--accent);
+    font-family: var(--font-mono), monospace;
+    @apply block text-[0.8rem] font-semibold uppercase tracking-[0.1em];
+  }
+
+  .note-title {
+    letter-spacing: -0.02em;
+    @apply mt-1 text-xl font-semibold;
+  }
+
+  /* ─── Field note quote ────────────────────────────────────── */
+  .field-note-quote {
+    border-left: 3px solid var(--accent);
+    color: var(--text);
+    @apply mt-6 pl-5 text-xl font-semibold leading-9 tracking-[-0.02em] sm:text-2xl;
+  }
+
+  /* ─── Tables ──────────────────────────────────────────────── */
   .ledger-table,
   .signal-table {
     width: 100%;
@@ -185,31 +335,39 @@ button {
     border-top: 1px solid var(--line);
     text-align: left;
     vertical-align: top;
-    @apply px-0 py-3 text-[0.96rem] leading-7;
+    @apply px-0 py-3.5 text-[0.98rem] leading-7;
+  }
+
+  .ledger-table td:first-child {
+    font-family: var(--font-mono), monospace;
+    font-size: 0.9rem;
+    color: var(--body);
+    padding-right: 2rem;
   }
 
   .ledger-table th,
   .signal-table th {
     color: var(--muted);
     font-family: var(--font-mono), monospace;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
 
   .ledger-table tbody tr,
   .signal-table tbody tr {
-    transition: background-color 150ms ease;
+    transition: background-color 120ms ease;
   }
 
   .ledger-table tbody tr:hover,
   .signal-table tbody tr:hover {
-    background: rgba(31, 78, 121, 0.05);
+    background: rgba(18, 59, 99, 0.06);
   }
 
+  /* ─── Projects ────────────────────────────────────────────── */
   .project-block {
     border-top: 1px solid var(--line);
-    @apply mt-16 grid gap-10 pt-12 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)];
+    @apply mt-14 grid gap-10 pt-10 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)];
   }
 
   .project-marker {
@@ -227,53 +385,64 @@ button {
   }
 
   .project-marker-amber {
-    border-left: 4px solid var(--accent-secondary);
+    border-left: 4px solid var(--warning);
     @apply pl-4;
   }
 
   .project-title {
     letter-spacing: -0.03em;
-    @apply text-[2rem] font-semibold;
+    @apply text-[1.9rem] font-semibold sm:text-[2.1rem];
   }
 
   .proof-list {
-    @apply grid gap-3 text-[1rem] leading-7 text-[color:var(--body)] sm:grid-cols-2;
+    @apply grid gap-2.5 text-[1rem] leading-7 text-[color:var(--body)] sm:grid-cols-2;
+  }
+
+  .proof-list li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
   }
 
   .proof-list li::before {
-    color: var(--accent-secondary);
-    content: "•";
-    @apply mr-2;
+    content: "→";
+    color: var(--accent);
+    font-family: var(--font-mono), monospace;
+    font-size: 0.8rem;
+    flex-shrink: 0;
   }
 
   .project-tech {
-    color: var(--body);
+    color: var(--muted);
     font-family: var(--font-mono), monospace;
-    @apply text-[0.84rem] leading-6;
+    @apply text-[0.83rem] leading-6;
   }
 
+  /* ─── Flow strip (PayFlow state machine) ──────────────────── */
   .flow-strip {
-    border: 1px solid var(--line);
-    background: var(--surface-muted);
-    @apply flex flex-wrap items-center gap-2 rounded-[12px] p-3;
-  }
-
-  .flow-strip-blue {
-    border-color: rgba(31, 78, 121, 0.26);
+    background: var(--code-bg);
+    border: 1px solid rgba(18, 59, 99, 0.3);
+    @apply flex flex-wrap items-center gap-2 rounded-[10px] p-3.5;
   }
 
   .flow-step {
     font-family: var(--font-mono), monospace;
-    color: var(--muted);
-    @apply inline-flex items-center rounded-[8px] px-2.5 py-1 text-xs;
+    color: var(--code-text);
+    @apply inline-flex items-center rounded-[6px] bg-white/5 px-2.5 py-1 text-xs;
+  }
+
+  .flow-step-warn {
+    color: #f5c55a;
+    background: rgba(245, 197, 90, 0.1);
   }
 
   .flow-step:not(:last-child)::after {
-    content: "->";
-    color: var(--accent);
-    @apply ml-3;
+    content: "→";
+    color: rgba(18, 59, 99, 0.6);
+    @apply ml-2.5 text-[0.75rem];
   }
 
+  /* ─── Toggle panels (proof details) ──────────────────────── */
   .toggle-panel {
     @apply pt-2;
   }
@@ -295,7 +464,7 @@ button {
   }
 
   .toggle-panel[open] summary::before {
-    content: "-";
+    content: "−";
   }
 
   .detail-heading {
@@ -309,23 +478,25 @@ button {
   }
 
   .detail-list li::before {
-    content: "-";
+    content: "—";
     @apply mr-2;
   }
 
   .detail-copy {
-    color: var(--body);
-    @apply mt-3 text-[0.98rem] leading-7;
+    color: var(--muted);
+    font-family: var(--font-mono), monospace;
+    @apply mt-3 text-[0.85rem] leading-6;
   }
 
+  /* ─── Screenshot artifact ─────────────────────────────────── */
   .artifact {
     display: block;
-    transition: transform 150ms ease, border-color 150ms ease;
+    transition: transform 160ms ease;
   }
 
   .artifact:hover,
   .artifact:focus-visible {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
   }
 
   .artifact-frame {
@@ -334,83 +505,84 @@ button {
     border: 1px solid var(--line);
     box-shadow: var(--shadow);
     background: var(--surface);
-    @apply aspect-[4/3] rounded-[14px];
+    @apply aspect-[4/3] rounded-[12px];
   }
 
   .artifact-frame-wide {
     @apply aspect-[16/9];
   }
 
+  .artifact-frame-tall {
+    @apply aspect-[9/16];
+  }
+
+  .artifact-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(18, 59, 99, 0.72);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 160ms ease;
+    border-radius: inherit;
+    font-family: var(--font-mono), monospace;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: #fff;
+  }
+
+  .artifact:hover .artifact-overlay,
+  .artifact:focus-visible .artifact-overlay {
+    opacity: 1;
+  }
+
   .open-link {
     color: var(--accent);
     font-family: var(--font-mono), monospace;
-    @apply text-[0.76rem] font-semibold uppercase tracking-[0.08em];
+    @apply text-[0.75rem] font-semibold uppercase tracking-[0.08em];
   }
 
+  /* ─── Signal table wrapper ────────────────────────────────── */
   .signal-table-wrap {
-    background: var(--surface);
-    @apply p-0;
+    @apply mt-1;
   }
 
+  /* ─── Stack rows ──────────────────────────────────────────── */
   .stack-row {
     border-top: 1px solid var(--line);
-    @apply grid gap-3 py-5 md:grid-cols-[14rem_minmax(0,1fr)];
+    @apply grid gap-3 py-5 md:grid-cols-[13rem_minmax(0,1fr)];
   }
 
   .stack-label {
     color: var(--text);
     font-family: var(--font-mono), monospace;
-    @apply text-[0.8rem] font-semibold uppercase tracking-[0.08em];
+    @apply text-[0.78rem] font-semibold uppercase tracking-[0.08em];
   }
 
+  /* ─── Contact project links ───────────────────────────────── */
   .project-links-grid {
     border-top: 1px solid var(--line);
-    @apply grid gap-3 pt-5;
+    @apply grid gap-0 pt-4;
   }
 
   .project-link-row {
-    box-shadow: inset 0 -1px 0 rgba(184, 177, 164, 0.45);
-    @apply flex items-center justify-between gap-4 pb-3 text-sm font-semibold transition duration-150;
+    border-bottom: 1px solid rgba(202, 210, 220, 0.5);
+    @apply flex items-center justify-between gap-4 py-3 text-sm font-semibold transition-colors duration-150;
   }
 
   .project-link-row:hover {
     color: var(--accent);
   }
-
-  .thesis-heading {
-    color: var(--accent-strong);
-    letter-spacing: -0.03em;
-    @apply max-w-4xl text-[2rem] font-semibold leading-tight sm:text-[2.75rem];
-  }
-
-  .thesis-item {
-    border-left: 4px solid var(--accent);
-    color: var(--text);
-    @apply pl-4 text-lg font-semibold leading-8;
-  }
 }
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.rise {
-  animation: rise 560ms ease-out forwards;
-}
-
+/* ─── Parallax (no CSS transition — rAF loop is smooth) ───── */
 [data-parallax] {
   will-change: transform;
-  transition: transform 140ms linear;
 }
 
+/* ─── Reduced motion ──────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -422,5 +594,15 @@ button {
     animation: none !important;
     transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
+  }
+
+  [data-parallax] {
+    transform: none !important;
+  }
+
+  .reveal,
+  .reveal-child {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
