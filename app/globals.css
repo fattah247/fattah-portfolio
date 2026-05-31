@@ -3,16 +3,16 @@
 :root {
   --background: #edf2f8;
   --surface: #ffffff;
-  --surface-muted: #dde6f0;
+  --surface-muted: #dbe5ef;
   --text: #0f1722;
-  --body: #26384c;
-  --muted: #5d6c7c;
+  --body: #27394d;
+  --muted: #617083;
   --line: #c9d3de;
   --accent: #143f6c;
-  --accent-strong: #0d2a49;
+  --accent-strong: #0d2d4f;
   --payflow: #143f6c;
-  --iyup: #1d6a5d;
-  --trustgate: #9b5f16;
+  --iyup: #20695f;
+  --trustgate: #9b6119;
   --code-bg: #0f1823;
   --shadow: 0 18px 40px rgba(15, 23, 34, 0.08);
 }
@@ -32,6 +32,7 @@ body {
   min-height: 100vh;
   background:
     radial-gradient(circle at top right, rgba(20, 63, 108, 0.06), transparent 22rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0)),
     var(--background);
   color: var(--text);
   font-family: var(--font-body), sans-serif;
@@ -65,7 +66,7 @@ button {
   inset: 0 auto auto 0;
   width: 0%;
   height: 3px;
-  background: var(--accent);
+  background: linear-gradient(90deg, var(--payflow), var(--iyup));
   z-index: 100;
   transition: width 80ms linear;
   pointer-events: none;
@@ -85,6 +86,7 @@ section[id] {
 
 @layer components {
   .page-shell {
+    scroll-snap-type: y proximity;
     @apply pb-16;
   }
 
@@ -108,15 +110,6 @@ section[id] {
   .site-title {
     color: var(--text);
     @apply text-[0.8rem] font-semibold uppercase tracking-[0.14em];
-  }
-
-  .header-link {
-    color: var(--muted);
-    @apply text-sm font-semibold transition-colors duration-150;
-  }
-
-  .header-link:hover {
-    color: var(--accent);
   }
 
   .nav-link {
@@ -145,6 +138,29 @@ section[id] {
     width: 100%;
   }
 
+  .nav-icons {
+    @apply flex items-center gap-2;
+  }
+
+  .icon-link {
+    color: var(--muted);
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-full transition duration-150;
+  }
+
+  .icon-link:hover {
+    color: var(--accent);
+    background: rgba(20, 63, 108, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .icon-mark {
+    @apply h-[1.05rem] w-[1.05rem];
+  }
+
+  .mini-icon {
+    @apply h-[0.95rem] w-[0.95rem];
+  }
+
   .ghost-link {
     border: 1px solid var(--line);
     background: rgba(255, 255, 255, 0.84);
@@ -157,6 +173,13 @@ section[id] {
     color: var(--accent);
   }
 
+  .hero-section,
+  .project-stage,
+  .section-block,
+  .section-block-compact {
+    scroll-snap-align: start;
+  }
+
   .hero-section {
     @apply py-16 sm:py-20;
   }
@@ -164,13 +187,13 @@ section[id] {
   .hero-name {
     letter-spacing: -0.05em;
     line-height: 0.93;
-    @apply text-[3.2rem] font-semibold sm:text-[4.8rem] lg:text-[7rem];
+    @apply text-[3rem] font-semibold sm:text-[4.8rem] lg:text-[6.8rem];
   }
 
   .hero-line {
     color: var(--body);
     letter-spacing: -0.03em;
-    @apply mt-4 text-[1.75rem] font-semibold leading-tight sm:text-[2.35rem];
+    @apply mt-4 text-[1.72rem] font-semibold leading-tight sm:text-[2.3rem];
   }
 
   .hero-copy {
@@ -191,6 +214,7 @@ section[id] {
 
   .action-link:hover {
     border-color: var(--accent);
+    background: rgba(20, 63, 108, 0.06);
     color: var(--accent);
     transform: translateY(-1px);
   }
@@ -198,43 +222,13 @@ section[id] {
   .action-link-primary {
     background: var(--accent);
     border-color: var(--accent);
-    color: #fff;
+    color: #fff !important;
   }
 
   .action-link-primary:hover {
     background: var(--accent-strong);
     border-color: var(--accent-strong);
-    color: #fff;
-  }
-
-  .hero-links,
-  .contact-links {
-    @apply mt-5 flex flex-wrap items-center gap-x-5 gap-y-2;
-  }
-
-  .inline-link {
-    color: var(--accent);
-    @apply text-[0.98rem] font-medium;
-  }
-
-  .inline-link:hover {
-    text-decoration: underline;
-    text-underline-offset: 0.24rem;
-  }
-
-  .story-strip {
-    box-shadow: inset 0 1px 0 rgba(201, 211, 222, 0.95);
-    @apply mt-12 grid gap-6 pt-8 md:grid-cols-3;
-  }
-
-  .story-strip h2 {
-    color: var(--text);
-    @apply text-[1.06rem] font-semibold;
-  }
-
-  .story-strip p {
-    color: var(--muted);
-    @apply mt-2 text-[0.98rem] leading-[1.65];
+    color: #fff !important;
   }
 
   .section-block {
@@ -251,51 +245,89 @@ section[id] {
 
   .section-title {
     letter-spacing: -0.04em;
-    @apply text-[2.4rem] font-semibold leading-tight sm:text-[3rem];
+    @apply text-[2.3rem] font-semibold leading-tight sm:text-[3rem];
   }
 
   .project-stage {
+    position: relative;
     box-shadow: inset 0 1px 0 rgba(201, 211, 222, 0.95);
-    @apply grid gap-10 py-12 lg:min-h-[92svh] lg:grid-cols-[minmax(0,0.35fr)_minmax(0,0.65fr)];
+    @apply grid gap-10 py-12 lg:min-h-[92svh] lg:grid-cols-[minmax(0,0.34fr)_minmax(0,0.66fr)];
+  }
+
+  .project-stage-payflow {
+    color: var(--payflow);
+  }
+
+  .project-stage-iyup {
+    color: var(--iyup);
+  }
+
+  .project-stage-trustgate {
+    color: var(--trustgate);
+  }
+
+  .stage-backdrop {
+    position: absolute;
+    top: 3rem;
+    right: 0;
+    width: min(44vw, 38rem);
+    height: auto;
+    opacity: 0.13;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .project-aside,
+  .project-main {
+    position: relative;
+    z-index: 1;
   }
 
   .project-aside {
     align-self: start;
-    @apply space-y-5 lg:sticky lg:top-24;
+    @apply space-y-6 lg:sticky lg:top-24;
+  }
+
+  .project-head {
+    @apply max-w-md;
   }
 
   .project-title {
     letter-spacing: -0.04em;
-    @apply text-[2.1rem] font-semibold leading-tight sm:text-[2.7rem];
+    color: var(--text);
+    @apply text-[2.05rem] font-semibold leading-tight sm:text-[2.6rem];
   }
 
   .project-summary {
     color: var(--body);
-    @apply text-[1.08rem] leading-[1.76];
+    @apply mt-3 text-[1.08rem] leading-[1.76];
   }
 
   .project-points {
     color: var(--body);
-    @apply space-y-2 pl-5 text-[1rem] leading-[1.7];
+    @apply grid gap-y-2 pl-5 text-[1rem] leading-[1.68] sm:grid-cols-2 sm:gap-x-5;
   }
 
-  .project-tech,
-  .project-note,
-  .repo-row span:last-child {
-    color: var(--muted);
-    font-family: var(--font-mono), monospace;
+  .project-points li::marker {
+    color: currentColor;
+  }
+
+  .project-foot {
+    @apply space-y-3;
   }
 
   .project-tech {
-    @apply text-[0.84rem] leading-[1.8];
-  }
-
-  .project-note {
-    @apply text-[0.82rem] leading-[1.7];
+    color: var(--muted);
+    font-family: var(--font-mono), monospace;
+    @apply text-[0.84rem] leading-[1.78];
   }
 
   .repo-link {
-    @apply text-[0.95rem] font-semibold;
+    @apply inline-flex items-center gap-2 text-[0.95rem] font-semibold transition duration-150;
+  }
+
+  .repo-link:hover {
+    transform: translateX(2px);
   }
 
   .repo-link-payflow {
@@ -323,8 +355,24 @@ section[id] {
     @apply grid gap-6 sm:grid-cols-2;
   }
 
+  .project-panel {
+    box-shadow: inset 0 1px 0 rgba(201, 211, 222, 0.95);
+    @apply pt-4;
+  }
+
+  .project-panel h4 {
+    color: var(--muted);
+    font-family: var(--font-mono), monospace;
+    @apply mb-3 text-[0.76rem] font-semibold uppercase tracking-[0.1em];
+  }
+
   .artifact {
     display: block;
+    @apply transition duration-150;
+  }
+
+  .artifact:hover {
+    transform: translateY(-2px);
   }
 
   .artifact-frame {
@@ -344,9 +392,23 @@ section[id] {
     @apply aspect-[9/16];
   }
 
+  .artifact-meta {
+    @apply mt-3 flex items-start justify-between gap-4;
+  }
+
   .artifact-caption-text {
     color: var(--body);
-    @apply mt-3 text-[0.98rem] leading-[1.68];
+    @apply text-[0.98rem] leading-[1.68];
+  }
+
+  .artifact-link-mark {
+    color: var(--muted);
+    @apply mt-0.5 shrink-0 transition duration-150;
+  }
+
+  .artifact:hover .artifact-link-mark {
+    color: var(--accent);
+    transform: translate(1px, -1px);
   }
 
   .flow-strip {
@@ -404,14 +466,22 @@ section[id] {
     @apply mt-2 text-[1rem] font-semibold;
   }
 
-  .two-col-copy {
-    @apply grid gap-6 lg:grid-cols-2;
+  .current-grid {
+    @apply grid gap-6 lg:grid-cols-3;
   }
 
-  .two-col-copy p,
-  .contact-copy {
+  .current-grid article {
+    box-shadow: inset 0 1px 0 rgba(201, 211, 222, 0.95);
+    @apply pt-5;
+  }
+
+  .current-grid h3 {
+    @apply text-[1.08rem] font-semibold;
+  }
+
+  .current-grid ul {
     color: var(--body);
-    @apply text-[1.1rem] leading-[1.8];
+    @apply mt-4 space-y-2 pl-5 text-[1rem] leading-[1.72];
   }
 
   .stack-list {
@@ -420,7 +490,7 @@ section[id] {
 
   .stack-row {
     box-shadow: inset 0 1px 0 rgba(201, 211, 222, 0.95);
-    @apply grid gap-3 py-5 md:grid-cols-[15rem_minmax(0,1fr)];
+    @apply grid gap-3 py-5 md:grid-cols-[14rem_minmax(0,1fr)];
   }
 
   .stack-label {
@@ -434,15 +504,45 @@ section[id] {
     @apply text-[1rem] leading-[1.72];
   }
 
-  .contact-email {
-    color: var(--text);
-    letter-spacing: -0.04em;
-    overflow-wrap: anywhere;
-    @apply mt-4 block text-[1.5rem] font-semibold leading-tight sm:text-[3rem];
+  .contact-links {
+    @apply mt-5 flex flex-wrap items-center gap-x-5 gap-y-2;
   }
 
-  .contact-actions {
-    @apply mt-6 flex flex-wrap gap-3;
+  .inline-link {
+    color: var(--accent);
+    @apply text-[0.98rem] font-medium transition duration-150;
+  }
+
+  .inline-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.24rem;
+  }
+
+  .copy-email-link {
+    color: var(--text);
+    letter-spacing: -0.04em;
+    cursor: pointer;
+    font-size: clamp(1.85rem, 5.2vw, 3rem);
+    @apply block text-left font-semibold leading-tight transition duration-150;
+  }
+
+  .copy-email-link:hover {
+    color: var(--accent);
+  }
+
+  .copy-email-hint {
+    color: var(--muted);
+    font-family: var(--font-mono), monospace;
+    @apply mt-2 text-[0.78rem] uppercase tracking-[0.1em];
+  }
+
+  .copy-toast {
+    position: fixed;
+    inset: auto 1.25rem 1.25rem auto;
+    z-index: 120;
+    background: rgba(15, 23, 34, 0.94);
+    color: #fff;
+    @apply rounded-full px-4 py-2 text-sm font-medium shadow-lg;
   }
 
   .repo-list {
@@ -452,11 +552,21 @@ section[id] {
 
   .repo-row {
     box-shadow: inset 0 -1px 0 rgba(201, 211, 222, 0.95);
-    @apply flex items-center justify-between gap-4 py-3 text-sm font-semibold;
+    color: var(--body);
+    @apply flex items-center justify-between gap-4 py-3 text-sm font-semibold transition duration-150;
   }
 
   .repo-row:hover {
     color: var(--accent);
+    transform: translateX(2px);
+  }
+}
+
+@media (max-width: 767px) {
+  .stage-backdrop {
+    width: 72vw;
+    top: 1.75rem;
+    opacity: 0.1;
   }
 }
 
