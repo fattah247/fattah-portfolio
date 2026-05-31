@@ -1,6 +1,6 @@
 # Muhammad A. Fattah Portfolio
 
-A one-page portfolio site for selected engineering projects around payment reliability, observability, and secure Android client behavior.
+One-page portfolio for selected engineering projects around payment reliability, observability, and secure Android client behavior.
 
 ## Tech
 
@@ -24,4 +24,4 @@ npm run build
 
 ## Deploy
 
-Deploy on Vercel by importing this repository.
+Deploy on Vercel by importing the repository.
