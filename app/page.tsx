@@ -2,31 +2,12 @@ import Image from "next/image";
 import { CopyEmailButton } from "@/components/copy-email-button";
 import { NavLinks } from "@/components/nav-links";
 import { ScrollProgress } from "@/components/scroll-progress";
-import { ScrollReveal } from "@/components/scroll-reveal";
 
 const navLinks = [
-  { label: "Focus", href: "#focus" },
-  { label: "Map", href: "#map" },
-  { label: "Labs", href: "#labs" },
-  { label: "Production", href: "#production" },
+  { label: "Work", href: "#projects" },
   { label: "Stack", href: "#stack" },
   { label: "Contact", href: "#contact" },
 ];
-
-const profileLinks = [
-  { label: "GitHub", href: "https://github.com/fattah247" },
-  { label: "LinkedIn", href: "https://www.linkedin.com/in/muhammad24fattah/" },
-];
-
-const failureCases = [
-  ["Duplicate payment callback", "PayFlow Reliability", "lab-payflow"],
-  ["Unclear transaction state", "PayFlow Reliability", "lab-payflow"],
-  ["Settlement mismatch", "PayFlow Reliability", "lab-payflow"],
-  ["Service looks healthy but is slow", "iYup", "lab-iyup"],
-  ["Dashboard shows status but not cause", "iYup", "lab-iyup"],
-  ["Risky Android environment", "TrustGate Android", "lab-trustgate"],
-  ["Sensitive action on risky device", "TrustGate Android", "lab-trustgate"],
-] as const;
 
 const stackGroups = [
   {
@@ -49,7 +30,7 @@ const stackGroups = [
   },
 ] as const;
 
-const projectLinks = [
+const repoLinks = [
   {
     label: "PayFlow Reliability",
     href: "https://github.com/fattah247/payflow-reliability",
@@ -92,28 +73,24 @@ function RepoShot({
           src={src}
           alt={alt}
           fill
-          className="object-cover object-top transition duration-200 group-hover:scale-[1.03] group-focus-visible:scale-[1.03]"
+          className="object-cover object-top transition duration-200 group-hover:scale-[1.02] group-focus-visible:scale-[1.02]"
           sizes={sizes}
           unoptimized
         />
-        <div className="artifact-overlay">Open repo</div>
       </div>
-      <div className="artifact-caption">
-        <p className="artifact-caption-text">{caption}</p>
-        <span className="open-link">Repo</span>
-      </div>
+      <p className="artifact-caption-text">{caption}</p>
     </a>
   );
 }
 
 export default function Home() {
   return (
-    <div className="pb-16">
+    <div className="page-shell">
       <div id="scroll-progress" aria-hidden="true" />
       <ScrollProgress />
 
       <header className="site-header">
-        <div className="shell flex min-h-16 items-center justify-between gap-4">
+        <div className="shell header-inner">
           <a href="#top" className="site-title">
             Muhammad A. Fattah
           </a>
@@ -123,22 +100,14 @@ export default function Home() {
               <NavLinks links={navLinks} />
             </nav>
 
-            <div className="header-links">
-              {profileLinks.map((item) => (
-                <a
-                  className="nav-link"
-                  href={item.href}
-                  key={item.href}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {item.label}
-                </a>
-              ))}
-              <a className="nav-link" href="mailto:fattahmuhammad17@gmail.com">
-                Email
-              </a>
-            </div>
+            <a
+              className="header-link"
+              href="https://github.com/fattah247"
+              target="_blank"
+              rel="noreferrer"
+            >
+              GitHub
+            </a>
           </div>
 
           <a className="ghost-link lg:hidden" href="#contact">
@@ -148,317 +117,183 @@ export default function Home() {
       </header>
 
       <main id="top" className="shell">
-        <section className="section-block hero-section">
-          <ScrollReveal>
-            <div className="hero-grid">
-              <div className="max-w-5xl">
-                <p className="section-kicker">Payment reliability field dossier</p>
-                <h1 className="hero-name">Muhammad A. Fattah</h1>
-                <p className="hero-line">Payment systems. Android. Reliability.</p>
-                <p className="hero-body">
-                  I work on Android payment systems and build public-safe labs
-                  around transaction reliability, observability, and
-                  mobile-client trust boundaries.
-                </p>
-                <p className="hero-support">
-                  The through-line is simple: unclear state, weak visibility,
-                  and risky client behavior are where payment systems become
-                  expensive to operate.
-                </p>
+        <section className="hero-section">
+          <h1 className="hero-name">Muhammad A. Fattah</h1>
+          <p className="hero-line">Payment systems. Android. Reliability.</p>
+          <p className="hero-copy">
+            I work on Android payment systems and build public labs around
+            transaction reliability, observability, and client trust.
+          </p>
 
-                <div className="hero-actions">
-                  <a className="action-link action-link-primary" href="#labs">
-                    View labs
-                  </a>
-                  {profileLinks.map((item) => (
-                    <a
-                      className="action-link"
-                      href={item.href}
-                      key={item.href}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {item.label}
-                    </a>
-                  ))}
-                  <a
-                    className="action-link"
-                    href="mailto:fattahmuhammad17@gmail.com"
-                  >
-                    Email
-                  </a>
-                </div>
+          <div className="hero-actions">
+            <a className="action-link action-link-primary" href="#projects">
+              View work
+            </a>
+          </div>
 
-                <div className="hero-email-row">
-                  <a
-                    className="underline-link"
-                    href="mailto:fattahmuhammad17@gmail.com"
-                  >
-                    fattahmuhammad17@gmail.com
-                  </a>
-                  <CopyEmailButton email="fattahmuhammad17@gmail.com" />
-                </div>
-              </div>
+          <div className="hero-links">
+            <a
+              className="inline-link"
+              href="https://github.com/fattah247"
+              target="_blank"
+              rel="noreferrer"
+            >
+              GitHub
+            </a>
+            <a
+              className="inline-link"
+              href="https://www.linkedin.com/in/muhammad24fattah/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              LinkedIn
+            </a>
+            <a className="inline-link" href="mailto:fattahmuhammad17@gmail.com">
+              fattahmuhammad17@gmail.com
+            </a>
+            <CopyEmailButton email="fattahmuhammad17@gmail.com" />
+          </div>
 
-              <div className="hero-cues">
-                <span>Android payment flows</span>
-                <span>Backend transaction state</span>
-                <span>Observability surfaces</span>
-                <span>Mobile-client trust</span>
-              </div>
-            </div>
-          </ScrollReveal>
+          <div className="story-strip">
+            <article>
+              <h2>PayFlow Reliability</h2>
+              <p>Backend payment failure handling.</p>
+            </article>
+            <article>
+              <h2>iYup</h2>
+              <p>Service health and observability.</p>
+            </article>
+            <article>
+              <h2>TrustGate Android</h2>
+              <p>Risky-device client behavior.</p>
+            </article>
+          </div>
         </section>
 
-        <ScrollReveal>
-          <section className="section-block section-block-tight">
-            <div className="max-w-4xl">
-              <p className="section-kicker">Failure model</p>
-              <h2 className="thesis-heading">
-                I build around three failure cases:
-              </h2>
-              <ol className="thesis-list" aria-label="Three failure cases">
-                <li className="thesis-item">
-                  <span className="thesis-num thesis-num-payflow">01</span>
-                  Payments that fail without clear state.
-                </li>
-                <li className="thesis-item">
-                  <span className="thesis-num thesis-num-iyup">02</span>
-                  Dashboards that show numbers but not causes.
-                </li>
-                <li className="thesis-item">
-                  <span className="thesis-num thesis-num-trustgate">03</span>
-                  Android clients that trust unsafe devices.
-                </li>
-              </ol>
-            </div>
-          </section>
-        </ScrollReveal>
+        <section id="projects" className="section-block">
+          <div className="section-top">
+            <h2 className="section-title">Selected work</h2>
+          </div>
 
-        <ScrollReveal stagger>
-          <section id="focus" className="section-block">
-            <div className="section-head">
-              <div className="max-w-2xl">
-                <p className="section-kicker">Operating focus</p>
-                <h2 className="section-heading">What I keep trying to make harder to break</h2>
-                <p className="lede">
-                  The same failures kept appearing in different forms: a
-                  payment that did not clearly succeed or fail, a dashboard
-                  that showed status but not cause, and a mobile client that
-                  trusted too easily.
-                </p>
-              </div>
-            </div>
-
-            <div className="focus-grid">
-              {[
-                {
-                  num: "01",
-                  title: "Transaction reliability",
-                  body: "Not just whether a payment worked, but what state it is in, who can inspect it, and what happens next when a callback arrives twice.",
-                },
-                {
-                  num: "02",
-                  title: "Observability that explains failure",
-                  body: "A dashboard is only useful if it exposes cause, threshold, and target condition instead of stopping at green status.",
-                },
-                {
-                  num: "03",
-                  title: "Mobile-client trust boundaries",
-                  body: "A payment client should treat device risk as an operating condition, not as an afterthought hidden behind a single score.",
-                },
-              ].map((note) => (
-                <article className="focus-card reveal-child" key={note.num}>
-                  <span className="focus-num">{note.num}</span>
-                  <h3 className="focus-title">{note.title}</h3>
-                  <p className="focus-copy">{note.body}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-        </ScrollReveal>
-
-        <ScrollReveal>
-          <section className="section-block section-block-tight">
-            <div className="max-w-4xl">
-              <p className="section-kicker">Project logic</p>
-              <p className="statement-copy">
-                I did not want three unrelated repos. I wanted one backend
-                reliability lab, one observability lab, and one Android trust
-                lab that orbit the same operating problem:
+          <article className="project-stage">
+            <div className="project-aside">
+              <h3 className="project-title">PayFlow Reliability</h3>
+              <p className="project-summary">
+                A Spring Boot lab for payment-like flows: duplicate callbacks,
+                settlement mismatch, and guarded state transitions.
               </p>
-              <blockquote className="field-note-quote">
-                transaction systems should stay explainable under failure,
-                visible under pressure, and harder to abuse at the client edge.
-              </blockquote>
-            </div>
-          </section>
-        </ScrollReveal>
 
-        <ScrollReveal>
-          <section id="map" className="section-block evidence-band">
-            <div className="max-w-5xl">
-              <p className="section-kicker">Failure map</p>
-              <h2 className="section-heading">Where each lab proves its value</h2>
-              <p className="lede max-w-3xl">
-                The repos belong together because they describe adjacent failure
-                surfaces from the same kind of system.
+              <ul className="project-points">
+                <li>Idempotency key handling</li>
+                <li>Duplicate callback handling</li>
+                <li>Settlement mismatch review</li>
+                <li>Audit trail visibility</li>
+              </ul>
+
+              <p className="project-tech">
+                Spring Boot · Java · PostgreSQL · Docker · GitHub Actions
               </p>
+              <p className="project-note">
+                Local lab, not a payment processor.
+              </p>
+
+              <a
+                className="repo-link repo-link-payflow"
+                href="https://github.com/fattah247/payflow-reliability"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Repository
+              </a>
             </div>
 
-            <div className="table-wrap">
-              <table className="failure-table">
-                <thead>
-                  <tr>
-                    <th>Failure surface</th>
-                    <th>Proof source</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {failureCases.map(([surface, lab, colorClass]) => (
-                    <tr key={surface}>
-                      <td>{surface}</td>
-                      <td className={colorClass}>{lab}</td>
-                    </tr>
+            <div className="project-main">
+              <RepoShot
+                src="/projects/payflow/audit-trail.png"
+                alt="Audit trail output from PayFlow Reliability showing state transitions."
+                caption="Audit trail keeps state transitions readable instead of leaving payment history implied."
+                href="https://github.com/fattah247/payflow-reliability"
+                sizes="(max-width: 1024px) 100vw, 56vw"
+                tone="bg-[#0e1621]"
+                wide
+              />
+
+              <div className="project-detail-grid">
+                <div className="flow-strip">
+                  {[
+                    "Request",
+                    "Intent",
+                    "Webhook",
+                    "Settlement",
+                    "Reconcile",
+                    "Review",
+                    "Audit",
+                  ].map((item) => (
+                    <span className="flow-step" key={item}>
+                      {item}
+                    </span>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </ScrollReveal>
-
-        <section id="labs" className="section-block">
-          <ScrollReveal>
-            <div className="max-w-3xl">
-              <p className="section-kicker">Selected labs</p>
-              <h2 className="section-heading">Three proof-heavy projects</h2>
-            </div>
-          </ScrollReveal>
-
-          <ScrollReveal>
-            <article className="project-block project-block-first">
-              <div className="project-copy-col">
-                <div className="project-marker project-marker-payflow">
-                  <p className="project-label">Backend payment reliability lab</p>
-                  <h3 className="project-title">PayFlow Reliability</h3>
-                  <p className="project-subtitle">
-                    A Spring Boot lab for payment-like flows: idempotency,
-                    duplicate callbacks, settlement mismatch, webhook failure,
-                    and guarded state transitions.
-                  </p>
                 </div>
 
-                <div className="project-module">
-                  <p className="module-label">State transition path</p>
-                  <div className="flow-strip">
-                    {[
-                      { label: "Request", warn: false },
-                      { label: "Intent", warn: false },
-                      { label: "Webhook", warn: true },
-                      { label: "Settlement", warn: true },
-                      { label: "Reconcile", warn: true },
-                      { label: "Review", warn: false },
-                      { label: "Audit", warn: false },
-                    ].map((item) => (
-                      <span
-                        className={`flow-step ${item.warn ? "flow-step-warn" : ""}`}
-                        key={item.label}
-                      >
-                        {item.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="project-module">
-                  <p className="module-label">Concrete proof</p>
-                  <ul className="proof-list">
-                    {[
-                      "idempotency key handling",
-                      "duplicate callback handling",
-                      "guarded state transitions",
-                      "settlement mismatch review",
-                      "manual review path",
-                      "audit events",
-                      "tests and CI",
-                    ].map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <p className="project-tech">
-                  Spring Boot · Java · PostgreSQL · Docker · GitHub Actions
-                </p>
-
-                <div className="limit-box">
-                  <h4 className="limit-heading">Constraint</h4>
-                  <p className="limit-copy">
-                    Local lab, not a payment processor.
-                  </p>
-                </div>
-
-                <a
-                  className="repo-text-link"
+                <RepoShot
+                  src="/projects/payflow/duplicate-webhook.png"
+                  alt="Duplicate provider webhook handled and ignored in PayFlow Reliability."
+                  caption="Duplicate callbacks show up as handled behavior, not as a hidden assumption."
                   href="https://github.com/fattah247/payflow-reliability"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Repository
-                </a>
+                  sizes="(max-width: 1024px) 100vw, 56vw"
+                  tone="bg-[#0e1621]"
+                  wide
+                />
               </div>
+            </div>
+          </article>
 
-              <div className="project-proof-col">
+          <article className="project-stage">
+            <div className="project-aside">
+              <h3 className="project-title">iYup</h3>
+              <p className="project-summary">
+                A self-hosted monitor for service health, latency, metrics, and
+                alert state.
+              </p>
+
+              <ul className="project-points">
+                <li>Health checks</li>
+                <li>Prometheus scraping</li>
+                <li>Grafana dashboards</li>
+                <li>Alertmanager wiring</li>
+              </ul>
+
+              <p className="project-tech">
+                Go · FastAPI · Prometheus · Grafana · Alertmanager · Docker
+                Compose · Helm · GitHub Actions
+              </p>
+              <p className="project-note">
+                Helm is render-validated here, not cluster-validated.
+              </p>
+
+              <a
+                className="repo-link repo-link-iyup"
+                href="https://github.com/fattah247/iYup"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Repository
+              </a>
+            </div>
+
+            <div className="project-main">
+              <RepoShot
+                src="/projects/iyup/grafana-dashboard.png"
+                alt="Grafana dashboard from iYup showing service health and latency metrics."
+                caption="Grafana is the first proof surface: target health, latency, and alert state share one view."
+                href="https://github.com/fattah247/iYup"
+                sizes="(max-width: 1024px) 100vw, 56vw"
+                tone="bg-[#101412]"
+                wide
+              />
+
+              <div className="project-split">
                 <div>
-                  <RepoShot
-                    src="/projects/payflow/audit-trail.png"
-                    alt="Audit trail output from PayFlow Reliability showing state transitions."
-                    caption="Audit trail keeps payment state transitions readable for operators instead of burying them in implied behavior."
-                    href="https://github.com/fattah247/payflow-reliability"
-                    sizes="(max-width: 1024px) 100vw, 54vw"
-                    tone="bg-[#0e1621]"
-                    wide
-                  />
-                  <ul className="evidence-note-list">
-                    <li>Audit events stay visible at each checkpoint.</li>
-                    <li>Failure handling preserves a reviewable state path.</li>
-                  </ul>
-                </div>
-
-                <div>
-                  <RepoShot
-                    src="/projects/payflow/duplicate-webhook.png"
-                    alt="Duplicate provider webhook handled and ignored in PayFlow Reliability."
-                    caption="Duplicate callback handling is explicit in the output, not hidden behind an assumption that retries are harmless."
-                    href="https://github.com/fattah247/payflow-reliability"
-                    sizes="(max-width: 1024px) 100vw, 54vw"
-                    tone="bg-[#0e1621]"
-                    wide
-                  />
-                  <ul className="evidence-note-list">
-                    <li>Replay protection shows up as behavior, not only as code.</li>
-                    <li>Mismatch handling is surfaced before silent state drift.</li>
-                  </ul>
-                </div>
-              </div>
-            </article>
-          </ScrollReveal>
-
-          <ScrollReveal>
-            <article className="project-block">
-              <div className="project-copy-col">
-                <div className="project-marker project-marker-iyup">
-                  <p className="project-label">Observability and monitoring lab</p>
-                  <h3 className="project-title">iYup</h3>
-                  <p className="project-subtitle">
-                    A self-hosted monitor for service health, latency, metrics,
-                    alert state, and verification of what the dashboard is
-                    actually claiming.
-                  </p>
-                </div>
-
-                <div className="project-module">
-                  <p className="module-label">Signal surfaces</p>
                   <table className="signal-table">
                     <thead>
                       <tr>
@@ -468,9 +303,8 @@ export default function Home() {
                     </thead>
                     <tbody>
                       {[
-                        ["Health checks", "Status API"],
+                        ["Health", "Status API"],
                         ["Latency", "Prometheus and Grafana"],
-                        ["Target state", "API and dashboard"],
                         ["Alerts", "Alertmanager"],
                         ["Validation", "Local script and CI"],
                       ].map(([signal, surface]) => (
@@ -483,325 +317,153 @@ export default function Home() {
                   </table>
                 </div>
 
-                <div className="project-module">
-                  <p className="module-label">Concrete proof</p>
-                  <ul className="proof-list proof-list-iyup">
-                    {[
-                      "active health checks",
-                      "Prometheus scraping",
-                      "Grafana dashboarding",
-                      "Alertmanager wiring",
-                      "Docker Compose operation",
-                      "Helm validation",
-                      "repeatable verification",
-                    ].map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <p className="project-tech">
-                  Go · FastAPI · Prometheus · Grafana · Alertmanager · Docker
-                  Compose · Helm · GitHub Actions
-                </p>
-
-                <div className="limit-box">
-                  <h4 className="limit-heading">Constraint</h4>
-                  <p className="limit-copy">
-                    Helm is render-validated here, not cluster-validated.
-                  </p>
-                </div>
-
-                <a
-                  className="repo-text-link repo-text-link-iyup"
+                <RepoShot
+                  src="/projects/iyup/prometheus-targets.png"
+                  alt="Prometheus targets page from iYup showing scrape state for monitored services."
+                  caption="Target scraping is visible at the collection boundary."
                   href="https://github.com/fattah247/iYup"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Repository
-                </a>
+                  sizes="(max-width: 1024px) 100vw, 28vw"
+                  tone="bg-[#101412]"
+                  wide
+                />
               </div>
+            </div>
+          </article>
 
-              <div className="project-proof-col">
-                <div>
-                  <RepoShot
-                    src="/projects/iyup/grafana-dashboard.png"
-                    alt="Grafana dashboard from iYup showing service health and latency metrics."
-                    caption="Grafana is the primary proof surface: target health, latency, and alert context share one operational view."
-                    href="https://github.com/fattah247/iYup"
-                    sizes="(max-width: 1024px) 100vw, 54vw"
-                    tone="bg-[#101412]"
-                    wide
-                  />
-                  <ul className="evidence-note-list">
-                    <li>Health and latency are inspectable in the same frame.</li>
-                    <li>Alert thresholds are attached to an operating surface.</li>
-                  </ul>
-                </div>
+          <article className="project-stage">
+            <div className="project-aside">
+              <h3 className="project-title">TrustGate Android</h3>
+              <p className="project-summary">
+                A mobile trust lab for deciding when an Android payment client
+                should allow, confirm, or block sensitive behavior.
+              </p>
 
-                <div>
-                  <RepoShot
-                    src="/projects/iyup/prometheus-targets.png"
-                    alt="Prometheus targets page from iYup showing scrape state for monitored services."
-                    caption="Target scraping is visible at the collection boundary, which makes bad dashboard assumptions easier to challenge."
-                    href="https://github.com/fattah247/iYup"
-                    sizes="(max-width: 1024px) 100vw, 54vw"
-                    tone="bg-[#101412]"
-                    wide
-                  />
-                  <ul className="evidence-note-list">
-                    <li>Target availability can be verified before interpreting charts.</li>
-                    <li>Collection health is part of the proof, not hidden behind the UI.</li>
-                  </ul>
-                </div>
-              </div>
-            </article>
-          </ScrollReveal>
+              <ul className="project-points">
+                <li>Risk signal handling</li>
+                <li>Sensitive action gating</li>
+                <li>Request signing</li>
+                <li>Security event trail</li>
+              </ul>
 
-          <ScrollReveal>
-            <article className="project-block">
-              <div className="project-copy-col">
-                <div className="project-marker project-marker-trustgate">
-                  <p className="project-label">Android client trust lab</p>
-                  <h3 className="project-title">TrustGate Android</h3>
-                  <p className="project-subtitle">
-                    A mobile trust lab for deciding when an Android payment
-                    client should allow, warn, or block sensitive behavior.
-                  </p>
-                </div>
+              <p className="project-tech">
+                Kotlin · Android · Jetpack Compose · Jetpack Security · OkHttp
+                · GitHub Actions
+              </p>
+              <p className="project-note">
+                Client checks are signals, not proof.
+              </p>
 
-                <div className="project-module">
-                  <p className="module-label">Trust decision matrix</p>
-                  <table className="signal-table">
-                    <thead>
-                      <tr>
-                        <th>Condition</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        ["Low risk", "Allow"],
-                        ["Medium risk", "Require confirmation"],
-                        ["High risk", "Block"],
-                        ["Request signing", "Attach timestamp, nonce, signature"],
-                        ["Secure storage", "Store mock token and risk state"],
-                      ].map(([condition, action]) => (
-                        <tr key={condition}>
-                          <td>{condition}</td>
-                          <td>{action}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              <a
+                className="repo-link repo-link-trustgate"
+                href="https://github.com/fattah247/trustgate-android"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Repository
+              </a>
+            </div>
 
-                <div className="project-module">
-                  <p className="module-label">Concrete proof</p>
-                  <ul className="proof-list proof-list-trustgate">
-                    {[
-                      "device-risk signal handling",
-                      "sensitive action gating",
-                      "HMAC request signing",
-                      "encrypted local storage",
-                      "local security event trail",
-                      "Android tests and CI",
-                    ].map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <p className="project-tech">
-                  Kotlin · Android · Jetpack Compose · Jetpack Security · OkHttp
-                  · GitHub Actions
-                </p>
-
-                <div className="limit-box">
-                  <h4 className="limit-heading">Constraint</h4>
-                  <p className="limit-copy">
-                    Client checks are signals, not proof. No live attestation
-                    backend.
-                  </p>
-                </div>
-
-                <a
-                  className="repo-text-link repo-text-link-trustgate"
+            <div className="project-main">
+              <div className="phone-grid">
+                <RepoShot
+                  src="/projects/trustgate/device-risk-details.png"
+                  alt="Device risk details screen from TrustGate Android showing risk signals."
+                  caption="Risk state stays visible before a sensitive action runs."
                   href="https://github.com/fattah247/trustgate-android"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Repository
-                </a>
+                  sizes="(max-width: 1024px) 100vw, 28vw"
+                  tone="bg-[#d7dce5]"
+                  tall
+                />
+
+                <RepoShot
+                  src="/projects/trustgate/security-event-log.png"
+                  alt="Security event log screen from TrustGate Android."
+                  caption="Blocked or gated behavior leaves a readable local trail."
+                  href="https://github.com/fattah247/trustgate-android"
+                  sizes="(max-width: 1024px) 100vw, 28vw"
+                  tone="bg-[#d7dce5]"
+                  tall
+                />
               </div>
 
-              <div className="project-proof-col">
-                <div className="phone-proof-grid">
-                  <div>
-                    <RepoShot
-                      src="/projects/trustgate/device-risk-details.png"
-                      alt="Device risk details screen from TrustGate Android showing risk signals."
-                      caption="Risk signals stay visible instead of collapsing into one reassuring label."
-                      href="https://github.com/fattah247/trustgate-android"
-                      sizes="(max-width: 1024px) 100vw, 25vw"
-                      tone="bg-[#d7dce5]"
-                      tall
-                    />
-                    <ul className="evidence-note-list">
-                      <li>Risk state is inspectable before a sensitive action runs.</li>
-                      <li>Client trust is framed as a condition, not a feeling.</li>
-                    </ul>
-                  </div>
-
-                  <div>
-                    <RepoShot
-                      src="/projects/trustgate/security-event-log.png"
-                      alt="Security event log screen from TrustGate Android."
-                      caption="Blocked or gated behavior leaves a readable event trail instead of disappearing into client-side silence."
-                      href="https://github.com/fattah247/trustgate-android"
-                      sizes="(max-width: 1024px) 100vw, 25vw"
-                      tone="bg-[#d7dce5]"
-                      tall
-                    />
-                    <ul className="evidence-note-list">
-                      <li>Security changes produce a traceable local event trail.</li>
-                      <li>Blocked actions are documented as decisions, not guesses.</li>
-                    </ul>
-                  </div>
+              <div className="decision-strip">
+                <div>
+                  <span>Low risk</span>
+                  <p>Allow</p>
+                </div>
+                <div>
+                  <span>Medium risk</span>
+                  <p>Require confirmation</p>
+                </div>
+                <div>
+                  <span>High risk</span>
+                  <p>Block</p>
                 </div>
               </div>
-            </article>
-          </ScrollReveal>
+            </div>
+          </article>
         </section>
 
-        <ScrollReveal>
-          <section id="production" className="section-block">
-            <div className="section-head">
-              <div className="max-w-2xl">
-                <p className="section-kicker">Production scope</p>
-                <h2 className="section-heading">Work that informs the labs</h2>
-              </div>
-            </div>
+        <section className="section-block section-block-compact">
+          <div className="section-top">
+            <h2 className="section-title">Current work</h2>
+          </div>
 
-            <div className="production-grid">
-              <p className="lede">
-                I work mostly around Android and payment systems:
-                merchant-facing flows, app-to-service integration, transaction
-                status handling, release coordination, production fixes, and
-                mobile security hardening.
-              </p>
-              <p className="lede">
-                I also contribute to early iOS merchant app work, including
-                order creation, phone-based payment flows, and merchant
-                business features.
-              </p>
-            </div>
-          </section>
-        </ScrollReveal>
+          <div className="two-col-copy">
+            <p>
+              I work mostly around Android and payment systems: merchant-facing
+              flows, app-to-service integration, transaction status handling,
+              release coordination, production fixes, and mobile security
+              hardening.
+            </p>
+            <p>
+              I also contribute to early iOS merchant app work, including order
+              creation, phone-based payment flows, and merchant business
+              features.
+            </p>
+          </div>
+        </section>
 
-        <ScrollReveal stagger>
-          <section id="stack" className="section-block">
-            <div className="max-w-3xl">
-              <p className="section-kicker">Tooling and systems</p>
-              <h2 className="section-heading">Stack</h2>
-            </div>
+        <section id="stack" className="section-block section-block-compact">
+          <div className="section-top">
+            <h2 className="section-title">Stack</h2>
+          </div>
 
-            <div className="stack-list">
-              {stackGroups.map((group) => (
-                <article className="stack-row reveal-child" key={group.title}>
-                  <p className="stack-label">{group.title}</p>
-                  <p className="stack-copy">{group.items}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-        </ScrollReveal>
+          <div className="stack-list">
+            {stackGroups.map((group) => (
+              <article className="stack-row" key={group.title}>
+                <p className="stack-label">{group.title}</p>
+                <p className="stack-copy">{group.items}</p>
+              </article>
+            ))}
+          </div>
+        </section>
 
-        <ScrollReveal>
-          <section id="contact" className="section-block">
-            <div className="section-head">
-              <div className="max-w-2xl">
-                <p className="section-kicker">Contact</p>
-                <h2 className="section-heading">If the problem is hard to explain, email is the right start</h2>
-                <p className="lede">
-                  Payment systems, Android reliability, backend observability,
-                  and client trust are the conversations I want this page to
-                  lead into.
-                </p>
-              </div>
-            </div>
+        <section id="contact" className="section-block section-block-compact">
+          <div className="section-top">
+            <h2 className="section-title">Contact</h2>
+          </div>
 
-            <div className="contact-card">
-              <p className="contact-label">Best channel</p>
-              <a
-                className="contact-email"
-                href="mailto:fattahmuhammad17@gmail.com"
-              >
-                fattahmuhammad17@gmail.com
-              </a>
+          <p className="contact-copy">
+            For payment systems, Android, reliability, or monitoring work:
+          </p>
+          <a className="contact-email" href="mailto:fattahmuhammad17@gmail.com">
+            fattahmuhammad17@gmail.com
+          </a>
 
-              <div className="contact-actions">
-                <a
-                  className="action-link action-link-primary"
-                  href="mailto:fattahmuhammad17@gmail.com"
-                >
-                  Send email
-                </a>
-                <CopyEmailButton email="fattahmuhammad17@gmail.com" />
-              </div>
-
-              <div className="contact-meta-grid">
-                <div>
-                  <p className="contact-label">Profiles</p>
-                  <div className="contact-inline-links">
-                    <a
-                      className="underline-link"
-                      href="https://github.com/fattah247"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      GitHub
-                    </a>
-                    <a
-                      className="underline-link"
-                      href="https://www.linkedin.com/in/muhammad24fattah/"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      LinkedIn
-                    </a>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="contact-label">Project repos</p>
-                  <div className="project-links-grid">
-                    {projectLinks.map((item) => (
-                      <a
-                        className="project-link-row"
-                        href={item.href}
-                        key={item.href}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <span>{item.label}</span>
-                        <span className="project-link-meta">Open</span>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        </ScrollReveal>
-      </main>
-
-      <footer className="site-footer">
-        <div className="shell footer-inner">
-          <p>Muhammad A. Fattah</p>
-          <div className="footer-links">
+          <div className="contact-actions">
             <a
-              className="underline-link footer-link"
+              className="action-link action-link-primary"
+              href="mailto:fattahmuhammad17@gmail.com"
+            >
+              Send email
+            </a>
+            <CopyEmailButton email="fattahmuhammad17@gmail.com" />
+          </div>
+
+          <div className="contact-links">
+            <a
+              className="inline-link"
               href="https://github.com/fattah247"
               target="_blank"
               rel="noreferrer"
@@ -809,22 +471,31 @@ export default function Home() {
               GitHub
             </a>
             <a
-              className="underline-link footer-link"
+              className="inline-link"
               href="https://www.linkedin.com/in/muhammad24fattah/"
               target="_blank"
               rel="noreferrer"
             >
               LinkedIn
             </a>
-            <a
-              className="underline-link footer-link"
-              href="mailto:fattahmuhammad17@gmail.com"
-            >
-              Email
-            </a>
           </div>
-        </div>
-      </footer>
+
+          <div className="repo-list">
+            {repoLinks.map((item) => (
+              <a
+                className="repo-row"
+                href={item.href}
+                key={item.href}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <span>{item.label}</span>
+                <span>Open</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      </main>
     </div>
   );
 }
