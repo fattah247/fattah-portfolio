@@ -1,19 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f6f1e8;
-  --surface: #fffdf8;
-  --surface-muted: #ece3d3;
-  --text: #1f2421;
-  --ink: #1f2421;
-  --muted: #6f6a60;
-  --border: #d8cdba;
-  --line: #d8cdba;
-  --accent: #9a6b2f;
-  --accent-dark: #3f5f46;
-  --code-bg: #202521;
-  --code-text: #dce8d2;
-  --shadow: 0 16px 40px rgba(51, 40, 23, 0.07);
+  --background: #f3f0e8;
+  --surface: #fbf8f1;
+  --text: #141414;
+  --muted: #5f5a50;
+  --line: #b8b1a4;
+  --accent: #1f4e79;
+  --accent-secondary: #8a5a12;
+  --success: #2f6f5e;
+  --code-bg: #111111;
+  --code-text: #e8e2d6;
+  --shadow: 0 16px 40px rgba(20, 20, 20, 0.08);
 }
 
 * {
@@ -28,9 +26,8 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(154, 107, 47, 0.09), transparent 24rem),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0)),
-    var(--bg);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0)),
+    var(--background);
   color: var(--text);
   font-family: var(--font-body), sans-serif;
 }
@@ -52,7 +49,7 @@ button {
 }
 
 ::selection {
-  background: rgba(154, 107, 47, 0.16);
+  background: rgba(31, 78, 121, 0.18);
 }
 
 @layer components {
@@ -60,17 +57,27 @@ button {
     @apply mx-auto w-full max-w-6xl px-5 sm:px-6 lg:px-8;
   }
 
-  .section-kicker {
-    color: var(--accent);
-    letter-spacing: 0.14em;
-    @apply text-[0.72rem] font-semibold uppercase;
+  .hero-name {
+    letter-spacing: -0.04em;
+    line-height: 0.96;
+    @apply text-5xl font-semibold sm:text-6xl lg:text-7xl;
   }
 
-  .section-title {
-    font-family: var(--font-display), serif;
-    line-height: 0.96;
-    letter-spacing: -0.04em;
-    @apply text-5xl sm:text-6xl lg:text-7xl;
+  .hero-line {
+    color: var(--text);
+    @apply text-xl font-semibold tracking-[-0.02em] sm:text-2xl;
+  }
+
+  .section-tag {
+    color: var(--accent);
+    font-family: var(--font-mono), monospace;
+    letter-spacing: 0.1em;
+    @apply text-xs font-semibold uppercase;
+  }
+
+  .section-heading {
+    letter-spacing: -0.03em;
+    @apply text-3xl font-semibold sm:text-4xl;
   }
 
   .lede {
@@ -78,29 +85,8 @@ button {
     @apply text-base leading-7 sm:text-lg;
   }
 
-  .tiny-label {
-    color: var(--muted);
-    letter-spacing: 0.12em;
-    @apply text-[0.68rem] font-semibold uppercase;
-  }
-
-  .mono-label {
-    color: var(--muted);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace;
-    letter-spacing: 0.08em;
-    @apply text-[0.72rem] font-semibold uppercase;
-  }
-
-  .mono-pill {
-    background: rgba(154, 107, 47, 0.08);
-    border: 1px solid rgba(154, 107, 47, 0.18);
-    color: var(--accent);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace;
-    @apply inline-flex items-center rounded-[10px] px-3 py-1 text-[0.74rem] font-medium;
-  }
-
-  .section-rule {
-    border-top: 1px solid var(--border);
+  .major-rule {
+    border-top: 1px solid var(--line);
   }
 
   .nav-link {
@@ -108,16 +94,17 @@ button {
   }
 
   .nav-link:hover {
-    color: var(--text);
+    color: var(--accent);
   }
 
   .action-link {
-    border: 1px solid var(--border);
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.42);
     @apply inline-flex items-center justify-center gap-1 rounded-[10px] px-4 py-2.5 text-sm font-semibold transition duration-150;
   }
 
   .action-link:hover {
-    border-color: rgba(154, 107, 47, 0.48);
+    border-color: var(--accent);
     color: var(--accent);
     transform: translateY(-1px);
   }
@@ -130,25 +117,25 @@ button {
 
   .action-link-primary:hover {
     color: #fff;
-    filter: brightness(0.96);
+    filter: brightness(0.95);
   }
 
   .ghost-link {
-    border: 1px solid var(--border);
+    border: 1px solid var(--line);
     color: var(--muted);
-    background: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.34);
     @apply inline-flex items-center justify-center rounded-[10px] px-3 py-2 text-sm transition duration-150;
   }
 
   .ghost-link:hover {
-    border-color: rgba(154, 107, 47, 0.42);
+    border-color: var(--accent);
     color: var(--accent);
   }
 
   .underline-link {
     color: var(--accent);
     text-decoration: underline;
-    text-decoration-color: rgba(154, 107, 47, 0.45);
+    text-decoration-color: rgba(31, 78, 121, 0.35);
     text-underline-offset: 0.25rem;
     @apply transition duration-150;
   }
@@ -157,21 +144,127 @@ button {
     text-decoration-color: var(--accent);
   }
 
-  .project-rule {
-    border-top: 2px solid var(--project-accent, var(--accent));
-    @apply pt-4;
+  .mono-pill {
+    border: 1px solid rgba(138, 90, 18, 0.22);
+    color: var(--accent-secondary);
+    font-family: var(--font-mono), monospace;
+    @apply inline-flex items-center rounded-[9px] px-3 py-1 text-[0.76rem] font-medium;
+  }
+
+  .mono-pill-blue {
+    border-color: rgba(31, 78, 121, 0.2);
+    color: var(--accent);
+  }
+
+  .numbered-note {
+    @apply max-w-2xl;
+  }
+
+  .field-note-quote {
+    color: var(--text);
+    @apply font-semibold;
+  }
+
+  .artifact-ledger {
+    background: rgba(255, 255, 255, 0.34);
+    border: 1px solid var(--line);
+    @apply rounded-[14px] p-5 sm:p-6;
+  }
+
+  .ledger-table,
+  .signal-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .ledger-table th,
+  .ledger-table td,
+  .signal-table th,
+  .signal-table td {
+    border-top: 1px solid var(--line);
+    text-align: left;
+    vertical-align: top;
+    @apply px-0 py-3 text-sm leading-6;
+  }
+
+  .ledger-table th,
+  .signal-table th {
+    color: var(--muted);
+    font-family: var(--font-mono), monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .ledger-table tbody tr,
+  .signal-table tbody tr {
+    transition: background-color 150ms ease;
+  }
+
+  .ledger-table tbody tr:hover,
+  .signal-table tbody tr:hover {
+    background: rgba(31, 78, 121, 0.05);
+  }
+
+  .project-block {
+    border-top: 1px solid var(--line);
+    @apply mt-14 grid gap-8 pt-10 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)];
+  }
+
+  .project-marker {
+    @apply max-w-2xl;
+  }
+
+  .project-marker-blue {
+    border-left: 4px solid var(--accent);
+    @apply pl-4;
+  }
+
+  .project-marker-green {
+    border-left: 4px solid var(--success);
+    @apply pl-4;
+  }
+
+  .project-marker-amber {
+    border-left: 4px solid var(--accent-secondary);
+    @apply pl-4;
+  }
+
+  .project-title {
+    letter-spacing: -0.03em;
+    @apply text-3xl font-semibold;
+  }
+
+  .proof-list {
+    @apply grid gap-3 text-sm leading-6 text-[color:var(--muted)] sm:grid-cols-2;
+  }
+
+  .proof-list li::before {
+    color: var(--accent-secondary);
+    content: "•";
+    @apply mr-2;
+  }
+
+  .project-tech {
+    color: var(--muted);
+    font-family: var(--font-mono), monospace;
+    @apply text-[0.8rem] leading-6;
   }
 
   .flow-strip {
+    border: 1px solid var(--line);
     background: rgba(255, 255, 255, 0.42);
-    border: 1px solid var(--border);
-    @apply flex flex-wrap items-center gap-2 rounded-[14px] p-3;
+    @apply flex flex-wrap items-center gap-2 rounded-[12px] p-3;
+  }
+
+  .flow-strip-blue {
+    border-color: rgba(31, 78, 121, 0.26);
   }
 
   .flow-step {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace;
+    font-family: var(--font-mono), monospace;
     color: var(--muted);
-    @apply inline-flex items-center rounded-[10px] px-2.5 py-1 text-xs;
+    @apply inline-flex items-center rounded-[8px] px-2.5 py-1 text-xs;
   }
 
   .flow-step:not(:last-child)::after {
@@ -180,43 +273,8 @@ button {
     @apply ml-3;
   }
 
-  .artifact {
-    display: block;
-    transition: transform 150ms ease, border-color 150ms ease;
-  }
-
-  .artifact:hover,
-  .artifact:focus-visible {
-    transform: translateY(-2px);
-  }
-
-  .artifact-frame {
-    position: relative;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow);
-    @apply aspect-[4/3] rounded-[16px];
-  }
-
-  .open-link {
-    color: var(--accent);
-    @apply text-xs font-semibold uppercase tracking-[0.08em];
-  }
-
-  .status-row {
-    @apply flex flex-wrap gap-2;
-  }
-
-  .status-pill {
-    border: 1px solid rgba(63, 95, 70, 0.2);
-    background: rgba(63, 95, 70, 0.08);
-    color: var(--accent-dark);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace;
-    @apply rounded-[10px] px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em];
-  }
-
   .toggle-panel {
-    border-top: 1px solid var(--border);
+    border-top: 1px dashed var(--line);
     @apply pt-4;
   }
 
@@ -240,10 +298,83 @@ button {
     content: "-";
   }
 
-  .note-panel {
-    background: rgba(255, 255, 255, 0.36);
-    border: 1px solid var(--border);
+  .detail-heading {
+    color: var(--text);
+    @apply text-sm font-semibold;
+  }
+
+  .detail-list {
+    color: var(--muted);
+    @apply mt-3 space-y-2 text-sm leading-6;
+  }
+
+  .detail-list li::before {
+    content: "-";
+    @apply mr-2;
+  }
+
+  .detail-copy {
+    color: var(--muted);
+    @apply mt-3 text-sm leading-6;
+  }
+
+  .artifact {
+    display: block;
+    transition: transform 150ms ease, border-color 150ms ease;
+  }
+
+  .artifact:hover,
+  .artifact:focus-visible {
+    transform: translateY(-2px);
+  }
+
+  .artifact-frame {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    @apply aspect-[4/3] rounded-[14px];
+  }
+
+  .artifact-frame-wide {
+    @apply aspect-[16/10];
+  }
+
+  .open-link {
+    color: var(--accent);
+    font-family: var(--font-mono), monospace;
+    @apply text-[0.72rem] font-semibold uppercase tracking-[0.08em];
+  }
+
+  .signal-table-wrap {
+    background: rgba(255, 255, 255, 0.3);
+    border: 1px solid var(--line);
     @apply rounded-[14px] p-4;
+  }
+
+  .stack-row {
+    border-top: 1px solid var(--line);
+    @apply grid gap-3 py-5 md:grid-cols-[14rem_minmax(0,1fr)];
+  }
+
+  .stack-label {
+    color: var(--text);
+    font-family: var(--font-mono), monospace;
+    @apply text-[0.8rem] font-semibold uppercase tracking-[0.08em];
+  }
+
+  .project-links-grid {
+    border-top: 1px solid var(--line);
+    @apply grid gap-3 pt-5;
+  }
+
+  .project-link-row {
+    box-shadow: inset 0 -1px 0 rgba(184, 177, 164, 0.45);
+    @apply flex items-center justify-between gap-4 pb-3 text-sm font-semibold transition duration-150;
+  }
+
+  .project-link-row:hover {
+    color: var(--accent);
   }
 }
 
@@ -260,7 +391,7 @@ button {
 }
 
 .rise {
-  animation: rise 600ms ease-out forwards;
+  animation: rise 560ms ease-out forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
