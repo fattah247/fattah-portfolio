@@ -19,47 +19,37 @@ export function ScrollReveal({
 
   useEffect(() => {
     const node = ref.current;
-    if (!node) return;
-
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (reduced.matches) {
-      node.classList.add("is-visible");
-      if (stagger) {
-        node
-          .querySelectorAll<HTMLElement>(".reveal-child")
-          .forEach((el) => el.classList.add("is-visible"));
-      }
+    if (!node) {
       return;
     }
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        observer.disconnect();
+    let timer = 0;
+    const show = () => {
+      node.classList.add("is-visible");
+      if (!stagger) {
+        return;
+      }
 
-        const show = () => {
-          node.classList.add("is-visible");
-          if (stagger) {
-            const children = node.querySelectorAll<HTMLElement>(".reveal-child");
-            children.forEach((el, i) => {
-              window.setTimeout(() => {
-                el.classList.add("is-visible");
-              }, i * 65);
-            });
-          }
-        };
+      node
+        .querySelectorAll<HTMLElement>(".reveal-child")
+        .forEach((el, index) => {
+          window.setTimeout(() => {
+            el.classList.add("is-visible");
+          }, index * 45);
+        });
+    };
 
-        if (delay > 0) {
-          window.setTimeout(show, delay);
-        } else {
-          show();
-        }
-      },
-      { threshold: 0.08, rootMargin: "0px 0px -40px 0px" },
-    );
+    if (delay > 0) {
+      timer = window.setTimeout(show, delay);
+    } else {
+      show();
+    }
 
-    observer.observe(node);
-    return () => observer.disconnect();
+    return () => {
+      if (timer) {
+        window.clearTimeout(timer);
+      }
+    };
   }, [delay, stagger]);
 
   return (
