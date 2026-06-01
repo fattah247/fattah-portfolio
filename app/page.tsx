@@ -1,4 +1,6 @@
+import type { CSSProperties } from "react";
 import Image from "next/image";
+import Script from "next/script";
 
 const stackGroups = [
   {
@@ -25,6 +27,152 @@ const stackGroups = [
   },
 ] as const;
 
+const heroMarks = [
+  { emoji: "🌊", left: "7%", top: "16%", rotate: "-14deg", scale: 1.12, size: "clamp(1.55rem, 1.9vw, 2.2rem)" },
+  { emoji: "✈️", left: "18%", top: "10%", rotate: "11deg", scale: 1.02, size: "clamp(1.3rem, 1.55vw, 1.9rem)" },
+  { emoji: "🔒", left: "29%", top: "18%", rotate: "-8deg", scale: 1.06, size: "clamp(1.4rem, 1.65vw, 1.95rem)" },
+  { emoji: "🌊", left: "12%", top: "28%", rotate: "12deg", scale: 1.18, size: "clamp(1.65rem, 2.05vw, 2.35rem)" },
+  { emoji: "🌊", left: "41%", top: "29%", rotate: "10deg", scale: 1.08, size: "clamp(1.45rem, 1.8vw, 2.05rem)" },
+  { emoji: "✈️", left: "56%", top: "12%", rotate: "-12deg", scale: 1, size: "clamp(1.3rem, 1.5vw, 1.82rem)" },
+  { emoji: "🔒", left: "51%", top: "24%", rotate: "14deg", scale: 0.95, size: "clamp(1.26rem, 1.48vw, 1.75rem)" },
+  { emoji: "🔒", left: "70%", top: "20%", rotate: "9deg", scale: 1.04, size: "clamp(1.38rem, 1.62vw, 1.92rem)" },
+  { emoji: "🌊", left: "82%", top: "11%", rotate: "-10deg", scale: 1.14, size: "clamp(1.5rem, 1.95vw, 2.25rem)" },
+  { emoji: "✈️", left: "90%", top: "31%", rotate: "13deg", scale: 1.02, size: "clamp(1.28rem, 1.52vw, 1.86rem)" },
+  { emoji: "🌊", left: "78%", top: "44%", rotate: "-15deg", scale: 1.1, size: "clamp(1.44rem, 1.82vw, 2.08rem)" },
+  { emoji: "🔒", left: "86%", top: "53%", rotate: "-8deg", scale: 1.08, size: "clamp(1.38rem, 1.62vw, 1.9rem)" },
+  { emoji: "🌊", left: "63%", top: "68%", rotate: "12deg", scale: 1.08, size: "clamp(1.45rem, 1.8vw, 2.08rem)" },
+  { emoji: "✈️", left: "56%", top: "83%", rotate: "16deg", scale: 1.08, size: "clamp(1.36rem, 1.58vw, 1.88rem)" },
+  { emoji: "✈️", left: "36%", top: "76%", rotate: "-11deg", scale: 0.98, size: "clamp(1.22rem, 1.42vw, 1.72rem)" },
+  { emoji: "🔒", left: "14%", top: "61%", rotate: "11deg", scale: 1.02, size: "clamp(1.32rem, 1.5vw, 1.82rem)" },
+  { emoji: "🌊", left: "26%", top: "88%", rotate: "-8deg", scale: 1.02, size: "clamp(1.28rem, 1.46vw, 1.76rem)" },
+  { emoji: "🔒", left: "93%", top: "71%", rotate: "9deg", scale: 0.98, size: "clamp(1.28rem, 1.42vw, 1.68rem)" },
+  { emoji: "✈️", left: "47%", top: "9%", rotate: "-16deg", scale: 0.96, size: "clamp(1.18rem, 1.34vw, 1.62rem)" },
+  { emoji: "🌊", left: "61%", top: "42%", rotate: "-10deg", scale: 0.98, size: "clamp(1.2rem, 1.4vw, 1.72rem)" },
+  { emoji: "🔒", left: "38%", top: "52%", rotate: "14deg", scale: 1, size: "clamp(1.22rem, 1.42vw, 1.72rem)" },
+  { emoji: "✈️", left: "72%", top: "61%", rotate: "8deg", scale: 0.96, size: "clamp(1.18rem, 1.34vw, 1.6rem)" },
+  { emoji: "🌊", left: "9%", top: "83%", rotate: "12deg", scale: 0.96, size: "clamp(1.16rem, 1.3vw, 1.58rem)" },
+  { emoji: "🔒", left: "46%", top: "92%", rotate: "-10deg", scale: 0.94, size: "clamp(1.16rem, 1.28vw, 1.56rem)" },
+] as const;
+
+const transparentPixel =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+
+const projectMarks = {
+  payflow: [
+    { emoji: "💳", left: "9%", top: "12%", rotate: "-12deg", scale: 1.08, size: "clamp(1.42rem, 1.62vw, 1.92rem)" },
+    { emoji: "🔁", left: "86%", top: "11%", rotate: "9deg", scale: 1.02, size: "clamp(1.34rem, 1.55vw, 1.82rem)" },
+    { emoji: "🧾", left: "77%", top: "37%", rotate: "-10deg", scale: 0.98, size: "clamp(1.28rem, 1.44vw, 1.76rem)" },
+    { emoji: "🌊", left: "18%", top: "58%", rotate: "11deg", scale: 1.1, size: "clamp(1.45rem, 1.72vw, 1.98rem)" },
+    { emoji: "💳", left: "68%", top: "69%", rotate: "-8deg", scale: 1.03, size: "clamp(1.28rem, 1.44vw, 1.74rem)" },
+    { emoji: "🔁", left: "24%", top: "78%", rotate: "13deg", scale: 0.98, size: "clamp(1.24rem, 1.38vw, 1.68rem)" },
+    { emoji: "🧾", left: "57%", top: "20%", rotate: "8deg", scale: 0.92, size: "clamp(1.2rem, 1.34vw, 1.6rem)" },
+    { emoji: "💳", left: "89%", top: "82%", rotate: "-11deg", scale: 0.98, size: "clamp(1.22rem, 1.38vw, 1.68rem)" },
+    { emoji: "🌊", left: "45%", top: "8%", rotate: "-12deg", scale: 0.98, size: "clamp(1.18rem, 1.3vw, 1.56rem)" },
+    { emoji: "💳", left: "7%", top: "84%", rotate: "10deg", scale: 0.94, size: "clamp(1.14rem, 1.26vw, 1.52rem)" },
+    { emoji: "🧾", left: "92%", top: "54%", rotate: "15deg", scale: 0.92, size: "clamp(1.14rem, 1.26vw, 1.52rem)" },
+    { emoji: "🔁", left: "38%", top: "49%", rotate: "-9deg", scale: 0.92, size: "clamp(1.12rem, 1.24vw, 1.48rem)" },
+  ],
+  iyup: [
+    { emoji: "📈", left: "11%", top: "14%", rotate: "-11deg", scale: 1.08, size: "clamp(1.42rem, 1.6vw, 1.92rem)" },
+    { emoji: "🛰️", left: "84%", top: "13%", rotate: "8deg", scale: 1, size: "clamp(1.28rem, 1.48vw, 1.78rem)" },
+    { emoji: "🛩️", left: "78%", top: "35%", rotate: "-10deg", scale: 1.02, size: "clamp(1.32rem, 1.48vw, 1.78rem)" },
+    { emoji: "📡", left: "17%", top: "58%", rotate: "13deg", scale: 1.05, size: "clamp(1.38rem, 1.58vw, 1.88rem)" },
+    { emoji: "📈", left: "69%", top: "67%", rotate: "-7deg", scale: 0.98, size: "clamp(1.24rem, 1.38vw, 1.68rem)" },
+    { emoji: "🛰️", left: "28%", top: "76%", rotate: "11deg", scale: 0.96, size: "clamp(1.22rem, 1.34vw, 1.64rem)" },
+    { emoji: "📊", left: "58%", top: "18%", rotate: "-8deg", scale: 0.94, size: "clamp(1.18rem, 1.3vw, 1.58rem)" },
+    { emoji: "🛩️", left: "87%", top: "82%", rotate: "14deg", scale: 0.98, size: "clamp(1.2rem, 1.34vw, 1.62rem)" },
+    { emoji: "📈", left: "44%", top: "9%", rotate: "-9deg", scale: 0.96, size: "clamp(1.18rem, 1.28vw, 1.54rem)" },
+    { emoji: "📡", left: "9%", top: "86%", rotate: "10deg", scale: 0.92, size: "clamp(1.14rem, 1.22vw, 1.48rem)" },
+    { emoji: "🛰️", left: "92%", top: "59%", rotate: "-12deg", scale: 0.9, size: "clamp(1.12rem, 1.22vw, 1.46rem)" },
+    { emoji: "📊", left: "36%", top: "46%", rotate: "12deg", scale: 0.92, size: "clamp(1.12rem, 1.2vw, 1.44rem)" },
+  ],
+  trustgate: [
+    { emoji: "🔒", left: "12%", top: "13%", rotate: "-8deg", scale: 1.04, size: "clamp(1.38rem, 1.56vw, 1.88rem)" },
+    { emoji: "🛡️", left: "85%", top: "14%", rotate: "10deg", scale: 1.08, size: "clamp(1.44rem, 1.68vw, 1.98rem)" },
+    { emoji: "📱", left: "79%", top: "39%", rotate: "-12deg", scale: 0.98, size: "clamp(1.32rem, 1.5vw, 1.78rem)" },
+    { emoji: "🚫", left: "17%", top: "60%", rotate: "12deg", scale: 1.02, size: "clamp(1.32rem, 1.48vw, 1.72rem)" },
+    { emoji: "🔒", left: "68%", top: "70%", rotate: "-7deg", scale: 0.98, size: "clamp(1.24rem, 1.36vw, 1.66rem)" },
+    { emoji: "🛡️", left: "26%", top: "78%", rotate: "13deg", scale: 0.96, size: "clamp(1.22rem, 1.34vw, 1.62rem)" },
+    { emoji: "📱", left: "58%", top: "21%", rotate: "10deg", scale: 0.94, size: "clamp(1.18rem, 1.28vw, 1.54rem)" },
+    { emoji: "🚫", left: "88%", top: "84%", rotate: "-10deg", scale: 0.96, size: "clamp(1.18rem, 1.3vw, 1.58rem)" },
+    { emoji: "🔒", left: "42%", top: "10%", rotate: "-10deg", scale: 0.94, size: "clamp(1.14rem, 1.24vw, 1.5rem)" },
+    { emoji: "📱", left: "10%", top: "85%", rotate: "8deg", scale: 0.92, size: "clamp(1.12rem, 1.2vw, 1.44rem)" },
+    { emoji: "🛡️", left: "91%", top: "58%", rotate: "15deg", scale: 0.9, size: "clamp(1.12rem, 1.2vw, 1.44rem)" },
+    { emoji: "🚫", left: "36%", top: "47%", rotate: "-12deg", scale: 0.92, size: "clamp(1.12rem, 1.18vw, 1.42rem)" },
+  ],
+} as const;
+
+const failureCases = [
+  {
+    title: "Readable payment state",
+    description:
+      "Retries, callbacks, and settlement edges should leave a readable trail instead of sending operators into guesswork.",
+    canDo: ["callback recovery", "status reconciliation", "stuck-flow repair"],
+  },
+  {
+    title: "Monitoring that explains cause",
+    description:
+      "Health, latency, and alerting should explain why a path failed, not just confirm that it moved.",
+    canDo: ["health checks", "latency signals", "alert wiring"],
+  },
+  {
+    title: "Android clients that challenge risk",
+    description:
+      "Client trust needs visible risk signals, gated actions, and mobile hardening that survives real-world devices.",
+    canDo: ["risk signals", "secure flows", "gated actions"],
+  },
+] as const;
+
+const careerProgression = [
+  {
+    company: "Bank Central Asia",
+    short: "BCA",
+    role: "Software Engineer / IT Specialist",
+    period: "Sep 2023 - Present",
+    location: "Indonesia",
+    logo: "/logos/bca.png",
+    summary:
+      "Android POS and merchant payment reliability at national scale.",
+    bullets: [
+      "Build Android payment integrations with Kotlin, Java, AIDL, REST APIs, and WebSocket.",
+      "Improve callback recovery, transaction-state handling, and failure-path repair.",
+      "Handle production incidents from debugging through rollback or hardening.",
+      "Support early iOS merchant work and secure Android delivery.",
+    ],
+  },
+  {
+    company: "Telkom Indonesia",
+    short: "Telkom",
+    role: "iOS Engineer Intern",
+    period: "Apr 2023 - Sep 2023",
+    location: "Bandung, Indonesia",
+    logo: "/logos/telkom.png",
+    summary:
+      "Reusable SwiftUI components and pattern systems for government-facing apps.",
+    bullets: [
+      "Built reusable SwiftUI components for consistent multi-project delivery.",
+      "Documented repeated layouts and interaction patterns for reuse.",
+      "Improved integration quality and maintainability with the team.",
+    ],
+  },
+  {
+    company: "Apple Developer Academy",
+    short: "ADA",
+    role: "iOS Developer",
+    period: "Feb 2022 - Dec 2022",
+    location: "Indonesia",
+    logo: "/logos/apple.png",
+    summary:
+      "Cross-functional iOS prototypes from discovery to demo-ready release.",
+    bullets: [
+      "Built four SwiftUI prototypes across health-tech, reading support, reflection, and relationship use cases.",
+      "Led implementation decisions with design, business, and product teammates.",
+      "Worked through discovery, prototyping, testing, and demo-ready iteration.",
+      "Used reusable components, local data, and accessibility basics.",
+    ],
+  },
+] as const;
+
 const interactionScript = String.raw`(() => {
   if (window.__fattahSiteReady) {
     return;
@@ -36,27 +184,44 @@ const interactionScript = String.raw`(() => {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const mobileMedia = window.matchMedia("(max-width: 767px)");
   const brand = document.querySelector("[data-header-brand]");
+  const headerRow = document.querySelector("[data-header-row]");
+  const headerFlash = document.querySelector("[data-header-stage-flash]");
   const hero = document.getElementById("hero-name");
   const heroLinks = document.getElementById("hero-links");
+  const pillDock = document.querySelector("[data-mobile-pill-dock]");
   const progress = document.getElementById("scroll-progress");
   const emailShell = document.getElementById("contact-email");
+  const contactSection = document.getElementById("contact");
+  const githubMoreSection = document.getElementById("more-projects");
+  const contactLinks = document.querySelector("[data-contact-links]");
   const toast = document.querySelector("[data-copy-toast]");
   const viewer = document.querySelector("[data-viewer-root]");
   const viewerImage = document.querySelector("[data-viewer-image]");
   const viewerCaption = document.querySelector("[data-viewer-caption]");
+  const viewerStage = document.querySelector("[data-viewer-stage]");
   const viewerMedia = document.querySelector("[data-viewer-media]");
   const viewerScale = document.querySelector("[data-viewer-scale]");
-  const navItems = Array.from(document.querySelectorAll("[data-nav-target]"));
   const stageItems = Array.from(document.querySelectorAll("[data-stage]"));
-  const sectionItems = ["projects", "stack"]
-    .map((id) => document.getElementById(id))
-    .filter(Boolean);
+  const navStages = Array.from(document.querySelectorAll("[data-stage-nav='true']"));
   const copyButton = document.querySelector("[data-copy-email]");
   const artifactButtons = Array.from(document.querySelectorAll("[data-artifact-src]"));
 
   let flashTimer = 0;
   let toastTimer = 0;
   let zoom = 1;
+  let pillTimer = 0;
+  let sectionFlashTimer = 0;
+  let activeStage = "";
+  let pillMode = "all";
+  let pillModeTimer = 0;
+  let panX = 0;
+  let panY = 0;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let dragOriginX = 0;
+  let dragOriginY = 0;
+  let dragging = false;
+  let scrollTicking = false;
 
   root.setAttribute("data-interact-ready", "yes");
 
@@ -66,43 +231,43 @@ function setBrand(visible) {
   }
 
   root.classList.toggle("desk-hero-away", visible);
-  brand.classList.toggle("site-title-visible", visible);
-  brand.setAttribute("aria-hidden", visible ? "false" : "true");
-  brand.tabIndex = visible ? 0 : -1;
+  brand.classList.add("site-title-visible");
+  brand.setAttribute("aria-hidden", "false");
+  brand.tabIndex = 0;
 }
 
 function syncBrand() {
   if (mobileMedia.matches) {
     root.classList.remove("desk-hero-away");
-    setBrand(false);
+    brand?.classList.remove("site-title-visible");
+    brand?.setAttribute("aria-hidden", "true");
+    if (brand) {
+      brand.tabIndex = -1;
+    }
     return;
   }
 
-    if (!hero) {
-      setBrand(true);
+  setBrand(true);
+}
+
+  function announceStage(stageLabel) {
+    if (!headerFlash || !headerRow || mobileMedia.matches || !stageLabel) {
       return;
     }
 
-    const rect = hero.getBoundingClientRect();
-    const heroEdge = rect.y + rect.height;
-    setBrand(heroEdge <= 84 || rect.top < -84);
-  }
-
-  function setMobileHeroState(heroVisible) {
-    root.classList.toggle("mobile-hero-hidden", mobileMedia.matches && !heroVisible);
-  }
-
-  function syncMobileHeroState() {
-    const source = heroLinks || hero;
-
-    if (!source) {
-      setMobileHeroState(false);
+    if (
+      headerFlash.textContent === stageLabel &&
+      root.classList.contains("header-stage-announcing")
+    ) {
       return;
     }
 
-    const rect = source.getBoundingClientRect();
-    const sourceVisible = rect.bottom > 0 && rect.top < window.innerHeight && rect.height > 0;
-    setMobileHeroState(sourceVisible);
+    headerFlash.textContent = stageLabel;
+    root.classList.add("header-stage-announcing");
+    window.clearTimeout(sectionFlashTimer);
+    sectionFlashTimer = window.setTimeout(() => {
+      root.classList.remove("header-stage-announcing");
+    }, 620);
   }
 
   function setProgress() {
@@ -113,19 +278,6 @@ function syncBrand() {
     const total = document.documentElement.scrollHeight - window.innerHeight;
     const pct = total > 0 ? Math.min(100, (window.scrollY / total) * 100) : 0;
     progress.style.width = pct + "%";
-  }
-
-  function markActive(id) {
-    navItems.forEach((item) => {
-      const active = item.getAttribute("data-nav-target") === id;
-      item.classList.toggle("nav-link-active", active);
-
-      if (active) {
-        item.setAttribute("aria-current", "page");
-      } else {
-        item.removeAttribute("aria-current");
-      }
-    });
   }
 
   function flashEmail() {
@@ -147,10 +299,8 @@ function syncBrand() {
 
     emailShell.classList.add("copy-email-shell-copied");
     toast.textContent = "Copied";
-    toast.hidden = false;
     window.clearTimeout(toastTimer);
     toastTimer = window.setTimeout(() => {
-      toast.hidden = true;
       emailShell.classList.remove("copy-email-shell-copied");
     }, 1800);
   }
@@ -191,10 +341,10 @@ function syncBrand() {
       if (!ok) {
         if (toast) {
           toast.textContent = "Copy failed";
-          toast.hidden = false;
+          emailShell?.classList.add("copy-email-shell-copied");
           window.clearTimeout(toastTimer);
           toastTimer = window.setTimeout(() => {
-            toast.hidden = true;
+            emailShell?.classList.remove("copy-email-shell-copied");
           }, 1800);
         }
         return;
@@ -203,13 +353,53 @@ function syncBrand() {
     } catch {
       if (toast) {
         toast.textContent = "Copy failed";
-        toast.hidden = false;
+        emailShell?.classList.add("copy-email-shell-copied");
         window.clearTimeout(toastTimer);
         toastTimer = window.setTimeout(() => {
-          toast.hidden = true;
+          emailShell?.classList.remove("copy-email-shell-copied");
         }, 1800);
       }
     }
+  }
+
+  function syncMobilePillGeometry() {
+    if (!mobileMedia.matches || !heroLinks || !pillDock) {
+      root.style.removeProperty("--pill-from-x");
+      root.style.removeProperty("--pill-from-y");
+      root.style.removeProperty("--hero-link-to-x");
+      root.style.removeProperty("--hero-link-to-y");
+      return;
+    }
+
+    const heroRect = heroLinks.getBoundingClientRect();
+    const dockRect = pillDock.getBoundingClientRect();
+    const heroX = heroRect.left + (heroRect.width / 2);
+    const heroY = heroRect.top + (heroRect.height / 2);
+    const dockX = dockRect.left + (dockRect.width / 2);
+    const dockY = dockRect.top + (dockRect.height / 2);
+
+    root.style.setProperty("--pill-from-x", (heroX - dockX) + "px");
+    root.style.setProperty("--pill-from-y", (heroY - dockY) + "px");
+    root.style.setProperty("--hero-link-to-x", (dockX - heroX) + "px");
+    root.style.setProperty("--hero-link-to-y", (dockY - heroY) + "px");
+  }
+
+  function clampPan(nextX, nextY) {
+    if (!viewerStage || !viewerMedia || zoom <= 1) {
+      return { x: 0, y: 0 };
+    }
+
+    const stageWidth = viewerStage.clientWidth;
+    const stageHeight = viewerStage.clientHeight;
+    const mediaWidth = viewerMedia.clientWidth;
+    const mediaHeight = viewerMedia.clientHeight;
+    const limitX = Math.max(0, ((mediaWidth * zoom) - stageWidth) / 2);
+    const limitY = Math.max(0, ((mediaHeight * zoom) - stageHeight) / 2);
+
+    return {
+      x: Math.min(limitX, Math.max(-limitX, nextX)),
+      y: Math.min(limitY, Math.max(-limitY, nextY)),
+    };
   }
 
   function applyZoom() {
@@ -217,7 +407,12 @@ function syncBrand() {
       return;
     }
 
-    viewerMedia.style.transform = "scale(" + zoom + ")";
+    const clamped = clampPan(panX, panY);
+    panX = clamped.x;
+    panY = clamped.y;
+    viewerMedia.style.transform =
+      "translate3d(" + panX + "px, " + panY + "px, 0) scale(" + zoom + ")";
+    viewerMedia.classList.toggle("is-draggable", zoom > 1);
 
     if (viewerScale) {
       viewerScale.textContent = Math.round(zoom * 100) + "%";
@@ -229,6 +424,10 @@ function syncBrand() {
       return;
     }
 
+    dragging = false;
+    panX = 0;
+    panY = 0;
+    viewerMedia?.classList.remove("is-dragging");
     viewer.hidden = true;
     viewer.setAttribute("aria-hidden", "true");
     root.style.overflow = "";
@@ -241,12 +440,43 @@ function syncBrand() {
 
     viewer.hidden = false;
     viewer.setAttribute("aria-hidden", "false");
-    viewerImage.setAttribute("src", trigger.getAttribute("data-artifact-src") || "");
+    viewerImage.setAttribute("src", trigger.getAttribute("data-artifact-src") || "${transparentPixel}");
     viewerImage.setAttribute("alt", trigger.getAttribute("data-artifact-alt") || "");
     viewerCaption.textContent = trigger.getAttribute("data-artifact-caption") || "";
     zoom = 1;
+    panX = 0;
+    panY = 0;
     applyZoom();
     root.style.overflow = "hidden";
+  }
+
+  function syncActiveStage() {
+    if (!navStages.length || mobileMedia.matches) {
+      return;
+    }
+
+    const anchor = window.innerHeight * 0.24;
+    let best = "";
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    navStages.forEach((item) => {
+      const rect = item.getBoundingClientRect();
+      if (rect.bottom <= 0 || rect.top >= window.innerHeight) {
+        return;
+      }
+
+      const focus = rect.top + (rect.height * 0.34);
+      const distance = Math.abs(focus - anchor);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = item.getAttribute("data-stage-label") || "";
+      }
+    });
+
+    if (best && best !== activeStage) {
+      activeStage = best;
+      announceStage(best);
+    }
   }
 
   const stageWatch = new IntersectionObserver(
@@ -263,23 +493,78 @@ function syncBrand() {
 
   stageItems.forEach((item) => stageWatch.observe(item));
 
-  const navWatch = new IntersectionObserver(
-    (entries) => {
-      const visible = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+  function syncMobilePill() {
+    if (!heroLinks) {
+      root.classList.remove("mobile-links-away");
+      root.classList.remove("mobile-pill-contact-hidden");
+      root.classList.remove("mobile-pill-mode-github");
+      root.classList.remove("mobile-pill-mode-social");
+      return;
+    }
 
-      if (visible && visible.target && visible.target.id) {
-        markActive(visible.target.id);
-      }
-    },
-    {
-      rootMargin: "-18% 0px -56% 0px",
-      threshold: [0.2, 0.4, 0.6],
-    },
-  );
+    if (!mobileMedia.matches) {
+      root.classList.remove("mobile-links-away");
+      root.classList.remove("mobile-pill-contact-hidden");
+      root.classList.remove("mobile-pill-mode-github");
+      root.classList.remove("mobile-pill-mode-social");
+      root.classList.remove("mobile-pill-entering");
+      root.classList.remove("mobile-pill-returning");
+      return;
+    }
 
-  sectionItems.forEach((item) => navWatch.observe(item));
+    const rect = heroLinks.getBoundingClientRect();
+    const threshold = 12;
+    const shouldFloat = rect.bottom <= threshold;
+    const contactTarget = contactLinks || emailShell || contactSection;
+    const contactRect = contactTarget ? contactTarget.getBoundingClientRect() : null;
+    const contactVisible =
+      !!contactRect &&
+      contactRect.top < window.innerHeight * 0.92 &&
+      contactRect.bottom > window.innerHeight * 0.2;
+    const githubRect = githubMoreSection ? githubMoreSection.getBoundingClientRect() : null;
+    const githubVisible =
+      !!githubRect &&
+      githubRect.top < window.innerHeight * 0.85 &&
+      githubRect.bottom > window.innerHeight * 0.22;
+    const wasFloating = root.classList.contains("mobile-links-away");
+    const nextMode = contactVisible ? "github" : githubVisible ? "social" : "all";
+
+    if (shouldFloat && !wasFloating) {
+      root.classList.remove("mobile-pill-returning");
+      root.classList.add("mobile-pill-entering");
+      window.clearTimeout(pillTimer);
+      pillTimer = window.setTimeout(() => {
+        root.classList.remove("mobile-pill-entering");
+      }, 420);
+    }
+
+    if (!shouldFloat && wasFloating) {
+      root.classList.remove("mobile-pill-entering");
+      root.classList.add("mobile-pill-returning");
+      window.clearTimeout(pillTimer);
+      pillTimer = window.setTimeout(() => {
+        root.classList.remove("mobile-pill-returning");
+      }, 460);
+    }
+
+    if (!shouldFloat && !wasFloating) {
+      root.classList.remove("mobile-pill-entering");
+      root.classList.remove("mobile-pill-returning");
+    }
+
+    if (shouldFloat && nextMode !== pillMode) {
+      root.classList.add("mobile-pill-morphing");
+      window.clearTimeout(pillModeTimer);
+      pillModeTimer = window.setTimeout(() => {
+        root.classList.remove("mobile-pill-morphing");
+      }, 280);
+    }
+
+    root.classList.toggle("mobile-links-away", shouldFloat);
+    root.classList.toggle("mobile-pill-mode-github", contactVisible);
+    root.classList.toggle("mobile-pill-mode-social", !contactVisible && githubVisible);
+    pillMode = nextMode;
+  }
 
   copyButton?.addEventListener("click", (event) => {
     const raw = event.target;
@@ -332,6 +617,34 @@ function syncBrand() {
       return;
     }
 
+    const scrollTrigger = raw.closest("[data-scroll-target]");
+
+    if (!scrollTrigger) {
+      return;
+    }
+
+    event.preventDefault();
+    const targetId = scrollTrigger.getAttribute("data-scroll-target");
+    const target = targetId ? document.getElementById(targetId) : null;
+
+    if (!target) {
+      return;
+    }
+
+    target.scrollIntoView({
+      behavior: reduced ? "auto" : "smooth",
+      block: "start",
+    });
+    history.replaceState(null, "", "#" + target.id);
+  });
+
+  document.addEventListener("click", (event) => {
+    const raw = event.target;
+
+    if (!(raw instanceof Element)) {
+      return;
+    }
+
     const closeTrigger = raw.closest("[data-viewer-close]");
 
     if (closeTrigger) {
@@ -346,6 +659,10 @@ function syncBrand() {
       event.preventDefault();
       const step = zoomTrigger.getAttribute("data-viewer-step");
       zoom = step === "in" ? Math.min(2.5, zoom + 0.2) : Math.max(1, zoom - 0.2);
+      if (zoom === 1) {
+        panX = 0;
+        panY = 0;
+      }
       applyZoom();
       return;
     }
@@ -444,22 +761,81 @@ function syncBrand() {
     event.preventDefault();
     const step = zoomTrigger.getAttribute("data-viewer-step");
     zoom = step === "in" ? Math.min(2.5, zoom + 0.2) : Math.max(1, zoom - 0.2);
+    if (zoom === 1) {
+      panX = 0;
+      panY = 0;
+    }
     applyZoom();
   });
 
-  window.addEventListener("scroll", () => {
+  viewerStage?.addEventListener("pointerdown", (event) => {
+    if (zoom <= 1 || !(event.target instanceof Element) || !event.target.closest("[data-viewer-media]")) {
+      return;
+    }
+
+    dragging = true;
+    dragStartX = event.clientX;
+    dragStartY = event.clientY;
+    dragOriginX = panX;
+    dragOriginY = panY;
+    viewerMedia?.classList.add("is-dragging");
+    viewerStage.setPointerCapture(event.pointerId);
+  });
+
+  viewerStage?.addEventListener("pointermove", (event) => {
+    if (!dragging) {
+      return;
+    }
+
+    const clamped = clampPan(
+      dragOriginX + (event.clientX - dragStartX),
+      dragOriginY + (event.clientY - dragStartY),
+    );
+    panX = clamped.x;
+    panY = clamped.y;
+    applyZoom();
+  });
+
+  function stopDragging(pointerId) {
+    if (!dragging) {
+      return;
+    }
+
+    dragging = false;
+    viewerMedia?.classList.remove("is-dragging");
+    if (viewerStage && typeof pointerId === "number") {
+      try {
+        viewerStage.releasePointerCapture(pointerId);
+      } catch {}
+    }
+  }
+
+  viewerStage?.addEventListener("pointerup", (event) => stopDragging(event.pointerId));
+  viewerStage?.addEventListener("pointercancel", (event) => stopDragging(event.pointerId));
+
+  function update() {
     setProgress();
     syncBrand();
-    syncMobileHeroState();
-  }, { passive: true });
-  window.addEventListener("resize", () => {
-    syncBrand();
-    syncMobileHeroState();
-  });
-  setProgress();
-  syncBrand();
-  syncMobileHeroState();
-  markActive("projects");
+    syncMobilePillGeometry();
+    syncMobilePill();
+    syncActiveStage();
+  }
+
+  function queueUpdate() {
+    if (scrollTicking) {
+      return;
+    }
+
+    scrollTicking = true;
+    window.requestAnimationFrame(() => {
+      scrollTicking = false;
+      update();
+    });
+  }
+
+  window.addEventListener("scroll", queueUpdate, { passive: true });
+  window.addEventListener("resize", queueUpdate);
+  update();
 })();`;
 
 function GitHubIcon() {
@@ -506,39 +882,6 @@ function ArrowOutIcon() {
   );
 }
 
-function SocialIconLinks() {
-  return (
-    <>
-      <a
-        aria-label="GitHub"
-        className="icon-link"
-        href="https://github.com/fattah247"
-        target="_blank"
-        rel="noreferrer"
-      >
-        <GitHubIcon />
-      </a>
-      <a
-        aria-label="LinkedIn"
-        className="icon-link"
-        href="https://www.linkedin.com/in/muhammad24fattah/"
-        target="_blank"
-        rel="noreferrer"
-      >
-        <LinkedInIcon />
-      </a>
-      <a
-        aria-label="Email"
-        className="icon-link"
-        data-spotlight="contact-email"
-        href="#contact"
-      >
-        <MailIcon />
-      </a>
-    </>
-  );
-}
-
 function HeroTextLinks() {
   return (
     <div className="hero-link-row" id="hero-links">
@@ -568,9 +911,12 @@ function HeroTextLinks() {
   );
 }
 
-function HeaderTextLinks() {
+function HeaderUtilityLinks() {
   return (
-    <div className="header-link-row">
+    <div className="header-link-row" data-header-row="true">
+      <a className="header-brand-link" href="#top">
+        Muhammad A. Fattah
+      </a>
       <a
         className="header-utility-link"
         href="https://github.com/fattah247"
@@ -597,37 +943,107 @@ function HeaderTextLinks() {
   );
 }
 
-function HeroMarkField() {
-  const marks = [
-    { mark: "🌊", tone: "hero-mark-payflow", slot: "hero-mark-1" },
-    { mark: "🛩️", tone: "hero-mark-iyup", slot: "hero-mark-2" },
-    { mark: "🔒", tone: "hero-mark-trustgate", slot: "hero-mark-3" },
-    { mark: "🌊", tone: "hero-mark-payflow", slot: "hero-mark-4" },
-    { mark: "🛩️", tone: "hero-mark-iyup", slot: "hero-mark-5" },
-    { mark: "🔒", tone: "hero-mark-trustgate", slot: "hero-mark-6" },
-    { mark: "🌊", tone: "hero-mark-payflow", slot: "hero-mark-7" },
-    { mark: "🛩️", tone: "hero-mark-iyup", slot: "hero-mark-8" },
-    { mark: "🔒", tone: "hero-mark-trustgate", slot: "hero-mark-9" },
-  ] as const;
-
+function MobileQuickLinks() {
   return (
-    <div className="hero-mark-field" aria-hidden="true">
-      {marks.map((item) => (
+    <div className="mobile-quick-links" data-mobile-pill="true">
+      <a
+        aria-label="GitHub"
+        className="icon-link"
+        data-pill-kind="github"
+        href="https://github.com/fattah247"
+        rel="noreferrer"
+        target="_blank"
+      >
+        <GitHubIcon />
+      </a>
+      <a
+        aria-label="LinkedIn"
+        className="icon-link"
+        data-pill-kind="linkedin"
+        href="https://www.linkedin.com/in/muhammad24fattah/"
+        rel="noreferrer"
+        target="_blank"
+      >
+        <LinkedInIcon />
+      </a>
+      <a
+        aria-label="Email"
+        className="icon-link"
+        data-pill-kind="mail"
+        data-spotlight="contact-email"
+        href="#contact"
+      >
+        <MailIcon />
+      </a>
+    </div>
+  );
+}
+
+function HeroBackdropMarks() {
+  return (
+    <div
+      className="hero-marks"
+      aria-hidden="true"
+      style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0 }}
+    >
+      {heroMarks.map((item, index) => (
         <span
-          key={`${item.mark}-${item.slot}`}
-          className={`hero-mark ${item.tone} ${item.slot}`}
+          key={`${item.emoji}-${index}`}
+          className="hero-mark"
+          style={
+            {
+              position: "absolute",
+              left: item.left,
+              top: item.top,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: item.size,
+              lineHeight: 1,
+              opacity: 0.16,
+              transform: `translate(-50%, -50%) rotate(${item.rotate}) scale(${item.scale})`,
+              filter: "saturate(0.78)",
+              userSelect: "none",
+            } as CSSProperties
+          }
         >
-          {item.mark}
+          {item.emoji}
         </span>
       ))}
     </div>
   );
 }
 
-function MobileNavPill() {
+function ProjectBackdropMarks({
+  marks,
+}: {
+  marks: ReadonlyArray<{
+    emoji: string;
+    left: string;
+    top: string;
+    rotate: string;
+    scale: number;
+    size: string;
+  }>;
+}) {
   return (
-    <div className="mobile-nav-pill">
-      <SocialIconLinks />
+    <div className="project-marks" aria-hidden="true">
+      {marks.map((item, index) => (
+        <span
+          key={`${item.emoji}-${index}`}
+          className="project-mark"
+          style={
+            {
+              left: item.left,
+              top: item.top,
+              fontSize: item.size,
+              transform: `translate(-50%, -50%) rotate(${item.rotate}) scale(${item.scale})`,
+            } as CSSProperties
+          }
+        >
+          {item.emoji}
+        </span>
+      ))}
     </div>
   );
 }
@@ -646,6 +1062,7 @@ function ZoomIcon() {
 function ArtifactCard({
   alt,
   caption,
+  priority = false,
   sizes,
   src,
   tall = false,
@@ -654,6 +1071,7 @@ function ArtifactCard({
 }: {
   alt: string;
   caption: string;
+  priority?: boolean;
   sizes: string;
   src: string;
   tall?: boolean;
@@ -677,6 +1095,7 @@ function ArtifactCard({
           alt={alt}
           fill
           className="object-cover object-top transition duration-200"
+          priority={priority}
           sizes={sizes}
           unoptimized
         />
@@ -700,9 +1119,10 @@ export default function Home() {
 
       <header className="site-header">
         <div className="shell header-inner">
+          <div className="header-stage-flash" data-header-stage-flash="true" aria-hidden="true" />
           <a
             aria-hidden="true"
-            className="site-title hidden md:block"
+            className="site-title hidden"
             data-header-brand="true"
             href="#top"
             tabIndex={-1}
@@ -711,47 +1131,60 @@ export default function Home() {
           </a>
 
           <div className="hidden items-center md:flex">
-            <HeaderTextLinks />
+            <HeaderUtilityLinks />
           </div>
 
-          <div className="mobile-nav-icons md:hidden">
-            <MobileNavPill />
+          <div className="mobile-nav-icons md:hidden" data-mobile-pill-dock="true">
+            <MobileQuickLinks />
           </div>
         </div>
       </header>
 
-      <div className="mobile-quick-links" aria-label="Quick links">
-        <MobileNavPill />
-      </div>
-
-      <main id="top" className="shell">
-        <section className="hero-section" data-stage="hero">
-          <HeroMarkField />
+      <main className="shell">
+        <section
+          id="top"
+          className="hero-section"
+          data-stage="hero"
+          data-stage-nav="true"
+          data-stage-label="Introduction"
+        >
+          <HeroBackdropMarks />
           <div className="hero-layout">
             <div className="hero-copy-block">
               <h1 className="hero-name" id="hero-name">
-                Muhammad
-                <br className="hero-name-split" />
-                A. Fattah
+                <span className="block">Muhammad</span>
+                <span className="block">A. Fattah</span>
               </h1>
+              <p className="hero-role">
+                Software Engineer | Payment Reliability • Secure Android • Observability
+              </p>
             </div>
 
             <aside className="hero-side">
               <p className="hero-line">
-                <span>Payment systems.</span>
-                <span className="hero-line-break">Android reliability.</span>
-                <span className="hero-line-break">Backend observability.</span>
+                <span>Production payment systems.</span>
+                <span className="hero-line-break">Secure Android delivery.</span>
+                <span className="hero-line-break">Signals that hold under pressure.</span>
               </p>
               <p className="hero-copy">
-                I build public labs around payment failures that are expensive
-                to debug: unclear states, duplicate callbacks, weak
-                visibility, and Android clients that trust too much.
+                I build merchant-facing payment software, work through
+                production incidents, and tighten the failure paths that matter
+                when money, devices, and timing all get messy.
               </p>
+              <ul className="hero-focus-list">
+                <li>Android POS delivery and merchant integrations</li>
+                <li>Incident response, rollback coordination, and hardening</li>
+                <li>iOS foundations, backend coordination, and release work</li>
+              </ul>
 
               <div className="hero-actions">
-                <a className="action-link action-link-primary" href="#failures">
+                <button
+                  className="action-link action-link-primary"
+                  data-scroll-target="projects"
+                  type="button"
+                >
                   View labs
-                </a>
+                </button>
               </div>
 
               <HeroTextLinks />
@@ -762,33 +1195,40 @@ export default function Home() {
         <section
           id="failures"
           className="section-block section-block-compact failure-section"
+          data-stage="failures"
+          data-stage-nav="true"
+          data-stage-label="What I fix"
         >
           <div className="section-top">
             <h2 className="section-title">Three failure cases</h2>
+            <p className="section-intro">
+              The problems I usually get pulled into, and the recovery paths I
+              build around them.
+            </p>
           </div>
 
-          <p className="failure-lead">
-            The work centers on payment state, service visibility, and device
-            trust.
-          </p>
-
           <div className="failure-list">
-            <article className="failure-item">
-              <h3>Readable payment state.</h3>
-              <p>A transaction should not leave the system guessing what happened.</p>
-            </article>
-            <article className="failure-item">
-              <h3>Monitoring that explains cause.</h3>
-              <p>Monitoring is weak if it cannot explain what broke.</p>
-            </article>
-            <article className="failure-item">
-              <h3>Android clients that challenge risk.</h3>
-              <p>A payment client should know when to allow, warn, or block.</p>
-            </article>
+            {failureCases.map((item) => (
+              <article className="failure-item" key={item.title}>
+                <h3>{item.title}.</h3>
+                <p>{item.description}</p>
+                <ul className="failure-capability-list">
+                  {item.canDo.map((entry) => (
+                    <li key={entry}>{entry}</li>
+                  ))}
+                </ul>
+              </article>
+            ))}
           </div>
         </section>
 
-        <section id="projects" className="section-block" data-stage="projects">
+        <section
+          id="projects"
+          className="section-block"
+          data-stage="projects"
+          data-stage-nav="true"
+          data-stage-label="Selected labs"
+        >
           <div className="section-top">
             <h2 className="section-title">Selected labs</h2>
             <p className="section-intro">
@@ -799,7 +1239,9 @@ export default function Home() {
           <article
             className="project-stage project-stage-payflow"
             data-stage="payflow"
+            data-stage-label="PayFlow Reliability"
           >
+            <ProjectBackdropMarks marks={projectMarks.payflow} />
             <div className="project-aside">
               <div className="project-head">
                 <h3 className="project-title">PayFlow Reliability</h3>
@@ -851,6 +1293,7 @@ export default function Home() {
                 src="/projects/payflow/audit-trail.png"
                 alt="Audit trail output from PayFlow Reliability showing state transitions."
                 caption="Duplicate callbacks are routed to the existing transaction state instead of creating a second transaction record."
+                priority
                 sizes="(max-width: 1024px) 100vw, 58vw"
                 tone="bg-[#0f1823]"
                 wide
@@ -891,7 +1334,9 @@ export default function Home() {
           <article
             className="project-stage project-stage-iyup"
             data-stage="iyup"
+            data-stage-label="iYup"
           >
+            <ProjectBackdropMarks marks={projectMarks.iyup} />
             <div className="project-aside">
               <div className="project-head">
                 <h3 className="project-title">iYup</h3>
@@ -979,7 +1424,9 @@ export default function Home() {
           <article
             className="project-stage project-stage-trustgate"
             data-stage="trustgate"
+            data-stage-label="TrustGate Android"
           >
+            <ProjectBackdropMarks marks={projectMarks.trustgate} />
             <div className="project-aside">
               <div className="project-head">
                 <h3 className="project-title">TrustGate Android</h3>
@@ -1067,41 +1514,110 @@ export default function Home() {
         </section>
 
         <section
+          id="more-projects"
           className="section-block section-block-compact"
-          data-stage="current"
+          data-stage="github-more"
+          data-stage-nav="true"
+          data-stage-label="More on GitHub"
         >
           <div className="section-top">
-            <h2 className="section-title">Current work</h2>
+            <h2 className="section-title">More on GitHub</h2>
+            <p className="section-intro">
+              The featured labs carry the strongest proof. Smaller repos and
+              supporting work stay on GitHub.
+            </p>
           </div>
 
-          <div className="current-grid">
-            <article>
-              <h3>Android payments</h3>
-              <p>
-                Merchant-facing payment flows, transaction states, and
-                app-to-service integration.
+          <div className="github-stage">
+            <div className="github-stage-copy">
+              <p className="github-stage-lead">
+                The profile holds the wider body of work without turning this
+                page into a long archive.
               </p>
-            </article>
+              <ul className="github-stage-points">
+                <li>Public labs with screenshots and repository paths</li>
+                <li>Smaller supporting repos and ongoing experiments</li>
+                <li>Profile framing around payments, observability, and mobile trust</li>
+              </ul>
+              <a
+                className="action-link"
+                href="https://github.com/fattah247"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open GitHub profile
+              </a>
+            </div>
 
-            <article>
-              <h3>Backend delivery</h3>
-              <p>
-                Transaction status handling, API integration, and service
-                reliability.
-              </p>
-            </article>
-
-            <article>
-              <h3>iOS support</h3>
-              <p>
-                Order creation, phone-based payment flows, and merchant
-                features.
-              </p>
-            </article>
+            <ArtifactCard
+              src="/projects/github-profile.png"
+              alt="GitHub profile screenshot for Muhammad A. Fattah."
+              caption="The profile README and public repos extend beyond the three featured labs without turning the homepage into a long project catalog."
+              sizes="(max-width: 1024px) 100vw, 58vw"
+              tone="bg-[#0c1117]"
+              wide
+            />
           </div>
         </section>
 
-        <section id="stack" className="section-block section-block-compact" data-stage="stack">
+        <section
+          id="current-work"
+          className="section-block section-block-compact"
+          data-stage="current"
+          data-stage-nav="true"
+          data-stage-label="Experience"
+        >
+          <div className="section-top">
+            <h2 className="section-title">Experience</h2>
+            <p className="section-intro">
+              Production payment systems, early iOS delivery, and the path that
+              got me there.
+            </p>
+          </div>
+
+          <div className="career-timeline">
+            <div className="career-grid">
+              {careerProgression.map((item) => (
+                <article className="career-item" key={item.company}>
+                  <div className="career-mark">
+                    <div className="career-logo-shell">
+                      <Image
+                        src={item.logo}
+                        alt={`${item.company} logo`}
+                        width={44}
+                        height={44}
+                        className="career-logo-image"
+                        unoptimized
+                      />
+                    </div>
+                  </div>
+
+                  <div className="career-copy">
+                    <p className="career-period">{item.period}</p>
+                    <h3>{item.role}</h3>
+                    <p className="career-company">
+                      {item.company} · {item.location}
+                    </p>
+                    <p className="career-summary">{item.summary}</p>
+                    <ul className="career-points">
+                      {item.bullets.map((point) => (
+                        <li key={point}>{point}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="stack"
+          className="section-block section-block-compact"
+          data-stage="stack"
+          data-stage-nav="true"
+          data-stage-label="Stack"
+        >
           <div className="section-top">
             <h2 className="section-title">Stack</h2>
             <p className="section-intro">
@@ -1119,12 +1635,18 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="contact" className="section-block section-block-compact">
+        <section
+          id="contact"
+          className="section-block section-block-compact"
+          data-stage="contact"
+          data-stage-nav="true"
+          data-stage-label="Contact"
+        >
           <div className="section-top">
             <h2 className="section-title">Contact</h2>
             <p className="section-intro">
-              Engineering conversations around payment systems, Android
-              reliability, backend observability, and client trust.
+              For payment reliability, Android delivery, and production-facing
+              incident work.
             </p>
           </div>
 
@@ -1140,21 +1662,12 @@ export default function Home() {
               {email}
             </span>
             <span className="copy-email-hint">Click to copy</span>
-            <span className="copy-toast" data-copy-toast="true" hidden>
-              Email copied
+            <span className="copy-toast" data-copy-toast="true" aria-live="polite">
+              Copied
             </span>
           </div>
 
-          <div className="contact-links">
-            <a
-              className="contact-pill-link"
-              href="https://github.com/fattah247"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <GitHubIcon />
-              GitHub
-            </a>
+          <div className="contact-links" data-contact-links="true">
             <a
               className="contact-pill-link"
               href="https://www.linkedin.com/in/muhammad24fattah/"
@@ -1195,14 +1708,14 @@ export default function Home() {
             </button>
           </div>
 
-          <div className="viewer-stage">
+          <div className="viewer-stage" data-viewer-stage="true">
             <div className="viewer-media" data-viewer-media="true">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 alt=""
                 className="viewer-image"
                 data-viewer-image="true"
-                src=""
+                src={transparentPixel}
               />
             </div>
           </div>
@@ -1235,7 +1748,11 @@ export default function Home() {
         </div>
       </div>
 
-      <script dangerouslySetInnerHTML={{ __html: interactionScript }} />
+      <Script
+        id="site-interactions"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{ __html: interactionScript }}
+      />
     </div>
   );
 }
