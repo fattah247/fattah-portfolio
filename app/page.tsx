@@ -1,47 +1,466 @@
 import Image from "next/image";
-import { CopyEmailLink } from "@/components/copy-email-link";
-import { NavLinks } from "@/components/nav-links";
-import { ScrollProgress } from "@/components/scroll-progress";
-
-const navLinks = [
-  { label: "Work", href: "#projects" },
-  { label: "Stack", href: "#stack" },
-  { label: "Contact", href: "#contact" },
-];
 
 const stackGroups = [
   {
     title: "Mobile",
-    items: "Kotlin, Android, Jetpack Compose, Java, Swift, SwiftUI, MVVM, mobile security",
+    items: "Kotlin, Java, Android, Jetpack Compose, Swift, SwiftUI",
   },
   {
     title: "Backend",
-    items: "Spring Boot, FastAPI, REST APIs, WebSocket, Kafka, Oracle SQL, PostgreSQL",
+    items: "Spring Boot, REST API, WebSocket, Kafka, Oracle SQL",
   },
   {
-    title: "Delivery",
-    items: "GitHub Actions, Jenkins, Docker, Kubernetes, release coordination, production fixes",
+    title: "Platform",
+    items:
+      "Docker, Kubernetes, Jenkins, GitHub Actions, Prometheus, Grafana, Dynatrace, ElasticSearch",
   },
   {
-    title: "Monitoring",
-    items: "Prometheus, Grafana, Alertmanager, Dynatrace, ElasticSearch, service diagnostics",
+    title: "Security",
+    items:
+      "Mobile security, root and emulator detection, request signing, encrypted storage, app hardening",
+  },
+  {
+    title: "Operations",
+    items: "Payment systems, incident response, root cause analysis",
   },
 ] as const;
 
-const repoLinks = [
-  {
-    label: "PayFlow Reliability",
-    href: "https://github.com/fattah247/payflow-reliability",
-  },
-  {
-    label: "iYup",
-    href: "https://github.com/fattah247/iYup",
-  },
-  {
-    label: "TrustGate Android",
-    href: "https://github.com/fattah247/trustgate-android",
-  },
-] as const;
+const interactionScript = String.raw`(() => {
+  if (window.__fattahSiteReady) {
+    return;
+  }
+
+  window.__fattahSiteReady = true;
+
+  const root = document.documentElement;
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const mobileMedia = window.matchMedia("(max-width: 767px)");
+  const brand = document.querySelector("[data-header-brand]");
+  const hero = document.getElementById("hero-name");
+  const heroLinks = document.getElementById("hero-links");
+  const progress = document.getElementById("scroll-progress");
+  const emailShell = document.getElementById("contact-email");
+  const toast = document.querySelector("[data-copy-toast]");
+  const viewer = document.querySelector("[data-viewer-root]");
+  const viewerImage = document.querySelector("[data-viewer-image]");
+  const viewerCaption = document.querySelector("[data-viewer-caption]");
+  const viewerMedia = document.querySelector("[data-viewer-media]");
+  const viewerScale = document.querySelector("[data-viewer-scale]");
+  const navItems = Array.from(document.querySelectorAll("[data-nav-target]"));
+  const stageItems = Array.from(document.querySelectorAll("[data-stage]"));
+  const sectionItems = ["projects", "stack"]
+    .map((id) => document.getElementById(id))
+    .filter(Boolean);
+  const copyButton = document.querySelector("[data-copy-email]");
+  const artifactButtons = Array.from(document.querySelectorAll("[data-artifact-src]"));
+
+  let flashTimer = 0;
+  let toastTimer = 0;
+  let zoom = 1;
+
+  root.setAttribute("data-interact-ready", "yes");
+
+function setBrand(visible) {
+  if (!brand) {
+    return;
+  }
+
+  root.classList.toggle("desk-hero-away", visible);
+  brand.classList.toggle("site-title-visible", visible);
+  brand.setAttribute("aria-hidden", visible ? "false" : "true");
+  brand.tabIndex = visible ? 0 : -1;
+}
+
+function syncBrand() {
+  if (mobileMedia.matches) {
+    root.classList.remove("desk-hero-away");
+    setBrand(false);
+    return;
+  }
+
+    if (!hero) {
+      setBrand(true);
+      return;
+    }
+
+    const rect = hero.getBoundingClientRect();
+    const heroEdge = rect.y + rect.height;
+    setBrand(heroEdge <= 84 || rect.top < -84);
+  }
+
+  function setMobileHeroState(heroVisible) {
+    root.classList.toggle("mobile-hero-hidden", mobileMedia.matches && !heroVisible);
+  }
+
+  function syncMobileHeroState() {
+    const source = heroLinks || hero;
+
+    if (!source) {
+      setMobileHeroState(false);
+      return;
+    }
+
+    const rect = source.getBoundingClientRect();
+    const sourceVisible = rect.bottom > 0 && rect.top < window.innerHeight && rect.height > 0;
+    setMobileHeroState(sourceVisible);
+  }
+
+  function setProgress() {
+    if (!progress) {
+      return;
+    }
+
+    const total = document.documentElement.scrollHeight - window.innerHeight;
+    const pct = total > 0 ? Math.min(100, (window.scrollY / total) * 100) : 0;
+    progress.style.width = pct + "%";
+  }
+
+  function markActive(id) {
+    navItems.forEach((item) => {
+      const active = item.getAttribute("data-nav-target") === id;
+      item.classList.toggle("nav-link-active", active);
+
+      if (active) {
+        item.setAttribute("aria-current", "page");
+      } else {
+        item.removeAttribute("aria-current");
+      }
+    });
+  }
+
+  function flashEmail() {
+    if (!emailShell) {
+      return;
+    }
+
+    emailShell.classList.add("copy-email-shell-active");
+    window.clearTimeout(flashTimer);
+    flashTimer = window.setTimeout(() => {
+      emailShell.classList.remove("copy-email-shell-active");
+    }, 1800);
+  }
+
+  function showToast() {
+    if (!toast || !emailShell) {
+      return;
+    }
+
+    emailShell.classList.add("copy-email-shell-copied");
+    toast.textContent = "Copied";
+    toast.hidden = false;
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => {
+      toast.hidden = true;
+      emailShell.classList.remove("copy-email-shell-copied");
+    }, 1800);
+  }
+
+  async function copyText(text) {
+    const field = document.createElement("textarea");
+    field.value = text;
+    field.setAttribute("readonly", "");
+    field.style.position = "fixed";
+    field.style.opacity = "0";
+    document.body.append(field);
+    field.focus({ preventScroll: true });
+    field.select();
+    field.setSelectionRange(0, field.value.length);
+    const copied = document.execCommand("copy");
+    field.remove();
+    if (copied) {
+      return true;
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    return false;
+  }
+
+  async function copyMail(text) {
+    flashEmail();
+
+    try {
+      const ok = await copyText(text);
+      if (!ok) {
+        if (toast) {
+          toast.textContent = "Copy failed";
+          toast.hidden = false;
+          window.clearTimeout(toastTimer);
+          toastTimer = window.setTimeout(() => {
+            toast.hidden = true;
+          }, 1800);
+        }
+        return;
+      }
+      showToast();
+    } catch {
+      if (toast) {
+        toast.textContent = "Copy failed";
+        toast.hidden = false;
+        window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(() => {
+          toast.hidden = true;
+        }, 1800);
+      }
+    }
+  }
+
+  function applyZoom() {
+    if (!viewerMedia) {
+      return;
+    }
+
+    viewerMedia.style.transform = "scale(" + zoom + ")";
+
+    if (viewerScale) {
+      viewerScale.textContent = Math.round(zoom * 100) + "%";
+    }
+  }
+
+  function closeViewer() {
+    if (!viewer) {
+      return;
+    }
+
+    viewer.hidden = true;
+    viewer.setAttribute("aria-hidden", "true");
+    root.style.overflow = "";
+  }
+
+  function openViewer(trigger) {
+    if (!viewer || !viewerImage || !viewerCaption) {
+      return;
+    }
+
+    viewer.hidden = false;
+    viewer.setAttribute("aria-hidden", "false");
+    viewerImage.setAttribute("src", trigger.getAttribute("data-artifact-src") || "");
+    viewerImage.setAttribute("alt", trigger.getAttribute("data-artifact-alt") || "");
+    viewerCaption.textContent = trigger.getAttribute("data-artifact-caption") || "";
+    zoom = 1;
+    applyZoom();
+    root.style.overflow = "hidden";
+  }
+
+  const stageWatch = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        entry.target.classList.toggle("is-stage-active", entry.isIntersecting);
+      });
+    },
+    {
+      rootMargin: "-18% 0px -48% 0px",
+      threshold: 0.22,
+    },
+  );
+
+  stageItems.forEach((item) => stageWatch.observe(item));
+
+  const navWatch = new IntersectionObserver(
+    (entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+      if (visible && visible.target && visible.target.id) {
+        markActive(visible.target.id);
+      }
+    },
+    {
+      rootMargin: "-18% 0px -56% 0px",
+      threshold: [0.2, 0.4, 0.6],
+    },
+  );
+
+  sectionItems.forEach((item) => navWatch.observe(item));
+
+  copyButton?.addEventListener("click", (event) => {
+    const raw = event.target;
+
+    if (raw instanceof Element && raw.closest("a[href]")) {
+      return;
+    }
+
+    event.preventDefault();
+    const text = copyButton.getAttribute("data-copy-email") || "";
+    void copyMail(text);
+  });
+
+  copyButton?.addEventListener("keydown", (event) => {
+    const raw = event.target;
+
+    if (raw instanceof Element && raw.closest("a[href]")) {
+      return;
+    }
+
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    const text = copyButton.getAttribute("data-copy-email") || "";
+    void copyMail(text);
+  });
+
+  artifactButtons.forEach((item) => {
+    item.addEventListener("click", (event) => {
+      event.preventDefault();
+      openViewer(item);
+    });
+
+    item.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+
+      event.preventDefault();
+      openViewer(item);
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    const raw = event.target;
+
+    if (!(raw instanceof Element)) {
+      return;
+    }
+
+    const closeTrigger = raw.closest("[data-viewer-close]");
+
+    if (closeTrigger) {
+      event.preventDefault();
+      closeViewer();
+      return;
+    }
+
+    const zoomTrigger = raw.closest("[data-viewer-step]");
+
+    if (zoomTrigger) {
+      event.preventDefault();
+      const step = zoomTrigger.getAttribute("data-viewer-step");
+      zoom = step === "in" ? Math.min(2.5, zoom + 0.2) : Math.max(1, zoom - 0.2);
+      applyZoom();
+      return;
+    }
+
+    const artifactTrigger = raw.closest("[data-artifact-src]");
+
+    if (artifactTrigger) {
+      return;
+    }
+
+    const link = raw.closest('a[href^="#"]');
+
+    if (!link) {
+      return;
+    }
+
+    const href = link.getAttribute("href") || "";
+
+    if (!href.startsWith("#")) {
+      return;
+    }
+
+    const target = document.querySelector(href);
+
+    if (!target) {
+      return;
+    }
+
+    event.preventDefault();
+    target.scrollIntoView({
+      behavior: reduced ? "auto" : "smooth",
+      block: "start",
+    });
+    history.replaceState(null, "", href);
+
+    if (link.getAttribute("data-spotlight") === "contact-email") {
+      flashEmail();
+      const text = copyButton?.getAttribute("data-copy-email") || "";
+      if (text) {
+        void copyMail(text);
+      }
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const raw = event.target;
+
+    if (!(raw instanceof Element)) {
+      return;
+    }
+
+    if (event.key === "Escape" && viewer && !viewer.hidden) {
+      event.preventDefault();
+      closeViewer();
+      return;
+    }
+
+    if (!viewer.hidden && (event.key === "+" || event.key === "=")) {
+      event.preventDefault();
+      zoom = Math.min(2.5, zoom + 0.2);
+      applyZoom();
+      return;
+    }
+
+    if (!viewer.hidden && event.key === "-") {
+      event.preventDefault();
+      zoom = Math.max(1, zoom - 0.2);
+      applyZoom();
+      return;
+    }
+
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    const artifactTrigger = raw.closest("[data-artifact-src]");
+
+    if (artifactTrigger) {
+      return;
+    }
+
+    const closeTrigger = raw.closest("[data-viewer-close]");
+
+    if (closeTrigger) {
+      event.preventDefault();
+      closeViewer();
+      return;
+    }
+
+    const zoomTrigger = raw.closest("[data-viewer-step]");
+
+    if (!zoomTrigger) {
+      return;
+    }
+
+    event.preventDefault();
+    const step = zoomTrigger.getAttribute("data-viewer-step");
+    zoom = step === "in" ? Math.min(2.5, zoom + 0.2) : Math.max(1, zoom - 0.2);
+    applyZoom();
+  });
+
+  window.addEventListener("scroll", () => {
+    setProgress();
+    syncBrand();
+    syncMobileHeroState();
+  }, { passive: true });
+  window.addEventListener("resize", () => {
+    syncBrand();
+    syncMobileHeroState();
+  });
+  setProgress();
+  syncBrand();
+  syncMobileHeroState();
+  markActive("projects");
+})();`;
 
 function GitHubIcon() {
   return (
@@ -87,114 +506,169 @@ function ArrowOutIcon() {
   );
 }
 
-function PayflowBackdrop() {
+function SocialIconLinks() {
   return (
-    <svg
-      aria-hidden="true"
-      className="stage-backdrop stage-backdrop-payflow"
-      viewBox="0 0 640 320"
-    >
+    <>
+      <a
+        aria-label="GitHub"
+        className="icon-link"
+        href="https://github.com/fattah247"
+        target="_blank"
+        rel="noreferrer"
+      >
+        <GitHubIcon />
+      </a>
+      <a
+        aria-label="LinkedIn"
+        className="icon-link"
+        href="https://www.linkedin.com/in/muhammad24fattah/"
+        target="_blank"
+        rel="noreferrer"
+      >
+        <LinkedInIcon />
+      </a>
+      <a
+        aria-label="Email"
+        className="icon-link"
+        data-spotlight="contact-email"
+        href="#contact"
+      >
+        <MailIcon />
+      </a>
+    </>
+  );
+}
+
+function HeroTextLinks() {
+  return (
+    <div className="hero-link-row" id="hero-links">
+      <a
+        className="hero-utility-link"
+        href="https://github.com/fattah247"
+        target="_blank"
+        rel="noreferrer"
+      >
+        <GitHubIcon />
+        GitHub
+      </a>
+      <a
+        className="hero-utility-link"
+        href="https://www.linkedin.com/in/muhammad24fattah/"
+        target="_blank"
+        rel="noreferrer"
+      >
+        <LinkedInIcon />
+        LinkedIn
+      </a>
+      <a className="hero-utility-link" data-spotlight="contact-email" href="#contact">
+        <MailIcon />
+        Email
+      </a>
+    </div>
+  );
+}
+
+function HeaderTextLinks() {
+  return (
+    <div className="header-link-row">
+      <a
+        className="header-utility-link"
+        href="https://github.com/fattah247"
+        target="_blank"
+        rel="noreferrer"
+      >
+        <GitHubIcon />
+        GitHub
+      </a>
+      <a
+        className="header-utility-link"
+        href="https://www.linkedin.com/in/muhammad24fattah/"
+        target="_blank"
+        rel="noreferrer"
+      >
+        <LinkedInIcon />
+        LinkedIn
+      </a>
+      <a className="header-utility-link" data-spotlight="contact-email" href="#contact">
+        <MailIcon />
+        Email
+      </a>
+    </div>
+  );
+}
+
+function HeroMarkField() {
+  const marks = [
+    { mark: "🌊", tone: "hero-mark-payflow", slot: "hero-mark-1" },
+    { mark: "🛩️", tone: "hero-mark-iyup", slot: "hero-mark-2" },
+    { mark: "🔒", tone: "hero-mark-trustgate", slot: "hero-mark-3" },
+    { mark: "🌊", tone: "hero-mark-payflow", slot: "hero-mark-4" },
+    { mark: "🛩️", tone: "hero-mark-iyup", slot: "hero-mark-5" },
+    { mark: "🔒", tone: "hero-mark-trustgate", slot: "hero-mark-6" },
+    { mark: "🌊", tone: "hero-mark-payflow", slot: "hero-mark-7" },
+    { mark: "🛩️", tone: "hero-mark-iyup", slot: "hero-mark-8" },
+    { mark: "🔒", tone: "hero-mark-trustgate", slot: "hero-mark-9" },
+  ] as const;
+
+  return (
+    <div className="hero-mark-field" aria-hidden="true">
+      {marks.map((item) => (
+        <span
+          key={`${item.mark}-${item.slot}`}
+          className={`hero-mark ${item.tone} ${item.slot}`}
+        >
+          {item.mark}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function MobileNavPill() {
+  return (
+    <div className="mobile-nav-pill">
+      <SocialIconLinks />
+    </div>
+  );
+}
+
+function ZoomIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="mini-icon">
       <path
-        d="M0 180C90 145 150 145 230 180C310 215 370 215 450 180C530 145 585 145 640 170"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-      />
-      <path
-        d="M0 220C90 185 150 185 230 220C310 255 370 255 450 220C530 185 585 185 640 210"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M0 140C90 105 150 105 230 140C310 175 370 175 450 140C530 105 585 105 640 130"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
+        fill="currentColor"
+        d="M10.25 4.75a5.5 5.5 0 1 0 0 11a5.5 5.5 0 0 0 0-11Zm-7 5.5a7 7 0 1 1 12.03 4.9l4.06 4.07-1.06 1.06-4.07-4.06a7 7 0 0 1-10.96-5.97Zm6.25-2.5h1.5v1.75h1.75V11h-1.75v1.75H9.5V11H7.75V9.5H9.5V7.75Z"
       />
     </svg>
   );
 }
 
-function IyupBackdrop() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="stage-backdrop stage-backdrop-iyup"
-      viewBox="0 0 640 320"
-    >
-      <path
-        d="M96 236L286 186L216 270L250 236L96 236Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M276 194C332 167 381 135 431 92C471 58 517 37 564 28"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeDasharray="7 10"
-      />
-    </svg>
-  );
-}
-
-function TrustgateBackdrop() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="stage-backdrop stage-backdrop-trustgate"
-      viewBox="0 0 640 320"
-    >
-      <rect
-        x="180"
-        y="120"
-        width="168"
-        height="120"
-        rx="16"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M222 120V96C222 64 248 38 280 38C312 38 338 64 338 96V120"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M394 86H598V270H394"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path d="M480 86V270" fill="none" stroke="currentColor" strokeWidth="2" />
-    </svg>
-  );
-}
-
-function RepoShot({
+function ArtifactCard({
   alt,
   caption,
-  href,
   sizes,
   src,
+  tall = false,
   tone,
   wide = false,
-  tall = false,
 }: {
   alt: string;
   caption: string;
-  href: string;
   sizes: string;
   src: string;
+  tall?: boolean;
   tone: string;
   wide?: boolean;
-  tall?: boolean;
 }) {
   return (
-    <a className="artifact" href={href} target="_blank" rel="noreferrer">
+    <button
+      aria-label={`${caption} Click to expand image`}
+      className="artifact"
+      data-artifact-alt={alt}
+      data-artifact-caption={caption}
+      data-artifact-src={src}
+      type="button"
+    >
       <div
         className={`artifact-frame ${tone} ${wide ? "artifact-frame-wide" : ""} ${tall ? "artifact-frame-tall" : ""}`}
       >
@@ -209,135 +683,181 @@ function RepoShot({
       </div>
       <div className="artifact-meta">
         <p className="artifact-caption-text">{caption}</p>
-        <span className="artifact-link-mark">
-          <ArrowOutIcon />
+        <span className="artifact-link-mark" aria-hidden="true">
+          <ZoomIcon />
         </span>
       </div>
-    </a>
+    </button>
   );
 }
 
 export default function Home() {
+  const email = "fattahmuhammad17@gmail.com";
+
   return (
     <div className="page-shell">
       <div id="scroll-progress" aria-hidden="true" />
-      <ScrollProgress />
 
       <header className="site-header">
         <div className="shell header-inner">
-          <a href="#top" className="site-title">
+          <a
+            aria-hidden="true"
+            className="site-title hidden md:block"
+            data-header-brand="true"
+            href="#top"
+            tabIndex={-1}
+          >
             Muhammad A. Fattah
           </a>
 
-          <div className="hidden items-center gap-7 lg:flex">
-            <nav aria-label="Primary">
-              <NavLinks links={navLinks} />
-            </nav>
-
-            <div className="nav-icons">
-              <a
-                aria-label="GitHub"
-                className="icon-link"
-                href="https://github.com/fattah247"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <GitHubIcon />
-              </a>
-              <a
-                aria-label="LinkedIn"
-                className="icon-link"
-                href="https://www.linkedin.com/in/muhammad24fattah/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <LinkedInIcon />
-              </a>
-              <a aria-label="Email" className="icon-link" href="#contact">
-                <MailIcon />
-              </a>
-            </div>
+          <div className="hidden items-center md:flex">
+            <HeaderTextLinks />
           </div>
 
-          <a className="ghost-link lg:hidden" href="#contact">
-            Contact
-          </a>
+          <div className="mobile-nav-icons md:hidden">
+            <MobileNavPill />
+          </div>
         </div>
       </header>
 
-      <main id="top" className="shell">
-        <section className="hero-section">
-          <h1 className="hero-name">Muhammad A. Fattah</h1>
-          <p className="hero-line">Payment systems. Android. Reliability.</p>
-          <p className="hero-copy">
-            I work on Android payment systems and build public labs around
-            transaction reliability, observability, and client trust.
-          </p>
+      <div className="mobile-quick-links" aria-label="Quick links">
+        <MobileNavPill />
+      </div>
 
-          <div className="hero-actions">
-            <a
-              className="action-link action-link-primary"
-              href="#projects"
-              style={{ color: "#fff" }}
-            >
-              View work
-            </a>
+      <main id="top" className="shell">
+        <section className="hero-section" data-stage="hero">
+          <HeroMarkField />
+          <div className="hero-layout">
+            <div className="hero-copy-block">
+              <h1 className="hero-name" id="hero-name">
+                Muhammad
+                <br className="hero-name-split" />
+                A. Fattah
+              </h1>
+            </div>
+
+            <aside className="hero-side">
+              <p className="hero-line">
+                <span>Payment systems.</span>
+                <span className="hero-line-break">Android reliability.</span>
+                <span className="hero-line-break">Backend observability.</span>
+              </p>
+              <p className="hero-copy">
+                I build public labs around payment failures that are expensive
+                to debug: unclear states, duplicate callbacks, weak
+                visibility, and Android clients that trust too much.
+              </p>
+
+              <div className="hero-actions">
+                <a className="action-link action-link-primary" href="#failures">
+                  View labs
+                </a>
+              </div>
+
+              <HeroTextLinks />
+            </aside>
           </div>
         </section>
 
-        <section id="projects" className="section-block">
+        <section
+          id="failures"
+          className="section-block section-block-compact failure-section"
+        >
           <div className="section-top">
-            <h2 className="section-title">Selected work</h2>
+            <h2 className="section-title">Three failure cases</h2>
           </div>
 
-          <article className="project-stage project-stage-payflow">
-            <PayflowBackdrop />
+          <p className="failure-lead">
+            The work centers on payment state, service visibility, and device
+            trust.
+          </p>
 
+          <div className="failure-list">
+            <article className="failure-item">
+              <h3>Readable payment state.</h3>
+              <p>A transaction should not leave the system guessing what happened.</p>
+            </article>
+            <article className="failure-item">
+              <h3>Monitoring that explains cause.</h3>
+              <p>Monitoring is weak if it cannot explain what broke.</p>
+            </article>
+            <article className="failure-item">
+              <h3>Android clients that challenge risk.</h3>
+              <p>A payment client should know when to allow, warn, or block.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="projects" className="section-block" data-stage="projects">
+          <div className="section-top">
+            <h2 className="section-title">Selected labs</h2>
+            <p className="section-intro">
+              Three public labs, each testing one failure surface.
+            </p>
+          </div>
+
+          <article
+            className="project-stage project-stage-payflow"
+            data-stage="payflow"
+          >
             <div className="project-aside">
               <div className="project-head">
                 <h3 className="project-title">PayFlow Reliability</h3>
                 <p className="project-summary">
-                  Spring Boot payment failure handling: duplicate callbacks,
-                  settlement mismatch, and guarded state transitions.
+                  A Spring Boot lab for payment-like failure states: duplicate
+                  callbacks, idempotency, settlement mismatch, and state
+                  transitions.
                 </p>
               </div>
 
-              <ul className="project-points">
-                <li>Idempotency key handling</li>
-                <li>Duplicate callback handling</li>
-                <li>Settlement mismatch review</li>
-                <li>Audit trail visibility</li>
-              </ul>
+              <div className="project-meta-block">
+                <h4>Covers</h4>
+                <ul className="project-points">
+                  <li>Duplicate callbacks</li>
+                  <li>Unclear transaction state</li>
+                  <li>Settlement mismatch</li>
+                  <li>Retry visibility</li>
+                </ul>
+              </div>
+
+              <div className="project-proof-block">
+                <h4>Visible behavior</h4>
+                <ul className="project-proof-list">
+                  <li>Duplicate callback detected</li>
+                  <li>Existing transaction state reused</li>
+                  <li>Settlement mismatch preserved</li>
+                  <li>Retry path visible</li>
+                </ul>
+              </div>
 
               <div className="project-foot">
-                <p className="project-tech">
-                  Spring Boot · Java · PostgreSQL · Docker · GitHub Actions
-                </p>
                 <a
                   className="repo-link repo-link-payflow"
                   href="https://github.com/fattah247/payflow-reliability"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Repository
+                  View repository
                   <ArrowOutIcon />
                 </a>
+                <p className="project-tech">
+                  Spring Boot · PostgreSQL · Docker · REST API
+                </p>
               </div>
             </div>
 
             <div className="project-main">
-              <RepoShot
+              <ArtifactCard
                 src="/projects/payflow/audit-trail.png"
                 alt="Audit trail output from PayFlow Reliability showing state transitions."
-                caption="Audit trail keeps payment state transitions readable instead of leaving them implied."
-                href="https://github.com/fattah247/payflow-reliability"
+                caption="Duplicate callbacks are routed to the existing transaction state instead of creating a second transaction record."
                 sizes="(max-width: 1024px) 100vw, 58vw"
                 tone="bg-[#0f1823]"
                 wide
               />
 
-              <div className="project-detail-grid">
-                <div className="project-panel">
+              <div className="project-detail-grid project-detail-grid-payflow project-evidence-secondary">
+                <div className="project-panel project-panel-secondary">
                   <h4>Path</h4>
                   <div className="flow-strip">
                     {[
@@ -356,11 +876,10 @@ export default function Home() {
                   </div>
                 </div>
 
-                <RepoShot
+                <ArtifactCard
                   src="/projects/payflow/duplicate-webhook.png"
                   alt="Duplicate provider webhook handled and ignored in PayFlow Reliability."
                   caption="Duplicate callbacks show up as handled behavior, not as a hidden assumption."
-                  href="https://github.com/fattah247/payflow-reliability"
                   sizes="(max-width: 1024px) 100vw, 30vw"
                   tone="bg-[#0f1823]"
                   wide
@@ -369,84 +888,86 @@ export default function Home() {
             </div>
           </article>
 
-          <article className="project-stage project-stage-iyup">
-            <IyupBackdrop />
-
+          <article
+            className="project-stage project-stage-iyup"
+            data-stage="iyup"
+          >
             <div className="project-aside">
               <div className="project-head">
                 <h3 className="project-title">iYup</h3>
                 <p className="project-summary">
-                  Service health and observability with health checks,
-                  Prometheus, Grafana, and alert routing.
+                  An observability lab for service health, latency, alert
+                  state, and dashboard visibility.
                 </p>
               </div>
 
-              <ul className="project-points">
-                <li>Health checks</li>
-                <li>Prometheus scraping</li>
-                <li>Grafana dashboards</li>
-                <li>Alertmanager wiring</li>
-              </ul>
+              <div className="project-meta-block">
+                <h4>Covers</h4>
+                <ul className="project-points">
+                  <li>Service health</li>
+                  <li>Latency visibility</li>
+                  <li>Alert conditions</li>
+                  <li>Operational dashboarding</li>
+                </ul>
+              </div>
+
+              <div className="project-proof-block">
+                <h4>Visible behavior</h4>
+                <ul className="project-proof-list">
+                  <li>Service health</li>
+                  <li>Latency</li>
+                  <li>Alert state</li>
+                  <li>Dashboard visibility</li>
+                </ul>
+              </div>
 
               <div className="project-foot">
-                <p className="project-tech">
-                  Go · FastAPI · Prometheus · Grafana · Alertmanager · Docker
-                  Compose · Helm · GitHub Actions
-                </p>
                 <a
                   className="repo-link repo-link-iyup"
                   href="https://github.com/fattah247/iYup"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Repository
+                  View repository
                   <ArrowOutIcon />
                 </a>
+                <p className="project-tech">
+                  Prometheus · Grafana · Alertmanager · Go
+                </p>
               </div>
             </div>
 
             <div className="project-main">
-              <RepoShot
+              <ArtifactCard
                 src="/projects/iyup/grafana-dashboard.png"
                 alt="Grafana dashboard from iYup showing service health and latency metrics."
-                caption="Grafana is the main proof surface: health, latency, and alert state live together."
-                href="https://github.com/fattah247/iYup"
+                caption="Grafana shows service health, latency, and alert state in one view."
                 sizes="(max-width: 1024px) 100vw, 58vw"
                 tone="bg-[#101412]"
                 wide
               />
 
-              <div className="project-detail-grid">
-                <div className="project-panel">
+              <div className="project-detail-grid project-detail-grid-iyup project-evidence-secondary">
+                <div className="project-panel project-panel-secondary">
                   <h4>Signals</h4>
-                  <table className="signal-table">
-                    <thead>
-                      <tr>
-                        <th>Signal</th>
-                        <th>Surface</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        ["Health", "Status API"],
-                        ["Latency", "Prometheus and Grafana"],
-                        ["Alerts", "Alertmanager"],
-                        ["Validation", "Local script and CI"],
-                      ].map(([signal, surface]) => (
-                        <tr key={signal}>
-                          <td>{signal}</td>
-                          <td>{surface}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="signal-cards">
+                    {[
+                      ["Health checks", "Status API"],
+                      ["Latency", "Prometheus / Grafana"],
+                      ["Alerts", "Alertmanager"],
+                    ].map(([signal, surface]) => (
+                      <article className="signal-card" key={signal}>
+                        <h5>{signal}</h5>
+                        <p>Source: {surface}</p>
+                      </article>
+                    ))}
+                  </div>
                 </div>
 
-                <RepoShot
+                <ArtifactCard
                   src="/projects/iyup/prometheus-targets.png"
                   alt="Prometheus targets page from iYup showing scrape state for monitored services."
                   caption="Target scraping is visible at the collection boundary."
-                  href="https://github.com/fattah247/iYup"
                   sizes="(max-width: 1024px) 100vw, 30vw"
                   tone="bg-[#101412]"
                   wide
@@ -455,84 +976,100 @@ export default function Home() {
             </div>
           </article>
 
-          <article className="project-stage project-stage-trustgate">
-            <TrustgateBackdrop />
-
+          <article
+            className="project-stage project-stage-trustgate"
+            data-stage="trustgate"
+          >
             <div className="project-aside">
               <div className="project-head">
                 <h3 className="project-title">TrustGate Android</h3>
                 <p className="project-summary">
-                  Risky-device client behavior, gated actions, request signing,
-                  and a visible security event trail.
+                  An Android client-trust lab for deciding when a device should
+                  be allowed, warned, or blocked.
                 </p>
               </div>
 
-              <ul className="project-points">
-                <li>Risk signal handling</li>
-                <li>Sensitive action gating</li>
-                <li>Request signing</li>
-                <li>Security event trail</li>
-              </ul>
+              <div className="project-meta-block">
+                <h4>Covers</h4>
+                <ul className="project-points">
+                  <li>Device risk state</li>
+                  <li>Root and emulator signals</li>
+                  <li>Sensitive action protection</li>
+                  <li>Security event visibility</li>
+                </ul>
+              </div>
+
+              <div className="project-proof-block">
+                <h4>Visible behavior</h4>
+                <ul className="project-proof-list">
+                  <li>Device risk state</li>
+                  <li>Security event log</li>
+                  <li>Sensitive action blocked</li>
+                  <li>Risk-based decision path</li>
+                </ul>
+              </div>
 
               <div className="project-foot">
-                <p className="project-tech">
-                  Kotlin · Android · Jetpack Compose · Jetpack Security · OkHttp
-                  · GitHub Actions
-                </p>
                 <a
                   className="repo-link repo-link-trustgate"
                   href="https://github.com/fattah247/trustgate-android"
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Repository
+                  View repository
                   <ArrowOutIcon />
                 </a>
+                <p className="project-tech">
+                  Kotlin · Android · Jetpack Compose · Jetpack Security
+                </p>
               </div>
             </div>
 
             <div className="project-main">
               <div className="phone-grid">
-                <RepoShot
+                <ArtifactCard
                   src="/projects/trustgate/device-risk-details.png"
                   alt="Device risk details screen from TrustGate Android showing risk signals."
-                  caption="Risk state stays visible before a sensitive action runs."
-                  href="https://github.com/fattah247/trustgate-android"
+                  caption="Risk state is visible before sensitive actions are allowed."
                   sizes="(max-width: 1024px) 100vw, 28vw"
                   tone="bg-[#d7dce5]"
                   tall
                 />
 
-                <RepoShot
+                <div className="project-evidence-secondary">
+                  <ArtifactCard
                   src="/projects/trustgate/security-event-log.png"
                   alt="Security event log screen from TrustGate Android."
                   caption="Blocked or gated behavior leaves a readable local trail."
-                  href="https://github.com/fattah247/trustgate-android"
                   sizes="(max-width: 1024px) 100vw, 28vw"
                   tone="bg-[#d7dce5]"
                   tall
                 />
+                </div>
               </div>
 
               <div className="decision-strip">
                 <div>
                   <span>Low risk</span>
-                  <p>Allow</p>
+                  <p>Action: allow</p>
                 </div>
                 <div>
                   <span>Medium risk</span>
-                  <p>Confirm</p>
+                  <p>Action: require confirmation</p>
                 </div>
                 <div>
                   <span>High risk</span>
-                  <p>Block</p>
+                  <p>Action: block</p>
                 </div>
               </div>
             </div>
           </article>
         </section>
 
-        <section className="section-block section-block-compact">
+        <section
+          className="section-block section-block-compact"
+          data-stage="current"
+        >
           <div className="section-top">
             <h2 className="section-title">Current work</h2>
           </div>
@@ -540,36 +1077,36 @@ export default function Home() {
           <div className="current-grid">
             <article>
               <h3>Android payments</h3>
-              <ul>
-                <li>Merchant-facing payment flows</li>
-                <li>Transaction status handling</li>
-                <li>Mobile security hardening</li>
-              </ul>
+              <p>
+                Merchant-facing payment flows, transaction states, and
+                app-to-service integration.
+              </p>
             </article>
 
             <article>
               <h3>Backend delivery</h3>
-              <ul>
-                <li>App-to-service integration</li>
-                <li>Release coordination</li>
-                <li>Production fixes</li>
-              </ul>
+              <p>
+                Transaction status handling, API integration, and service
+                reliability.
+              </p>
             </article>
 
             <article>
               <h3>iOS support</h3>
-              <ul>
-                <li>Order creation flow</li>
-                <li>Phone-based payments</li>
-                <li>Merchant business features</li>
-              </ul>
+              <p>
+                Order creation, phone-based payment flows, and merchant
+                features.
+              </p>
             </article>
           </div>
         </section>
 
-        <section id="stack" className="section-block section-block-compact">
+        <section id="stack" className="section-block section-block-compact" data-stage="stack">
           <div className="section-top">
             <h2 className="section-title">Stack</h2>
+            <p className="section-intro">
+              Mobile, backend, platform, security, and incident work behind the labs.
+            </p>
           </div>
 
           <div className="stack-list">
@@ -584,46 +1121,121 @@ export default function Home() {
 
         <section id="contact" className="section-block section-block-compact">
           <div className="section-top">
-            <h2 className="section-title">Need help on payments, Android, or reliability?</h2>
+            <h2 className="section-title">Contact</h2>
+            <p className="section-intro">
+              Engineering conversations around payment systems, Android
+              reliability, backend observability, and client trust.
+            </p>
           </div>
 
-          <CopyEmailLink email="fattahmuhammad17@gmail.com" />
+          <div
+            aria-label={`Copy ${email}`}
+            className="copy-email-shell"
+            data-copy-email={email}
+            id="contact-email"
+            role="button"
+            tabIndex={0}
+          >
+            <span className="copy-email-link">
+              {email}
+            </span>
+            <span className="copy-email-hint">Click to copy</span>
+            <span className="copy-toast" data-copy-toast="true" hidden>
+              Email copied
+            </span>
+          </div>
 
           <div className="contact-links">
             <a
-              className="inline-link"
+              className="contact-pill-link"
               href="https://github.com/fattah247"
               target="_blank"
               rel="noreferrer"
             >
+              <GitHubIcon />
               GitHub
             </a>
             <a
-              className="inline-link"
+              className="contact-pill-link"
               href="https://www.linkedin.com/in/muhammad24fattah/"
               target="_blank"
               rel="noreferrer"
             >
+              <LinkedInIcon />
               LinkedIn
             </a>
           </div>
-
-          <div className="repo-list">
-            {repoLinks.map((item) => (
-              <a
-                className="repo-row"
-                href={item.href}
-                key={item.href}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span>{item.label}</span>
-                <ArrowOutIcon />
-              </a>
-            ))}
-          </div>
         </section>
       </main>
+
+      <div
+        aria-hidden="true"
+        aria-modal="true"
+        className="viewer-shell"
+        data-viewer-root="true"
+        hidden
+        role="dialog"
+      >
+        <button
+          aria-label="Close image viewer"
+          className="viewer-veil"
+          data-viewer-close="true"
+          type="button"
+        />
+
+        <div className="viewer-card">
+          <div className="viewer-head">
+            <p className="viewer-kicker">Artifact view</p>
+            <button
+              className="viewer-tool viewer-tool-close"
+              data-viewer-close="true"
+              type="button"
+            >
+              Close
+            </button>
+          </div>
+
+          <div className="viewer-stage">
+            <div className="viewer-media" data-viewer-media="true">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                alt=""
+                className="viewer-image"
+                data-viewer-image="true"
+                src=""
+              />
+            </div>
+          </div>
+
+          <div className="viewer-lower">
+            <p className="viewer-caption" data-viewer-caption="true" />
+
+            <div className="viewer-tools">
+              <span className="viewer-scale" data-viewer-scale="true">
+                100%
+              </span>
+              <button
+                aria-label="Zoom out"
+                className="viewer-tool"
+                data-viewer-step="out"
+                type="button"
+              >
+                -
+              </button>
+              <button
+                aria-label="Zoom in"
+                className="viewer-tool"
+                data-viewer-step="in"
+                type="button"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script dangerouslySetInnerHTML={{ __html: interactionScript }} />
     </div>
   );
 }
