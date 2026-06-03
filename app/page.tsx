@@ -173,6 +173,16 @@ const careerProgression = [
   },
 ] as const;
 
+const stageMenuItems = [
+  { id: "top", label: "Introduction" },
+  { id: "failures", label: "What I fix" },
+  { id: "projects", label: "Selected labs" },
+  { id: "more-projects", label: "More on GitHub" },
+  { id: "current-work", label: "Experience" },
+  { id: "stack", label: "Stack" },
+  { id: "contact", label: "Contact" },
+] as const;
+
 const interactionScript = String.raw`(() => {
   if (window.__fattahSiteReady) {
     return;
@@ -183,9 +193,11 @@ const interactionScript = String.raw`(() => {
   const root = document.documentElement;
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const mobileMedia = window.matchMedia("(max-width: 767px)");
-  const brand = document.querySelector("[data-header-brand]");
-  const headerRow = document.querySelector("[data-header-row]");
-  const headerFlash = document.querySelector("[data-header-stage-flash]");
+  const brand = document.querySelector("[data-header-brand-link]");
+  const stageToggle = document.querySelector("[data-stage-toggle]");
+  const stageCurrent = document.querySelector("[data-stage-current]");
+  const stageMenu = document.querySelector("[data-stage-menu]");
+  const stageControl = document.querySelector("[data-stage-control]");
   const hero = document.getElementById("hero-name");
   const heroLinks = document.getElementById("hero-links");
   const pillDock = document.querySelector("[data-mobile-pill-dock]");
@@ -205,6 +217,14 @@ const interactionScript = String.raw`(() => {
   const navStages = Array.from(document.querySelectorAll("[data-stage-nav='true']"));
   const copyButton = document.querySelector("[data-copy-email]");
   const artifactButtons = Array.from(document.querySelectorAll("[data-artifact-src]"));
+  const boingSelector = [
+    ".header-stage-button",
+    ".header-stage-item",
+    ".action-link",
+    ".repo-link",
+    ".icon-link",
+    ".copy-email-shell",
+  ].join(", ");
 
   let flashTimer = 0;
   let toastTimer = 0;
@@ -213,7 +233,11 @@ const interactionScript = String.raw`(() => {
   let sectionFlashTimer = 0;
   let activeStage = "";
   let pillMode = "all";
+  let pillStateInitialized = false;
   let pillModeTimer = 0;
+  let mobileFloating = false;
+  let pillAnimating = false;
+  let lastScrollY = window.scrollY;
   let panX = 0;
   let panY = 0;
   let dragStartX = 0;
@@ -222,6 +246,7 @@ const interactionScript = String.raw`(() => {
   let dragOriginY = 0;
   let dragging = false;
   let scrollTicking = false;
+  let pillGeometryLocked = false;
 
   root.setAttribute("data-interact-ready", "yes");
 
@@ -230,44 +255,43 @@ function setBrand(visible) {
     return;
   }
 
-  root.classList.toggle("desk-hero-away", visible);
-  brand.classList.add("site-title-visible");
-  brand.setAttribute("aria-hidden", "false");
-  brand.tabIndex = 0;
+  brand.classList.toggle("site-title-visible", visible);
+  brand.setAttribute("aria-hidden", visible ? "false" : "true");
+  brand.tabIndex = visible ? 0 : -1;
 }
 
 function syncBrand() {
   if (mobileMedia.matches) {
     root.classList.remove("desk-hero-away");
-    brand?.classList.remove("site-title-visible");
-    brand?.setAttribute("aria-hidden", "true");
-    if (brand) {
-      brand.tabIndex = -1;
-    }
+    setBrand(false);
     return;
   }
 
-  setBrand(true);
+  if (!hero) {
+    root.classList.add("desk-hero-away");
+    setBrand(true);
+    return;
+  }
+
+  const heroRect = hero.getBoundingClientRect();
+  const showBrand = heroRect.bottom <= 76;
+  root.classList.toggle("desk-hero-away", showBrand);
+  setBrand(showBrand);
 }
 
   function announceStage(stageLabel) {
-    if (!headerFlash || !headerRow || mobileMedia.matches || !stageLabel) {
+    if (!stageCurrent || !stageControl || mobileMedia.matches || !stageLabel) {
       return;
     }
 
-    if (
-      headerFlash.textContent === stageLabel &&
-      root.classList.contains("header-stage-announcing")
-    ) {
-      return;
-    }
-
-    headerFlash.textContent = stageLabel;
-    root.classList.add("header-stage-announcing");
+    stageCurrent.textContent = stageLabel;
+    stageControl.classList.remove("is-pulsing");
+    void stageControl.offsetWidth;
+    stageControl.classList.add("is-pulsing");
     window.clearTimeout(sectionFlashTimer);
     sectionFlashTimer = window.setTimeout(() => {
-      root.classList.remove("header-stage-announcing");
-    }, 620);
+      stageControl.classList.remove("is-pulsing");
+    }, 280);
   }
 
   function setProgress() {
@@ -303,6 +327,19 @@ function syncBrand() {
     toastTimer = window.setTimeout(() => {
       emailShell.classList.remove("copy-email-shell-copied");
     }, 1800);
+  }
+
+  function triggerBoing(element) {
+    if (!(element instanceof Element)) {
+      return;
+    }
+
+    element.classList.remove("is-boinging");
+    void element.getBoundingClientRect();
+    element.classList.add("is-boinging");
+    window.setTimeout(() => {
+      element.classList.remove("is-boinging");
+    }, 440);
   }
 
   async function copyText(text) {
@@ -362,13 +399,9 @@ function syncBrand() {
     }
   }
 
-  function syncMobilePillGeometry() {
+  function readPillGeometry() {
     if (!mobileMedia.matches || !heroLinks || !pillDock) {
-      root.style.removeProperty("--pill-from-x");
-      root.style.removeProperty("--pill-from-y");
-      root.style.removeProperty("--hero-link-to-x");
-      root.style.removeProperty("--hero-link-to-y");
-      return;
+      return null;
     }
 
     const heroRect = heroLinks.getBoundingClientRect();
@@ -378,10 +411,98 @@ function syncBrand() {
     const dockX = dockRect.left + (dockRect.width / 2);
     const dockY = dockRect.top + (dockRect.height / 2);
 
-    root.style.setProperty("--pill-from-x", (heroX - dockX) + "px");
-    root.style.setProperty("--pill-from-y", (heroY - dockY) + "px");
-    root.style.setProperty("--hero-link-to-x", (dockX - heroX) + "px");
-    root.style.setProperty("--hero-link-to-y", (dockY - heroY) + "px");
+    return {
+      pillFromX: heroX - dockX,
+      pillFromY: heroY - dockY,
+      heroLinkToX: dockX - heroX,
+      heroLinkToY: dockY - heroY,
+    };
+  }
+
+  function applyPillGeometry(geometry) {
+    if (!geometry) {
+      return;
+    }
+
+    root.style.setProperty("--pill-from-x", geometry.pillFromX + "px");
+    root.style.setProperty("--pill-from-y", geometry.pillFromY + "px");
+    root.style.setProperty("--hero-link-to-x", geometry.heroLinkToX + "px");
+    root.style.setProperty("--hero-link-to-y", geometry.heroLinkToY + "px");
+  }
+
+  function lockPillGeometry() {
+    const geometry = readPillGeometry();
+    if (!geometry) {
+      return;
+    }
+
+    pillGeometryLocked = true;
+    applyPillGeometry(geometry);
+  }
+
+  function unlockPillGeometry() {
+    pillGeometryLocked = false;
+  }
+
+  function startPillExtract() {
+    if (!mobileMedia.matches || pillAnimating) {
+      return;
+    }
+
+    lockPillGeometry();
+    pillAnimating = true;
+    root.classList.add("mobile-links-away");
+    root.classList.remove("mobile-pill-returning");
+    void root.offsetWidth;
+    root.classList.add("mobile-pill-entering");
+    window.clearTimeout(pillTimer);
+    pillTimer = window.setTimeout(() => {
+      root.classList.remove("mobile-pill-entering");
+      mobileFloating = true;
+      pillAnimating = false;
+      unlockPillGeometry();
+      syncMobilePillGeometry();
+      update();
+    }, 430);
+  }
+
+  function startPillReturn() {
+    if (!mobileMedia.matches || pillAnimating) {
+      return;
+    }
+
+    lockPillGeometry();
+    pillAnimating = true;
+    root.classList.remove("mobile-pill-entering");
+    void root.offsetWidth;
+    root.classList.add("mobile-pill-returning");
+    window.clearTimeout(pillTimer);
+    pillTimer = window.setTimeout(() => {
+      root.classList.remove("mobile-links-away");
+      root.classList.remove("mobile-pill-returning");
+      mobileFloating = false;
+      pillAnimating = false;
+      unlockPillGeometry();
+      syncMobilePillGeometry();
+      update();
+    }, 360);
+  }
+
+  function syncMobilePillGeometry() {
+    if (!mobileMedia.matches || !heroLinks || !pillDock) {
+      unlockPillGeometry();
+      root.style.removeProperty("--pill-from-x");
+      root.style.removeProperty("--pill-from-y");
+      root.style.removeProperty("--hero-link-to-x");
+      root.style.removeProperty("--hero-link-to-y");
+      return;
+    }
+
+    if (pillGeometryLocked) {
+      return;
+    }
+
+    applyPillGeometry(readPillGeometry());
   }
 
   function clampPan(nextX, nextY) {
@@ -451,11 +572,11 @@ function syncBrand() {
   }
 
   function syncActiveStage() {
-    if (!navStages.length || mobileMedia.matches) {
+    if (!navStages.length) {
       return;
     }
 
-    const anchor = window.innerHeight * 0.24;
+    const anchor = window.innerHeight * (mobileMedia.matches ? 0.18 : 0.24);
     let best = "";
     let bestDistance = Number.POSITIVE_INFINITY;
 
@@ -499,6 +620,12 @@ function syncBrand() {
       root.classList.remove("mobile-pill-contact-hidden");
       root.classList.remove("mobile-pill-mode-github");
       root.classList.remove("mobile-pill-mode-social");
+      root.classList.remove("mobile-pill-preparing");
+      root.classList.remove("mobile-pill-entering");
+      root.classList.remove("mobile-pill-returning");
+      pillAnimating = false;
+      pillStateInitialized = false;
+      unlockPillGeometry();
       return;
     }
 
@@ -509,12 +636,23 @@ function syncBrand() {
       root.classList.remove("mobile-pill-mode-social");
       root.classList.remove("mobile-pill-entering");
       root.classList.remove("mobile-pill-returning");
+      root.classList.remove("mobile-pill-preparing");
+      pillAnimating = false;
+      mobileFloating = false;
+      pillStateInitialized = false;
+      unlockPillGeometry();
       return;
     }
 
     const rect = heroLinks.getBoundingClientRect();
-    const threshold = 12;
-    const shouldFloat = rect.bottom <= threshold;
+    const currentY = window.scrollY;
+    const scrollingDown = currentY >= lastScrollY;
+    lastScrollY = currentY;
+    const showThreshold = 220;
+    const hideThreshold = 262;
+    const shouldFloat = mobileFloating
+      ? rect.bottom <= hideThreshold
+      : rect.bottom <= showThreshold;
     const contactTarget = contactLinks || emailShell || contactSection;
     const contactRect = contactTarget ? contactTarget.getBoundingClientRect() : null;
     const contactVisible =
@@ -526,33 +664,49 @@ function syncBrand() {
       !!githubRect &&
       githubRect.top < window.innerHeight * 0.85 &&
       githubRect.bottom > window.innerHeight * 0.22;
-    const wasFloating = root.classList.contains("mobile-links-away");
     const nextMode = contactVisible ? "github" : githubVisible ? "social" : "all";
-
-    if (shouldFloat && !wasFloating) {
-      root.classList.remove("mobile-pill-returning");
-      root.classList.add("mobile-pill-entering");
-      window.clearTimeout(pillTimer);
-      pillTimer = window.setTimeout(() => {
-        root.classList.remove("mobile-pill-entering");
-      }, 420);
-    }
-
-    if (!shouldFloat && wasFloating) {
-      root.classList.remove("mobile-pill-entering");
-      root.classList.add("mobile-pill-returning");
-      window.clearTimeout(pillTimer);
-      pillTimer = window.setTimeout(() => {
-        root.classList.remove("mobile-pill-returning");
-      }, 460);
-    }
-
-    if (!shouldFloat && !wasFloating) {
+    if (!pillStateInitialized) {
+      mobileFloating = shouldFloat;
+      pillMode = nextMode;
+      pillStateInitialized = true;
+      root.classList.toggle("mobile-links-away", shouldFloat);
+      root.classList.toggle("mobile-pill-mode-github", contactVisible);
+      root.classList.toggle("mobile-pill-mode-social", !contactVisible && githubVisible);
       root.classList.remove("mobile-pill-entering");
       root.classList.remove("mobile-pill-returning");
+      root.classList.remove("mobile-pill-morphing");
+      unlockPillGeometry();
+      syncMobilePillGeometry();
+      return;
     }
 
-    if (shouldFloat && nextMode !== pillMode) {
+    if (pillAnimating && root.classList.contains("mobile-pill-entering") && !shouldFloat) {
+      window.clearTimeout(pillTimer);
+      root.classList.remove("mobile-pill-entering");
+      pillAnimating = false;
+      mobileFloating = true;
+      startPillReturn();
+    }
+
+    if (pillAnimating && root.classList.contains("mobile-pill-returning") && shouldFloat) {
+      window.clearTimeout(pillTimer);
+      root.classList.remove("mobile-pill-returning");
+      root.classList.add("mobile-links-away");
+      mobileFloating = true;
+      pillAnimating = false;
+      unlockPillGeometry();
+      syncMobilePillGeometry();
+    }
+
+    if (!pillAnimating) {
+      if (shouldFloat && !mobileFloating) {
+        startPillExtract();
+      } else if (!shouldFloat && mobileFloating) {
+        startPillReturn();
+      }
+    }
+
+    if ((shouldFloat || mobileFloating) && nextMode !== pillMode) {
       root.classList.add("mobile-pill-morphing");
       window.clearTimeout(pillModeTimer);
       pillModeTimer = window.setTimeout(() => {
@@ -560,11 +714,53 @@ function syncBrand() {
       }, 280);
     }
 
-    root.classList.toggle("mobile-links-away", shouldFloat);
     root.classList.toggle("mobile-pill-mode-github", contactVisible);
     root.classList.toggle("mobile-pill-mode-social", !contactVisible && githubVisible);
+
+    if (!pillAnimating && !mobileFloating && !shouldFloat) {
+      root.classList.remove("mobile-links-away");
+      unlockPillGeometry();
+      syncMobilePillGeometry();
+    }
+
     pillMode = nextMode;
   }
+
+  function closeStageMenu() {
+    if (!(stageControl instanceof Element) || !(stageToggle instanceof Element)) {
+      return;
+    }
+
+    stageControl.classList.remove("is-open");
+    stageToggle.setAttribute("aria-expanded", "false");
+  }
+
+  function openStageMenu() {
+    if (!(stageControl instanceof Element) || !(stageToggle instanceof Element)) {
+      return;
+    }
+
+    stageControl.classList.add("is-open");
+    stageToggle.setAttribute("aria-expanded", "true");
+  }
+
+  function toggleStageMenu() {
+    if (!(stageControl instanceof Element)) {
+      return;
+    }
+
+    if (stageControl.classList.contains("is-open")) {
+      closeStageMenu();
+      return;
+    }
+
+    openStageMenu();
+  }
+
+  stageToggle?.addEventListener("click", (event) => {
+    event.preventDefault();
+    toggleStageMenu();
+  });
 
   copyButton?.addEventListener("click", (event) => {
     const raw = event.target;
@@ -611,10 +807,26 @@ function syncBrand() {
   });
 
   document.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element) || !(stageControl instanceof Element)) {
+      return;
+    }
+
+    if (!stageControl.contains(event.target)) {
+      closeStageMenu();
+    }
+  });
+
+  document.addEventListener("click", (event) => {
     const raw = event.target;
 
     if (!(raw instanceof Element)) {
       return;
+    }
+
+    const boingTarget = raw.closest(boingSelector);
+
+    if (boingTarget) {
+      triggerBoing(boingTarget);
     }
 
     const scrollTrigger = raw.closest("[data-scroll-target]");
@@ -636,6 +848,7 @@ function syncBrand() {
       block: "start",
     });
     history.replaceState(null, "", "#" + target.id);
+    closeStageMenu();
   });
 
   document.addEventListener("click", (event) => {
@@ -720,6 +933,10 @@ function syncBrand() {
       return;
     }
 
+    if (event.key === "Escape") {
+      closeStageMenu();
+    }
+
     if (!viewer.hidden && (event.key === "+" || event.key === "=")) {
       event.preventDefault();
       zoom = Math.min(2.5, zoom + 0.2);
@@ -736,6 +953,12 @@ function syncBrand() {
 
     if (event.key !== "Enter" && event.key !== " ") {
       return;
+    }
+
+    const boingTarget = raw.closest(boingSelector);
+
+    if (boingTarget) {
+      triggerBoing(boingTarget);
     }
 
     const artifactTrigger = raw.closest("[data-artifact-src]");
@@ -819,6 +1042,9 @@ function syncBrand() {
     syncMobilePillGeometry();
     syncMobilePill();
     syncActiveStage();
+    if (mobileMedia.matches) {
+      closeStageMenu();
+    }
   }
 
   function queueUpdate() {
@@ -887,25 +1113,27 @@ function HeroTextLinks() {
     <div className="hero-link-row" id="hero-links">
       <a
         className="hero-utility-link"
+        data-hero-kind="github"
         href="https://github.com/fattah247"
         target="_blank"
         rel="noreferrer"
       >
         <GitHubIcon />
-        GitHub
+        <span className="hero-link-label">GitHub</span>
       </a>
       <a
         className="hero-utility-link"
+        data-hero-kind="linkedin"
         href="https://www.linkedin.com/in/muhammad24fattah/"
         target="_blank"
         rel="noreferrer"
       >
         <LinkedInIcon />
-        LinkedIn
+        <span className="hero-link-label">LinkedIn</span>
       </a>
-      <a className="hero-utility-link" data-spotlight="contact-email" href="#contact">
+      <a className="hero-utility-link" data-hero-kind="mail" data-spotlight="contact-email" href="#contact">
         <MailIcon />
-        Email
+        <span className="hero-link-label">Email</span>
       </a>
     </div>
   );
@@ -914,31 +1142,63 @@ function HeroTextLinks() {
 function HeaderUtilityLinks() {
   return (
     <div className="header-link-row" data-header-row="true">
-      <a className="header-brand-link" href="#top">
-        Muhammad A. Fattah
-      </a>
-      <a
-        className="header-utility-link"
-        href="https://github.com/fattah247"
-        target="_blank"
-        rel="noreferrer"
-      >
-        <GitHubIcon />
-        GitHub
-      </a>
-      <a
-        className="header-utility-link"
-        href="https://www.linkedin.com/in/muhammad24fattah/"
-        target="_blank"
-        rel="noreferrer"
-      >
-        <LinkedInIcon />
-        LinkedIn
-      </a>
-      <a className="header-utility-link" data-spotlight="contact-email" href="#contact">
-        <MailIcon />
-        Email
-      </a>
+      <div className="header-left-cluster">
+        <a aria-hidden="true" className="header-brand-link" data-header-brand-link="true" href="#top" tabIndex={-1}>
+          Muhammad A. Fattah
+        </a>
+        <div className="header-utility-group">
+          <a
+            className="header-utility-link"
+            href="https://github.com/fattah247"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <GitHubIcon />
+            GitHub
+          </a>
+          <a
+            className="header-utility-link"
+            href="https://www.linkedin.com/in/muhammad24fattah/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <LinkedInIcon />
+            LinkedIn
+          </a>
+          <a className="header-utility-link" data-spotlight="contact-email" href="#contact">
+            <MailIcon />
+            Email
+          </a>
+        </div>
+      </div>
+
+      <div className="header-stage-control" data-stage-control="true">
+        <button
+          aria-expanded="false"
+          aria-haspopup="true"
+          className="header-stage-button"
+          data-stage-toggle="true"
+          type="button"
+        >
+          <span className="header-stage-kicker">Section</span>
+          <span className="header-stage-current" data-stage-current="true">
+            Introduction
+          </span>
+        </button>
+
+        <div className="header-stage-menu" data-stage-menu="true">
+          {stageMenuItems.map((item) => (
+            <button
+              key={item.id}
+              className="header-stage-item"
+              data-scroll-target={item.id}
+              type="button"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1119,17 +1379,6 @@ export default function Home() {
 
       <header className="site-header">
         <div className="shell header-inner">
-          <div className="header-stage-flash" data-header-stage-flash="true" aria-hidden="true" />
-          <a
-            aria-hidden="true"
-            className="site-title hidden"
-            data-header-brand="true"
-            href="#top"
-            tabIndex={-1}
-          >
-            Muhammad A. Fattah
-          </a>
-
           <div className="hidden items-center md:flex">
             <HeaderUtilityLinks />
           </div>
@@ -1523,21 +1772,21 @@ export default function Home() {
           <div className="section-top">
             <h2 className="section-title">More on GitHub</h2>
             <p className="section-intro">
-              The featured labs carry the strongest proof. Smaller repos and
-              supporting work stay on GitHub.
+              The homepage is the shortlist. GitHub is the fuller record.
             </p>
           </div>
 
           <div className="github-stage">
             <div className="github-stage-copy">
               <p className="github-stage-lead">
-                The profile holds the wider body of work without turning this
-                page into a long archive.
+                It is the better place to judge range: public labs, smaller
+                builds, setup clarity, screenshots, and the way the code is
+                carried in public.
               </p>
               <ul className="github-stage-points">
-                <li>Public labs with screenshots and repository paths</li>
-                <li>Smaller supporting repos and ongoing experiments</li>
-                <li>Profile framing around payments, observability, and mobile trust</li>
+                <li>Payment and reliability labs with runnable setup and captured output</li>
+                <li>Smaller repos that show range, not just polished showcases</li>
+                <li>A clearer read on how I structure, debug, and document work</li>
               </ul>
               <a
                 className="action-link"
@@ -1552,7 +1801,7 @@ export default function Home() {
             <ArtifactCard
               src="/projects/github-profile.png"
               alt="GitHub profile screenshot for Muhammad A. Fattah."
-              caption="The profile README and public repos extend beyond the three featured labs without turning the homepage into a long project catalog."
+              caption="The profile shows the wider body of work behind the featured labs: smaller builds, public proof, and the way the code is carried in public."
               sizes="(max-width: 1024px) 100vw, 58vw"
               tone="bg-[#0c1117]"
               wide
