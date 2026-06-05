@@ -247,6 +247,10 @@ const interactionScript = String.raw`(() => {
   let dragging = false;
   let scrollTicking = false;
   let repoNavTimer = 0;
+  let scrollIdleTimer = 0;
+  let scrollDirection = 1;
+  let lastScrollBoingKey = "";
+  const pointerEnterTimers = new WeakMap();
 
   root.setAttribute("data-interact-ready", "yes");
 
@@ -339,6 +343,23 @@ function syncBrand() {
     element.classList.add("is-boinging");
     window.setTimeout(() => {
       element.classList.remove("is-boinging");
+      element.classList.remove("is-scroll-boinging");
+      element.classList.remove("is-scroll-up");
+      element.classList.remove("is-scroll-down");
+    }, 440);
+  }
+
+  function triggerScrollBoing(element) {
+    if (!(element instanceof Element) || reduced) {
+      return;
+    }
+
+    element.classList.remove("is-scroll-boinging", "is-scroll-up", "is-scroll-down");
+    void element.getBoundingClientRect();
+    element.classList.add("is-scroll-boinging");
+    element.classList.add(scrollDirection < 0 ? "is-scroll-up" : "is-scroll-down");
+    window.setTimeout(() => {
+      element.classList.remove("is-scroll-boinging", "is-scroll-up", "is-scroll-down");
     }, 440);
   }
 
@@ -538,12 +559,11 @@ function syncBrand() {
     const shouldFloat = mobileFloating
       ? rect.top <= hideThreshold
       : rect.top <= showThreshold;
-    const contactTarget = contactLinks || emailShell || contactSection;
-    const contactRect = contactTarget ? contactTarget.getBoundingClientRect() : null;
+    const contactRect = contactSection ? contactSection.getBoundingClientRect() : null;
     const contactVisible =
       !!contactRect &&
-      contactRect.top < window.innerHeight * 0.92 &&
-      contactRect.bottom > window.innerHeight * 0.2;
+      contactRect.top < window.innerHeight * 0.72 &&
+      contactRect.bottom > window.innerHeight * 0.18;
     const githubRect = githubMoreSection ? githubMoreSection.getBoundingClientRect() : null;
     const githubVisible =
       !!githubRect &&
@@ -633,6 +653,26 @@ function syncBrand() {
     stage.style.setProperty("--spot-y", (clientY - rect.top) + "px");
   }
 
+  function triggerStageSettle(stage) {
+    if (!(stage instanceof HTMLElement)) {
+      return;
+    }
+
+    const previous = pointerEnterTimers.get(stage);
+    if (previous) {
+      window.clearTimeout(previous);
+    }
+
+    stage.classList.remove("is-pointer-entering");
+    void stage.getBoundingClientRect();
+    stage.classList.add("is-pointer-entering");
+    const timer = window.setTimeout(() => {
+      stage.classList.remove("is-pointer-entering");
+      pointerEnterTimers.delete(stage);
+    }, 360);
+    pointerEnterTimers.set(stage, timer);
+  }
+
   function beginDeferredNavigation(link, event) {
     if (!(link instanceof HTMLAnchorElement)) {
       return false;
@@ -677,7 +717,7 @@ function syncBrand() {
       }
 
       window.location.href = href;
-    }, reduced ? 0 : 260);
+    }, reduced ? 0 : 340);
 
     return true;
   }
@@ -770,6 +810,7 @@ function syncBrand() {
 
       setStageSpot(stage, event.clientX, event.clientY);
       stage.classList.add("is-pointer-active");
+      triggerStageSettle(stage);
     });
 
     stage.addEventListener("pointermove", (event) => {
@@ -782,8 +823,66 @@ function syncBrand() {
 
     stage.addEventListener("pointerleave", () => {
       stage.classList.remove("is-pointer-active");
+      stage.classList.remove("is-pointer-entering");
+      const timer = pointerEnterTimers.get(stage);
+      if (timer) {
+        window.clearTimeout(timer);
+        pointerEnterTimers.delete(stage);
+      }
     });
   });
+
+  function findActiveScrollBoingTarget() {
+    const scopes = Array.from(document.querySelectorAll("[data-scroll-boing-scope]"));
+    const anchor = window.innerHeight * (mobileMedia.matches ? 0.42 : 0.34);
+    let bestTarget = null;
+    let bestKey = "";
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    scopes.forEach((scope) => {
+      if (!(scope instanceof HTMLElement)) {
+        return;
+      }
+
+      const rect = scope.getBoundingClientRect();
+      if (rect.bottom <= 0 || rect.top >= window.innerHeight) {
+        return;
+      }
+
+      const focus = rect.top + Math.min(rect.height * 0.3, 180);
+      const distance = Math.abs(focus - anchor);
+      if (distance >= bestDistance) {
+        return;
+      }
+
+      const target = scope.querySelector("[data-scroll-boing]");
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      bestDistance = distance;
+      bestTarget = target;
+      bestKey = (scope.getAttribute("id") || scope.getAttribute("data-stage-label") || "scope") +
+        ":" +
+        (scrollDirection < 0 ? "up" : "down");
+    });
+
+    return { target: bestTarget, key: bestKey };
+  }
+
+  function triggerScrollStopBoing() {
+    const found = findActiveScrollBoingTarget();
+    if (!found?.target || !found.key) {
+      return;
+    }
+
+    if (found.key === lastScrollBoingKey) {
+      return;
+    }
+
+    lastScrollBoingKey = found.key;
+    triggerScrollBoing(found.target);
+  }
 
   document.addEventListener("click", (event) => {
     if (!(event.target instanceof Element) || !(stageControl instanceof Element)) {
@@ -808,15 +907,15 @@ function syncBrand() {
       triggerBoing(boingTarget);
     }
 
-    const scrollTrigger = raw.closest("[data-scroll-target]");
-
-    if (!scrollTrigger) {
-      return;
-    }
-
     const repoTrigger = raw.closest(".repo-link, .action-link[href^='https://github.com/']");
 
     if (repoTrigger instanceof HTMLAnchorElement && beginDeferredNavigation(repoTrigger, event)) {
+      return;
+    }
+
+    const scrollTrigger = raw.closest("[data-scroll-target]");
+
+    if (!scrollTrigger) {
       return;
     }
 
@@ -1032,6 +1131,18 @@ function syncBrand() {
   }
 
   function queueUpdate() {
+    const currentY = window.scrollY;
+    const delta = currentY - lastScrollY;
+    if (Math.abs(delta) > 1) {
+      scrollDirection = delta > 0 ? 1 : -1;
+    }
+    lastScrollY = currentY;
+
+    window.clearTimeout(scrollIdleTimer);
+    scrollIdleTimer = window.setTimeout(() => {
+      triggerScrollStopBoing();
+    }, reduced ? 0 : 120);
+
     if (scrollTicking) {
       return;
     }
@@ -1384,6 +1495,7 @@ export default function Home() {
           data-stage="hero"
           data-stage-nav="true"
           data-stage-label="Introduction"
+          data-scroll-boing-scope="true"
         >
           <HeroBackdropMarks />
           <div className="hero-layout">
@@ -1418,6 +1530,7 @@ export default function Home() {
                 <button
                   className="action-link action-link-primary"
                   data-scroll-target="projects"
+                  data-scroll-boing="true"
                   type="button"
                 >
                   View labs
@@ -1478,6 +1591,7 @@ export default function Home() {
             className="project-stage project-stage-payflow"
             data-stage="payflow"
             data-stage-label="PayFlow Reliability"
+            data-scroll-boing-scope="true"
           >
             <ProjectBackdropMarks marks={projectMarks.payflow} />
             <div className="project-aside">
@@ -1513,6 +1627,7 @@ export default function Home() {
               <div className="project-foot">
                 <a
                   className="repo-link repo-link-payflow"
+                  data-scroll-boing="true"
                   href="https://github.com/fattah247/payflow-reliability"
                   target="_blank"
                   rel="noreferrer"
@@ -1573,6 +1688,7 @@ export default function Home() {
             className="project-stage project-stage-iyup"
             data-stage="iyup"
             data-stage-label="iYup"
+            data-scroll-boing-scope="true"
           >
             <ProjectBackdropMarks marks={projectMarks.iyup} />
             <div className="project-aside">
@@ -1607,6 +1723,7 @@ export default function Home() {
               <div className="project-foot">
                 <a
                   className="repo-link repo-link-iyup"
+                  data-scroll-boing="true"
                   href="https://github.com/fattah247/iYup"
                   target="_blank"
                   rel="noreferrer"
@@ -1663,6 +1780,7 @@ export default function Home() {
             className="project-stage project-stage-trustgate"
             data-stage="trustgate"
             data-stage-label="TrustGate Android"
+            data-scroll-boing-scope="true"
           >
             <ProjectBackdropMarks marks={projectMarks.trustgate} />
             <div className="project-aside">
@@ -1697,6 +1815,7 @@ export default function Home() {
               <div className="project-foot">
                 <a
                   className="repo-link repo-link-trustgate"
+                  data-scroll-boing="true"
                   href="https://github.com/fattah247/trustgate-android"
                   target="_blank"
                   rel="noreferrer"
@@ -1757,6 +1876,7 @@ export default function Home() {
           data-stage="github-more"
           data-stage-nav="true"
           data-stage-label="More on GitHub"
+          data-scroll-boing-scope="true"
         >
           <div className="section-top">
             <h2 className="section-title">More on GitHub</h2>
@@ -1779,6 +1899,7 @@ export default function Home() {
               </ul>
               <a
                 className="action-link"
+                data-scroll-boing="true"
                 href="https://github.com/fattah247"
                 target="_blank"
                 rel="noreferrer"
@@ -1881,6 +2002,7 @@ export default function Home() {
           data-stage="contact"
           data-stage-nav="true"
           data-stage-label="Contact"
+          data-scroll-boing-scope="true"
         >
           <div className="section-top">
             <h2 className="section-title">Contact</h2>
@@ -1894,6 +2016,7 @@ export default function Home() {
             aria-label={`Copy ${email}`}
             className="copy-email-shell"
             data-copy-email={email}
+            data-scroll-boing="true"
             id="contact-email"
             role="button"
             tabIndex={0}

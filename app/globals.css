@@ -99,6 +99,42 @@ button {
   }
 }
 
+@keyframes ui-boing-scroll-down {
+  0% {
+    transform: translateY(-1px) scale(0.986, 1.016);
+  }
+
+  42% {
+    transform: translateY(1px) scale(1.018, 0.988);
+  }
+
+  72% {
+    transform: translateY(0) scale(0.996, 1.004);
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ui-boing-scroll-up {
+  0% {
+    transform: translateY(1px) scale(0.986, 1.016);
+  }
+
+  42% {
+    transform: translateY(-1px) scale(1.018, 0.988);
+  }
+
+  72% {
+    transform: translateY(0) scale(0.996, 1.004);
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
 @keyframes mobile-pill-rise {
   0% {
     transform: translate3d(0, 0.95rem, 0) scale(0.84, 0.9);
@@ -126,21 +162,51 @@ button {
 @keyframes button-commit-sweep {
   0% {
     opacity: 0;
-    transform: translateX(-88%) scale(0.62);
+    transform: translate(-108%, -50%) scale(0.72);
   }
 
-  24% {
-    opacity: 0.88;
+  14% {
+    opacity: 0.82;
   }
 
-  72% {
-    opacity: 0.56;
-    transform: translateX(56%) scale(1.06);
+  34% {
+    opacity: 0.96;
+    transform: translate(-10%, -132%) scale(1.08);
+  }
+
+  62% {
+    opacity: 0.9;
+    transform: translate(88%, -50%) scale(0.96);
+  }
+
+  84% {
+    opacity: 0.54;
+    transform: translate(-8%, 30%) scale(1.02);
   }
 
   100% {
     opacity: 0;
-    transform: translateX(92%) scale(0.96);
+    transform: translate(-8%, -50%) scale(0.84);
+  }
+}
+
+@keyframes stage-spot-settle {
+  0% {
+    opacity: 0.12;
+    transform: translate(-50%, -50%) scale(1.9);
+    filter: blur(42px);
+  }
+
+  48% {
+    opacity: 0.34;
+    transform: translate(-50%, -50%) scale(1.22);
+    filter: blur(30px);
+  }
+
+  100% {
+    opacity: 0.44;
+    transform: translate(-50%, -50%) scale(1);
+    filter: blur(24px);
   }
 }
 
@@ -620,7 +686,7 @@ section[id] {
 
   .action-link {
     border: 1px solid rgba(18, 48, 80, 0.84);
-    background: linear-gradient(180deg, rgba(29, 69, 112, 0.96), rgba(20, 63, 108, 0.98));
+    background: rgba(20, 63, 108, 0.98);
     color: #f7fbff !important;
     box-shadow: 0 12px 24px rgba(20, 63, 108, 0.14);
     position: relative;
@@ -634,7 +700,7 @@ section[id] {
 
   .action-link:hover {
     border-color: rgba(15, 45, 79, 0.92);
-    background: linear-gradient(180deg, rgba(22, 57, 94, 0.98), rgba(15, 45, 79, 0.98));
+    background: rgba(15, 45, 79, 0.98);
     color: #f7fbff !important;
     animation: ui-boing-hover 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
@@ -720,6 +786,7 @@ section[id] {
     isolation: isolate;
     --spot-x: 72%;
     --spot-y: 28%;
+    --spot-color: 18 52 88;
     @apply grid gap-10 pt-4 pb-12 sm:gap-10 sm:pt-6 sm:pb-12 lg:grid-cols-[minmax(18rem,0.35fr)_minmax(0,0.65fr)];
   }
 
@@ -740,70 +807,75 @@ section[id] {
   .project-stage::after {
     content: "";
     position: absolute;
-    inset: 0 auto 0 50%;
-    width: 100vw;
+    left: var(--spot-x);
+    top: var(--spot-y);
+    width: 23rem;
+    height: 23rem;
+    border-radius: 999px;
+    background:
+      radial-gradient(circle, rgb(var(--spot-color) / 0.3) 0%, rgb(var(--spot-color) / 0.22) 32%, transparent 72%);
+    filter: blur(24px);
     opacity: 0;
     pointer-events: none;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%) scale(0.82);
     transition:
       opacity 180ms ease-out,
-      background-position 90ms linear;
+      left 90ms linear,
+      top 90ms linear,
+      transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      filter 220ms ease-out;
     z-index: 0;
   }
 
   .project-stage-payflow {
     color: var(--payflow);
+    --spot-color: 13 52 96;
   }
 
   .project-stage-payflow::before {
     background:
-      radial-gradient(circle at 18% 18%, rgba(47, 95, 138, 0.62), transparent 40%),
-      radial-gradient(circle at 82% 22%, rgba(47, 95, 138, 0.46), transparent 36%),
-      linear-gradient(180deg, rgba(47, 95, 138, 0.34), rgba(47, 95, 138, 0.1) 64%, transparent);
-  }
-
-  .project-stage-payflow::after {
-    background: radial-gradient(26rem circle at var(--spot-x) var(--spot-y), rgba(18, 52, 88, 0.22), transparent 55%);
+      radial-gradient(circle at 18% 18%, rgba(47, 95, 138, 0.7), transparent 42%),
+      radial-gradient(circle at 82% 22%, rgba(47, 95, 138, 0.54), transparent 38%),
+      linear-gradient(180deg, rgba(47, 95, 138, 0.38), rgba(47, 95, 138, 0.12) 64%, transparent);
   }
 
   .project-stage-iyup {
     color: var(--iyup);
+    --spot-color: 24 77 58;
   }
 
   .project-stage-iyup::before {
     background:
-      radial-gradient(circle at 20% 18%, rgba(53, 98, 79, 0.6), transparent 40%),
-      radial-gradient(circle at 80% 24%, rgba(53, 98, 79, 0.44), transparent 36%),
-      linear-gradient(180deg, rgba(53, 98, 79, 0.32), rgba(53, 98, 79, 0.1) 64%, transparent);
-  }
-
-  .project-stage-iyup::after {
-    background: radial-gradient(26rem circle at var(--spot-x) var(--spot-y), rgba(28, 76, 57, 0.22), transparent 55%);
+      radial-gradient(circle at 20% 18%, rgba(53, 98, 79, 0.68), transparent 42%),
+      radial-gradient(circle at 80% 24%, rgba(53, 98, 79, 0.5), transparent 38%),
+      linear-gradient(180deg, rgba(53, 98, 79, 0.36), rgba(53, 98, 79, 0.12) 64%, transparent);
   }
 
   .project-stage-trustgate {
     color: var(--trustgate);
+    --spot-color: 128 73 24;
   }
 
   .project-stage-trustgate::before {
     background:
-      radial-gradient(circle at 20% 18%, rgba(189, 112, 44, 0.58), transparent 40%),
-      radial-gradient(circle at 82% 24%, rgba(189, 112, 44, 0.42), transparent 36%),
-      linear-gradient(180deg, rgba(189, 112, 44, 0.3), rgba(189, 112, 44, 0.1) 64%, transparent);
-  }
-
-  .project-stage-trustgate::after {
-    background: radial-gradient(26rem circle at var(--spot-x) var(--spot-y), rgba(122, 70, 20, 0.22), transparent 55%);
+      radial-gradient(circle at 20% 18%, rgba(189, 112, 44, 0.66), transparent 42%),
+      radial-gradient(circle at 82% 24%, rgba(189, 112, 44, 0.48), transparent 38%),
+      linear-gradient(180deg, rgba(189, 112, 44, 0.34), rgba(189, 112, 44, 0.12) 64%, transparent);
   }
 
   .project-stage.is-stage-active::before {
-    opacity: 0.92;
+    opacity: 0.96;
     transform: translateX(-50%) scaleY(1);
   }
 
   .project-stage.is-pointer-active::after,
   .project-stage:focus-within::after {
     opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  .project-stage.is-pointer-entering::after {
+    animation: stage-spot-settle 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .project-marks {
@@ -922,40 +994,48 @@ section[id] {
   .action-link[href^="https://github.com/"]::after {
     content: "";
     position: absolute;
-    inset: -28%;
+    left: 50%;
+    top: 50%;
+    width: 6rem;
+    height: 6rem;
     border-radius: 999px;
-    background: radial-gradient(circle, rgba(15, 32, 52, 0.22) 0%, rgba(15, 32, 52, 0) 62%);
+    background:
+      radial-gradient(circle, rgba(10, 22, 36, 0.72) 0%, rgba(10, 22, 36, 0.44) 28%, rgba(10, 22, 36, 0) 72%);
+    filter: blur(6px);
     opacity: 0;
     pointer-events: none;
-    transform: translateX(-88%) scale(0.62);
+    transform: translate(-108%, -50%) scale(0.72);
   }
 
   .repo-link.is-committing::after,
   .action-link[href^="https://github.com/"].is-committing::after {
-    animation: button-commit-sweep 260ms cubic-bezier(0.3, 0.86, 0.4, 1) both;
+    animation: button-commit-sweep 390ms cubic-bezier(0.28, 0.88, 0.36, 1) both;
+  }
+
+  .repo-link.is-committing,
+  .action-link[href^="https://github.com/"].is-committing {
+    box-shadow:
+      0 18px 30px rgba(16, 32, 52, 0.18),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+      inset 0 0 0 999px rgba(10, 22, 36, 0.08);
+    filter: saturate(1.05) brightness(0.94);
   }
 
   .repo-link-payflow {
     border-color: rgba(34, 78, 118, 0.92);
-    background:
-      linear-gradient(180deg, rgba(64, 120, 172, 0.98), rgba(34, 78, 118, 0.98)),
-      rgba(47, 95, 138, 0.94);
+    background: rgba(47, 95, 138, 0.98);
     color: #f8fbff !important;
   }
 
   .repo-link-iyup {
     border-color: rgba(38, 83, 64, 0.92);
-    background:
-      linear-gradient(180deg, rgba(61, 110, 88, 0.98), rgba(38, 83, 64, 0.98)),
-      rgba(53, 98, 79, 0.94);
+    background: rgba(53, 98, 79, 0.98);
     color: #f8fbff !important;
   }
 
   .repo-link-trustgate {
     border-color: rgba(138, 83, 27, 0.92);
-    background:
-      linear-gradient(180deg, rgba(183, 117, 54, 0.98), rgba(138, 83, 27, 0.98)),
-      rgba(167, 100, 37, 0.94);
+    background: rgba(167, 100, 37, 0.98);
     color: #f8fbff !important;
   }
 
@@ -1348,6 +1428,18 @@ section[id] {
   .icon-link.is-boinging,
   .copy-email-shell.is-boinging {
     animation: ui-boing-click 420ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  }
+
+  .action-link.is-scroll-boinging.is-scroll-down,
+  .repo-link.is-scroll-boinging.is-scroll-down,
+  .copy-email-shell.is-scroll-boinging.is-scroll-down {
+    animation: ui-boing-scroll-down 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .action-link.is-scroll-boinging.is-scroll-up,
+  .repo-link.is-scroll-boinging.is-scroll-up,
+  .copy-email-shell.is-scroll-boinging.is-scroll-up {
+    animation: ui-boing-scroll-up 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .copy-toast {
@@ -1747,7 +1839,7 @@ section[id] {
   }
 
   .project-title {
-    @apply text-[1.68rem] leading-[1.04];
+    @apply text-[1.58rem] leading-[1.04];
   }
 
   .project-meta-block,
