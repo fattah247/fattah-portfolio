@@ -200,7 +200,6 @@ const interactionScript = String.raw`(() => {
   const stageControl = document.querySelector("[data-stage-control]");
   const hero = document.getElementById("hero-name");
   const heroLinks = document.getElementById("hero-links");
-  const pillDock = document.querySelector("[data-mobile-pill-dock]");
   const progress = document.getElementById("scroll-progress");
   const emailShell = document.getElementById("contact-email");
   const contactSection = document.getElementById("contact");
@@ -215,8 +214,10 @@ const interactionScript = String.raw`(() => {
   const viewerScale = document.querySelector("[data-viewer-scale]");
   const stageItems = Array.from(document.querySelectorAll("[data-stage]"));
   const navStages = Array.from(document.querySelectorAll("[data-stage-nav='true']"));
+  const projectStages = Array.from(document.querySelectorAll(".project-stage"));
   const copyButton = document.querySelector("[data-copy-email]");
   const artifactButtons = Array.from(document.querySelectorAll("[data-artifact-src]"));
+  const finePointerMedia = window.matchMedia("(hover: hover) and (pointer: fine)");
   const boingSelector = [
     ".header-stage-button",
     ".header-stage-item",
@@ -229,14 +230,13 @@ const interactionScript = String.raw`(() => {
   let flashTimer = 0;
   let toastTimer = 0;
   let zoom = 1;
-  let pillTimer = 0;
   let sectionFlashTimer = 0;
   let activeStage = "";
   let pillMode = "all";
   let pillStateInitialized = false;
   let pillModeTimer = 0;
   let mobileFloating = false;
-  let pillAnimating = false;
+  let pillMotionTimer = 0;
   let lastScrollY = window.scrollY;
   let panX = 0;
   let panY = 0;
@@ -246,7 +246,7 @@ const interactionScript = String.raw`(() => {
   let dragOriginY = 0;
   let dragging = false;
   let scrollTicking = false;
-  let pillGeometryLocked = false;
+  let repoNavTimer = 0;
 
   root.setAttribute("data-interact-ready", "yes");
 
@@ -399,112 +399,6 @@ function syncBrand() {
     }
   }
 
-  function readPillGeometry() {
-    if (!mobileMedia.matches || !heroLinks || !pillDock) {
-      return null;
-    }
-
-    const heroRect = heroLinks.getBoundingClientRect();
-    const dockRect = pillDock.getBoundingClientRect();
-    const heroX = heroRect.left + (heroRect.width / 2);
-    const heroY = heroRect.top + (heroRect.height / 2);
-    const dockX = dockRect.left + (dockRect.width / 2);
-    const dockY = dockRect.top + (dockRect.height / 2);
-
-    return {
-      pillFromX: heroX - dockX,
-      pillFromY: heroY - dockY,
-      heroLinkToX: dockX - heroX,
-      heroLinkToY: dockY - heroY,
-    };
-  }
-
-  function applyPillGeometry(geometry) {
-    if (!geometry) {
-      return;
-    }
-
-    root.style.setProperty("--pill-from-x", geometry.pillFromX + "px");
-    root.style.setProperty("--pill-from-y", geometry.pillFromY + "px");
-    root.style.setProperty("--hero-link-to-x", geometry.heroLinkToX + "px");
-    root.style.setProperty("--hero-link-to-y", geometry.heroLinkToY + "px");
-  }
-
-  function lockPillGeometry() {
-    const geometry = readPillGeometry();
-    if (!geometry) {
-      return;
-    }
-
-    pillGeometryLocked = true;
-    applyPillGeometry(geometry);
-  }
-
-  function unlockPillGeometry() {
-    pillGeometryLocked = false;
-  }
-
-  function startPillExtract() {
-    if (!mobileMedia.matches || pillAnimating) {
-      return;
-    }
-
-    lockPillGeometry();
-    pillAnimating = true;
-    root.classList.add("mobile-links-away");
-    root.classList.remove("mobile-pill-returning");
-    void root.offsetWidth;
-    root.classList.add("mobile-pill-entering");
-    window.clearTimeout(pillTimer);
-    pillTimer = window.setTimeout(() => {
-      root.classList.remove("mobile-pill-entering");
-      mobileFloating = true;
-      pillAnimating = false;
-      unlockPillGeometry();
-      syncMobilePillGeometry();
-      update();
-    }, 430);
-  }
-
-  function startPillReturn() {
-    if (!mobileMedia.matches || pillAnimating) {
-      return;
-    }
-
-    lockPillGeometry();
-    pillAnimating = true;
-    root.classList.remove("mobile-pill-entering");
-    void root.offsetWidth;
-    root.classList.add("mobile-pill-returning");
-    window.clearTimeout(pillTimer);
-    pillTimer = window.setTimeout(() => {
-      root.classList.remove("mobile-links-away");
-      root.classList.remove("mobile-pill-returning");
-      mobileFloating = false;
-      pillAnimating = false;
-      unlockPillGeometry();
-      syncMobilePillGeometry();
-      update();
-    }, 360);
-  }
-
-  function syncMobilePillGeometry() {
-    if (!mobileMedia.matches || !heroLinks || !pillDock) {
-      unlockPillGeometry();
-      root.style.removeProperty("--pill-from-x");
-      root.style.removeProperty("--pill-from-y");
-      root.style.removeProperty("--hero-link-to-x");
-      root.style.removeProperty("--hero-link-to-y");
-      return;
-    }
-
-    if (pillGeometryLocked) {
-      return;
-    }
-
-    applyPillGeometry(readPillGeometry());
-  }
-
   function clampPan(nextX, nextY) {
     if (!viewerStage || !viewerMedia || zoom <= 1) {
       return { x: 0, y: 0 };
@@ -617,42 +511,33 @@ function syncBrand() {
   function syncMobilePill() {
     if (!heroLinks) {
       root.classList.remove("mobile-links-away");
-      root.classList.remove("mobile-pill-contact-hidden");
       root.classList.remove("mobile-pill-mode-github");
       root.classList.remove("mobile-pill-mode-social");
-      root.classList.remove("mobile-pill-preparing");
-      root.classList.remove("mobile-pill-entering");
-      root.classList.remove("mobile-pill-returning");
-      pillAnimating = false;
+      root.classList.remove("mobile-pill-rising");
+      root.classList.remove("mobile-pill-retreating");
       pillStateInitialized = false;
-      unlockPillGeometry();
       return;
     }
 
     if (!mobileMedia.matches) {
       root.classList.remove("mobile-links-away");
-      root.classList.remove("mobile-pill-contact-hidden");
       root.classList.remove("mobile-pill-mode-github");
       root.classList.remove("mobile-pill-mode-social");
-      root.classList.remove("mobile-pill-entering");
-      root.classList.remove("mobile-pill-returning");
-      root.classList.remove("mobile-pill-preparing");
-      pillAnimating = false;
+      root.classList.remove("mobile-pill-rising");
+      root.classList.remove("mobile-pill-retreating");
       mobileFloating = false;
       pillStateInitialized = false;
-      unlockPillGeometry();
       return;
     }
 
     const rect = heroLinks.getBoundingClientRect();
-    const currentY = window.scrollY;
-    const scrollingDown = currentY >= lastScrollY;
-    lastScrollY = currentY;
-    const showThreshold = 220;
-    const hideThreshold = 262;
+    const currentScrollY = window.scrollY;
+    const scrollingDown = currentScrollY > lastScrollY;
+    const showThreshold = 248;
+    const hideThreshold = 304;
     const shouldFloat = mobileFloating
-      ? rect.bottom <= hideThreshold
-      : rect.bottom <= showThreshold;
+      ? rect.top <= hideThreshold
+      : rect.top <= showThreshold;
     const contactTarget = contactLinks || emailShell || contactSection;
     const contactRect = contactTarget ? contactTarget.getBoundingClientRect() : null;
     const contactVisible =
@@ -672,41 +557,43 @@ function syncBrand() {
       root.classList.toggle("mobile-links-away", shouldFloat);
       root.classList.toggle("mobile-pill-mode-github", contactVisible);
       root.classList.toggle("mobile-pill-mode-social", !contactVisible && githubVisible);
-      root.classList.remove("mobile-pill-entering");
-      root.classList.remove("mobile-pill-returning");
+      root.classList.remove("mobile-pill-rising");
+      root.classList.remove("mobile-pill-retreating");
       root.classList.remove("mobile-pill-morphing");
-      unlockPillGeometry();
-      syncMobilePillGeometry();
+      lastScrollY = currentScrollY;
       return;
     }
 
-    if (pillAnimating && root.classList.contains("mobile-pill-entering") && !shouldFloat) {
-      window.clearTimeout(pillTimer);
-      root.classList.remove("mobile-pill-entering");
-      pillAnimating = false;
-      mobileFloating = true;
-      startPillReturn();
-    }
-
-    if (pillAnimating && root.classList.contains("mobile-pill-returning") && shouldFloat) {
-      window.clearTimeout(pillTimer);
-      root.classList.remove("mobile-pill-returning");
-      root.classList.add("mobile-links-away");
-      mobileFloating = true;
-      pillAnimating = false;
-      unlockPillGeometry();
-      syncMobilePillGeometry();
-    }
-
-    if (!pillAnimating) {
-      if (shouldFloat && !mobileFloating) {
-        startPillExtract();
-      } else if (!shouldFloat && mobileFloating) {
-        startPillReturn();
+    if (shouldFloat !== mobileFloating) {
+      mobileFloating = shouldFloat;
+      root.classList.remove("mobile-pill-rising");
+      root.classList.remove("mobile-pill-retreating");
+      root.classList.toggle("mobile-links-away", shouldFloat);
+      if (shouldFloat && scrollingDown) {
+        root.classList.add("mobile-pill-rising");
+      } else if (!shouldFloat && !scrollingDown) {
+        root.classList.add("mobile-pill-retreating");
       }
+      window.clearTimeout(pillMotionTimer);
+      pillMotionTimer = window.setTimeout(() => {
+        root.classList.remove("mobile-pill-rising");
+        root.classList.remove("mobile-pill-retreating");
+      }, shouldFloat ? 420 : 300);
     }
 
-    if ((shouldFloat || mobileFloating) && nextMode !== pillMode) {
+    if (!shouldFloat) {
+      root.classList.remove("mobile-pill-morphing");
+      window.clearTimeout(pillModeTimer);
+      pillMode = nextMode;
+      root.classList.toggle("mobile-pill-mode-github", contactVisible);
+      root.classList.toggle("mobile-pill-mode-social", !contactVisible && githubVisible);
+      lastScrollY = currentScrollY;
+      return;
+    }
+
+    if (nextMode !== pillMode) {
+      root.classList.remove("mobile-pill-rising");
+      root.classList.remove("mobile-pill-retreating");
       root.classList.add("mobile-pill-morphing");
       window.clearTimeout(pillModeTimer);
       pillModeTimer = window.setTimeout(() => {
@@ -716,14 +603,83 @@ function syncBrand() {
 
     root.classList.toggle("mobile-pill-mode-github", contactVisible);
     root.classList.toggle("mobile-pill-mode-social", !contactVisible && githubVisible);
+    pillMode = nextMode;
+    lastScrollY = currentScrollY;
+  }
 
-    if (!pillAnimating && !mobileFloating && !shouldFloat) {
-      root.classList.remove("mobile-links-away");
-      unlockPillGeometry();
-      syncMobilePillGeometry();
+  function shouldSkipMouseClickBoing(target, event) {
+    if (!(target instanceof Element)) {
+      return false;
     }
 
-    pillMode = nextMode;
+    if (!target.matches(".header-stage-button, .header-stage-item")) {
+      return false;
+    }
+
+    if (!(event instanceof MouseEvent) || event.detail === 0) {
+      return false;
+    }
+
+    return finePointerMedia.matches;
+  }
+
+  function setStageSpot(stage, clientX, clientY) {
+    if (!(stage instanceof HTMLElement)) {
+      return;
+    }
+
+    const rect = stage.getBoundingClientRect();
+    stage.style.setProperty("--spot-x", (clientX - rect.left) + "px");
+    stage.style.setProperty("--spot-y", (clientY - rect.top) + "px");
+  }
+
+  function beginDeferredNavigation(link, event) {
+    if (!(link instanceof HTMLAnchorElement)) {
+      return false;
+    }
+
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return false;
+    }
+
+    const href = link.href;
+    if (!href || href.startsWith("#")) {
+      return false;
+    }
+
+    event.preventDefault();
+    const newWindow =
+      link.target === "_blank"
+        ? window.open("about:blank", "_blank", "noopener,noreferrer")
+        : null;
+
+    link.classList.remove("is-committing");
+    void link.getBoundingClientRect();
+    link.classList.add("is-committing");
+
+    window.clearTimeout(repoNavTimer);
+    repoNavTimer = window.setTimeout(() => {
+      link.classList.remove("is-committing");
+      if (newWindow) {
+        try {
+          newWindow.location.href = href;
+        } catch {
+          window.open(href, "_blank", "noopener,noreferrer");
+        }
+        return;
+      }
+
+      window.location.href = href;
+    }, reduced ? 0 : 260);
+
+    return true;
   }
 
   function closeStageMenu() {
@@ -806,6 +762,29 @@ function syncBrand() {
     });
   });
 
+  projectStages.forEach((stage) => {
+    stage.addEventListener("pointerenter", (event) => {
+      if (!finePointerMedia.matches) {
+        return;
+      }
+
+      setStageSpot(stage, event.clientX, event.clientY);
+      stage.classList.add("is-pointer-active");
+    });
+
+    stage.addEventListener("pointermove", (event) => {
+      if (!finePointerMedia.matches) {
+        return;
+      }
+
+      setStageSpot(stage, event.clientX, event.clientY);
+    });
+
+    stage.addEventListener("pointerleave", () => {
+      stage.classList.remove("is-pointer-active");
+    });
+  });
+
   document.addEventListener("click", (event) => {
     if (!(event.target instanceof Element) || !(stageControl instanceof Element)) {
       return;
@@ -825,13 +804,19 @@ function syncBrand() {
 
     const boingTarget = raw.closest(boingSelector);
 
-    if (boingTarget) {
+    if (boingTarget && !shouldSkipMouseClickBoing(boingTarget, event)) {
       triggerBoing(boingTarget);
     }
 
     const scrollTrigger = raw.closest("[data-scroll-target]");
 
     if (!scrollTrigger) {
+      return;
+    }
+
+    const repoTrigger = raw.closest(".repo-link, .action-link[href^='https://github.com/']");
+
+    if (repoTrigger instanceof HTMLAnchorElement && beginDeferredNavigation(repoTrigger, event)) {
       return;
     }
 
@@ -1039,7 +1024,6 @@ function syncBrand() {
   function update() {
     setProgress();
     syncBrand();
-    syncMobilePillGeometry();
     syncMobilePill();
     syncActiveStage();
     if (mobileMedia.matches) {
@@ -1322,6 +1306,7 @@ function ZoomIcon() {
 function ArtifactCard({
   alt,
   caption,
+  pageCaption,
   priority = false,
   sizes,
   src,
@@ -1331,6 +1316,7 @@ function ArtifactCard({
 }: {
   alt: string;
   caption: string;
+  pageCaption?: string;
   priority?: boolean;
   sizes: string;
   src: string;
@@ -1361,7 +1347,9 @@ function ArtifactCard({
         />
       </div>
       <div className="artifact-meta">
-        <p className="artifact-caption-text">{caption}</p>
+        {pageCaption !== "" ? (
+          <p className="artifact-caption-text">{pageCaption ?? caption}</p>
+        ) : null}
         <span className="artifact-link-mark" aria-hidden="true">
           <ZoomIcon />
         </span>
@@ -1437,6 +1425,7 @@ export default function Home() {
               </div>
 
               <HeroTextLinks />
+              <div className="hero-pill-trigger" data-mobile-pill-trigger="true" aria-hidden="true" />
             </aside>
           </div>
         </section>
@@ -1795,6 +1784,7 @@ export default function Home() {
                 rel="noreferrer"
               >
                 Open GitHub profile
+                <ArrowOutIcon />
               </a>
             </div>
 
@@ -1802,6 +1792,7 @@ export default function Home() {
               src="/projects/github-profile.png"
               alt="GitHub profile screenshot for Muhammad A. Fattah."
               caption="The profile shows the wider body of work behind the featured labs: smaller builds, public proof, and the way the code is carried in public."
+              pageCaption=""
               sizes="(max-width: 1024px) 100vw, 58vw"
               tone="bg-[#0c1117]"
               wide
