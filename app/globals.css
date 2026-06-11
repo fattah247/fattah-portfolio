@@ -59,171 +59,19 @@ button {
   font: inherit;
 }
 
-@keyframes ui-boing-hover {
-  0% {
-    transform: translateY(0) scale(1);
-  }
-
-  36% {
-    transform: translateY(-1px) scale(1.018, 0.992);
-  }
-
-  70% {
-    transform: translateY(0) scale(0.996, 1.006);
-  }
-
-  100% {
-    transform: translateY(-1px) scale(1.004);
-  }
-}
-
-@keyframes ui-boing-click {
-  0% {
-    transform: translateY(0) scale(1);
-  }
-
-  30% {
-    transform: translateY(1px) scale(0.982, 1.02);
-  }
-
-  58% {
-    transform: translateY(-1px) scale(1.016, 0.99);
-  }
-
-  80% {
-    transform: translateY(0) scale(0.996, 1.006);
-  }
-
-  100% {
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes ui-boing-scroll-down {
-  0% {
-    transform: translateY(-1px) scale(0.986, 1.016);
-  }
-
-  42% {
-    transform: translateY(1px) scale(1.018, 0.988);
-  }
-
-  72% {
-    transform: translateY(0) scale(0.996, 1.004);
-  }
-
-  100% {
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes ui-boing-scroll-up {
-  0% {
-    transform: translateY(1px) scale(0.986, 1.016);
-  }
-
-  42% {
-    transform: translateY(-1px) scale(1.018, 0.988);
-  }
-
-  72% {
-    transform: translateY(0) scale(0.996, 1.004);
-  }
-
-  100% {
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes mobile-pill-rise {
-  0% {
-    transform: translate3d(0, 0.95rem, 0) scale(0.84, 0.9);
-  }
-
-  52% {
-    transform: translate3d(0, -0.14rem, 0) scale(1.04, 0.97);
-  }
-
-  100% {
-    transform: translate3d(0, 0, 0) scale(1, 1);
-  }
-}
-
-@keyframes mobile-pill-retreat {
-  0% {
-    transform: translate3d(0, 0, 0) scale(1, 1);
-  }
-
-  100% {
-    transform: translate3d(0, 0.55rem, 0) scale(0.9, 0.94);
-  }
-}
-
-@keyframes button-commit-sweep {
+@keyframes glass-sheen {
   0% {
     opacity: 0;
-    transform: translate(-108%, -50%) scale(0.72);
+    transform: translateX(-140%) skewX(-14deg);
   }
 
-  14% {
-    opacity: 0.82;
-  }
-
-  34% {
-    opacity: 0.96;
-    transform: translate(-10%, -132%) scale(1.08);
-  }
-
-  62% {
-    opacity: 0.9;
-    transform: translate(88%, -50%) scale(0.96);
-  }
-
-  84% {
-    opacity: 0.54;
-    transform: translate(-8%, 30%) scale(1.02);
+  22% {
+    opacity: 0.42;
   }
 
   100% {
     opacity: 0;
-    transform: translate(-8%, -50%) scale(0.84);
-  }
-}
-
-@keyframes stage-spot-settle {
-  0% {
-    opacity: 0.12;
-    transform: translate(-50%, -50%) scale(1.9);
-    filter: blur(42px);
-  }
-
-  48% {
-    opacity: 0.34;
-    transform: translate(-50%, -50%) scale(1.22);
-    filter: blur(30px);
-  }
-
-  100% {
-    opacity: 0.44;
-    transform: translate(-50%, -50%) scale(1);
-    filter: blur(24px);
-  }
-}
-
-@keyframes stage-item-rise {
-  0% {
-    opacity: 0;
-    transform: translateY(-0.28rem) scale(0.96);
-  }
-
-  65% {
-    opacity: 1;
-    transform: translateY(0.06rem) scale(1.02);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateX(140%) skewX(-14deg);
   }
 }
 
@@ -243,11 +91,84 @@ button {
 }
 
 .reveal,
-.reveal-child,
+.reveal-child {
+  opacity: 0;
+  transform: translateY(14px);
+  filter: blur(5px);
+  transition:
+    opacity 520ms ease,
+    transform 620ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 620ms ease;
+}
+
 .reveal.is-visible,
 .reveal-child.is-visible {
   opacity: 1;
   transform: none;
+  filter: none;
+}
+
+html[data-interact-ready="yes"] [data-stage] {
+  opacity: 0;
+  transform: translateY(16px);
+  filter: blur(6px);
+}
+
+html[data-interact-ready="yes"] [data-stage].is-materialized {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+html[data-interact-ready="yes"] [data-stage],
+html[data-interact-ready="yes"] [data-stage] > .section-top,
+html[data-interact-ready="yes"] [data-stage] > .hero-layout,
+html[data-interact-ready="yes"] [data-stage] > .project-aside,
+html[data-interact-ready="yes"] [data-stage] > .project-main,
+html[data-interact-ready="yes"] [data-stage] > .github-stage,
+html[data-interact-ready="yes"] [data-stage] > .career-timeline,
+html[data-interact-ready="yes"] [data-stage] > .stack-list,
+html[data-interact-ready="yes"] [data-stage] > .contact-links,
+html[data-interact-ready="yes"] [data-stage] > .copy-email-shell {
+  transition:
+    opacity 560ms ease,
+    transform 660ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 660ms ease;
+}
+
+html[data-interact-ready="yes"] [data-stage] > .section-top,
+html[data-interact-ready="yes"] [data-stage] > .hero-layout,
+html[data-interact-ready="yes"] [data-stage] > .project-aside,
+html[data-interact-ready="yes"] [data-stage] > .project-main,
+html[data-interact-ready="yes"] [data-stage] > .github-stage,
+html[data-interact-ready="yes"] [data-stage] > .career-timeline,
+html[data-interact-ready="yes"] [data-stage] > .stack-list,
+html[data-interact-ready="yes"] [data-stage] > .contact-links,
+html[data-interact-ready="yes"] [data-stage] > .copy-email-shell {
+  opacity: 0;
+  transform: translateY(12px);
+  filter: blur(4px);
+}
+
+html[data-interact-ready="yes"] [data-stage].is-materialized > .section-top,
+html[data-interact-ready="yes"] [data-stage].is-materialized > .hero-layout,
+html[data-interact-ready="yes"] [data-stage].is-materialized > .project-aside,
+html[data-interact-ready="yes"] [data-stage].is-materialized > .project-main,
+html[data-interact-ready="yes"] [data-stage].is-materialized > .github-stage,
+html[data-interact-ready="yes"] [data-stage].is-materialized > .career-timeline,
+html[data-interact-ready="yes"] [data-stage].is-materialized > .stack-list,
+html[data-interact-ready="yes"] [data-stage].is-materialized > .contact-links,
+html[data-interact-ready="yes"] [data-stage].is-materialized > .copy-email-shell {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+html[data-interact-ready="yes"] [data-stage].is-materialized > .project-main,
+html[data-interact-ready="yes"] [data-stage].is-materialized > .github-stage,
+html[data-interact-ready="yes"] [data-stage].is-materialized > .career-timeline,
+html[data-interact-ready="yes"] [data-stage].is-materialized > .stack-list {
+  transition-delay: 70ms;
 }
 
 section[id] {
@@ -386,7 +307,7 @@ section[id] {
       0 10px 24px rgba(20, 40, 68, 0.08),
       inset 0 1px 0 rgba(255, 255, 255, 0.42);
     transition:
-      transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
       border-color 180ms ease-out,
       background 180ms ease-out,
       box-shadow 180ms ease-out;
@@ -396,7 +317,14 @@ section[id] {
   .header-stage-button:hover {
     border-color: rgba(20, 63, 108, 0.24);
     background: rgba(255, 255, 255, 0.82);
-    animation: ui-boing-hover 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    box-shadow:
+      0 14px 28px rgba(20, 40, 68, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.58);
+    transform: translateY(-1px) scale(1.006);
+  }
+
+  .header-stage-button:active {
+    transform: translateY(0) scale(0.982);
   }
 
   .header-stage-kicker {
@@ -442,17 +370,29 @@ section[id] {
   .header-stage-item {
     color: var(--body);
     width: 100%;
+    opacity: 0;
+    transform: translateY(-0.2rem) scale(0.985);
+    transition:
+      opacity 180ms ease-out,
+      transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+      background 160ms ease-out,
+      color 160ms ease-out;
     @apply flex items-center justify-between rounded-[14px] px-3 py-2.5 text-[0.88rem] font-medium transition duration-150;
   }
 
   .header-stage-item:hover {
     background: rgba(20, 63, 108, 0.08);
     color: var(--text);
-    animation: ui-boing-hover 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform: translateY(-1px) scale(1.004);
+  }
+
+  .header-stage-item:active {
+    transform: translateY(0) scale(0.982);
   }
 
   .header-stage-control.is-open .header-stage-item {
-    animation: stage-item-rise 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    opacity: 1;
+    transform: none;
   }
 
   .header-stage-control.is-open .header-stage-item:nth-child(2) {
@@ -511,7 +451,6 @@ section[id] {
   .header-utility-link:hover {
     color: var(--link-signal);
     background-size: 100% 1px;
-    animation: none !important;
   }
 
   .mobile-nav-icons {
@@ -530,7 +469,12 @@ section[id] {
   .icon-link:hover {
     color: var(--accent);
     background: rgba(20, 63, 108, 0.08);
-    animation: ui-boing-hover 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    box-shadow: 0 10px 22px rgba(20, 63, 108, 0.08);
+    transform: translateY(-1px) scale(1.008);
+  }
+
+  .icon-link:active {
+    transform: translateY(0) scale(0.982);
   }
 
   .icon-mark {
@@ -643,7 +587,6 @@ section[id] {
   .hero-utility-link:hover {
     color: var(--link-signal);
     background-size: 100% 1px;
-    animation: none !important;
   }
 
   .hero-side {
@@ -691,7 +634,34 @@ section[id] {
     box-shadow: 0 12px 24px rgba(20, 63, 108, 0.14);
     position: relative;
     overflow: hidden;
+    isolation: isolate;
+    transition:
+      transform 170ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 170ms ease-out,
+      background 170ms ease-out,
+      box-shadow 170ms ease-out,
+      filter 170ms ease-out;
     @apply inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition duration-150;
+  }
+
+  .action-link::before {
+    content: "";
+    position: absolute;
+    inset: -38% auto -38% -42%;
+    width: 58%;
+    border-radius: inherit;
+    background: linear-gradient(
+      105deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.12) 32%,
+      rgba(255, 255, 255, 0.42) 50%,
+      rgba(255, 255, 255, 0.12) 68%,
+      transparent 100%
+    );
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-140%) skewX(-14deg);
+    z-index: 0;
   }
 
   a.action-link {
@@ -702,7 +672,20 @@ section[id] {
     border-color: rgba(15, 45, 79, 0.92);
     background: rgba(15, 45, 79, 0.98);
     color: #f7fbff !important;
-    animation: ui-boing-hover 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    box-shadow:
+      0 16px 30px rgba(20, 63, 108, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    transform: translateY(-1px) scale(1.006);
+  }
+
+  .action-link:hover::before,
+  .action-link:focus-visible::before {
+    animation: glass-sheen 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .action-link:active {
+    filter: brightness(0.97);
+    transform: translateY(0) scale(0.982);
   }
 
   .action-link-primary {
@@ -813,15 +796,15 @@ section[id] {
     height: 23rem;
     border-radius: 999px;
     background:
-      radial-gradient(circle, rgb(var(--spot-color) / 0.3) 0%, rgb(var(--spot-color) / 0.22) 32%, transparent 72%);
-    filter: blur(24px);
+      radial-gradient(circle, rgb(var(--spot-color) / 0.24) 0%, rgb(var(--spot-color) / 0.16) 34%, transparent 72%);
+    filter: blur(26px) saturate(1.04);
     opacity: 0;
     pointer-events: none;
     transform: translate(-50%, -50%) scale(0.82);
     transition:
-      opacity 180ms ease-out,
-      left 90ms linear,
-      top 90ms linear,
+      opacity 220ms ease-out,
+      left 120ms linear,
+      top 120ms linear,
       transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
       filter 220ms ease-out;
     z-index: 0;
@@ -870,12 +853,8 @@ section[id] {
 
   .project-stage.is-pointer-active::after,
   .project-stage:focus-within::after {
-    opacity: 1;
+    opacity: 0.86;
     transform: translate(-50%, -50%) scale(1);
-  }
-
-  .project-stage.is-pointer-entering::after {
-    animation: stage-spot-settle 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .project-marks {
@@ -969,12 +948,19 @@ section[id] {
   .repo-link {
     position: relative;
     overflow: hidden;
+    isolation: isolate;
     min-height: 2.5rem;
     border: 1px solid rgba(196, 203, 211, 0.95);
     color: #f8fbff;
     box-shadow:
       0 14px 26px rgba(16, 32, 52, 0.12),
       inset 0 0 0 0 currentColor;
+    transition:
+      transform 170ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 170ms ease-out,
+      background 170ms ease-out,
+      box-shadow 170ms ease-out,
+      filter 170ms ease-out;
     @apply inline-flex items-center gap-2 rounded-full px-3.5 text-[0.95rem] font-semibold transition duration-150;
   }
 
@@ -985,40 +971,43 @@ section[id] {
   .repo-link:hover {
     color: #ffffff !important;
     box-shadow:
-      0 18px 30px rgba(16, 32, 52, 0.16),
-      inset 0 -2px 0 0 rgba(255, 255, 255, 0.28);
-    animation: ui-boing-hover 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+      0 18px 32px rgba(16, 32, 52, 0.17),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.16);
+    transform: translateY(-1px) scale(1.006);
   }
 
-  .repo-link::after,
-  .action-link[href^="https://github.com/"]::after {
+  .repo-link::before,
+  .action-link[href^="https://github.com/"]::before {
     content: "";
     position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 6rem;
-    height: 6rem;
-    border-radius: 999px;
-    background:
-      radial-gradient(circle, rgba(10, 22, 36, 0.72) 0%, rgba(10, 22, 36, 0.44) 28%, rgba(10, 22, 36, 0) 72%);
-    filter: blur(6px);
+    inset: -42% auto -42% -46%;
+    width: 62%;
+    border-radius: inherit;
+    background: linear-gradient(
+      105deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.1) 32%,
+      rgba(255, 255, 255, 0.36) 50%,
+      rgba(255, 255, 255, 0.1) 68%,
+      transparent 100%
+    );
     opacity: 0;
     pointer-events: none;
-    transform: translate(-108%, -50%) scale(0.72);
+    transform: translateX(-140%) skewX(-14deg);
+    z-index: 0;
   }
 
-  .repo-link.is-committing::after,
-  .action-link[href^="https://github.com/"].is-committing::after {
-    animation: button-commit-sweep 390ms cubic-bezier(0.28, 0.88, 0.36, 1) both;
+  .repo-link:hover::before,
+  .repo-link:focus-visible::before,
+  .action-link[href^="https://github.com/"]:hover::before,
+  .action-link[href^="https://github.com/"]:focus-visible::before {
+    animation: glass-sheen 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  .repo-link.is-committing,
-  .action-link[href^="https://github.com/"].is-committing {
-    box-shadow:
-      0 18px 30px rgba(16, 32, 52, 0.18),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.18),
-      inset 0 0 0 999px rgba(10, 22, 36, 0.08);
-    filter: saturate(1.05) brightness(0.94);
+  .repo-link:active {
+    filter: brightness(0.97);
+    transform: translateY(0) scale(0.982);
   }
 
   .repo-link-payflow {
@@ -1357,7 +1346,6 @@ section[id] {
   .contact-pill-link:hover {
     color: var(--link-signal);
     background-size: 100% 1px;
-    animation: none !important;
   }
 
   .copy-email-link {
@@ -1404,7 +1392,11 @@ section[id] {
     border-color: rgba(20, 63, 108, 0.24);
     background: rgba(255, 255, 255, 0.66);
     box-shadow: 0 16px 30px rgba(20, 63, 108, 0.08);
-    transform: translateY(-1px);
+    transform: translateY(-1px) scale(1.003);
+  }
+
+  .copy-email-shell:active {
+    transform: translateY(0) scale(0.986);
   }
 
   .copy-email-shell-active {
@@ -1419,27 +1411,6 @@ section[id] {
   .copy-email-shell-copied .copy-email-hint {
     opacity: 0;
     transform: translateY(-0.25rem);
-  }
-
-  .header-stage-button.is-boinging,
-  .header-stage-item.is-boinging,
-  .action-link.is-boinging,
-  .repo-link.is-boinging,
-  .icon-link.is-boinging,
-  .copy-email-shell.is-boinging {
-    animation: ui-boing-click 420ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
-  }
-
-  .action-link.is-scroll-boinging.is-scroll-down,
-  .repo-link.is-scroll-boinging.is-scroll-down,
-  .copy-email-shell.is-scroll-boinging.is-scroll-down {
-    animation: ui-boing-scroll-down 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-
-  .action-link.is-scroll-boinging.is-scroll-up,
-  .repo-link.is-scroll-boinging.is-scroll-up,
-  .copy-email-shell.is-scroll-boinging.is-scroll-up {
-    animation: ui-boing-scroll-up 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .copy-toast {
@@ -1657,7 +1628,7 @@ section[id] {
     padding: 0.6rem 0.42rem;
     opacity: 0;
     pointer-events: none;
-    transform: translate3d(0, 0.95rem, 0) scale(0.84, 0.9);
+    transform: translate3d(0, 0.95rem, 0) scale(0.94);
     transform-origin: center;
     transition:
       opacity 180ms ease-out,
@@ -1670,16 +1641,21 @@ section[id] {
     transform: translate3d(0, 0, 0) scale(1);
   }
 
-  .mobile-pill-morphing .mobile-quick-links {
-    animation: pill-morph 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  .mobile-pill-settling .mobile-quick-links {
+    box-shadow:
+      0 16px 36px rgba(20, 40, 68, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.52);
+    transform: translate3d(0, 0, 0) scale(1.006);
   }
 
   .mobile-pill-rising .mobile-quick-links {
-    animation: mobile-pill-rise 420ms cubic-bezier(0.22, 1, 0.36, 1);
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1.006);
   }
 
   .mobile-pill-retreating .mobile-quick-links {
-    animation: mobile-pill-retreat 280ms cubic-bezier(0.28, 0.88, 0.4, 1) both;
+    opacity: 0.86;
+    transform: translate3d(0, 0.32rem, 0) scale(0.986);
   }
 
   .mobile-quick-links .icon-link {
@@ -2156,23 +2132,5 @@ section[id] {
     animation: none !important;
     transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
-  }
-}
-
-@keyframes pill-morph {
-  0% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-
-  35% {
-    transform: translate3d(0, 0, 0) scale(0.9, 1.08);
-  }
-
-  68% {
-    transform: translate3d(0, 0, 0) scale(1.04, 0.96);
-  }
-
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
   }
 }
