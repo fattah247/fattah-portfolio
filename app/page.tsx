@@ -505,6 +505,18 @@ function syncBrand() {
 
   stageItems.forEach((item) => revealWatch.observe(item));
 
+  function materializeVisibleStages() {
+    stageItems.forEach((item) => {
+      const rect = item.getBoundingClientRect();
+      if (rect.bottom <= 0 || rect.top >= window.innerHeight * 0.94) {
+        return;
+      }
+
+      item.classList.add("is-materialized");
+      revealWatch.unobserve(item);
+    });
+  }
+
   function syncMobilePill() {
     if (!heroLinks) {
       root.classList.remove("mobile-links-away");
@@ -958,6 +970,7 @@ function syncBrand() {
     syncBrand();
     syncMobilePill();
     syncActiveStage();
+    materializeVisibleStages();
     if (mobileMedia.matches) {
       closeStageMenu();
     }
