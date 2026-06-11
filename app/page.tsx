@@ -218,14 +218,6 @@ const interactionScript = String.raw`(() => {
   const copyButton = document.querySelector("[data-copy-email]");
   const artifactButtons = Array.from(document.querySelectorAll("[data-artifact-src]"));
   const finePointerMedia = window.matchMedia("(hover: hover) and (pointer: fine)");
-  const boingSelector = [
-    ".header-stage-button",
-    ".header-stage-item",
-    ".action-link",
-    ".repo-link",
-    ".icon-link",
-    ".copy-email-shell",
-  ].join(", ");
 
   let flashTimer = 0;
   let toastTimer = 0;
@@ -246,11 +238,6 @@ const interactionScript = String.raw`(() => {
   let dragOriginY = 0;
   let dragging = false;
   let scrollTicking = false;
-  let repoNavTimer = 0;
-  let scrollIdleTimer = 0;
-  let scrollDirection = 1;
-  let lastScrollBoingKey = "";
-  const pointerEnterTimers = new WeakMap();
 
   root.setAttribute("data-interact-ready", "yes");
 
@@ -331,36 +318,6 @@ function syncBrand() {
     toastTimer = window.setTimeout(() => {
       emailShell.classList.remove("copy-email-shell-copied");
     }, 1800);
-  }
-
-  function triggerBoing(element) {
-    if (!(element instanceof Element)) {
-      return;
-    }
-
-    element.classList.remove("is-boinging");
-    void element.getBoundingClientRect();
-    element.classList.add("is-boinging");
-    window.setTimeout(() => {
-      element.classList.remove("is-boinging");
-      element.classList.remove("is-scroll-boinging");
-      element.classList.remove("is-scroll-up");
-      element.classList.remove("is-scroll-down");
-    }, 440);
-  }
-
-  function triggerScrollBoing(element) {
-    if (!(element instanceof Element) || reduced) {
-      return;
-    }
-
-    element.classList.remove("is-scroll-boinging", "is-scroll-up", "is-scroll-down");
-    void element.getBoundingClientRect();
-    element.classList.add("is-scroll-boinging");
-    element.classList.add(scrollDirection < 0 ? "is-scroll-up" : "is-scroll-down");
-    window.setTimeout(() => {
-      element.classList.remove("is-scroll-boinging", "is-scroll-up", "is-scroll-down");
-    }, 440);
   }
 
   async function copyText(text) {
@@ -529,6 +486,25 @@ function syncBrand() {
 
   stageItems.forEach((item) => stageWatch.observe(item));
 
+  const revealWatch = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) {
+          return;
+        }
+
+        entry.target.classList.add("is-materialized");
+        revealWatch.unobserve(entry.target);
+      });
+    },
+    {
+      rootMargin: "0px 0px -14% 0px",
+      threshold: 0.16,
+    },
+  );
+
+  stageItems.forEach((item) => revealWatch.observe(item));
+
   function syncMobilePill() {
     if (!heroLinks) {
       root.classList.remove("mobile-links-away");
@@ -579,7 +555,7 @@ function syncBrand() {
       root.classList.toggle("mobile-pill-mode-social", !contactVisible && githubVisible);
       root.classList.remove("mobile-pill-rising");
       root.classList.remove("mobile-pill-retreating");
-      root.classList.remove("mobile-pill-morphing");
+      root.classList.remove("mobile-pill-settling");
       lastScrollY = currentScrollY;
       return;
     }
@@ -602,7 +578,7 @@ function syncBrand() {
     }
 
     if (!shouldFloat) {
-      root.classList.remove("mobile-pill-morphing");
+      root.classList.remove("mobile-pill-settling");
       window.clearTimeout(pillModeTimer);
       pillMode = nextMode;
       root.classList.toggle("mobile-pill-mode-github", contactVisible);
@@ -614,10 +590,10 @@ function syncBrand() {
     if (nextMode !== pillMode) {
       root.classList.remove("mobile-pill-rising");
       root.classList.remove("mobile-pill-retreating");
-      root.classList.add("mobile-pill-morphing");
+      root.classList.add("mobile-pill-settling");
       window.clearTimeout(pillModeTimer);
       pillModeTimer = window.setTimeout(() => {
-        root.classList.remove("mobile-pill-morphing");
+        root.classList.remove("mobile-pill-settling");
       }, 280);
     }
 
@@ -625,22 +601,6 @@ function syncBrand() {
     root.classList.toggle("mobile-pill-mode-social", !contactVisible && githubVisible);
     pillMode = nextMode;
     lastScrollY = currentScrollY;
-  }
-
-  function shouldSkipMouseClickBoing(target, event) {
-    if (!(target instanceof Element)) {
-      return false;
-    }
-
-    if (!target.matches(".header-stage-button, .header-stage-item")) {
-      return false;
-    }
-
-    if (!(event instanceof MouseEvent) || event.detail === 0) {
-      return false;
-    }
-
-    return finePointerMedia.matches;
   }
 
   function setStageSpot(stage, clientX, clientY) {
@@ -653,73 +613,17 @@ function syncBrand() {
     stage.style.setProperty("--spot-y", (clientY - rect.top) + "px");
   }
 
-  function triggerStageSettle(stage) {
+  function settleStageSpotOnLink(link) {
+    const stage = link.closest(".project-stage");
     if (!(stage instanceof HTMLElement)) {
       return;
     }
 
-    const previous = pointerEnterTimers.get(stage);
-    if (previous) {
-      window.clearTimeout(previous);
-    }
-
-    stage.classList.remove("is-pointer-entering");
-    void stage.getBoundingClientRect();
-    stage.classList.add("is-pointer-entering");
-    const timer = window.setTimeout(() => {
-      stage.classList.remove("is-pointer-entering");
-      pointerEnterTimers.delete(stage);
-    }, 360);
-    pointerEnterTimers.set(stage, timer);
-  }
-
-  function beginDeferredNavigation(link, event) {
-    if (!(link instanceof HTMLAnchorElement)) {
-      return false;
-    }
-
-    if (
-      event.defaultPrevented ||
-      event.button !== 0 ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.shiftKey ||
-      event.altKey
-    ) {
-      return false;
-    }
-
-    const href = link.href;
-    if (!href || href.startsWith("#")) {
-      return false;
-    }
-
-    event.preventDefault();
-    const newWindow =
-      link.target === "_blank"
-        ? window.open("about:blank", "_blank", "noopener,noreferrer")
-        : null;
-
-    link.classList.remove("is-committing");
-    void link.getBoundingClientRect();
-    link.classList.add("is-committing");
-
-    window.clearTimeout(repoNavTimer);
-    repoNavTimer = window.setTimeout(() => {
-      link.classList.remove("is-committing");
-      if (newWindow) {
-        try {
-          newWindow.location.href = href;
-        } catch {
-          window.open(href, "_blank", "noopener,noreferrer");
-        }
-        return;
-      }
-
-      window.location.href = href;
-    }, reduced ? 0 : 340);
-
-    return true;
+    const linkRect = link.getBoundingClientRect();
+    const stageRect = stage.getBoundingClientRect();
+    stage.style.setProperty("--spot-x", (linkRect.left - stageRect.left + (linkRect.width / 2)) + "px");
+    stage.style.setProperty("--spot-y", (linkRect.top - stageRect.top + (linkRect.height / 2)) + "px");
+    stage.classList.add("is-pointer-active");
   }
 
   function closeStageMenu() {
@@ -810,7 +714,6 @@ function syncBrand() {
 
       setStageSpot(stage, event.clientX, event.clientY);
       stage.classList.add("is-pointer-active");
-      triggerStageSettle(stage);
     });
 
     stage.addEventListener("pointermove", (event) => {
@@ -823,66 +726,8 @@ function syncBrand() {
 
     stage.addEventListener("pointerleave", () => {
       stage.classList.remove("is-pointer-active");
-      stage.classList.remove("is-pointer-entering");
-      const timer = pointerEnterTimers.get(stage);
-      if (timer) {
-        window.clearTimeout(timer);
-        pointerEnterTimers.delete(stage);
-      }
     });
   });
-
-  function findActiveScrollBoingTarget() {
-    const scopes = Array.from(document.querySelectorAll("[data-scroll-boing-scope]"));
-    const anchor = window.innerHeight * (mobileMedia.matches ? 0.42 : 0.34);
-    let bestTarget = null;
-    let bestKey = "";
-    let bestDistance = Number.POSITIVE_INFINITY;
-
-    scopes.forEach((scope) => {
-      if (!(scope instanceof HTMLElement)) {
-        return;
-      }
-
-      const rect = scope.getBoundingClientRect();
-      if (rect.bottom <= 0 || rect.top >= window.innerHeight) {
-        return;
-      }
-
-      const focus = rect.top + Math.min(rect.height * 0.3, 180);
-      const distance = Math.abs(focus - anchor);
-      if (distance >= bestDistance) {
-        return;
-      }
-
-      const target = scope.querySelector("[data-scroll-boing]");
-      if (!(target instanceof Element)) {
-        return;
-      }
-
-      bestDistance = distance;
-      bestTarget = target;
-      bestKey = (scope.getAttribute("id") || scope.getAttribute("data-stage-label") || "scope") +
-        ":" +
-        (scrollDirection < 0 ? "up" : "down");
-    });
-
-    return { target: bestTarget, key: bestKey };
-  }
-
-  function triggerScrollStopBoing() {
-    const found = findActiveScrollBoingTarget();
-    if (!found?.target || !found.key) {
-      return;
-    }
-
-    if (found.key === lastScrollBoingKey) {
-      return;
-    }
-
-    lastScrollBoingKey = found.key;
-    triggerScrollBoing(found.target);
-  }
 
   document.addEventListener("click", (event) => {
     if (!(event.target instanceof Element) || !(stageControl instanceof Element)) {
@@ -901,16 +746,10 @@ function syncBrand() {
       return;
     }
 
-    const boingTarget = raw.closest(boingSelector);
-
-    if (boingTarget && !shouldSkipMouseClickBoing(boingTarget, event)) {
-      triggerBoing(boingTarget);
-    }
-
     const repoTrigger = raw.closest(".repo-link, .action-link[href^='https://github.com/']");
 
-    if (repoTrigger instanceof HTMLAnchorElement && beginDeferredNavigation(repoTrigger, event)) {
-      return;
+    if (repoTrigger instanceof HTMLAnchorElement) {
+      settleStageSpotOnLink(repoTrigger);
     }
 
     const scrollTrigger = raw.closest("[data-scroll-target]");
@@ -1039,12 +878,6 @@ function syncBrand() {
       return;
     }
 
-    const boingTarget = raw.closest(boingSelector);
-
-    if (boingTarget) {
-      triggerBoing(boingTarget);
-    }
-
     const artifactTrigger = raw.closest("[data-artifact-src]");
 
     if (artifactTrigger) {
@@ -1131,18 +964,6 @@ function syncBrand() {
   }
 
   function queueUpdate() {
-    const currentY = window.scrollY;
-    const delta = currentY - lastScrollY;
-    if (Math.abs(delta) > 1) {
-      scrollDirection = delta > 0 ? 1 : -1;
-    }
-    lastScrollY = currentY;
-
-    window.clearTimeout(scrollIdleTimer);
-    scrollIdleTimer = window.setTimeout(() => {
-      triggerScrollStopBoing();
-    }, reduced ? 0 : 120);
-
     if (scrollTicking) {
       return;
     }
@@ -1495,7 +1316,6 @@ export default function Home() {
           data-stage="hero"
           data-stage-nav="true"
           data-stage-label="Introduction"
-          data-scroll-boing-scope="true"
         >
           <HeroBackdropMarks />
           <div className="hero-layout">
@@ -1530,7 +1350,6 @@ export default function Home() {
                 <button
                   className="action-link action-link-primary"
                   data-scroll-target="projects"
-                  data-scroll-boing="true"
                   type="button"
                 >
                   View labs
@@ -1591,7 +1410,6 @@ export default function Home() {
             className="project-stage project-stage-payflow"
             data-stage="payflow"
             data-stage-label="PayFlow Reliability"
-            data-scroll-boing-scope="true"
           >
             <ProjectBackdropMarks marks={projectMarks.payflow} />
             <div className="project-aside">
@@ -1627,7 +1445,6 @@ export default function Home() {
               <div className="project-foot">
                 <a
                   className="repo-link repo-link-payflow"
-                  data-scroll-boing="true"
                   href="https://github.com/fattah247/payflow-reliability"
                   target="_blank"
                   rel="noreferrer"
@@ -1688,7 +1505,6 @@ export default function Home() {
             className="project-stage project-stage-iyup"
             data-stage="iyup"
             data-stage-label="iYup"
-            data-scroll-boing-scope="true"
           >
             <ProjectBackdropMarks marks={projectMarks.iyup} />
             <div className="project-aside">
@@ -1723,7 +1539,6 @@ export default function Home() {
               <div className="project-foot">
                 <a
                   className="repo-link repo-link-iyup"
-                  data-scroll-boing="true"
                   href="https://github.com/fattah247/iYup"
                   target="_blank"
                   rel="noreferrer"
@@ -1780,7 +1595,6 @@ export default function Home() {
             className="project-stage project-stage-trustgate"
             data-stage="trustgate"
             data-stage-label="TrustGate Android"
-            data-scroll-boing-scope="true"
           >
             <ProjectBackdropMarks marks={projectMarks.trustgate} />
             <div className="project-aside">
@@ -1815,7 +1629,6 @@ export default function Home() {
               <div className="project-foot">
                 <a
                   className="repo-link repo-link-trustgate"
-                  data-scroll-boing="true"
                   href="https://github.com/fattah247/trustgate-android"
                   target="_blank"
                   rel="noreferrer"
@@ -1876,7 +1689,6 @@ export default function Home() {
           data-stage="github-more"
           data-stage-nav="true"
           data-stage-label="More on GitHub"
-          data-scroll-boing-scope="true"
         >
           <div className="section-top">
             <h2 className="section-title">More on GitHub</h2>
@@ -1899,7 +1711,6 @@ export default function Home() {
               </ul>
               <a
                 className="action-link"
-                data-scroll-boing="true"
                 href="https://github.com/fattah247"
                 target="_blank"
                 rel="noreferrer"
@@ -2002,7 +1813,6 @@ export default function Home() {
           data-stage="contact"
           data-stage-nav="true"
           data-stage-label="Contact"
-          data-scroll-boing-scope="true"
         >
           <div className="section-top">
             <h2 className="section-title">Contact</h2>
@@ -2016,7 +1826,6 @@ export default function Home() {
             aria-label={`Copy ${email}`}
             className="copy-email-shell"
             data-copy-email={email}
-            data-scroll-boing="true"
             id="contact-email"
             role="button"
             tabIndex={0}
