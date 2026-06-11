@@ -2235,6 +2235,12 @@ section[id] {
     position: relative;
   }
 
+  .section-block-compact .section-top {
+    min-height: 7.35rem;
+    margin-bottom: 1.8rem;
+    padding-bottom: 1.45rem;
+  }
+
   .section-top::after {
     content: "";
     position: absolute;
@@ -2266,6 +2272,24 @@ section[id] {
     min-height: min(92vh, 54rem);
     padding-top: 5.9rem;
     padding-bottom: 5.9rem;
+  }
+
+  .project-aside {
+    border-left: 1px solid rgba(20, 63, 108, 0.12);
+    padding-left: 1.35rem;
+  }
+
+  .project-aside::before {
+    content: "";
+    position: absolute;
+    left: -0.24rem;
+    top: 0.35rem;
+    width: 0.42rem;
+    height: 0.42rem;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    background: rgba(244, 248, 252, 0.9);
+    opacity: 0.56;
   }
 
   .project-title {
@@ -2333,14 +2357,65 @@ section[id] {
   .stack-list {
     max-width: none;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 1.5rem;
-    padding-top: 0.35rem;
+    gap: 0;
+    padding-top: 1.05rem;
+    position: relative;
+  }
+
+  .stack-list::before {
+    content: "";
+    position: absolute;
+    left: 0.25rem;
+    right: 0.25rem;
+    top: 1.28rem;
+    height: 1px;
+    background:
+      linear-gradient(
+        90deg,
+        rgba(20, 63, 108, 0.16),
+        rgba(53, 98, 79, 0.18),
+        rgba(167, 100, 37, 0.14)
+      );
+    pointer-events: none;
   }
 
   .stack-row {
+    position: relative;
     grid-template-columns: 1fr;
-    gap: 0.5rem;
-    padding-right: 1rem;
+    gap: 0.58rem;
+    padding: 1.45rem 1.3rem 0 0;
+  }
+
+  .stack-row::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0.52rem;
+    height: 0.52rem;
+    border: 1px solid rgba(20, 63, 108, 0.34);
+    border-radius: 999px;
+    background: rgba(244, 248, 252, 0.96);
+    box-shadow: 0 0 0 5px rgba(244, 248, 252, 0.9);
+  }
+
+  .stack-row::after {
+    content: "";
+    position: absolute;
+    left: 0.25rem;
+    top: 0.52rem;
+    width: 1px;
+    height: 0.56rem;
+    background: rgba(20, 63, 108, 0.14);
+  }
+
+  .stack-label {
+    color: rgba(13, 45, 79, 0.9);
+  }
+
+  .stack-copy {
+    font-size: 0.98rem;
+    line-height: 1.68;
   }
 
   #contact {

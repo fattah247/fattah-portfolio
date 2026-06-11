@@ -990,7 +990,11 @@ function syncBrand() {
 
   window.addEventListener("scroll", queueUpdate, { passive: true });
   window.addEventListener("resize", queueUpdate);
+  window.addEventListener("hashchange", queueUpdate);
   update();
+  window.requestAnimationFrame(update);
+  window.setTimeout(update, 160);
+  window.setTimeout(update, 420);
 })();`;
 
 function GitHubIcon() {
