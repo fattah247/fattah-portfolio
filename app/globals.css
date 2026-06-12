@@ -624,62 +624,6 @@ section[id] {
     @apply mt-1;
   }
 
-  .hero-marks {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .hero-mark {
-    position: absolute;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid rgba(20, 63, 108, 0.08);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.18);
-    color: rgba(20, 63, 108, 0.22);
-    font-family: var(--font-mono), monospace;
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    line-height: 1;
-    padding: 0.42rem 0.62rem;
-    text-transform: uppercase;
-    user-select: none;
-  }
-
-  .hero-mark:nth-child(1) {
-    left: 7%;
-    top: 18%;
-  }
-
-  .hero-mark:nth-child(2) {
-    left: 33%;
-    top: 12%;
-  }
-
-  .hero-mark:nth-child(3) {
-    right: 8%;
-    top: 17%;
-  }
-
-  .hero-mark:nth-child(4) {
-    left: 12%;
-    bottom: 19%;
-  }
-
-  .hero-mark:nth-child(5) {
-    left: 46%;
-    bottom: 10%;
-  }
-
-  .hero-mark:nth-child(6) {
-    right: 6%;
-    bottom: 28%;
-  }
-
   .action-link {
     border: 1px solid rgba(18, 48, 80, 0.84);
     background: rgba(20, 63, 108, 0.98);
@@ -830,11 +774,13 @@ section[id] {
   .project-stage::before {
     content: "";
     position: absolute;
-    inset: 0 auto 0 50%;
-    width: 100vw;
-    opacity: 0.64;
+    inset: 0;
+    border-block: 1px solid rgba(20, 63, 108, 0.08);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.08)),
+      rgba(255, 255, 255, 0.12);
+    opacity: 0.88;
     pointer-events: none;
-    transform: translateX(-50%) scaleY(0.985);
     transition:
       opacity 240ms ease-out,
       transform 240ms ease-out;
@@ -871,9 +817,8 @@ section[id] {
 
   .project-stage-payflow::before {
     background:
-      radial-gradient(circle at 18% 18%, rgba(47, 95, 138, 0.7), transparent 42%),
-      radial-gradient(circle at 82% 22%, rgba(47, 95, 138, 0.54), transparent 38%),
-      linear-gradient(180deg, rgba(47, 95, 138, 0.38), rgba(47, 95, 138, 0.12) 64%, transparent);
+      linear-gradient(90deg, rgba(47, 95, 138, 0.14), rgba(255, 255, 255, 0.22) 38%, rgba(255, 255, 255, 0.04)),
+      rgba(47, 95, 138, 0.04);
   }
 
   .project-stage-iyup {
@@ -883,9 +828,8 @@ section[id] {
 
   .project-stage-iyup::before {
     background:
-      radial-gradient(circle at 20% 18%, rgba(53, 98, 79, 0.68), transparent 42%),
-      radial-gradient(circle at 80% 24%, rgba(53, 98, 79, 0.5), transparent 38%),
-      linear-gradient(180deg, rgba(53, 98, 79, 0.36), rgba(53, 98, 79, 0.12) 64%, transparent);
+      linear-gradient(90deg, rgba(53, 98, 79, 0.13), rgba(255, 255, 255, 0.22) 38%, rgba(255, 255, 255, 0.04)),
+      rgba(53, 98, 79, 0.04);
   }
 
   .project-stage-trustgate {
@@ -895,66 +839,18 @@ section[id] {
 
   .project-stage-trustgate::before {
     background:
-      radial-gradient(circle at 20% 18%, rgba(189, 112, 44, 0.66), transparent 42%),
-      radial-gradient(circle at 82% 24%, rgba(189, 112, 44, 0.48), transparent 38%),
-      linear-gradient(180deg, rgba(189, 112, 44, 0.34), rgba(189, 112, 44, 0.12) 64%, transparent);
+      linear-gradient(90deg, rgba(167, 100, 37, 0.12), rgba(255, 255, 255, 0.22) 38%, rgba(255, 255, 255, 0.04)),
+      rgba(167, 100, 37, 0.04);
   }
 
   .project-stage.is-stage-active::before {
-    opacity: 0.96;
-    transform: translateX(-50%) scaleY(1);
+    opacity: 1;
   }
 
   .project-stage.is-pointer-active::after,
   .project-stage:focus-within::after {
     opacity: 0.86;
     transform: translate(-50%, -50%) scale(1);
-  }
-
-  .project-marks {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .project-mark {
-    position: absolute;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid currentColor;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.16);
-    font-family: var(--font-mono), monospace;
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.11em;
-    line-height: 1;
-    opacity: 0.18;
-    padding: 0.48rem 0.68rem;
-    text-transform: uppercase;
-    user-select: none;
-  }
-
-  .project-mark:nth-child(1) {
-    left: 8%;
-    top: 13%;
-  }
-
-  .project-mark:nth-child(2) {
-    right: 8%;
-    top: 16%;
-  }
-
-  .project-mark:nth-child(3) {
-    left: 13%;
-    bottom: 17%;
-  }
-
-  .project-mark:nth-child(4) {
-    right: 10%;
-    bottom: 18%;
   }
 
   .project-aside,
@@ -1145,6 +1041,18 @@ section[id] {
 
   .phone-grid {
     @apply grid gap-6 sm:grid-cols-2;
+  }
+
+  .phone-grid .artifact {
+    max-width: 17.5rem;
+  }
+
+  .phone-grid .project-evidence-secondary {
+    align-self: center;
+  }
+
+  .phone-grid .project-evidence-secondary .artifact {
+    max-width: 15.25rem;
   }
 
   .project-panel {
@@ -1904,14 +1812,6 @@ section[id] {
     transform: translate3d(0, -0.55rem, 0) scale(0.96);
   }
 
-  .hero-mark {
-    display: none;
-  }
-
-  .project-mark {
-    display: none;
-  }
-
   .action-link {
     min-height: 2.7rem;
   }
@@ -2484,11 +2384,11 @@ section[id] {
   }
 
   .project-stage {
-    grid-template-columns: minmax(17rem, 0.29fr) minmax(0, 0.71fr);
-    gap: 3.8rem;
-    min-height: min(82vh, 47rem);
-    padding-top: 4.7rem;
-    padding-bottom: 4.7rem;
+    grid-template-columns: minmax(20rem, 0.36fr) minmax(0, 0.64fr);
+    gap: 3.2rem;
+    min-height: min(76vh, 43rem);
+    padding-top: 4.2rem;
+    padding-bottom: 4.2rem;
   }
 
   .project-aside {
@@ -2514,11 +2414,11 @@ section[id] {
   }
 
   .project-head {
-    max-width: 21rem;
+    max-width: 24rem;
   }
 
   .project-summary {
-    max-width: 21rem;
+    max-width: 23rem;
   }
 
   .project-main {
@@ -2538,8 +2438,9 @@ section[id] {
   }
 
   .phone-grid {
-    grid-template-columns: minmax(0, 0.58fr) minmax(0, 0.42fr);
+    grid-template-columns: minmax(0, 0.52fr) minmax(0, 0.48fr);
     align-items: start;
+    justify-items: center;
   }
 
   .artifact-frame {

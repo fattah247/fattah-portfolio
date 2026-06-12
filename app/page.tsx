@@ -56,16 +56,8 @@ const githubProofRepos = [
   },
 ] as const;
 
-const heroMarks = ["flow", "secure", "observe", "recover", "ship", "audit"] as const;
-
 const transparentPixel =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
-
-const projectMarks = {
-  payflow: ["intent", "webhook", "reconcile", "audit"],
-  iyup: ["health", "latency", "alerts", "dashboard"],
-  trustgate: ["device", "risk", "gate", "event"],
-} as const;
 
 const failureCases = [
   {
@@ -1140,34 +1132,6 @@ function MobileQuickLinks() {
   );
 }
 
-function HeroBackdropMarks() {
-  return (
-    <div className="hero-marks" aria-hidden="true">
-      {heroMarks.map((item) => (
-        <span key={item} className="hero-mark">
-          {item}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function ProjectBackdropMarks({
-  marks,
-}: {
-  marks: ReadonlyArray<string>;
-}) {
-  return (
-    <div className="project-marks" aria-hidden="true">
-      {marks.map((item) => (
-        <span key={item} className="project-mark">
-          {item}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 function HeroProofMap() {
   return (
     <div className="hero-proof-map" aria-label="Work map">
@@ -1274,7 +1238,6 @@ export default function Home() {
           data-stage-nav="true"
           data-stage-label="Introduction"
         >
-          <HeroBackdropMarks />
           <div className="hero-layout">
             <div className="hero-copy-block">
               <h1 className="hero-name" id="hero-name">
@@ -1370,7 +1333,6 @@ export default function Home() {
             data-stage="payflow"
             data-stage-label="PayFlow Reliability"
           >
-            <ProjectBackdropMarks marks={projectMarks.payflow} />
             <div className="project-aside">
               <div className="project-head">
                 <h3 className="project-title">PayFlow Reliability</h3>
@@ -1465,7 +1427,6 @@ export default function Home() {
             data-stage="iyup"
             data-stage-label="iYup"
           >
-            <ProjectBackdropMarks marks={projectMarks.iyup} />
             <div className="project-aside">
               <div className="project-head">
                 <h3 className="project-title">iYup</h3>
@@ -1555,7 +1516,6 @@ export default function Home() {
             data-stage="trustgate"
             data-stage-label="TrustGate Android"
           >
-            <ProjectBackdropMarks marks={projectMarks.trustgate} />
             <div className="project-aside">
               <div className="project-head">
                 <h3 className="project-title">TrustGate Android</h3>
@@ -1614,13 +1574,13 @@ export default function Home() {
 
                 <div className="project-evidence-secondary">
                   <ArtifactCard
-                  src="/projects/trustgate/security-event-log.png"
-                  alt="Security event log screen from TrustGate Android."
-                  caption="Blocked or gated behavior leaves a readable local trail."
-                  sizes="(max-width: 1024px) 100vw, 28vw"
-                  tone="bg-[#d7dce5]"
-                  tall
-                />
+                    src="/projects/trustgate/security-event-log.png"
+                    alt="Security event log screen from TrustGate Android."
+                    caption="Blocked or gated behavior leaves a readable local trail."
+                    sizes="(max-width: 1024px) 100vw, 28vw"
+                    tone="bg-[#d7dce5]"
+                    tall
+                  />
                 </div>
               </div>
 
