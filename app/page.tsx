@@ -1247,6 +1247,7 @@ export default function Home() {
               <p className="hero-role">
                 Software Engineer | Payment Reliability • Secure Android • Observability
               </p>
+              <HeroProofMap />
             </div>
 
             <aside className="hero-side">
@@ -1265,8 +1266,6 @@ export default function Home() {
                 <li>Incident response, rollback coordination, and hardening</li>
                 <li>iOS foundations, backend coordination, and release work</li>
               </ul>
-
-              <HeroProofMap />
 
               <div className="hero-actions">
                 <button
@@ -1335,6 +1334,7 @@ export default function Home() {
           >
             <div className="project-aside">
               <div className="project-head">
+                <p className="project-kicker">Case 01 / payment state</p>
                 <h3 className="project-title">PayFlow Reliability</h3>
                 <p className="project-summary">
                   A Spring Boot lab for payment-like failure states: duplicate
@@ -1429,6 +1429,7 @@ export default function Home() {
           >
             <div className="project-aside">
               <div className="project-head">
+                <p className="project-kicker">Case 02 / observability</p>
                 <h3 className="project-title">iYup</h3>
                 <p className="project-summary">
                   An observability lab for service health, latency, alert
@@ -1518,6 +1519,7 @@ export default function Home() {
           >
             <div className="project-aside">
               <div className="project-head">
+                <p className="project-kicker">Case 03 / client trust</p>
                 <h3 className="project-title">TrustGate Android</h3>
                 <p className="project-summary">
                   An Android client-trust lab for deciding when a device should
