@@ -561,6 +561,25 @@ section[id] {
     background: rgba(20, 63, 108, 0.55);
   }
 
+  .hero-proof-map {
+    display: none;
+  }
+
+  .hero-proof-node {
+    position: relative;
+  }
+
+  .hero-proof-node span {
+    color: rgba(13, 45, 79, 0.88);
+    font-family: var(--font-mono), monospace;
+    @apply text-[0.74rem] font-semibold uppercase tracking-[0.1em];
+  }
+
+  .hero-proof-node p {
+    color: var(--body);
+    @apply mt-1 text-[0.94rem] leading-[1.45];
+  }
+
   .hero-actions {
     @apply mt-7;
   }
@@ -1241,6 +1260,44 @@ section[id] {
     height: 0.34rem;
     border-radius: 999px;
     background: rgba(20, 63, 108, 0.52);
+  }
+
+  .github-proof-strip {
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .github-proof-item {
+    border: 1px solid rgba(201, 211, 222, 0.82);
+    background: rgba(255, 255, 255, 0.54);
+    box-shadow: 0 10px 20px rgba(20, 40, 68, 0.05);
+    transition:
+      transform 170ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-color 170ms ease-out,
+      background 170ms ease-out,
+      box-shadow 170ms ease-out;
+    @apply block rounded-[14px] px-3 py-2.5;
+  }
+
+  .github-proof-item:hover {
+    border-color: rgba(20, 63, 108, 0.22);
+    background: rgba(255, 255, 255, 0.74);
+    box-shadow: 0 14px 24px rgba(20, 40, 68, 0.08);
+    transform: translateY(-1px) scale(1.004);
+  }
+
+  .github-proof-item:active {
+    transform: translateY(0) scale(0.986);
+  }
+
+  .github-proof-item span {
+    color: var(--text);
+    @apply text-[0.9rem] font-semibold leading-tight;
+  }
+
+  .github-proof-item p {
+    color: var(--muted);
+    @apply mt-1 text-[0.82rem] leading-[1.35];
   }
 
   .career-timeline {
@@ -2080,6 +2137,18 @@ section[id] {
     font-size: 1.6rem;
   }
 
+  .hero-proof-map {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
+    margin-top: 0.65rem;
+  }
+
+  .hero-proof-node {
+    border-top: 1px solid rgba(20, 63, 108, 0.12);
+    padding-top: 0.75rem;
+  }
+
   .project-stage {
     grid-template-columns: minmax(16rem, 0.38fr) minmax(0, 0.62fr);
     gap: 2.5rem;
@@ -2157,17 +2226,64 @@ section[id] {
 
   .hero-side {
     align-self: center;
-    max-width: 32rem;
+    max-width: 34rem;
     padding-top: 0;
-    gap: 1.2rem;
+    gap: 1rem;
+  }
+
+  .hero-proof-map {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.72rem;
+    margin-top: 0.42rem;
+    padding-top: 0.78rem;
+    position: relative;
+  }
+
+  .hero-proof-map::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 1px;
+    background:
+      linear-gradient(
+        90deg,
+        rgba(20, 63, 108, 0.18),
+        rgba(53, 98, 79, 0.16),
+        transparent
+      );
+  }
+
+  .hero-proof-node {
+    border-left: 1px solid rgba(20, 63, 108, 0.12);
+    padding-left: 0.82rem;
+  }
+
+  .hero-proof-node p {
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .hero-proof-node::before {
+    content: "";
+    position: absolute;
+    left: -0.23rem;
+    top: 0.28rem;
+    width: 0.42rem;
+    height: 0.42rem;
+    border: 1px solid rgba(20, 63, 108, 0.32);
+    border-radius: 999px;
+    background: rgba(244, 248, 252, 0.96);
   }
 
   .hero-actions {
-    margin-top: 1.25rem;
+    margin-top: 0.85rem;
   }
 
   .hero-link-row {
-    margin-top: 1.2rem;
+    margin-top: 0.9rem;
   }
 
   .hero-name {
@@ -2348,6 +2464,11 @@ section[id] {
 
   .github-stage-lead {
     max-width: 20rem;
+  }
+
+  .github-proof-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem;
   }
 
   .career-timeline {

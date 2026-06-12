@@ -27,6 +27,36 @@ const stackGroups = [
   },
 ] as const;
 
+const heroProofMap = [
+  ["BCA", "Android POS + payment reliability"],
+  ["PayFlow", "callbacks + reconciliation lab"],
+  ["iYup", "health + latency visibility"],
+  ["TrustGate", "device risk decisions"],
+] as const;
+
+const githubProofRepos = [
+  {
+    name: "SnapSort-iOS",
+    focus: "iOS photo management",
+    href: "https://github.com/fattah247/SnapSort-iOS",
+  },
+  {
+    name: "Stock-Triage",
+    focus: "IDX filing automation",
+    href: "https://github.com/fattah247/Stock-Triage",
+  },
+  {
+    name: "Xpire",
+    focus: "expiration reminders",
+    href: "https://github.com/fattah247/Xpire",
+  },
+  {
+    name: "IoTifyHome",
+    focus: "smart-home control",
+    href: "https://github.com/fattah247/IoTifyHome",
+  },
+] as const;
+
 const heroMarks = [
   { emoji: "🌊", left: "7%", top: "16%", rotate: "-14deg", scale: 1.12, size: "clamp(1.55rem, 1.9vw, 2.2rem)" },
   { emoji: "✈️", left: "18%", top: "10%", rotate: "11deg", scale: 1.02, size: "clamp(1.3rem, 1.55vw, 1.9rem)" },
@@ -1241,6 +1271,19 @@ function ProjectBackdropMarks({
   );
 }
 
+function HeroProofMap() {
+  return (
+    <div className="hero-proof-map" aria-label="Work map">
+      {heroProofMap.map(([label, detail]) => (
+        <div className="hero-proof-node" key={label}>
+          <span>{label}</span>
+          <p>{detail}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ZoomIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="mini-icon">
@@ -1362,6 +1405,8 @@ export default function Home() {
                 <li>Incident response, rollback coordination, and hardening</li>
                 <li>iOS foundations, backend coordination, and release work</li>
               </ul>
+
+              <HeroProofMap />
 
               <div className="hero-actions">
                 <button
@@ -1726,6 +1771,20 @@ export default function Home() {
                 <li>Smaller repos that show range, not just polished showcases</li>
                 <li>A clearer read on how I structure, debug, and document work</li>
               </ul>
+              <div className="github-proof-strip" aria-label="Additional public repositories">
+                {githubProofRepos.map((repo) => (
+                  <a
+                    className="github-proof-item"
+                    href={repo.href}
+                    key={repo.name}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <span>{repo.name}</span>
+                    <p>{repo.focus}</p>
+                  </a>
+                ))}
+              </div>
               <a
                 className="action-link"
                 href="https://github.com/fattah247"
