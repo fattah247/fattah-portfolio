@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import Image from "next/image";
 import Script from "next/script";
 
@@ -57,79 +56,15 @@ const githubProofRepos = [
   },
 ] as const;
 
-const heroMarks = [
-  { emoji: "🌊", left: "7%", top: "16%", rotate: "-14deg", scale: 1.12, size: "clamp(1.55rem, 1.9vw, 2.2rem)" },
-  { emoji: "✈️", left: "18%", top: "10%", rotate: "11deg", scale: 1.02, size: "clamp(1.3rem, 1.55vw, 1.9rem)" },
-  { emoji: "🔒", left: "29%", top: "18%", rotate: "-8deg", scale: 1.06, size: "clamp(1.4rem, 1.65vw, 1.95rem)" },
-  { emoji: "🌊", left: "12%", top: "28%", rotate: "12deg", scale: 1.18, size: "clamp(1.65rem, 2.05vw, 2.35rem)" },
-  { emoji: "🌊", left: "41%", top: "29%", rotate: "10deg", scale: 1.08, size: "clamp(1.45rem, 1.8vw, 2.05rem)" },
-  { emoji: "✈️", left: "56%", top: "12%", rotate: "-12deg", scale: 1, size: "clamp(1.3rem, 1.5vw, 1.82rem)" },
-  { emoji: "🔒", left: "51%", top: "24%", rotate: "14deg", scale: 0.95, size: "clamp(1.26rem, 1.48vw, 1.75rem)" },
-  { emoji: "🔒", left: "70%", top: "20%", rotate: "9deg", scale: 1.04, size: "clamp(1.38rem, 1.62vw, 1.92rem)" },
-  { emoji: "🌊", left: "82%", top: "11%", rotate: "-10deg", scale: 1.14, size: "clamp(1.5rem, 1.95vw, 2.25rem)" },
-  { emoji: "✈️", left: "90%", top: "31%", rotate: "13deg", scale: 1.02, size: "clamp(1.28rem, 1.52vw, 1.86rem)" },
-  { emoji: "🌊", left: "78%", top: "44%", rotate: "-15deg", scale: 1.1, size: "clamp(1.44rem, 1.82vw, 2.08rem)" },
-  { emoji: "🔒", left: "86%", top: "53%", rotate: "-8deg", scale: 1.08, size: "clamp(1.38rem, 1.62vw, 1.9rem)" },
-  { emoji: "🌊", left: "63%", top: "68%", rotate: "12deg", scale: 1.08, size: "clamp(1.45rem, 1.8vw, 2.08rem)" },
-  { emoji: "✈️", left: "56%", top: "83%", rotate: "16deg", scale: 1.08, size: "clamp(1.36rem, 1.58vw, 1.88rem)" },
-  { emoji: "✈️", left: "36%", top: "76%", rotate: "-11deg", scale: 0.98, size: "clamp(1.22rem, 1.42vw, 1.72rem)" },
-  { emoji: "🔒", left: "14%", top: "61%", rotate: "11deg", scale: 1.02, size: "clamp(1.32rem, 1.5vw, 1.82rem)" },
-  { emoji: "🌊", left: "26%", top: "88%", rotate: "-8deg", scale: 1.02, size: "clamp(1.28rem, 1.46vw, 1.76rem)" },
-  { emoji: "🔒", left: "93%", top: "71%", rotate: "9deg", scale: 0.98, size: "clamp(1.28rem, 1.42vw, 1.68rem)" },
-  { emoji: "✈️", left: "47%", top: "9%", rotate: "-16deg", scale: 0.96, size: "clamp(1.18rem, 1.34vw, 1.62rem)" },
-  { emoji: "🌊", left: "61%", top: "42%", rotate: "-10deg", scale: 0.98, size: "clamp(1.2rem, 1.4vw, 1.72rem)" },
-  { emoji: "🔒", left: "38%", top: "52%", rotate: "14deg", scale: 1, size: "clamp(1.22rem, 1.42vw, 1.72rem)" },
-  { emoji: "✈️", left: "72%", top: "61%", rotate: "8deg", scale: 0.96, size: "clamp(1.18rem, 1.34vw, 1.6rem)" },
-  { emoji: "🌊", left: "9%", top: "83%", rotate: "12deg", scale: 0.96, size: "clamp(1.16rem, 1.3vw, 1.58rem)" },
-  { emoji: "🔒", left: "46%", top: "92%", rotate: "-10deg", scale: 0.94, size: "clamp(1.16rem, 1.28vw, 1.56rem)" },
-] as const;
+const heroMarks = ["flow", "secure", "observe", "recover", "ship", "audit"] as const;
 
 const transparentPixel =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
 const projectMarks = {
-  payflow: [
-    { emoji: "💳", left: "9%", top: "12%", rotate: "-12deg", scale: 1.08, size: "clamp(1.42rem, 1.62vw, 1.92rem)" },
-    { emoji: "🔁", left: "86%", top: "11%", rotate: "9deg", scale: 1.02, size: "clamp(1.34rem, 1.55vw, 1.82rem)" },
-    { emoji: "🧾", left: "77%", top: "37%", rotate: "-10deg", scale: 0.98, size: "clamp(1.28rem, 1.44vw, 1.76rem)" },
-    { emoji: "🌊", left: "18%", top: "58%", rotate: "11deg", scale: 1.1, size: "clamp(1.45rem, 1.72vw, 1.98rem)" },
-    { emoji: "💳", left: "68%", top: "69%", rotate: "-8deg", scale: 1.03, size: "clamp(1.28rem, 1.44vw, 1.74rem)" },
-    { emoji: "🔁", left: "24%", top: "78%", rotate: "13deg", scale: 0.98, size: "clamp(1.24rem, 1.38vw, 1.68rem)" },
-    { emoji: "🧾", left: "57%", top: "20%", rotate: "8deg", scale: 0.92, size: "clamp(1.2rem, 1.34vw, 1.6rem)" },
-    { emoji: "💳", left: "89%", top: "82%", rotate: "-11deg", scale: 0.98, size: "clamp(1.22rem, 1.38vw, 1.68rem)" },
-    { emoji: "🌊", left: "45%", top: "8%", rotate: "-12deg", scale: 0.98, size: "clamp(1.18rem, 1.3vw, 1.56rem)" },
-    { emoji: "💳", left: "7%", top: "84%", rotate: "10deg", scale: 0.94, size: "clamp(1.14rem, 1.26vw, 1.52rem)" },
-    { emoji: "🧾", left: "92%", top: "54%", rotate: "15deg", scale: 0.92, size: "clamp(1.14rem, 1.26vw, 1.52rem)" },
-    { emoji: "🔁", left: "38%", top: "49%", rotate: "-9deg", scale: 0.92, size: "clamp(1.12rem, 1.24vw, 1.48rem)" },
-  ],
-  iyup: [
-    { emoji: "📈", left: "11%", top: "14%", rotate: "-11deg", scale: 1.08, size: "clamp(1.42rem, 1.6vw, 1.92rem)" },
-    { emoji: "🛰️", left: "84%", top: "13%", rotate: "8deg", scale: 1, size: "clamp(1.28rem, 1.48vw, 1.78rem)" },
-    { emoji: "🛩️", left: "78%", top: "35%", rotate: "-10deg", scale: 1.02, size: "clamp(1.32rem, 1.48vw, 1.78rem)" },
-    { emoji: "📡", left: "17%", top: "58%", rotate: "13deg", scale: 1.05, size: "clamp(1.38rem, 1.58vw, 1.88rem)" },
-    { emoji: "📈", left: "69%", top: "67%", rotate: "-7deg", scale: 0.98, size: "clamp(1.24rem, 1.38vw, 1.68rem)" },
-    { emoji: "🛰️", left: "28%", top: "76%", rotate: "11deg", scale: 0.96, size: "clamp(1.22rem, 1.34vw, 1.64rem)" },
-    { emoji: "📊", left: "58%", top: "18%", rotate: "-8deg", scale: 0.94, size: "clamp(1.18rem, 1.3vw, 1.58rem)" },
-    { emoji: "🛩️", left: "87%", top: "82%", rotate: "14deg", scale: 0.98, size: "clamp(1.2rem, 1.34vw, 1.62rem)" },
-    { emoji: "📈", left: "44%", top: "9%", rotate: "-9deg", scale: 0.96, size: "clamp(1.18rem, 1.28vw, 1.54rem)" },
-    { emoji: "📡", left: "9%", top: "86%", rotate: "10deg", scale: 0.92, size: "clamp(1.14rem, 1.22vw, 1.48rem)" },
-    { emoji: "🛰️", left: "92%", top: "59%", rotate: "-12deg", scale: 0.9, size: "clamp(1.12rem, 1.22vw, 1.46rem)" },
-    { emoji: "📊", left: "36%", top: "46%", rotate: "12deg", scale: 0.92, size: "clamp(1.12rem, 1.2vw, 1.44rem)" },
-  ],
-  trustgate: [
-    { emoji: "🔒", left: "12%", top: "13%", rotate: "-8deg", scale: 1.04, size: "clamp(1.38rem, 1.56vw, 1.88rem)" },
-    { emoji: "🛡️", left: "85%", top: "14%", rotate: "10deg", scale: 1.08, size: "clamp(1.44rem, 1.68vw, 1.98rem)" },
-    { emoji: "📱", left: "79%", top: "39%", rotate: "-12deg", scale: 0.98, size: "clamp(1.32rem, 1.5vw, 1.78rem)" },
-    { emoji: "🚫", left: "17%", top: "60%", rotate: "12deg", scale: 1.02, size: "clamp(1.32rem, 1.48vw, 1.72rem)" },
-    { emoji: "🔒", left: "68%", top: "70%", rotate: "-7deg", scale: 0.98, size: "clamp(1.24rem, 1.36vw, 1.66rem)" },
-    { emoji: "🛡️", left: "26%", top: "78%", rotate: "13deg", scale: 0.96, size: "clamp(1.22rem, 1.34vw, 1.62rem)" },
-    { emoji: "📱", left: "58%", top: "21%", rotate: "10deg", scale: 0.94, size: "clamp(1.18rem, 1.28vw, 1.54rem)" },
-    { emoji: "🚫", left: "88%", top: "84%", rotate: "-10deg", scale: 0.96, size: "clamp(1.18rem, 1.3vw, 1.58rem)" },
-    { emoji: "🔒", left: "42%", top: "10%", rotate: "-10deg", scale: 0.94, size: "clamp(1.14rem, 1.24vw, 1.5rem)" },
-    { emoji: "📱", left: "10%", top: "85%", rotate: "8deg", scale: 0.92, size: "clamp(1.12rem, 1.2vw, 1.44rem)" },
-    { emoji: "🛡️", left: "91%", top: "58%", rotate: "15deg", scale: 0.9, size: "clamp(1.12rem, 1.2vw, 1.44rem)" },
-    { emoji: "🚫", left: "36%", top: "47%", rotate: "-12deg", scale: 0.92, size: "clamp(1.12rem, 1.18vw, 1.42rem)" },
-  ],
+  payflow: ["intent", "webhook", "reconcile", "audit"],
+  iyup: ["health", "latency", "alerts", "dashboard"],
+  trustgate: ["device", "risk", "gate", "event"],
 } as const;
 
 const failureCases = [
@@ -1204,33 +1139,10 @@ function MobileQuickLinks() {
 
 function HeroBackdropMarks() {
   return (
-    <div
-      className="hero-marks"
-      aria-hidden="true"
-      style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0 }}
-    >
-      {heroMarks.map((item, index) => (
-        <span
-          key={`${item.emoji}-${index}`}
-          className="hero-mark"
-          style={
-            {
-              position: "absolute",
-              left: item.left,
-              top: item.top,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: item.size,
-              lineHeight: 1,
-              opacity: 0.16,
-              transform: `translate(-50%, -50%) rotate(${item.rotate}) scale(${item.scale})`,
-              filter: "saturate(0.78)",
-              userSelect: "none",
-            } as CSSProperties
-          }
-        >
-          {item.emoji}
+    <div className="hero-marks" aria-hidden="true">
+      {heroMarks.map((item) => (
+        <span key={item} className="hero-mark">
+          {item}
         </span>
       ))}
     </div>
@@ -1240,31 +1152,13 @@ function HeroBackdropMarks() {
 function ProjectBackdropMarks({
   marks,
 }: {
-  marks: ReadonlyArray<{
-    emoji: string;
-    left: string;
-    top: string;
-    rotate: string;
-    scale: number;
-    size: string;
-  }>;
+  marks: ReadonlyArray<string>;
 }) {
   return (
     <div className="project-marks" aria-hidden="true">
-      {marks.map((item, index) => (
-        <span
-          key={`${item.emoji}-${index}`}
-          className="project-mark"
-          style={
-            {
-              left: item.left,
-              top: item.top,
-              fontSize: item.size,
-              transform: `translate(-50%, -50%) rotate(${item.rotate}) scale(${item.scale})`,
-            } as CSSProperties
-          }
-        >
-          {item.emoji}
+      {marks.map((item) => (
+        <span key={item} className="project-mark">
+          {item}
         </span>
       ))}
     </div>
