@@ -96,6 +96,7 @@ const careerProgression = [
     period: "Sep 2023 - Present",
     location: "Indonesia",
     logo: "/logos/bca.png",
+    focus: "Payment reliability",
     summary:
       "Android POS and merchant payment reliability at national scale.",
     bullets: [
@@ -112,6 +113,7 @@ const careerProgression = [
     period: "Apr 2023 - Sep 2023",
     location: "Bandung, Indonesia",
     logo: "/logos/telkom.png",
+    focus: "SwiftUI systems",
     summary:
       "Reusable SwiftUI components and pattern systems for government-facing apps.",
     bullets: [
@@ -127,6 +129,7 @@ const careerProgression = [
     period: "Feb 2022 - Dec 2022",
     location: "Indonesia",
     logo: "/logos/apple.png",
+    focus: "Prototype delivery",
     summary:
       "Cross-functional iOS prototypes from discovery to demo-ready release.",
     bullets: [
@@ -1736,6 +1739,7 @@ export default function Home() {
 
                   <div className="career-copy">
                     <p className="career-period">{item.period}</p>
+                    <p className="career-focus">{item.focus}</p>
                     <h3>{item.role}</h3>
                     <p className="career-company">
                       {item.company} · {item.location}

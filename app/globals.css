@@ -1373,11 +1373,26 @@ section[id] {
   }
 
   .career-item {
+    border-left: 1px solid rgba(20, 63, 108, 0.1);
     opacity: 0.62;
+    padding-left: 1.1rem;
+    position: relative;
     transform: translateY(14px);
     transition:
       opacity 520ms ease-out,
       transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .career-item::before {
+    content: "";
+    position: absolute;
+    left: -0.24rem;
+    top: 0.9rem;
+    width: 0.42rem;
+    height: 0.42rem;
+    border: 1px solid rgba(20, 63, 108, 0.34);
+    border-radius: 999px;
+    background: rgba(244, 248, 252, 0.96);
   }
 
   .is-stage-active .career-item {
@@ -1417,13 +1432,20 @@ section[id] {
 
   .career-copy h3 {
     color: var(--text);
-    @apply text-[1.22rem] font-semibold leading-[1.4];
+    @apply mt-2 text-[1.22rem] font-semibold leading-[1.4];
   }
 
   .career-period {
     color: var(--muted);
     font-family: var(--font-mono), monospace;
-    @apply mb-2 text-[0.78rem] font-semibold uppercase tracking-[0.1em];
+    @apply text-[0.76rem] font-semibold uppercase tracking-[0.1em];
+  }
+
+  .career-focus {
+    color: rgba(13, 45, 79, 0.92);
+    border: 1px solid rgba(20, 63, 108, 0.16);
+    background: rgba(255, 255, 255, 0.48);
+    @apply mt-2 inline-flex rounded-full px-2.5 py-1 text-[0.8rem] font-semibold leading-none;
   }
 
   .career-company {
@@ -1433,12 +1455,28 @@ section[id] {
 
   .career-summary {
     color: var(--body);
-    @apply mt-3 text-[1rem] leading-[1.68];
+    @apply mt-3 text-[0.98rem] leading-[1.62];
   }
 
   .career-points {
     color: var(--body);
-    @apply mt-4 space-y-2 pl-5 text-[0.95rem] leading-[1.6];
+    list-style: none;
+    @apply mt-4 space-y-2 pl-0 text-[0.94rem] leading-[1.56];
+  }
+
+  .career-points li {
+    position: relative;
+    padding-inline-start: 1rem;
+  }
+
+  .career-points li::before {
+    content: "";
+    position: absolute;
+    inset: 0.66rem auto auto 0;
+    width: 0.32rem;
+    height: 0.32rem;
+    border-radius: 999px;
+    background: rgba(20, 63, 108, 0.46);
   }
 
   .contact-links {
