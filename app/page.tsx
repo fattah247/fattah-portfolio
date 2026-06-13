@@ -27,11 +27,21 @@ const stackGroups = [
 ] as const;
 
 const heroProofMap = [
-  ["BCA", "Android POS + payment reliability"],
-  ["PayFlow", "callbacks + reconciliation lab"],
-  ["iYup", "health + latency visibility"],
-  ["TrustGate", "device risk decisions"],
+  ["BCA", "Android POS + reliability"],
+  ["PayFlow", "callback recovery lab"],
+  ["iYup", "health + latency signals"],
+  ["TrustGate", "device-risk decisions"],
 ] as const;
+
+const heroAmbientEmojis = ["💳", "🔁", "📈", "🔒", "🌊", "✨", "🧾", "📱"] as const;
+
+const projectAmbientEmojis = {
+  payflow: ["💳", "🔁", "🧾", "✅", "⚠️"],
+  iyup: ["📈", "📡", "🚨", "⏱️", "📊"],
+  trustgate: ["🔒", "🛡️", "📱", "🔐", "🚪"],
+} as const;
+
+const failureAmbientEmojis = ["💳", "📈", "🔒", "🧭", "🧯"] as const;
 
 const githubProofRepos = [
   {
@@ -63,20 +73,20 @@ const failureCases = [
   {
     title: "Readable payment state",
     description:
-      "Retries, callbacks, and settlement edges should leave a readable trail instead of sending operators into guesswork.",
-    canDo: ["callback recovery", "status reconciliation", "stuck-flow repair"],
+      "Callbacks and settlement edges should leave a readable trail.",
+    canDo: ["Callback recovery", "Status trail", "Stuck-flow repair"],
   },
   {
     title: "Monitoring that explains cause",
     description:
-      "Health, latency, and alerting should explain why a path failed, not just confirm that it moved.",
-    canDo: ["health checks", "latency signals", "alert wiring"],
+      "Health, latency, and alerts should explain why a path failed.",
+    canDo: ["Health checks", "Latency signals", "Alert wiring"],
   },
   {
     title: "Android clients that challenge risk",
     description:
-      "Client trust needs visible risk signals, gated actions, and mobile hardening that survives real-world devices.",
-    canDo: ["risk signals", "secure flows", "gated actions"],
+      "Client trust needs visible risk signals and gated actions.",
+    canDo: ["Risk signals", "Secure flows", "Gated actions"],
   },
 ] as const;
 
@@ -581,8 +591,16 @@ function syncBrand() {
     }
 
     const rect = stage.getBoundingClientRect();
-    stage.style.setProperty("--spot-x", (clientX - rect.left) + "px");
-    stage.style.setProperty("--spot-y", (clientY - rect.top) + "px");
+    const localX = clientX - rect.left;
+    const localY = clientY - rect.top;
+    const dx = ((localX / rect.width) - 0.5) * 2;
+    const dy = ((localY / rect.height) - 0.5) * 2;
+    stage.style.setProperty("--spot-x", localX + "px");
+    stage.style.setProperty("--spot-y", localY + "px");
+    stage.style.setProperty("--tilt-x", (-dy * 3.8).toFixed(2) + "deg");
+    stage.style.setProperty("--tilt-y", (dx * 4.6).toFixed(2) + "deg");
+    stage.style.setProperty("--drift-x", (dx * 10).toFixed(1) + "px");
+    stage.style.setProperty("--drift-y", (dy * 8).toFixed(1) + "px");
   }
 
   function settleStageSpotOnLink(link) {
@@ -592,9 +610,9 @@ function syncBrand() {
     }
 
     const linkRect = link.getBoundingClientRect();
-    const stageRect = stage.getBoundingClientRect();
-    stage.style.setProperty("--spot-x", (linkRect.left - stageRect.left + (linkRect.width / 2)) + "px");
-    stage.style.setProperty("--spot-y", (linkRect.top - stageRect.top + (linkRect.height / 2)) + "px");
+    const clientX = linkRect.left + (linkRect.width / 2);
+    const clientY = linkRect.top + (linkRect.height / 2);
+    setStageSpot(stage, clientX, clientY);
     stage.classList.add("is-pointer-active");
   }
 
@@ -698,6 +716,10 @@ function syncBrand() {
 
     stage.addEventListener("pointerleave", () => {
       stage.classList.remove("is-pointer-active");
+      stage.style.setProperty("--tilt-x", "0deg");
+      stage.style.setProperty("--tilt-y", "0deg");
+      stage.style.setProperty("--drift-x", "0px");
+      stage.style.setProperty("--drift-y", "0px");
     });
   });
 
@@ -1145,6 +1167,34 @@ function HeroProofMap() {
   );
 }
 
+function AmbientEmojiField() {
+  return (
+    <div className="ambient-emoji-field" aria-hidden="true">
+      {heroAmbientEmojis.map((emoji, index) => (
+        <span className="ambient-emoji" key={`${emoji}-${index}`}>
+          {emoji}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function ProjectAmbientEmojis({
+  emojis,
+}: {
+  emojis: ReadonlyArray<string>;
+}) {
+  return (
+    <div className="project-emoji-field" aria-hidden="true">
+      {emojis.map((emoji, index) => (
+        <span className="project-emoji" key={`${emoji}-${index}`}>
+          {emoji}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function ZoomIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="mini-icon">
@@ -1238,6 +1288,7 @@ export default function Home() {
           data-stage-nav="true"
           data-stage-label="Introduction"
         >
+          <AmbientEmojiField />
           <div className="hero-layout">
             <div className="hero-copy-block">
               <h1 className="hero-name" id="hero-name">
@@ -1298,6 +1349,8 @@ export default function Home() {
             </p>
           </div>
 
+          <ProjectAmbientEmojis emojis={failureAmbientEmojis} />
+
           <div className="failure-list">
             {failureCases.map((item) => (
               <article className="failure-item" key={item.title}>
@@ -1332,14 +1385,14 @@ export default function Home() {
             data-stage="payflow"
             data-stage-label="PayFlow Reliability"
           >
+            <ProjectAmbientEmojis emojis={projectAmbientEmojis.payflow} />
             <div className="project-aside">
               <div className="project-head">
                 <p className="project-kicker">Case 01 / payment state</p>
                 <h3 className="project-title">PayFlow Reliability</h3>
                 <p className="project-summary">
-                  A Spring Boot lab for payment-like failure states: duplicate
-                  callbacks, idempotency, settlement mismatch, and state
-                  transitions.
+                  Spring Boot lab for duplicate callbacks, idempotency, and
+                  settlement mismatch.
                 </p>
               </div>
 
@@ -1347,7 +1400,7 @@ export default function Home() {
                 <h4>Covers</h4>
                 <ul className="project-points">
                   <li>Duplicate callbacks</li>
-                  <li>Unclear transaction state</li>
+                  <li>Transaction state</li>
                   <li>Settlement mismatch</li>
                   <li>Retry visibility</li>
                 </ul>
@@ -1356,9 +1409,9 @@ export default function Home() {
               <div className="project-proof-block">
                 <h4>Visible behavior</h4>
                 <ul className="project-proof-list">
-                  <li>Duplicate callback detected</li>
-                  <li>Existing transaction state reused</li>
-                  <li>Settlement mismatch preserved</li>
+                  <li>Duplicate detected</li>
+                  <li>State reused</li>
+                  <li>Mismatch preserved</li>
                   <li>Retry path visible</li>
                 </ul>
               </div>
@@ -1427,13 +1480,14 @@ export default function Home() {
             data-stage="iyup"
             data-stage-label="iYup"
           >
+            <ProjectAmbientEmojis emojis={projectAmbientEmojis.iyup} />
             <div className="project-aside">
               <div className="project-head">
                 <p className="project-kicker">Case 02 / observability</p>
                 <h3 className="project-title">iYup</h3>
                 <p className="project-summary">
-                  An observability lab for service health, latency, alert
-                  state, and dashboard visibility.
+                  Observability lab for health, latency, alerts, and dashboard
+                  visibility.
                 </p>
               </div>
 
@@ -1443,17 +1497,17 @@ export default function Home() {
                   <li>Service health</li>
                   <li>Latency visibility</li>
                   <li>Alert conditions</li>
-                  <li>Operational dashboarding</li>
+                  <li>Dashboarding</li>
                 </ul>
               </div>
 
               <div className="project-proof-block">
                 <h4>Visible behavior</h4>
                 <ul className="project-proof-list">
-                  <li>Service health</li>
-                  <li>Latency</li>
+                  <li>Health state</li>
+                  <li>Latency visible</li>
                   <li>Alert state</li>
-                  <li>Dashboard visibility</li>
+                  <li>Dashboard proof</li>
                 </ul>
               </div>
 
@@ -1517,33 +1571,33 @@ export default function Home() {
             data-stage="trustgate"
             data-stage-label="TrustGate Android"
           >
+            <ProjectAmbientEmojis emojis={projectAmbientEmojis.trustgate} />
             <div className="project-aside">
               <div className="project-head">
                 <p className="project-kicker">Case 03 / client trust</p>
                 <h3 className="project-title">TrustGate Android</h3>
                 <p className="project-summary">
-                  An Android client-trust lab for deciding when a device should
-                  be allowed, warned, or blocked.
+                  Android client-trust lab for allow, warn, and block decisions.
                 </p>
               </div>
 
               <div className="project-meta-block">
                 <h4>Covers</h4>
                 <ul className="project-points">
-                  <li>Device risk state</li>
-                  <li>Root and emulator signals</li>
-                  <li>Sensitive action protection</li>
-                  <li>Security event visibility</li>
+                  <li>Device risk</li>
+                  <li>Root/emulator signals</li>
+                  <li>Sensitive actions</li>
+                  <li>Security events</li>
                 </ul>
               </div>
 
               <div className="project-proof-block">
                 <h4>Visible behavior</h4>
                 <ul className="project-proof-list">
-                  <li>Device risk state</li>
-                  <li>Security event log</li>
-                  <li>Sensitive action blocked</li>
-                  <li>Risk-based decision path</li>
+                  <li>Risk state</li>
+                  <li>Event log</li>
+                  <li>Action blocked</li>
+                  <li>Decision path</li>
                 </ul>
               </div>
 
