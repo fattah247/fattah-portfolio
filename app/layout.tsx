@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -35,6 +36,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${bodyFont.variable} ${monoFont.variable}`}>
         {children}
+        <Analytics />
       </body>
     </html>
   );
