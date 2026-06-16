@@ -26,19 +26,29 @@ const stackGroups = [
   },
 ] as const;
 
-const heroProofMap = [
-  ["BCA", "Android POS + reliability"],
-  ["PayFlow", "callback recovery lab"],
-  ["iYup", "health + latency signals"],
-  ["TrustGate", "device-risk decisions"],
+const heroAmbientEmojis = [
+  "🌊",
+  "✈️",
+  "🔒",
+  "🌊",
+  "✈️",
+  "🔒",
+  "🌊",
+  "✈️",
+  "🔒",
+  "🌊",
+  "✈️",
+  "🔒",
+  "🌊",
+  "✈️",
+  "🔒",
+  "🌊",
 ] as const;
 
-const heroAmbientEmojis = ["💳", "🔁", "📈", "🔒", "🌊", "✨", "🧾", "📱"] as const;
-
 const projectAmbientEmojis = {
-  payflow: ["💳", "🔁", "🧾", "✅", "⚠️"],
-  iyup: ["📈", "📡", "🚨", "⏱️", "📊"],
-  trustgate: ["🔒", "🛡️", "📱", "🔐", "🚪"],
+  payflow: ["🌊", "💳", "🔁", "🧾", "🌊", "↔️", "✅"],
+  iyup: ["✈️", "📈", "📡", "📊", "⏱️", "🚨", "🔍"],
+  trustgate: ["🔒", "🛡️", "🚪", "🔐", "📱", "🔒", "🛡️"],
 } as const;
 
 const failureAmbientEmojis = ["💳", "📈", "🔒", "🧭", "🧯"] as const;
@@ -71,21 +81,21 @@ const transparentPixel =
 
 const failureCases = [
   {
-    title: "Readable payment state",
+    title: "State that can be read back",
     description:
-      "Callbacks and settlement edges should leave a readable trail.",
+      "Callback and settlement edges should leave a trace a team can trust under pressure.",
     canDo: ["Callback recovery", "Status trail", "Stuck-flow repair"],
   },
   {
-    title: "Monitoring that explains cause",
+    title: "Signals that point to cause",
     description:
-      "Health, latency, and alerts should explain why a path failed.",
+      "Health, latency, and alerts should explain what failed, not just that something moved.",
     canDo: ["Health checks", "Latency signals", "Alert wiring"],
   },
   {
-    title: "Android clients that challenge risk",
+    title: "Clients that question risk",
     description:
-      "Client trust needs visible risk signals and gated actions.",
+      "Client trust should be earned with visible risk signals and gated decisions.",
     canDo: ["Risk signals", "Secure flows", "Gated actions"],
   },
 ] as const;
@@ -102,10 +112,9 @@ const careerProgression = [
     summary:
       "Android POS and merchant payment reliability at national scale.",
     bullets: [
-      "Build Android payment integrations with Kotlin, Java, AIDL, REST APIs, and WebSocket.",
-      "Improve callback recovery, transaction-state handling, and failure-path repair.",
-      "Handle production incidents from debugging through rollback or hardening.",
-      "Support early iOS merchant work and secure Android delivery.",
+      "Android POS integrations across Kotlin, Java, AIDL, REST APIs, and WebSocket.",
+      "Failure-path repair around callbacks, transaction state, and production incidents.",
+      "Secure Android delivery, vendor coordination, and early iOS merchant support.",
     ],
   },
   {
@@ -119,9 +128,9 @@ const careerProgression = [
     summary:
       "Reusable SwiftUI components and pattern systems for government-facing apps.",
     bullets: [
-      "Built reusable SwiftUI components for consistent multi-project delivery.",
-      "Documented repeated layouts and interaction patterns for reuse.",
-      "Improved integration quality and maintainability with the team.",
+      "Reusable SwiftUI components for consistent multi-project delivery.",
+      "Shared layouts and interaction patterns documented for reuse.",
+      "Integration cleanup and maintainability work with the team.",
     ],
   },
   {
@@ -135,10 +144,9 @@ const careerProgression = [
     summary:
       "Cross-functional iOS prototypes from discovery to demo-ready release.",
     bullets: [
-      "Built four SwiftUI prototypes across health-tech, reading support, reflection, and relationship use cases.",
-      "Led implementation decisions with design, business, and product teammates.",
-      "Worked through discovery, prototyping, testing, and demo-ready iteration.",
-      "Used reusable components, local data, and accessibility basics.",
+      "Four SwiftUI prototypes across health-tech, reading support, reflection, and relationship work.",
+      "Cross-functional implementation with product, design, and business teammates.",
+      "Discovery, prototyping, testing, and demo-ready iteration.",
     ],
   },
 ] as const;
@@ -146,8 +154,8 @@ const careerProgression = [
 const stageMenuItems = [
   { id: "top", label: "Introduction" },
   { id: "failures", label: "What I fix" },
-  { id: "projects", label: "Selected labs" },
-  { id: "more-projects", label: "More on GitHub" },
+  { id: "projects", label: "Selected work" },
+  { id: "more-projects", label: "GitHub" },
   { id: "current-work", label: "Experience" },
   { id: "stack", label: "Stack" },
   { id: "contact", label: "Contact" },
@@ -168,13 +176,11 @@ const interactionScript = String.raw`(() => {
   const stageCurrent = document.querySelector("[data-stage-current]");
   const stageMenu = document.querySelector("[data-stage-menu]");
   const stageControl = document.querySelector("[data-stage-control]");
+  const heroStage = document.getElementById("top");
   const hero = document.getElementById("hero-name");
   const heroLinks = document.getElementById("hero-links");
   const progress = document.getElementById("scroll-progress");
   const emailShell = document.getElementById("contact-email");
-  const contactSection = document.getElementById("contact");
-  const githubMoreSection = document.getElementById("more-projects");
-  const contactLinks = document.querySelector("[data-contact-links]");
   const toast = document.querySelector("[data-copy-toast]");
   const viewer = document.querySelector("[data-viewer-root]");
   const viewerImage = document.querySelector("[data-viewer-image]");
@@ -187,6 +193,11 @@ const interactionScript = String.raw`(() => {
   const projectStages = Array.from(document.querySelectorAll(".project-stage"));
   const copyButton = document.querySelector("[data-copy-email]");
   const artifactButtons = Array.from(document.querySelectorAll("[data-artifact-src]"));
+  const bouncyButtons = Array.from(
+    document.querySelectorAll(
+      ".repo-link, .action-link, .header-stage-button, .header-stage-item, .copy-email-shell",
+    ),
+  );
   const finePointerMedia = window.matchMedia("(hover: hover) and (pointer: fine)");
 
   let flashTimer = 0;
@@ -199,7 +210,12 @@ const interactionScript = String.raw`(() => {
   let pillModeTimer = 0;
   let mobileFloating = false;
   let pillMotionTimer = 0;
+  let lastPillScrollY = window.scrollY;
   let lastScrollY = window.scrollY;
+  let lastScrollTime = window.performance.now();
+  let scrollVelocity = 0;
+  let lastScrollDirection = 1;
+  let scrollStopTimer = 0;
   let panX = 0;
   let panY = 0;
   let dragStartX = 0;
@@ -208,6 +224,10 @@ const interactionScript = String.raw`(() => {
   let dragOriginY = 0;
   let dragging = false;
   let scrollTicking = false;
+  const pressTimers = new WeakMap();
+  const navigationLocks = new WeakSet();
+  const hoverTriggered = new WeakSet();
+  const scrollBoingLocks = new WeakMap();
 
   root.setAttribute("data-interact-ready", "yes");
 
@@ -221,24 +241,126 @@ function setBrand(visible) {
   brand.tabIndex = visible ? 0 : -1;
 }
 
-function syncBrand() {
+  function syncBrand() {
   if (mobileMedia.matches) {
     root.classList.remove("desk-hero-away");
     setBrand(false);
     return;
   }
 
-  if (!hero) {
+  if (!heroStage) {
     root.classList.add("desk-hero-away");
     setBrand(true);
     return;
   }
 
-  const heroRect = hero.getBoundingClientRect();
-  const showBrand = heroRect.bottom <= 76;
+  const heroRect = heroStage.getBoundingClientRect();
+  const showBrand = heroRect.bottom <= 86;
   root.classList.toggle("desk-hero-away", showBrand);
   setBrand(showBrand);
 }
+
+  function setTimedClass(target, className, duration) {
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+
+    window.clearTimeout(pressTimers.get(target));
+    target.classList.remove(className);
+    void target.offsetWidth;
+    target.classList.add(className);
+    const timer = window.setTimeout(() => {
+      target.classList.remove(className);
+    }, duration);
+    pressTimers.set(target, timer);
+  }
+
+  function triggerButtonBoing(target, strength = 1) {
+    if (!(target instanceof HTMLElement) || reduced) {
+      return;
+    }
+
+    const clamped = Math.min(1, Math.max(0.2, strength));
+    target.classList.remove("is-hovering-boing");
+    target.style.setProperty("--press-stretch", (0.012 + (clamped * 0.013)).toFixed(3));
+    target.style.setProperty("--press-squash", (0.008 + (clamped * 0.009)).toFixed(3));
+    setTimedClass(target, "is-pressing", 360);
+  }
+
+  function triggerHoverLift(target) {
+    if (!(target instanceof HTMLElement) || reduced || !finePointerMedia.matches) {
+      return;
+    }
+
+    if (hoverTriggered.has(target)) {
+      return;
+    }
+
+    hoverTriggered.add(target);
+    target.style.setProperty("--press-stretch", "0.014");
+    target.style.setProperty("--press-squash", "0.010");
+    setTimedClass(target, "is-hovering-boing", 300);
+  }
+
+  function animateScrollBoing(target, direction, velocity) {
+    if (!(target instanceof HTMLElement) || reduced) {
+      return;
+    }
+
+    const now = window.performance.now();
+    const previous = scrollBoingLocks.get(target) || 0;
+
+    if (now - previous < 220) {
+      return;
+    }
+
+    scrollBoingLocks.set(target, now);
+    const eased = Math.min(1, Math.max(0, velocity));
+    const stretch = 1 + (0.012 + eased * 0.022);
+    const squash = 1 - (0.008 + eased * 0.014);
+    const reboundStretch = 1 - ((stretch - 1) * 0.54);
+    const reboundSquash = 1 + ((1 - squash) * 0.46);
+    const shift = (0.55 + eased * 2.2) * direction;
+
+    target.animate(
+      [
+        {
+          transform: "translate3d(0, 0px, 0) scaleX(1) scaleY(1)",
+          offset: 0,
+        },
+        {
+          transform:
+            "translate3d(0, " +
+            shift.toFixed(2) +
+            "px, 0) scaleX(" +
+            stretch.toFixed(3) +
+            ") scaleY(" +
+            squash.toFixed(3) +
+            ")",
+          offset: 0.24,
+        },
+        {
+          transform:
+            "translate3d(0, " +
+            (shift * -0.44).toFixed(2) +
+            "px, 0) scaleX(" +
+            reboundStretch.toFixed(3) +
+            ") scaleY(" +
+            reboundSquash.toFixed(3) +
+            ")",
+          offset: 0.58,
+        },
+        {
+          transform: "translate3d(0, 0px, 0) scaleX(1) scaleY(1)",
+          offset: 1,
+        },
+      ],
+      {
+        duration: 410,
+        easing: "cubic-bezier(0.2, 0.9, 0.18, 1)",
+      },
+    );
+  }
 
   function announceStage(stageLabel) {
     if (!stageCurrent || !stageControl || mobileMedia.matches || !stageLabel) {
@@ -246,13 +368,13 @@ function syncBrand() {
     }
 
     stageCurrent.textContent = stageLabel;
-    stageControl.classList.remove("is-pulsing");
+    stageControl.classList.remove("is-stage-refreshing");
     void stageControl.offsetWidth;
-    stageControl.classList.add("is-pulsing");
+    stageControl.classList.add("is-stage-refreshing");
     window.clearTimeout(sectionFlashTimer);
     sectionFlashTimer = window.setTimeout(() => {
-      stageControl.classList.remove("is-pulsing");
-    }, 280);
+      stageControl.classList.remove("is-stage-refreshing");
+    }, 220);
   }
 
   function setProgress() {
@@ -418,7 +540,21 @@ function syncBrand() {
       return;
     }
 
-    const anchor = window.innerHeight * (mobileMedia.matches ? 0.18 : 0.24);
+    const anchor = window.innerHeight * (mobileMedia.matches ? 0.16 : 0.18);
+    const ownedStage = navStages.find((item) => {
+      const rect = item.getBoundingClientRect();
+      return rect.top <= anchor && rect.bottom > anchor;
+    });
+
+    if (ownedStage instanceof HTMLElement) {
+      const ownedLabel = ownedStage.getAttribute("data-stage-label") || "";
+      if (ownedLabel && ownedLabel !== activeStage) {
+        activeStage = ownedLabel;
+        announceStage(ownedLabel);
+      }
+      return;
+    }
+
     let best = "";
     let bestDistance = Number.POSITIVE_INFINITY;
 
@@ -488,7 +624,7 @@ function syncBrand() {
   }
 
   function syncMobilePill() {
-    if (!heroLinks) {
+    if (!(heroLinks instanceof HTMLElement)) {
       root.classList.remove("mobile-links-away");
       root.classList.remove("mobile-pill-mode-github");
       root.classList.remove("mobile-pill-mode-social");
@@ -506,39 +642,30 @@ function syncBrand() {
       root.classList.remove("mobile-pill-retreating");
       mobileFloating = false;
       pillStateInitialized = false;
+      lastPillScrollY = window.scrollY;
       return;
     }
 
-    const rect = heroLinks.getBoundingClientRect();
+    const linksRect = heroLinks.getBoundingClientRect();
     const currentScrollY = window.scrollY;
-    const scrollingDown = currentScrollY > lastScrollY;
-    const showThreshold = 248;
-    const hideThreshold = 304;
+    const scrollingDown = currentScrollY > lastPillScrollY;
+    const showThreshold = 88;
+    const hideThreshold = 122;
     const shouldFloat = mobileFloating
-      ? rect.top <= hideThreshold
-      : rect.top <= showThreshold;
-    const contactRect = contactSection ? contactSection.getBoundingClientRect() : null;
-    const contactVisible =
-      !!contactRect &&
-      contactRect.top < window.innerHeight * 0.72 &&
-      contactRect.bottom > window.innerHeight * 0.18;
-    const githubRect = githubMoreSection ? githubMoreSection.getBoundingClientRect() : null;
-    const githubVisible =
-      !!githubRect &&
-      githubRect.top < window.innerHeight * 0.85 &&
-      githubRect.bottom > window.innerHeight * 0.22;
-    const nextMode = contactVisible ? "github" : githubVisible ? "social" : "all";
+      ? linksRect.bottom <= hideThreshold
+      : linksRect.bottom <= showThreshold;
+    const nextMode = activeStage === "Contact" ? "github" : activeStage === "GitHub" ? "social" : "all";
     if (!pillStateInitialized) {
       mobileFloating = shouldFloat;
       pillMode = nextMode;
       pillStateInitialized = true;
       root.classList.toggle("mobile-links-away", shouldFloat);
-      root.classList.toggle("mobile-pill-mode-github", contactVisible);
-      root.classList.toggle("mobile-pill-mode-social", !contactVisible && githubVisible);
+      root.classList.toggle("mobile-pill-mode-github", nextMode === "github");
+      root.classList.toggle("mobile-pill-mode-social", nextMode === "social");
       root.classList.remove("mobile-pill-rising");
       root.classList.remove("mobile-pill-retreating");
       root.classList.remove("mobile-pill-settling");
-      lastScrollY = currentScrollY;
+      lastPillScrollY = currentScrollY;
       return;
     }
 
@@ -560,12 +687,12 @@ function syncBrand() {
     }
 
     if (!shouldFloat) {
+      root.classList.remove("mobile-pill-mode-github");
+      root.classList.remove("mobile-pill-mode-social");
       root.classList.remove("mobile-pill-settling");
       window.clearTimeout(pillModeTimer);
       pillMode = nextMode;
-      root.classList.toggle("mobile-pill-mode-github", contactVisible);
-      root.classList.toggle("mobile-pill-mode-social", !contactVisible && githubVisible);
-      lastScrollY = currentScrollY;
+      lastPillScrollY = currentScrollY;
       return;
     }
 
@@ -579,10 +706,10 @@ function syncBrand() {
       }, 280);
     }
 
-    root.classList.toggle("mobile-pill-mode-github", contactVisible);
-    root.classList.toggle("mobile-pill-mode-social", !contactVisible && githubVisible);
+    root.classList.toggle("mobile-pill-mode-github", nextMode === "github");
+    root.classList.toggle("mobile-pill-mode-social", nextMode === "social");
     pillMode = nextMode;
-    lastScrollY = currentScrollY;
+    lastPillScrollY = currentScrollY;
   }
 
   function setStageSpot(stage, clientX, clientY) {
@@ -614,6 +741,89 @@ function syncBrand() {
     const clientY = linkRect.top + (linkRect.height / 2);
     setStageSpot(stage, clientX, clientY);
     stage.classList.add("is-pointer-active");
+  }
+
+  function primeRepoAnimation(link) {
+    if (!(link instanceof HTMLAnchorElement)) {
+      return;
+    }
+
+    settleStageSpotOnLink(link);
+    link.setAttribute("target", "_blank");
+    link.setAttribute("rel", "noopener noreferrer");
+    const stage = link.closest(".project-stage");
+    if (stage instanceof HTMLElement) {
+      stage.classList.add("is-click-locked");
+    }
+    link.classList.remove("is-orbiting");
+    void link.offsetWidth;
+    link.classList.add("is-orbiting");
+  }
+
+  function releaseStageLock(link) {
+    const stage = link.closest(".project-stage");
+    if (!(stage instanceof HTMLElement)) {
+      return;
+    }
+
+    stage.classList.remove("is-click-locked");
+    if (!finePointerMedia.matches) {
+      stage.classList.remove("is-pointer-active");
+    }
+  }
+
+  function animateRepoNavigation(link) {
+    if (!(link instanceof HTMLAnchorElement)) {
+      return;
+    }
+
+    if (navigationLocks.has(link)) {
+      return;
+    }
+
+    navigationLocks.add(link);
+    primeRepoAnimation(link);
+    window.setTimeout(() => {
+      link.classList.remove("is-orbiting");
+      triggerButtonBoing(link, 0.78);
+    }, 250);
+
+    window.setTimeout(() => {
+      releaseStageLock(link);
+      navigationLocks.delete(link);
+    }, 480);
+  }
+
+  function findStageBoingTarget() {
+    const stageId = activeStage;
+    if (!stageId) {
+      return null;
+    }
+
+    const stage = navStages.find((item) => item.getAttribute("data-stage-label") === stageId);
+    if (!(stage instanceof HTMLElement)) {
+      return null;
+    }
+
+    return stage.querySelector(".repo-link, .action-link, .copy-email-shell");
+  }
+
+  function settleScrollBoing() {
+    update();
+    const velocityAbs = Math.abs(scrollVelocity);
+    if (velocityAbs < 0.26) {
+      scrollVelocity = 0;
+      return;
+    }
+
+    const normalized = Math.min(1, Math.max(0, (velocityAbs - 0.26) / 1.9));
+    const eased = 1 - Math.pow(1 - normalized, 2);
+    const target = findStageBoingTarget();
+    if (target) {
+      animateScrollBoing(target, lastScrollDirection, eased);
+    }
+
+    scrollVelocity = 0;
   }
 
   function closeStageMenu() {
@@ -649,7 +859,44 @@ function syncBrand() {
 
   stageToggle?.addEventListener("click", (event) => {
     event.preventDefault();
+    triggerButtonBoing(stageToggle, 0.74);
     toggleStageMenu();
+  });
+
+  document.addEventListener("pointerdown", (event) => {
+    const raw = event.target;
+
+    if (!(raw instanceof Element)) {
+      return;
+    }
+
+    const repoTrigger = raw.closest(".repo-link, .action-link[href^='https://github.com/']");
+
+    if (!(repoTrigger instanceof HTMLAnchorElement)) {
+      return;
+    }
+
+    primeRepoAnimation(repoTrigger);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const raw = event.target;
+
+    if (!(raw instanceof Element)) {
+      return;
+    }
+
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    const repoTrigger = raw.closest(".repo-link, .action-link[href^='https://github.com/']");
+
+    if (!(repoTrigger instanceof HTMLAnchorElement)) {
+      return;
+    }
+
+    primeRepoAnimation(repoTrigger);
   });
 
   copyButton?.addEventListener("click", (event) => {
@@ -660,6 +907,7 @@ function syncBrand() {
     }
 
     event.preventDefault();
+    triggerButtonBoing(copyButton, 0.8);
     const text = copyButton.getAttribute("data-copy-email") || "";
     void copyMail(text);
   });
@@ -676,6 +924,7 @@ function syncBrand() {
     }
 
     event.preventDefault();
+    triggerButtonBoing(copyButton, 0.8);
     const text = copyButton.getAttribute("data-copy-email") || "";
     void copyMail(text);
   });
@@ -707,7 +956,7 @@ function syncBrand() {
     });
 
     stage.addEventListener("pointermove", (event) => {
-      if (!finePointerMedia.matches) {
+      if (!finePointerMedia.matches || stage.classList.contains("is-click-locked")) {
         return;
       }
 
@@ -715,11 +964,25 @@ function syncBrand() {
     });
 
     stage.addEventListener("pointerleave", () => {
+      if (stage.classList.contains("is-click-locked")) {
+        return;
+      }
+
       stage.classList.remove("is-pointer-active");
       stage.style.setProperty("--tilt-x", "0deg");
       stage.style.setProperty("--tilt-y", "0deg");
       stage.style.setProperty("--drift-x", "0px");
       stage.style.setProperty("--drift-y", "0px");
+    });
+  });
+
+  bouncyButtons.forEach((button) => {
+    button.addEventListener("pointerenter", () => {
+      triggerHoverLift(button);
+    });
+
+    button.addEventListener("pointerleave", () => {
+      hoverTriggered.delete(button);
     });
   });
 
@@ -743,7 +1006,12 @@ function syncBrand() {
     const repoTrigger = raw.closest(".repo-link, .action-link[href^='https://github.com/']");
 
     if (repoTrigger instanceof HTMLAnchorElement) {
-      settleStageSpotOnLink(repoTrigger);
+      if (navigationLocks.has(repoTrigger)) {
+        event.preventDefault();
+        return;
+      }
+
+      animateRepoNavigation(repoTrigger);
     }
 
     const scrollTrigger = raw.closest("[data-scroll-target]");
@@ -753,6 +1021,9 @@ function syncBrand() {
     }
 
     event.preventDefault();
+    if (scrollTrigger instanceof HTMLElement) {
+      triggerButtonBoing(scrollTrigger, 0.76);
+    }
     const targetId = scrollTrigger.getAttribute("data-scroll-target");
     const target = targetId ? document.getElementById(targetId) : null;
 
@@ -822,6 +1093,9 @@ function syncBrand() {
     }
 
     event.preventDefault();
+    if (link.matches(".header-stage-item, .header-stage-button, .action-link, .copy-email-shell")) {
+      triggerButtonBoing(link, 0.74);
+    }
     target.scrollIntoView({
       behavior: reduced ? "auto" : "smooth",
       block: "start",
@@ -947,11 +1221,29 @@ function syncBrand() {
   viewerStage?.addEventListener("pointerup", (event) => stopDragging(event.pointerId));
   viewerStage?.addEventListener("pointercancel", (event) => stopDragging(event.pointerId));
 
+  function recordScrollMotion() {
+    const now = window.performance.now();
+    const nextScrollY = window.scrollY;
+    const delta = nextScrollY - lastScrollY;
+    const deltaTime = Math.max(16, now - lastScrollTime);
+    const velocity = delta / deltaTime;
+
+    if (Math.abs(delta) > 0.5) {
+      lastScrollDirection = delta > 0 ? 1 : -1;
+    }
+
+    scrollVelocity = (scrollVelocity * 0.68) + (velocity * 0.32);
+    lastScrollY = nextScrollY;
+    lastScrollTime = now;
+    window.clearTimeout(scrollStopTimer);
+    scrollStopTimer = window.setTimeout(settleScrollBoing, 92);
+  }
+
   function update() {
     setProgress();
     syncBrand();
-    syncMobilePill();
     syncActiveStage();
+    syncMobilePill();
     materializeVisibleStages();
     if (mobileMedia.matches) {
       closeStageMenu();
@@ -971,6 +1263,7 @@ function syncBrand() {
   }
 
   window.addEventListener("scroll", queueUpdate, { passive: true });
+  window.addEventListener("scroll", recordScrollMotion, { passive: true });
   window.addEventListener("resize", queueUpdate);
   window.addEventListener("hashchange", queueUpdate);
   update();
@@ -1031,7 +1324,7 @@ function HeroTextLinks() {
         data-hero-kind="github"
         href="https://github.com/fattah247"
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
       >
         <GitHubIcon />
         <span className="hero-link-label">GitHub</span>
@@ -1041,7 +1334,7 @@ function HeroTextLinks() {
         data-hero-kind="linkedin"
         href="https://www.linkedin.com/in/muhammad24fattah/"
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
       >
         <LinkedInIcon />
         <span className="hero-link-label">LinkedIn</span>
@@ -1066,7 +1359,7 @@ function HeaderUtilityLinks() {
             className="header-utility-link"
             href="https://github.com/fattah247"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
           >
             <GitHubIcon />
             GitHub
@@ -1075,7 +1368,7 @@ function HeaderUtilityLinks() {
             className="header-utility-link"
             href="https://www.linkedin.com/in/muhammad24fattah/"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
           >
             <LinkedInIcon />
             LinkedIn
@@ -1095,9 +1388,11 @@ function HeaderUtilityLinks() {
           data-stage-toggle="true"
           type="button"
         >
-          <span className="header-stage-kicker">Section</span>
           <span className="header-stage-current" data-stage-current="true">
             Introduction
+          </span>
+          <span aria-hidden="true" className="header-stage-chevron">
+            ▾
           </span>
         </button>
 
@@ -1126,7 +1421,7 @@ function MobileQuickLinks() {
         className="icon-link"
         data-pill-kind="github"
         href="https://github.com/fattah247"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         target="_blank"
       >
         <GitHubIcon />
@@ -1136,7 +1431,7 @@ function MobileQuickLinks() {
         className="icon-link"
         data-pill-kind="linkedin"
         href="https://www.linkedin.com/in/muhammad24fattah/"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         target="_blank"
       >
         <LinkedInIcon />
@@ -1150,19 +1445,6 @@ function MobileQuickLinks() {
       >
         <MailIcon />
       </a>
-    </div>
-  );
-}
-
-function HeroProofMap() {
-  return (
-    <div className="hero-proof-map" aria-label="Work map">
-      {heroProofMap.map(([label, detail]) => (
-        <div className="hero-proof-node" key={label}>
-          <span>{label}</span>
-          <p>{detail}</p>
-        </div>
-      ))}
     </div>
   );
 }
@@ -1298,25 +1580,35 @@ export default function Home() {
               <p className="hero-role">
                 Software Engineer | Payment Reliability • Secure Android • Observability
               </p>
-              <HeroProofMap />
+              <p className="hero-copy">
+                I work on Android POS and merchant payment delivery at BCA.
+                This portfolio is the public slice of that work: how payment
+                flows recover, how systems stay readable under pressure, and
+                how clients decide when a device should not be trusted.
+              </p>
+              <HeroTextLinks />
             </div>
 
             <aside className="hero-side">
               <p className="hero-line">
-                <span>Production payment systems.</span>
-                <span className="hero-line-break">Secure Android delivery.</span>
-                <span className="hero-line-break">Signals that hold under pressure.</span>
+                Most of the work starts after the happy path: when state
+                drifts, callbacks repeat, and the client needs a reason to
+                slow down or block.
               </p>
-              <p className="hero-copy">
-                I build merchant-facing payment software, work through
-                production incidents, and tighten the failure paths that matter
-                when money, devices, and timing all get messy.
-              </p>
-              <ul className="hero-focus-list">
-                <li>Android POS delivery and merchant integrations</li>
-                <li>Incident response, rollback coordination, and hardening</li>
-                <li>iOS foundations, backend coordination, and release work</li>
-              </ul>
+              <div className="hero-context-grid" aria-label="Working focus">
+                <div className="hero-context-item">
+                  <span>Deliver</span>
+                  <p>Merchant payment flows, vendor integrations, and secure Android service calls.</p>
+                </div>
+                <div className="hero-context-item">
+                  <span>Recover</span>
+                  <p>Incident triage, rollback calls, transaction repair, and hardening after failure.</p>
+                </div>
+                <div className="hero-context-item">
+                  <span>Publish</span>
+                  <p>Public labs that make private engineering problems readable without overselling them.</p>
+                </div>
+              </div>
 
               <div className="hero-actions">
                 <button
@@ -1328,7 +1620,6 @@ export default function Home() {
                 </button>
               </div>
 
-              <HeroTextLinks />
               <div className="hero-pill-trigger" data-mobile-pill-trigger="true" aria-hidden="true" />
             </aside>
           </div>
@@ -1342,10 +1633,9 @@ export default function Home() {
           data-stage-label="What I fix"
         >
           <div className="section-top">
-            <h2 className="section-title">Three failure cases</h2>
+            <h2 className="section-title">What I fix</h2>
             <p className="section-intro">
-              The problems I usually get pulled into, and the recovery paths I
-              build around them.
+              The failure surfaces I usually get pulled into.
             </p>
           </div>
 
@@ -1356,11 +1646,7 @@ export default function Home() {
               <article className="failure-item" key={item.title}>
                 <h3>{item.title}.</h3>
                 <p>{item.description}</p>
-                <ul className="failure-capability-list">
-                  {item.canDo.map((entry) => (
-                    <li key={entry}>{entry}</li>
-                  ))}
-                </ul>
+                <p className="failure-capability-line">{item.canDo.join(" · ")}</p>
               </article>
             ))}
           </div>
@@ -1371,12 +1657,12 @@ export default function Home() {
           className="section-block"
           data-stage="projects"
           data-stage-nav="true"
-          data-stage-label="Selected labs"
+          data-stage-label="Selected work"
         >
           <div className="section-top">
-            <h2 className="section-title">Selected labs</h2>
+            <h2 className="section-title">Selected work</h2>
             <p className="section-intro">
-              Three public labs, each testing one failure surface.
+              Public labs that show the same engineering habits in the open.
             </p>
           </div>
 
@@ -1388,16 +1674,16 @@ export default function Home() {
             <ProjectAmbientEmojis emojis={projectAmbientEmojis.payflow} />
             <div className="project-aside">
               <div className="project-head">
-                <p className="project-kicker">Case 01 / payment state</p>
+                <p className="project-kicker">Payment state lab</p>
                 <h3 className="project-title">PayFlow Reliability</h3>
                 <p className="project-summary">
-                  Spring Boot lab for duplicate callbacks, idempotency, and
-                  settlement mismatch.
+                  Spring Boot payment lab for duplicate callbacks, idempotency
+                  edges, and settlement mismatch.
                 </p>
               </div>
 
               <div className="project-meta-block">
-                <h4>Covers</h4>
+                <h4>Focus</h4>
                 <ul className="project-points">
                   <li>Duplicate callbacks</li>
                   <li>Transaction state</li>
@@ -1406,22 +1692,12 @@ export default function Home() {
                 </ul>
               </div>
 
-              <div className="project-proof-block">
-                <h4>Visible behavior</h4>
-                <ul className="project-proof-list">
-                  <li>Duplicate detected</li>
-                  <li>State reused</li>
-                  <li>Mismatch preserved</li>
-                  <li>Retry path visible</li>
-                </ul>
-              </div>
-
               <div className="project-foot">
                 <a
                   className="repo-link repo-link-payflow"
                   href="https://github.com/fattah247/payflow-reliability"
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                 >
                   View repository
                   <ArrowOutIcon />
@@ -1483,16 +1759,16 @@ export default function Home() {
             <ProjectAmbientEmojis emojis={projectAmbientEmojis.iyup} />
             <div className="project-aside">
               <div className="project-head">
-                <p className="project-kicker">Case 02 / observability</p>
+                <p className="project-kicker">Observability lab</p>
                 <h3 className="project-title">iYup</h3>
                 <p className="project-summary">
-                  Observability lab for health, latency, alerts, and dashboard
-                  visibility.
+                  Observability lab for health state, latency, alerting, and
+                  scrape visibility.
                 </p>
               </div>
 
               <div className="project-meta-block">
-                <h4>Covers</h4>
+                <h4>Focus</h4>
                 <ul className="project-points">
                   <li>Service health</li>
                   <li>Latency visibility</li>
@@ -1501,22 +1777,12 @@ export default function Home() {
                 </ul>
               </div>
 
-              <div className="project-proof-block">
-                <h4>Visible behavior</h4>
-                <ul className="project-proof-list">
-                  <li>Health state</li>
-                  <li>Latency visible</li>
-                  <li>Alert state</li>
-                  <li>Dashboard proof</li>
-                </ul>
-              </div>
-
               <div className="project-foot">
                 <a
                   className="repo-link repo-link-iyup"
                   href="https://github.com/fattah247/iYup"
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                 >
                   View repository
                   <ArrowOutIcon />
@@ -1574,15 +1840,16 @@ export default function Home() {
             <ProjectAmbientEmojis emojis={projectAmbientEmojis.trustgate} />
             <div className="project-aside">
               <div className="project-head">
-                <p className="project-kicker">Case 03 / client trust</p>
+                <p className="project-kicker">Client trust lab</p>
                 <h3 className="project-title">TrustGate Android</h3>
                 <p className="project-summary">
-                  Android client-trust lab for allow, warn, and block decisions.
+                  Android trust lab for device risk, gated actions, and
+                  readable security events.
                 </p>
               </div>
 
               <div className="project-meta-block">
-                <h4>Covers</h4>
+                <h4>Focus</h4>
                 <ul className="project-points">
                   <li>Device risk</li>
                   <li>Root/emulator signals</li>
@@ -1591,22 +1858,12 @@ export default function Home() {
                 </ul>
               </div>
 
-              <div className="project-proof-block">
-                <h4>Visible behavior</h4>
-                <ul className="project-proof-list">
-                  <li>Risk state</li>
-                  <li>Event log</li>
-                  <li>Action blocked</li>
-                  <li>Decision path</li>
-                </ul>
-              </div>
-
               <div className="project-foot">
                 <a
                   className="repo-link repo-link-trustgate"
                   href="https://github.com/fattah247/trustgate-android"
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                 >
                   View repository
                   <ArrowOutIcon />
@@ -1663,26 +1920,26 @@ export default function Home() {
           className="section-block section-block-compact"
           data-stage="github-more"
           data-stage-nav="true"
-          data-stage-label="More on GitHub"
+          data-stage-label="GitHub"
         >
           <div className="section-top">
-            <h2 className="section-title">More on GitHub</h2>
+            <h2 className="section-title">More in public</h2>
             <p className="section-intro">
-              The homepage is the shortlist. GitHub is the fuller record.
+              The featured work is here. GitHub shows the wider range behind it.
             </p>
           </div>
 
           <div className="github-stage">
             <div className="github-stage-copy">
               <p className="github-stage-lead">
-                It is the better place to judge range: public labs, smaller
-                builds, setup clarity, screenshots, and the way the code is
-                carried in public.
+                The profile shows how the work holds up outside a curated
+                shortlist: labs, smaller tools, older iOS builds, and the
+                repo habits behind the polished pieces.
               </p>
               <ul className="github-stage-points">
-                <li>Payment and reliability labs with runnable setup and captured output</li>
-                <li>Smaller repos that show range, not just polished showcases</li>
-                <li>A clearer read on how I structure, debug, and document work</li>
+                <li>Labs with setup notes, captured output, and repository history</li>
+                <li>Smaller repos across iOS, automation, and utility work</li>
+                <li>Public code that still shows structure, debugging habits, and follow-through</li>
               </ul>
               <div className="github-proof-strip" aria-label="Additional public repositories">
                 {githubProofRepos.map((repo) => (
@@ -1691,7 +1948,7 @@ export default function Home() {
                     href={repo.href}
                     key={repo.name}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                   >
                     <span>{repo.name}</span>
                     <p>{repo.focus}</p>
@@ -1702,7 +1959,7 @@ export default function Home() {
                 className="action-link"
                 href="https://github.com/fattah247"
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
               >
                 Open GitHub profile
                 <ArrowOutIcon />
@@ -1731,8 +1988,8 @@ export default function Home() {
           <div className="section-top">
             <h2 className="section-title">Experience</h2>
             <p className="section-intro">
-              Production payment systems, early iOS delivery, and the path that
-              got me there.
+              iOS foundations first, then Android payments, then
+              production-facing reliability work.
             </p>
           </div>
 
@@ -1783,7 +2040,8 @@ export default function Home() {
           <div className="section-top">
             <h2 className="section-title">Stack</h2>
             <p className="section-intro">
-              Mobile, backend, platform, security, and incident work behind the labs.
+              The tools that keep showing up across delivery, integration,
+              operations, and hardening.
             </p>
           </div>
 
@@ -1807,8 +2065,8 @@ export default function Home() {
           <div className="section-top">
             <h2 className="section-title">Contact</h2>
             <p className="section-intro">
-              For payment reliability, Android delivery, and production-facing
-              incident work.
+              Best for Android payments, integration reliability, and
+              failure-path work.
             </p>
           </div>
 
@@ -1830,14 +2088,15 @@ export default function Home() {
           </div>
 
           <div className="contact-links" data-contact-links="true">
+            <span className="contact-links-label">Also on</span>
             <a
               className="contact-pill-link"
               href="https://www.linkedin.com/in/muhammad24fattah/"
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
             >
               <LinkedInIcon />
-              LinkedIn
+              LinkedIn profile
             </a>
           </div>
         </section>
