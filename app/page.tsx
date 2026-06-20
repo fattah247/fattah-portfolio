@@ -3,7 +3,7 @@ import Script from "next/script";
 
 const stackGroups = [
   {
-    title: "Mobile",
+    title: "Client",
     items: "Kotlin, Java, Android, Jetpack Compose, Swift, SwiftUI",
   },
   {
@@ -11,7 +11,7 @@ const stackGroups = [
     items: "Spring Boot, REST API, WebSocket, Kafka, Oracle SQL",
   },
   {
-    title: "Platform",
+    title: "Signal",
     items:
       "Docker, Kubernetes, Jenkins, GitHub Actions, Prometheus, Grafana, Dynatrace, ElasticSearch",
   },
@@ -30,28 +30,26 @@ const heroAmbientEmojis = [
   "🌊",
   "✈️",
   "🔒",
+  "🧭",
   "🌊",
+  "🔐",
+  "✈️",
+  "🧾",
+  "🌊",
+  "🛡️",
   "✈️",
   "🔒",
+  "🧭",
   "🌊",
+  "🔐",
   "✈️",
-  "🔒",
-  "🌊",
-  "✈️",
-  "🔒",
-  "🌊",
-  "✈️",
-  "🔒",
-  "🌊",
 ] as const;
 
 const projectAmbientEmojis = {
-  payflow: ["🌊", "💳", "🔁", "🧾", "🌊", "↔️", "✅"],
-  iyup: ["✈️", "📈", "📡", "📊", "⏱️", "🚨", "🔍"],
-  trustgate: ["🔒", "🛡️", "🚪", "🔐", "📱", "🔒", "🛡️"],
+  payflow: ["🌊", "💳", "🔁", "🧾", "🌊", "💸", "🔁"],
+  iyup: ["📡", "📈", "🚨", "🛰️", "📡", "📊", "🚨"],
+  trustgate: ["🔒", "🚪", "🛡️", "📱", "🔐", "🚪", "🛡️"],
 } as const;
-
-const failureAmbientEmojis = ["💳", "📈", "🔒", "🧭", "🧯"] as const;
 
 const githubProofRepos = [
   {
@@ -79,24 +77,18 @@ const githubProofRepos = [
 const transparentPixel =
   "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
-const failureCases = [
+const heroOperatingNotes = [
   {
-    title: "State that can be read back",
-    description:
-      "Callback and settlement edges should leave a trace a team can trust under pressure.",
-    canDo: ["Callback recovery", "Status trail", "Stuck-flow repair"],
+    label: "Trace",
+    text: "Readable payment state after retries, callbacks, and settlement detours.",
   },
   {
-    title: "Signals that point to cause",
-    description:
-      "Health, latency, and alerts should explain what failed, not just that something moved.",
-    canDo: ["Health checks", "Latency signals", "Alert wiring"],
+    label: "Surface",
+    text: "Health, latency, and alert signals that show what actually broke.",
   },
   {
-    title: "Clients that question risk",
-    description:
-      "Client trust should be earned with visible risk signals and gated decisions.",
-    canDo: ["Risk signals", "Secure flows", "Gated actions"],
+    label: "Gate",
+    text: "Android trust checks that know when to allow, warn, or block.",
   },
 ] as const;
 
@@ -110,11 +102,11 @@ const careerProgression = [
     logo: "/logos/bca.png",
     focus: "Payment reliability",
     summary:
-      "Android POS and merchant payment reliability at national scale.",
+      "Android POS delivery, merchant payment recovery, and production reliability under live transaction load.",
     bullets: [
-      "Android POS integrations across Kotlin, Java, AIDL, REST APIs, and WebSocket.",
-      "Failure-path repair around callbacks, transaction state, and production incidents.",
-      "Secure Android delivery, vendor coordination, and early iOS merchant support.",
+      "Kotlin and Java payment work across AIDL, REST APIs, WebSocket, and secure service links.",
+      "Repeated callbacks, stuck transactions, and merchant-facing incident recovery.",
+      "Release coordination with QA, security, infrastructure, operations, and early iOS merchant support.",
     ],
   },
   {
@@ -126,11 +118,11 @@ const careerProgression = [
     logo: "/logos/telkom.png",
     focus: "SwiftUI systems",
     summary:
-      "Reusable SwiftUI components and pattern systems for government-facing apps.",
+      "Reusable SwiftUI systems for teams shipping across shared government-facing app surfaces.",
     bullets: [
-      "Reusable SwiftUI components for consistent multi-project delivery.",
-      "Shared layouts and interaction patterns documented for reuse.",
-      "Integration cleanup and maintainability work with the team.",
+      "Reusable SwiftUI components for multiple product tracks.",
+      "Shared layouts and interaction patterns other developers could pick up quickly.",
+      "Feature integration and cleanup work that kept components easier to maintain.",
     ],
   },
   {
@@ -142,23 +134,21 @@ const careerProgression = [
     logo: "/logos/apple.png",
     focus: "Prototype delivery",
     summary:
-      "Cross-functional iOS prototypes from discovery to demo-ready release.",
+      "Cross-functional iOS prototypes built from discovery to demo-ready release.",
     bullets: [
-      "Four SwiftUI prototypes across health-tech, reading support, reflection, and relationship work.",
-      "Cross-functional implementation with product, design, and business teammates.",
-      "Discovery, prototyping, testing, and demo-ready iteration.",
+      "Four SwiftUI prototypes across health-tech, reading support, reflection, and relationship products.",
+      "Implementation work aligned with product, design, and business teammates.",
+      "Discovery, prototyping, testing, and iteration toward something ready to show.",
     ],
   },
 ] as const;
 
 const stageMenuItems = [
-  { id: "top", label: "Introduction" },
-  { id: "failures", label: "What I fix" },
-  { id: "projects", label: "Selected work" },
-  { id: "more-projects", label: "GitHub" },
-  { id: "current-work", label: "Experience" },
-  { id: "stack", label: "Stack" },
-  { id: "contact", label: "Contact" },
+  { id: "top", label: "DRIFT" },
+  { id: "projects", label: "TRACE" },
+  { id: "more-projects", label: "SURFACE" },
+  { id: "current-work", label: "GATE" },
+  { id: "contact", label: "SEAL" },
 ] as const;
 
 const interactionScript = String.raw`(() => {
@@ -188,6 +178,9 @@ const interactionScript = String.raw`(() => {
   const viewerStage = document.querySelector("[data-viewer-stage]");
   const viewerMedia = document.querySelector("[data-viewer-media]");
   const viewerScale = document.querySelector("[data-viewer-scale]");
+  const telWidget = document.getElementById("live-telemetry");
+  const telPos = document.getElementById("tel-pos");
+  const telView = document.getElementById("tel-view");
   const stageItems = Array.from(document.querySelectorAll("[data-stage]"));
   const navStages = Array.from(document.querySelectorAll("[data-stage-nav='true']"));
   const projectStages = Array.from(document.querySelectorAll(".project-stage"));
@@ -228,6 +221,7 @@ const interactionScript = String.raw`(() => {
   const navigationLocks = new WeakSet();
   const hoverTriggered = new WeakSet();
   const scrollBoingLocks = new WeakMap();
+  const stageSpotStates = new WeakMap();
 
   root.setAttribute("data-interact-ready", "yes");
 
@@ -240,6 +234,25 @@ function setBrand(visible) {
   brand.setAttribute("aria-hidden", visible ? "false" : "true");
   brand.tabIndex = visible ? 0 : -1;
 }
+
+  function syncTelemetry(x, y) {
+    if (!telWidget || !telPos || !telView) return;
+    
+    // Position
+    const pX = Math.round(x).toString().padStart(4, "0");
+    const pY = Math.round(y).toString().padStart(4, "0");
+    telPos.textContent = \`X:\${pX} Y:\${pY}\`;
+
+    // View percentage
+    const docHeight = Math.max(document.body.scrollHeight, document.body.offsetHeight, root.clientHeight, root.scrollHeight, root.offsetHeight);
+    const winHeight = window.innerHeight;
+    const maxScroll = docHeight - winHeight;
+    let percent = 0;
+    if (maxScroll > 0) {
+      percent = Math.min(100, Math.max(0, Math.round((window.scrollY / maxScroll) * 100)));
+    }
+    telView.textContent = \`\${percent}%\`;
+  }
 
   function syncBrand() {
   if (mobileMedia.matches) {
@@ -374,7 +387,7 @@ function setBrand(visible) {
     window.clearTimeout(sectionFlashTimer);
     sectionFlashTimer = window.setTimeout(() => {
       stageControl.classList.remove("is-stage-refreshing");
-    }, 220);
+    }, 170);
   }
 
   function setProgress() {
@@ -540,6 +553,26 @@ function setBrand(visible) {
       return;
     }
 
+    const viewportBottom = window.scrollY + window.innerHeight;
+    const docHeight = document.documentElement.scrollHeight;
+    if (viewportBottom >= docHeight - 12) {
+      const lastStage = [...navStages]
+        .reverse()
+        .find((item) => {
+          const rect = item.getBoundingClientRect();
+          return rect.top < window.innerHeight && rect.bottom > 0;
+        });
+
+      if (lastStage instanceof HTMLElement) {
+        const lastLabel = lastStage.getAttribute("data-stage-label") || "";
+        if (lastLabel && lastLabel !== activeStage) {
+          activeStage = lastLabel;
+          announceStage(lastLabel);
+        }
+        return;
+      }
+    }
+
     const anchor = window.innerHeight * (mobileMedia.matches ? 0.16 : 0.18);
     const ownedStage = navStages.find((item) => {
       const rect = item.getBoundingClientRect();
@@ -623,8 +656,35 @@ function setBrand(visible) {
     });
   }
 
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function syncHeroParallax() {
+    if (!(heroStage instanceof HTMLElement)) {
+      return;
+    }
+
+    const rect = heroStage.getBoundingClientRect();
+    const progress = clamp((-rect.top) / Math.max(rect.height * 0.92, 1), 0, 1);
+    const drift = clamp((-rect.top) * 0.055, -6, 26);
+    const lateral = clamp((0.5 - progress) * 8, -5, 5);
+    const glowY = clamp((-rect.top) * 0.07, -8, 30);
+    const glowX = clamp((progress - 0.35) * 18, -6, 14);
+
+    heroStage.style.setProperty("--hero-bg-y", drift.toFixed(2) + "px");
+    heroStage.style.setProperty("--hero-bg-x", lateral.toFixed(2) + "px");
+    heroStage.style.setProperty("--hero-glow-y", glowY.toFixed(2) + "px");
+    heroStage.style.setProperty("--hero-glow-x", glowX.toFixed(2) + "px");
+    heroStage.style.setProperty("--hero-emoji-y", (drift * 0.92).toFixed(2) + "px");
+    heroStage.style.setProperty("--hero-copy-y", (drift * 0.08).toFixed(2) + "px");
+    heroStage.style.setProperty("--hero-side-y", (drift * 0.14).toFixed(2) + "px");
+    heroStage.style.setProperty("--hero-side-x", (glowX * -0.22).toFixed(2) + "px");
+  }
+
   function syncMobilePill() {
     if (!(heroLinks instanceof HTMLElement)) {
+      root.classList.remove("mobile-hero-links-visible");
       root.classList.remove("mobile-links-away");
       root.classList.remove("mobile-pill-mode-github");
       root.classList.remove("mobile-pill-mode-social");
@@ -635,6 +695,7 @@ function setBrand(visible) {
     }
 
     if (!mobileMedia.matches) {
+      root.classList.remove("mobile-hero-links-visible");
       root.classList.remove("mobile-links-away");
       root.classList.remove("mobile-pill-mode-github");
       root.classList.remove("mobile-pill-mode-social");
@@ -651,10 +712,36 @@ function setBrand(visible) {
     const scrollingDown = currentScrollY > lastPillScrollY;
     const showThreshold = 88;
     const hideThreshold = 122;
+    const absoluteBottom = currentScrollY + linksRect.bottom;
+    const showFrom = Math.max(0, absoluteBottom - showThreshold);
+    const hideFrom = Math.max(0, absoluteBottom - hideThreshold);
+    const heroLinksClearlyVisible =
+      currentScrollY < showFrom - 44 &&
+      linksRect.top < window.innerHeight &&
+      linksRect.bottom > 0;
+
+    if (heroLinksClearlyVisible) {
+      root.classList.add("mobile-hero-links-visible");
+      mobileFloating = false;
+      pillMode = "all";
+      pillStateInitialized = true;
+      root.classList.remove("mobile-links-away");
+      root.classList.remove("mobile-pill-mode-github");
+      root.classList.remove("mobile-pill-mode-social");
+      root.classList.remove("mobile-pill-rising");
+      root.classList.remove("mobile-pill-retreating");
+      root.classList.remove("mobile-pill-settling");
+      window.clearTimeout(pillModeTimer);
+      lastPillScrollY = currentScrollY;
+      return;
+    }
+
+    root.classList.remove("mobile-hero-links-visible");
+
     const shouldFloat = mobileFloating
-      ? linksRect.bottom <= hideThreshold
-      : linksRect.bottom <= showThreshold;
-    const nextMode = activeStage === "Contact" ? "github" : activeStage === "GitHub" ? "social" : "all";
+      ? currentScrollY >= hideFrom
+      : currentScrollY >= showFrom;
+    const nextMode = activeStage === "Seal" ? "github" : activeStage === "Surface" ? "social" : "all";
     if (!pillStateInitialized) {
       mobileFloating = shouldFloat;
       pillMode = nextMode;
@@ -712,6 +799,105 @@ function setBrand(visible) {
     lastPillScrollY = currentScrollY;
   }
 
+  function ensureStageSpotState(stage) {
+    let state = stageSpotStates.get(stage);
+
+    if (state) {
+      return state;
+    }
+
+    const rect = stage.getBoundingClientRect();
+    const restingX = rect.width * 0.72;
+    const restingY = rect.height * 0.28;
+    state = {
+      currentX: restingX,
+      currentY: restingY,
+      targetX: restingX,
+      targetY: restingY,
+      currentDx: 0,
+      currentDy: 0,
+      targetDx: 0,
+      targetDy: 0,
+      width: rect.width,
+      height: rect.height,
+      raf: 0,
+    };
+    stageSpotStates.set(stage, state);
+    return state;
+  }
+
+  function applyStageSpot(stage, state) {
+    stage.style.setProperty("--spot-x", state.currentX.toFixed(2) + "px");
+    stage.style.setProperty("--spot-y", state.currentY.toFixed(2) + "px");
+    stage.style.setProperty("--tilt-x", (-state.currentDy * 3.2).toFixed(2) + "deg");
+    stage.style.setProperty("--tilt-y", (state.currentDx * 4.05).toFixed(2) + "deg");
+    stage.style.setProperty("--drift-x", (state.currentDx * 8.2).toFixed(2) + "px");
+    stage.style.setProperty("--drift-y", (state.currentDy * 6.8).toFixed(2) + "px");
+  }
+
+  function queueStageSpotAnimation(stage) {
+    const state = ensureStageSpotState(stage);
+
+    if (state.raf) {
+      return;
+    }
+
+    const step = () => {
+      state.currentX += (state.targetX - state.currentX) * 0.18;
+      state.currentY += (state.targetY - state.currentY) * 0.18;
+      state.currentDx += (state.targetDx - state.currentDx) * 0.2;
+      state.currentDy += (state.targetDy - state.currentDy) * 0.2;
+      applyStageSpot(stage, state);
+
+      const settled =
+        Math.abs(state.targetX - state.currentX) < 0.5 &&
+        Math.abs(state.targetY - state.currentY) < 0.5 &&
+        Math.abs(state.targetDx - state.currentDx) < 0.01 &&
+        Math.abs(state.targetDy - state.currentDy) < 0.01;
+
+      if (settled) {
+        state.currentX = state.targetX;
+        state.currentY = state.targetY;
+        state.currentDx = state.targetDx;
+        state.currentDy = state.targetDy;
+        applyStageSpot(stage, state);
+        state.raf = 0;
+        return;
+      }
+
+      state.raf = window.requestAnimationFrame(step);
+    };
+
+    state.raf = window.requestAnimationFrame(step);
+  }
+
+  function setStageRestSpot(stage) {
+    const rect = stage.getBoundingClientRect();
+    const state = ensureStageSpotState(stage);
+    state.width = rect.width;
+    state.height = rect.height;
+    state.targetX = rect.width * 0.72;
+    state.targetY = rect.height * 0.28;
+    state.targetDx = 0;
+    state.targetDy = 0;
+    queueStageSpotAnimation(stage);
+  }
+
+  function syncStageRestSpots() {
+    projectStages.forEach((stage) => {
+      if (stage.classList.contains("is-pointer-active") || stage.classList.contains("is-click-locked")) {
+        return;
+      }
+
+      const rect = stage.getBoundingClientRect();
+      const state = ensureStageSpotState(stage);
+
+      if (Math.abs((state.width || 0) - rect.width) > 0.5 || Math.abs((state.height || 0) - rect.height) > 0.5) {
+        setStageRestSpot(stage);
+      }
+    });
+  }
+
   function setStageSpot(stage, clientX, clientY) {
     if (!(stage instanceof HTMLElement)) {
       return;
@@ -722,12 +908,12 @@ function setBrand(visible) {
     const localY = clientY - rect.top;
     const dx = ((localX / rect.width) - 0.5) * 2;
     const dy = ((localY / rect.height) - 0.5) * 2;
-    stage.style.setProperty("--spot-x", localX + "px");
-    stage.style.setProperty("--spot-y", localY + "px");
-    stage.style.setProperty("--tilt-x", (-dy * 3.8).toFixed(2) + "deg");
-    stage.style.setProperty("--tilt-y", (dx * 4.6).toFixed(2) + "deg");
-    stage.style.setProperty("--drift-x", (dx * 10).toFixed(1) + "px");
-    stage.style.setProperty("--drift-y", (dy * 8).toFixed(1) + "px");
+    const state = ensureStageSpotState(stage);
+    state.targetX = localX;
+    state.targetY = localY;
+    state.targetDx = dx;
+    state.targetDy = dy;
+    queueStageSpotAnimation(stage);
   }
 
   function settleStageSpotOnLink(link) {
@@ -782,6 +968,7 @@ function setBrand(visible) {
     }
 
     navigationLocks.add(link);
+    const destination = link.href;
     primeRepoAnimation(link);
     window.setTimeout(() => {
       link.classList.remove("is-orbiting");
@@ -789,9 +976,13 @@ function setBrand(visible) {
     }, 250);
 
     window.setTimeout(() => {
+      window.open(destination, "_blank", "noopener,noreferrer");
+    }, 320);
+
+    window.setTimeout(() => {
       releaseStageLock(link);
       navigationLocks.delete(link);
-    }, 480);
+    }, 560);
   }
 
   function findStageBoingTarget() {
@@ -861,6 +1052,16 @@ function setBrand(visible) {
     event.preventDefault();
     triggerButtonBoing(stageToggle, 0.74);
     toggleStageMenu();
+  });
+
+  window.addEventListener("pointermove", (e) => {
+    panX = e.clientX;
+    panY = e.clientY;
+    syncTelemetry(panX, panY);
+
+    if (!dragging) {
+      return;
+    }
   });
 
   document.addEventListener("pointerdown", (event) => {
@@ -946,6 +1147,8 @@ function setBrand(visible) {
   });
 
   projectStages.forEach((stage) => {
+    setStageRestSpot(stage);
+
     stage.addEventListener("pointerenter", (event) => {
       if (!finePointerMedia.matches) {
         return;
@@ -969,10 +1172,7 @@ function setBrand(visible) {
       }
 
       stage.classList.remove("is-pointer-active");
-      stage.style.setProperty("--tilt-x", "0deg");
-      stage.style.setProperty("--tilt-y", "0deg");
-      stage.style.setProperty("--drift-x", "0px");
-      stage.style.setProperty("--drift-y", "0px");
+      setStageRestSpot(stage);
     });
   });
 
@@ -1006,12 +1206,13 @@ function setBrand(visible) {
     const repoTrigger = raw.closest(".repo-link, .action-link[href^='https://github.com/']");
 
     if (repoTrigger instanceof HTMLAnchorElement) {
+      event.preventDefault();
       if (navigationLocks.has(repoTrigger)) {
-        event.preventDefault();
         return;
       }
 
       animateRepoNavigation(repoTrigger);
+      return;
     }
 
     const scrollTrigger = raw.closest("[data-scroll-target]");
@@ -1240,7 +1441,10 @@ function setBrand(visible) {
   }
 
   function update() {
+    syncTelemetry(panX, panY);
     setProgress();
+    syncHeroParallax();
+    syncStageRestSpots();
     syncBrand();
     syncActiveStage();
     syncMobilePill();
@@ -1265,11 +1469,115 @@ function setBrand(visible) {
   window.addEventListener("scroll", queueUpdate, { passive: true });
   window.addEventListener("scroll", recordScrollMotion, { passive: true });
   window.addEventListener("resize", queueUpdate);
+  function startSite() {
+    pillStateInitialized = false;
+    update();
+
+    window.requestAnimationFrame(() => {
+      const hashTarget = window.location.hash
+        ? document.querySelector(window.location.hash)
+        : null;
+
+      if (hashTarget instanceof HTMLElement) {
+        hashTarget.classList.add("is-materialized");
+      }
+
+      update();
+    });
+  }
+
+  if (document.readyState === "complete") {
+    startSite();
+  } else {
+    window.addEventListener("load", startSite, { once: true });
+  }
   window.addEventListener("hashchange", queueUpdate);
+  if (document.fonts?.ready) {
+    document.fonts.ready.then(() => {
+      pillStateInitialized = false;
+      update();
+    });
+  /* --- Cinematic Interactions --- */
+  const canvas = document.getElementById("audit-trail");
+  if (canvas) {
+    const ctx = canvas.getContext("2d");
+    let width, height;
+    function resizeCanvas() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+    
+    let points = [];
+    window.addEventListener("pointermove", (e) => {
+      points.push({ x: e.clientX, y: e.clientY, age: 0 });
+    });
+    
+    function drawTrail() {
+      ctx.clearRect(0, 0, width, height);
+      if (points.length > 1) {
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+          ctx.lineTo(points[i].x, points[i].y);
+          points[i].age++;
+        }
+        ctx.strokeStyle = "rgba(251, 191, 36, 0.5)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        points = points.filter(p => p.age < 20);
+      }
+      requestAnimationFrame(drawTrail);
+    }
+    drawTrail();
+  }
+
+  const decryptChars = "0123456789ABCDEF";
+  function decryptText(element) {
+    if (element.dataset.decrypted) return;
+    element.dataset.decrypted = "true";
+    const originalText = element.dataset.originalText || element.innerText;
+    element.dataset.originalText = originalText;
+    let iteration = 0;
+    const interval = setInterval(() => {
+      element.innerText = originalText.split("").map((letter, index) => {
+        if (index < iteration) {
+          return originalText[index];
+        }
+        return decryptChars[Math.floor(Math.random() * decryptChars.length)];
+      }).join("");
+      if (iteration >= originalText.length) {
+        clearInterval(interval);
+      }
+      iteration += 1/3;
+    }, 30);
+  }
+  
+  const decryptObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        decryptText(entry.target);
+      }
+    });
+  }, { threshold: 0.8 });
+  
+  document.querySelectorAll('.reference-marker').forEach(el => decryptObserver.observe(el));
+
+  document.querySelectorAll('.state-nav-link').forEach(link => {
+    link.addEventListener('pointermove', (e) => {
+      const rect = link.getBoundingClientRect();
+      const x = e.clientX - rect.left - rect.width / 2;
+      const y = e.clientY - rect.top - rect.height / 2;
+      link.style.transform = \`translate(\${x * 0.15}px, \${y * 0.15}px)\`;
+    });
+    link.addEventListener('pointerleave', () => {
+      link.style.transform = 'translate(0, 0)';
+    });
+  });
+
   update();
   window.requestAnimationFrame(update);
-  window.setTimeout(update, 160);
-  window.setTimeout(update, 420);
 })();`;
 
 function GitHubIcon() {
@@ -1347,69 +1655,27 @@ function HeroTextLinks() {
   );
 }
 
-function HeaderUtilityLinks() {
+function TransactionStateBar() {
   return (
-    <div className="header-link-row" data-header-row="true">
-      <div className="header-left-cluster">
-        <a aria-hidden="true" className="header-brand-link" data-header-brand-link="true" href="#top" tabIndex={-1}>
-          Muhammad A. Fattah
-        </a>
-        <div className="header-utility-group">
-          <a
-            className="header-utility-link"
-            href="https://github.com/fattah247"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <GitHubIcon />
-            GitHub
-          </a>
-          <a
-            className="header-utility-link"
-            href="https://www.linkedin.com/in/muhammad24fattah/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <LinkedInIcon />
-            LinkedIn
-          </a>
-          <a className="header-utility-link" data-spotlight="contact-email" href="#contact">
-            <MailIcon />
-            Email
-          </a>
-        </div>
+    <aside className="transaction-state-bar">
+      <div className="state-bar-brand">
+        <span>M.A.F</span>
+        <span className="hidden lg:block">FIELD / 2026</span>
       </div>
-
-      <div className="header-stage-control" data-stage-control="true">
-        <button
-          aria-expanded="false"
-          aria-haspopup="true"
-          className="header-stage-button"
-          data-stage-toggle="true"
-          type="button"
-        >
-          <span className="header-stage-current" data-stage-current="true">
-            Introduction
-          </span>
-          <span aria-hidden="true" className="header-stage-chevron">
-            ▾
-          </span>
-        </button>
-
-        <div className="header-stage-menu" data-stage-menu="true">
-          {stageMenuItems.map((item) => (
+      <ul className="state-nav-list" data-stage-control="true">
+        {stageMenuItems.map((item) => (
+          <li className="state-nav-item" key={item.id}>
             <button
-              key={item.id}
-              className="header-stage-item"
+              className="state-nav-link header-stage-item"
               data-scroll-target={item.id}
               type="button"
             >
               {item.label}
             </button>
-          ))}
-        </div>
-      </div>
-    </div>
+          </li>
+        ))}
+      </ul>
+    </aside>
   );
 }
 
@@ -1550,28 +1816,25 @@ export default function Home() {
     <div className="page-shell">
       <div id="scroll-progress" aria-hidden="true" />
 
-      <header className="site-header">
-        <div className="shell header-inner">
-          <div className="hidden items-center md:flex">
-            <HeaderUtilityLinks />
-          </div>
+      <TransactionStateBar />
 
-          <div className="mobile-nav-icons md:hidden" data-mobile-pill-dock="true">
-            <MobileQuickLinks />
-          </div>
-        </div>
-      </header>
+      <div className="mobile-nav-icons md:hidden fixed right-4 top-3 z-[101]" data-mobile-pill-dock="true">
+        <MobileQuickLinks />
+      </div>
 
       <main className="shell">
         <section
           id="top"
-          className="hero-section"
+          className="hero-section artifact-phase artifact-phase-drift"
           data-stage="hero"
           data-stage-nav="true"
-          data-stage-label="Introduction"
+          data-stage-label="Drift"
         >
           <AmbientEmojiField />
-          <div className="hero-layout">
+          <div className="phase-inscription-shell" aria-hidden="true">
+            <p className="phase-inscription">Drift</p>
+          </div>
+          <div className="hero-layout" data-phase-word="Drift">
             <div className="hero-copy-block">
               <h1 className="hero-name" id="hero-name">
                 <span className="block">Muhammad</span>
@@ -1581,104 +1844,71 @@ export default function Home() {
                 Software Engineer | Payment Reliability • Secure Android • Observability
               </p>
               <p className="hero-copy">
-                I work on Android POS and merchant payment delivery at BCA.
-                This portfolio is the public slice of that work: how payment
-                flows recover, how systems stay readable under pressure, and
-                how clients decide when a device should not be trusted.
+                I work on Android POS and merchant payment systems at BCA. These public labs
+                cover transaction state, repeated callbacks, service visibility, and client
+                trust.
               </p>
-              <HeroTextLinks />
+
+              <div className="hero-action-bar">
+                <div className="hero-actions">
+                  <button
+                    className="action-link action-link-primary"
+                    data-scroll-target="projects"
+                    type="button"
+                  >
+                    View labs
+                  </button>
+                </div>
+                <HeroTextLinks />
+                <div className="hero-pill-trigger" data-mobile-pill-trigger="true" aria-hidden="true" />
+              </div>
             </div>
 
             <aside className="hero-side">
-              <p className="hero-line">
-                Most of the work starts after the happy path: when state
-                drifts, callbacks repeat, and the client needs a reason to
-                slow down or block.
-              </p>
-              <div className="hero-context-grid" aria-label="Working focus">
-                <div className="hero-context-item">
-                  <span>Deliver</span>
-                  <p>Merchant payment flows, vendor integrations, and secure Android service calls.</p>
-                </div>
-                <div className="hero-context-item">
-                  <span>Recover</span>
-                  <p>Incident triage, rollback calls, transaction repair, and hardening after failure.</p>
-                </div>
-                <div className="hero-context-item">
-                  <span>Publish</span>
-                  <p>Public labs that make private engineering problems readable without overselling them.</p>
-                </div>
+              <p className="hero-side-kicker">Usually when</p>
+              <h2 className="hero-side-heading">
+                Callbacks repeat. State drifts. The client has to decide.
+              </h2>
+              <div className="hero-focus-list" aria-label="Operating notes">
+                {heroOperatingNotes.map((item) => (
+                  <div className="hero-focus-item" key={item.label}>
+                    <span>{item.label}</span>
+                    <p>{item.text}</p>
+                  </div>
+                ))}
               </div>
-
-              <div className="hero-actions">
-                <button
-                  className="action-link action-link-primary"
-                  data-scroll-target="projects"
-                  type="button"
-                >
-                  View labs
-                </button>
-              </div>
-
-              <div className="hero-pill-trigger" data-mobile-pill-trigger="true" aria-hidden="true" />
             </aside>
           </div>
         </section>
 
         <section
-          id="failures"
-          className="section-block section-block-compact failure-section"
-          data-stage="failures"
-          data-stage-nav="true"
-          data-stage-label="What I fix"
-        >
-          <div className="section-top">
-            <h2 className="section-title">What I fix</h2>
-            <p className="section-intro">
-              The failure surfaces I usually get pulled into.
-            </p>
-          </div>
-
-          <ProjectAmbientEmojis emojis={failureAmbientEmojis} />
-
-          <div className="failure-list">
-            {failureCases.map((item) => (
-              <article className="failure-item" key={item.title}>
-                <h3>{item.title}.</h3>
-                <p>{item.description}</p>
-                <p className="failure-capability-line">{item.canDo.join(" · ")}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section
           id="projects"
-          className="section-block"
+          className="section-block artifact-phase artifact-phase-surface"
           data-stage="projects"
           data-stage-nav="true"
-          data-stage-label="Selected work"
+          data-stage-label="Trace"
         >
-          <div className="section-top">
-            <h2 className="section-title">Selected work</h2>
+          <div className="section-top artifact-top" data-phase-word="Trace">
+            <p className="phase-inscription">Trace</p>
+            <h2 className="reference-marker"><span>REF-001</span> Evidence chambers</h2>
             <p className="section-intro">
-              Public labs that show the same engineering habits in the open.
+              Three public labs for callbacks, service visibility, and Android trust.
             </p>
           </div>
 
           <article
-            className="project-stage project-stage-payflow"
+            className="project-stage project-stage-payflow artifact-chamber"
             data-stage="payflow"
             data-stage-label="PayFlow Reliability"
           >
             <ProjectAmbientEmojis emojis={projectAmbientEmojis.payflow} />
             <div className="project-aside">
               <div className="project-head">
-                <p className="project-kicker">Payment state lab</p>
+                <p className="project-kicker">Trace chamber</p>
                 <h3 className="project-title">PayFlow Reliability</h3>
                 <p className="project-summary">
-                  Spring Boot payment lab for duplicate callbacks, idempotency
-                  edges, and settlement mismatch.
+                  Spring Boot lab for duplicate callbacks, idempotency, settlement mismatch,
+                  and readable transaction history.
                 </p>
               </div>
 
@@ -1709,15 +1939,22 @@ export default function Home() {
             </div>
 
             <div className="project-main">
-              <ArtifactCard
-                src="/projects/payflow/audit-trail.png"
-                alt="Audit trail output from PayFlow Reliability showing state transitions."
-                caption="Duplicate callbacks are routed to the existing transaction state instead of creating a second transaction record."
-                priority
-                sizes="(max-width: 1024px) 100vw, 58vw"
-                tone="bg-[#0f1823]"
-                wide
-              />
+              <div className="margin-note-container">
+                <aside className="margin-note hidden lg:block">
+                  <span className="margin-note-label">FIG 1.0</span><br />
+                  State changes stay visible, so a duplicate callback lands in the same payment path instead of creating a second one.
+                </aside>
+                <ArtifactCard
+                  src="/projects/payflow/audit-trail.png"
+                  alt="Audit trail output from PayFlow Reliability showing state transitions."
+                  caption="State changes stay visible, so a duplicate callback lands in the same payment path instead of creating a second one."
+                  pageCaption=""
+                  priority
+                  sizes="(max-width: 1024px) 100vw, 58vw"
+                  tone="bg-[#0f1823]"
+                  wide
+                />
+              </div>
 
               <div className="project-detail-grid project-detail-grid-payflow project-evidence-secondary">
                 <div className="project-panel project-panel-secondary">
@@ -1739,31 +1976,37 @@ export default function Home() {
                   </div>
                 </div>
 
-                <ArtifactCard
-                  src="/projects/payflow/duplicate-webhook.png"
-                  alt="Duplicate provider webhook handled and ignored in PayFlow Reliability."
-                  caption="Duplicate callbacks show up as handled behavior, not as a hidden assumption."
-                  sizes="(max-width: 1024px) 100vw, 30vw"
-                  tone="bg-[#0f1823]"
-                  wide
-                />
+                <div className="margin-note-container">
+                  <aside className="margin-note hidden lg:block">
+                    <span className="margin-note-label">FIG 1.1</span><br />
+                    Duplicate callbacks show up as handled behavior, not as a guess that retries are harmless.
+                  </aside>
+                  <ArtifactCard
+                    src="/projects/payflow/duplicate-webhook.png"
+                    alt="Duplicate provider webhook handled and ignored in PayFlow Reliability."
+                    caption="Duplicate callbacks show up as handled behavior, not as a guess that retries are harmless."
+                    pageCaption=""
+                    sizes="(max-width: 1024px) 100vw, 30vw"
+                    tone="bg-[#0f1823]"
+                    wide
+                  />
+                </div>
               </div>
             </div>
           </article>
 
           <article
-            className="project-stage project-stage-iyup"
+            className="project-stage project-stage-iyup artifact-chamber"
             data-stage="iyup"
             data-stage-label="iYup"
           >
             <ProjectAmbientEmojis emojis={projectAmbientEmojis.iyup} />
             <div className="project-aside">
               <div className="project-head">
-                <p className="project-kicker">Observability lab</p>
+                <p className="project-kicker">Surface chamber</p>
                 <h3 className="project-title">iYup</h3>
                 <p className="project-summary">
-                  Observability lab for health state, latency, alerting, and
-                  scrape visibility.
+                  Observability lab for service health, latency, alerts, and scrape visibility.
                 </p>
               </div>
 
@@ -1794,14 +2037,21 @@ export default function Home() {
             </div>
 
             <div className="project-main">
-              <ArtifactCard
-                src="/projects/iyup/grafana-dashboard.png"
-                alt="Grafana dashboard from iYup showing service health and latency metrics."
-                caption="Grafana shows service health, latency, and alert state in one view."
-                sizes="(max-width: 1024px) 100vw, 58vw"
-                tone="bg-[#101412]"
-                wide
-              />
+              <div className="margin-note-container">
+                <aside className="margin-note hidden lg:block">
+                  <span className="margin-note-label">FIG 2.0</span><br />
+                  Health, latency, and alert state sit in one view instead of getting split across tools.
+                </aside>
+                <ArtifactCard
+                  src="/projects/iyup/grafana-dashboard.png"
+                  alt="Grafana dashboard from iYup showing service health and latency metrics."
+                  caption="Health, latency, and alert state sit in one view instead of getting split across tools."
+                  pageCaption=""
+                  sizes="(max-width: 1024px) 100vw, 58vw"
+                  tone="bg-[#101412]"
+                  wide
+                />
+              </div>
 
               <div className="project-detail-grid project-detail-grid-iyup project-evidence-secondary">
                 <div className="project-panel project-panel-secondary">
@@ -1820,31 +2070,38 @@ export default function Home() {
                   </div>
                 </div>
 
-                <ArtifactCard
-                  src="/projects/iyup/prometheus-targets.png"
-                  alt="Prometheus targets page from iYup showing scrape state for monitored services."
-                  caption="Target scraping is visible at the collection boundary."
-                  sizes="(max-width: 1024px) 100vw, 30vw"
-                  tone="bg-[#101412]"
-                  wide
-                />
+                <div className="margin-note-container">
+                  <aside className="margin-note hidden lg:block">
+                    <span className="margin-note-label">FIG 2.1</span><br />
+                    You can see scrape failures right at the collection edge.
+                  </aside>
+                  <ArtifactCard
+                    src="/projects/iyup/prometheus-targets.png"
+                    alt="Prometheus targets page from iYup showing scrape state for monitored services."
+                    caption="You can see scrape failures right at the collection edge."
+                    pageCaption=""
+                    sizes="(max-width: 1024px) 100vw, 30vw"
+                    tone="bg-[#101412]"
+                    wide
+                  />
+                </div>
               </div>
             </div>
           </article>
 
           <article
-            className="project-stage project-stage-trustgate"
+            className="project-stage project-stage-trustgate artifact-chamber"
             data-stage="trustgate"
             data-stage-label="TrustGate Android"
           >
             <ProjectAmbientEmojis emojis={projectAmbientEmojis.trustgate} />
             <div className="project-aside">
               <div className="project-head">
-                <p className="project-kicker">Client trust lab</p>
+                <p className="project-kicker">Gate chamber</p>
                 <h3 className="project-title">TrustGate Android</h3>
                 <p className="project-summary">
-                  Android trust lab for device risk, gated actions, and
-                  readable security events.
+                  Android trust lab for device risk checks, gated actions, request signing,
+                  and a readable local security trail.
                 </p>
               </div>
 
@@ -1875,25 +2132,33 @@ export default function Home() {
             </div>
 
             <div className="project-main">
-              <div className="phone-grid">
-                <ArtifactCard
-                  src="/projects/trustgate/device-risk-details.png"
-                  alt="Device risk details screen from TrustGate Android showing risk signals."
-                  caption="Risk state is visible before sensitive actions are allowed."
-                  sizes="(max-width: 1024px) 100vw, 28vw"
-                  tone="bg-[#d7dce5]"
-                  tall
-                />
-
-                <div className="project-evidence-secondary">
+              <div className="margin-note-container">
+                <aside className="margin-note hidden lg:block">
+                  <span className="margin-note-label">FIG 3.0</span><br />
+                  Risk is shown before a sensitive action runs. If blocked, a local trail is stored.
+                </aside>
+                <div className="phone-grid">
                   <ArtifactCard
-                    src="/projects/trustgate/security-event-log.png"
-                    alt="Security event log screen from TrustGate Android."
-                    caption="Blocked or gated behavior leaves a readable local trail."
+                    src="/projects/trustgate/device-risk-details.png"
+                    alt="Device risk details screen from TrustGate Android showing risk signals."
+                    caption="Risk is shown before a sensitive action runs."
+                    pageCaption=""
                     sizes="(max-width: 1024px) 100vw, 28vw"
                     tone="bg-[#d7dce5]"
                     tall
                   />
+  
+                  <div className="project-evidence-secondary">
+                    <ArtifactCard
+                      src="/projects/trustgate/security-event-log.png"
+                      alt="Security event log screen from TrustGate Android."
+                      caption="If something gets gated or blocked, the client leaves a local trail."
+                      pageCaption=""
+                      sizes="(max-width: 1024px) 100vw, 28vw"
+                      tone="bg-[#d7dce5]"
+                      tall
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1917,30 +2182,23 @@ export default function Home() {
 
         <section
           id="more-projects"
-          className="section-block section-block-compact"
+          className="section-block section-block-compact artifact-phase artifact-phase-archive"
           data-stage="github-more"
           data-stage-nav="true"
-          data-stage-label="GitHub"
+          data-stage-label="Surface"
         >
-          <div className="section-top">
-            <h2 className="section-title">More in public</h2>
-            <p className="section-intro">
-              The featured work is here. GitHub shows the wider range behind it.
-            </p>
+          <div className="section-top artifact-top" data-phase-word="Surface">
+            <p className="phase-inscription">Surface</p>
+            <h2 className="reference-marker"><span>REF-002</span> Open trail</h2>
+            <p className="section-intro">The featured labs stay here. The rest of the public work is on GitHub.</p>
           </div>
 
           <div className="github-stage">
             <div className="github-stage-copy">
+              <p className="github-stage-note">Outside the featured three</p>
               <p className="github-stage-lead">
-                The profile shows how the work holds up outside a curated
-                shortlist: labs, smaller tools, older iOS builds, and the
-                repo habits behind the polished pieces.
+                Older iOS work, smaller builds, and ongoing experiments are public there.
               </p>
-              <ul className="github-stage-points">
-                <li>Labs with setup notes, captured output, and repository history</li>
-                <li>Smaller repos across iOS, automation, and utility work</li>
-                <li>Public code that still shows structure, debugging habits, and follow-through</li>
-              </ul>
               <div className="github-proof-strip" aria-label="Additional public repositories">
                 {githubProofRepos.map((repo) => (
                   <a
@@ -1965,31 +2223,36 @@ export default function Home() {
                 <ArrowOutIcon />
               </a>
             </div>
-
-            <ArtifactCard
-              src="/projects/github-profile.png"
-              alt="GitHub profile screenshot for Muhammad A. Fattah."
-              caption="The profile shows the wider body of work behind the featured labs: smaller builds, public proof, and the way the code is carried in public."
-              pageCaption=""
-              sizes="(max-width: 1024px) 100vw, 58vw"
-              tone="bg-[#0c1117]"
-              wide
-            />
+            <div className="archive-frame margin-note-container">
+              <aside className="margin-note hidden lg:block">
+                <span className="margin-note-label">FIG 4.0</span><br />
+                The broader GitHub profile: smaller repos, older builds, and the trail behind the featured labs.
+              </aside>
+              <ArtifactCard
+                src="/projects/github-profile.png"
+                alt="GitHub profile screenshot for Muhammad A. Fattah."
+                caption="The broader GitHub profile: smaller repos, older builds, and the trail behind the featured labs."
+                pageCaption=""
+                sizes="(max-width: 1024px) 100vw, 58vw"
+                tone="bg-[#0c1117]"
+                wide
+              />
+            </div>
           </div>
         </section>
 
         <section
           id="current-work"
-          className="section-block section-block-compact"
+          className="section-block section-block-compact artifact-phase artifact-phase-gate"
           data-stage="current"
           data-stage-nav="true"
-          data-stage-label="Experience"
+          data-stage-label="Gate"
         >
-          <div className="section-top">
-            <h2 className="section-title">Experience</h2>
+          <div className="section-top artifact-top" data-phase-word="Gate">
+            <p className="phase-inscription">Gate</p>
+            <h2 className="reference-marker"><span>REF-003</span> Service record</h2>
             <p className="section-intro">
-              iOS foundations first, then Android payments, then
-              production-facing reliability work.
+              I started with SwiftUI, then moved into merchant payments, Android delivery, and production reliability.
             </p>
           </div>
 
@@ -1997,6 +2260,9 @@ export default function Home() {
             <div className="career-grid">
               {careerProgression.map((item) => (
                 <article className="career-item" key={item.company}>
+                  <span className="career-watermark" aria-hidden="true">
+                    {item.short}
+                  </span>
                   <div className="career-mark">
                     <div className="career-logo-shell">
                       <Image
@@ -2032,22 +2298,20 @@ export default function Home() {
 
         <section
           id="stack"
-          className="section-block section-block-compact"
+          className="section-block section-block-compact artifact-phase artifact-phase-legend"
           data-stage="stack"
           data-stage-nav="true"
-          data-stage-label="Stack"
+          data-stage-label="Legend"
         >
-          <div className="section-top">
-            <h2 className="section-title">Stack</h2>
-            <p className="section-intro">
-              The tools that keep showing up across delivery, integration,
-              operations, and hardening.
-            </p>
+          <div className="section-top artifact-top" data-phase-word="Legend">
+            <p className="phase-inscription">Legend</p>
+            <h2 className="reference-marker"><span>REF-004</span> Stack legend</h2>
+            <p className="section-intro">Grouped by the kind of work they usually support.</p>
           </div>
 
-          <div className="stack-list">
+          <div className="stack-list legend-list">
             {stackGroups.map((group) => (
-              <article className="stack-row" key={group.title}>
+              <article className="stack-row legend-row" key={group.title}>
                 <p className="stack-label">{group.title}</p>
                 <p className="stack-copy">{group.items}</p>
               </article>
@@ -2057,47 +2321,46 @@ export default function Home() {
 
         <section
           id="contact"
-          className="section-block section-block-compact"
+          className="section-block section-block-compact artifact-phase artifact-phase-seal"
           data-stage="contact"
           data-stage-nav="true"
-          data-stage-label="Contact"
+          data-stage-label="Seal"
         >
-          <div className="section-top">
-            <h2 className="section-title">Contact</h2>
-            <p className="section-intro">
-              Best for Android payments, integration reliability, and
-              failure-path work.
-            </p>
+          <div className="section-top artifact-top" data-phase-word="Seal">
+            <p className="phase-inscription">Seal</p>
+            <h2 className="reference-marker"><span>REF-005</span> Handoff</h2>
+            <p className="section-intro">If this overlaps with your work, start with email.</p>
           </div>
 
-          <div
-            aria-label={`Copy ${email}`}
-            className="copy-email-shell"
-            data-copy-email={email}
-            id="contact-email"
-            role="button"
-            tabIndex={0}
-          >
-            <span className="copy-email-link">
-              {email}
-            </span>
-            <span className="copy-email-hint">Click to copy</span>
-            <span className="copy-toast" data-copy-toast="true" aria-live="polite">
-              Copied
-            </span>
-          </div>
-
-          <div className="contact-links" data-contact-links="true">
-            <span className="contact-links-label">Also on</span>
-            <a
-              className="contact-pill-link"
-              href="https://www.linkedin.com/in/muhammad24fattah/"
-              target="_blank"
-              rel="noopener noreferrer"
+          <div className="seal-shell">
+            <div
+              aria-label={`Copy ${email}`}
+              className="copy-email-shell"
+              data-copy-email={email}
+              id="contact-email"
+              role="button"
+              tabIndex={0}
             >
-              <LinkedInIcon />
-              LinkedIn profile
-            </a>
+              <span className="copy-email-link">
+                {email}
+              </span>
+              <span className="copy-email-hint">Click to copy</span>
+              <span className="copy-toast" data-copy-toast="true" aria-live="polite">
+                Copied
+              </span>
+            </div>
+
+            <div className="contact-links" data-contact-links="true">
+              <a
+                className="contact-pill-link"
+                href="https://www.linkedin.com/in/muhammad24fattah/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <LinkedInIcon />
+                LinkedIn
+              </a>
+            </div>
           </div>
         </section>
       </main>
@@ -2168,6 +2431,22 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <div className="live-telemetry" id="live-telemetry" aria-hidden="true">
+        <div className="tel-line">
+          POS:
+          <span className="tel-val" id="tel-pos">X:0000 Y:0000</span>
+        </div>
+        <div className="tel-line">
+          VIEW:
+          <span className="tel-val" id="tel-view">0%</span>
+        </div>
+        <div className="tel-line tel-accent">
+          STATUS: <span id="tel-status">[OK]</span>
+        </div>
+      </div>
+
+      <canvas id="audit-trail" className="fixed inset-0 pointer-events-none z-50 opacity-40"></canvas>
 
       <Script
         id="site-interactions"
