@@ -16,13 +16,16 @@ const monoFont = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Muhammad A. Fattah - Software Engineer",
+  title: {
+    default: "Muhammad A. Fattah — Software Engineer",
+    template: "%s — Muhammad A. Fattah",
+  },
   description:
-    "Software engineer focused on payment systems, Android, reliability, observability, and secure mobile-client behavior.",
+    "Engineering cases about payment reliability, service degradation, and Android device trust.",
   openGraph: {
-    title: "Muhammad A. Fattah - Software Engineer",
+    title: "Muhammad A. Fattah — Software Engineer",
     description:
-      "Software engineer focused on payment systems, Android, reliability, observability, and secure mobile-client behavior.",
+      "Public engineering cases about payment reliability, observability, and secure mobile-client behavior.",
     type: "website",
   },
 };
