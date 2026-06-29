@@ -185,7 +185,15 @@ function Projection({
   );
 }
 
-function EvidenceDialog({ evidence, onClose }: { evidence: Evidence; onClose: () => void }) {
+function EvidenceDialog({
+  evidence,
+  exhibitLabel,
+  onClose,
+}: {
+  evidence: Evidence;
+  exhibitLabel: string;
+  onClose: () => void;
+}) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -227,21 +235,45 @@ function EvidenceDialog({ evidence, onClose }: { evidence: Evidence; onClose: ()
     <div className="evidence-dialog" role="dialog" aria-modal="true" aria-labelledby="evidence-dialog-title">
       <button className="evidence-scrim" aria-label="Close evidence" onClick={onClose} type="button" />
       <div className="evidence-sheet" ref={sheetRef}>
-        <div className="evidence-sheet-head">
-          <div>
-            <p className="micro-label">Attached evidence</p>
-            <p id="evidence-dialog-title">{evidence.caption}</p>
+        <aside className="evidence-inspector">
+          <div className="evidence-sheet-head">
+            <div>
+              <p className="micro-label">Attached evidence</p>
+              <p id="evidence-dialog-title">{exhibitLabel}</p>
+            </div>
+            <button ref={closeRef} className="evidence-close-action" onClick={onClose} type="button" aria-label="Close attached evidence">
+              <span aria-hidden="true">×</span>
+              <small>Close</small>
+            </button>
           </div>
-          <button ref={closeRef} className="text-button" onClick={onClose} type="button">
-            Close
-          </button>
+          <div className="evidence-inspector-copy">
+            <p className="evidence-focus-label">What to verify</p>
+            <h2>{evidence.focus}</h2>
+            <p>{evidence.caption}</p>
+          </div>
+          <dl className="evidence-meta">
+            <div>
+              <dt>Source</dt>
+              <dd>Public project screenshot</dd>
+            </div>
+            <div>
+              <dt>Interaction</dt>
+              <dd>Esc or Close returns to the case</dd>
+            </div>
+          </dl>
+          <a className="evidence-original" href={evidence.src} target="_blank" rel="noopener noreferrer">
+            Open original image <span className="sr-only">in a new tab</span> <ArrowIcon />
+          </a>
+        </aside>
+        <div className="evidence-stage">
+          <div className="evidence-stage-label" aria-hidden="true">
+            <span>Inspect</span>
+            <span>{evidence.focus}</span>
+          </div>
+          <div className="evidence-image-wrap">
+            <Image src={evidence.src} alt={evidence.alt} fill sizes="(max-width: 760px) 100vw, 70vw" className="evidence-image" unoptimized />
+          </div>
         </div>
-        <div className="evidence-image-wrap">
-          <Image src={evidence.src} alt={evidence.alt} fill sizes="90vw" className="evidence-image" unoptimized />
-        </div>
-        <a className="evidence-original" href={evidence.src} target="_blank" rel="noopener noreferrer">
-          Open original image <span className="sr-only">in a new tab</span> <ArrowIcon />
-        </a>
       </div>
     </div>
   );
@@ -593,7 +625,13 @@ export function DebuggerWorkspace({
         </section>
       </main>
 
-      {evidence ? <EvidenceDialog evidence={evidence} onClose={() => setEvidence(null)} /> : null}
+      {evidence ? (
+        <EvidenceDialog
+          evidence={evidence}
+          exhibitLabel={`Exhibit ${scenario.number}.${Math.max(0, scenario.evidence.findIndex((item) => item.src === evidence.src)) + 1}`}
+          onClose={() => setEvidence(null)}
+        />
+      ) : null}
     </>
   );
 }
