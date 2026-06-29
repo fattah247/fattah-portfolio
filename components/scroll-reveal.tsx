@@ -24,6 +24,7 @@ export function ScrollReveal({
     }
 
     let timer = 0;
+    let observer: IntersectionObserver | null = null;
     const show = () => {
       node.classList.add("is-visible");
       if (!stagger) {
@@ -35,20 +36,43 @@ export function ScrollReveal({
         .forEach((el, index) => {
           window.setTimeout(() => {
             el.classList.add("is-visible");
-          }, index * 45);
+          }, index * 60);
         });
     };
 
-    if (delay > 0) {
-      timer = window.setTimeout(show, delay);
-    } else {
+    if (!("IntersectionObserver" in window)) {
       show();
+      return undefined;
     }
+
+    observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) {
+          return;
+        }
+
+        if (delay > 0) {
+          timer = window.setTimeout(show, delay);
+        } else {
+          show();
+        }
+
+        observer?.unobserve(node);
+      },
+      {
+        rootMargin: "0px 0px -14% 0px",
+        threshold: 0.16,
+      },
+    );
+
+    observer.observe(node);
 
     return () => {
       if (timer) {
         window.clearTimeout(timer);
       }
+
+      observer?.disconnect();
     };
   }, [delay, stagger]);
 
