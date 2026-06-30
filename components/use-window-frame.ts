@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
 
 type WindowFrameOptions = {
   defaultHeight: number;
@@ -21,22 +21,11 @@ export function useWindowFrame({
   minHeight = 520,
   minWidth = 720,
 }: WindowFrameOptions) {
-  const frameRef = useRef<HTMLElement>(null);
-  const sessionRef = useRef<{
-    edge?: ResizeEdge;
-    kind: "idle" | "drag" | "resize";
-    pointerId: number;
-    rect: FrameRect;
-    startX: number;
-    startY: number;
-  }>({ kind: "idle", pointerId: -1, rect: { height: defaultHeight, width: defaultWidth, x: 32, y: 86 }, startX: 0, startY: 0 });
-  const [rect, setRect] = useState<FrameRect>({ height: defaultHeight, width: defaultWidth, x: 32, y: 86 });
-  const [dragging, setDragging] = useState(false);
-  const [resizing, setResizing] = useState(false);
-  const [snap, setSnap] = useState<SnapEdge>(null);
-  const snapRef = useRef<SnapEdge>(null);
-
   function defaultRect(): FrameRect {
+    if (typeof window === "undefined") {
+      return { height: defaultHeight, width: defaultWidth, x: 32, y: 86 };
+    }
+
     const width = Math.min(defaultWidth, window.innerWidth - 40);
     const height = Math.min(defaultHeight, window.innerHeight - 104);
     return {
@@ -47,13 +36,30 @@ export function useWindowFrame({
     };
   }
 
+  const initialRect = defaultRect();
+  const frameRef = useRef<HTMLElement>(null);
+  const sessionRef = useRef<{
+    edge?: ResizeEdge;
+    kind: "idle" | "drag" | "resize";
+    pointerId: number;
+    rect: FrameRect;
+    startX: number;
+    startY: number;
+  }>({ kind: "idle", pointerId: -1, rect: initialRect, startX: 0, startY: 0 });
+  const [rect, setRect] = useState<FrameRect>(initialRect);
+  const [dragging, setDragging] = useState(false);
+  const [resizing, setResizing] = useState(false);
+  const [snap, setSnap] = useState<SnapEdge>(null);
+  const snapRef = useRef<SnapEdge>(null);
+
   function resetFrame() {
-    setRect(defaultRect());
+    const nextRect = defaultRect();
+    setRect(nextRect);
     setDragging(false);
     setResizing(false);
     setSnap(null);
     snapRef.current = null;
-    sessionRef.current = { kind: "idle", pointerId: -1, rect: defaultRect(), startX: 0, startY: 0 };
+    sessionRef.current = { kind: "idle", pointerId: -1, rect: nextRect, startX: 0, startY: 0 };
   }
 
   function snapTo(edge: Exclude<SnapEdge, null>) {
@@ -64,11 +70,8 @@ export function useWindowFrame({
     snapRef.current = null;
   }
 
-  useEffect(() => {
-    setRect(defaultRect());
-  }, [defaultHeight, defaultWidth]);
-
   function clamp(next: FrameRect): FrameRect {
+    if (typeof window === "undefined") return next;
     const maxWidth = Math.max(minWidth, window.innerWidth - 24);
     const maxHeight = Math.max(minHeight, window.innerHeight - 78);
     const width = Math.min(Math.max(minWidth, next.width), maxWidth);
@@ -169,7 +172,7 @@ export function useWindowFrame({
     }
 
     const edge = session.edge ?? "bottom-right";
-    let next = { ...session.rect };
+    const next = { ...session.rect };
     if (edge.includes("right")) next.width = session.rect.width + dx;
     if (edge.includes("bottom")) next.height = session.rect.height + dy;
     if (edge.includes("left")) {
