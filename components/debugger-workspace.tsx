@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import type { CSSProperties, MouseEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowIcon, RewindIcon } from "@/components/icons";
+import { useWindowFrame, windowResizeEdges } from "@/components/use-window-frame";
 import {
   explainScenario,
   projectScenario,
@@ -16,6 +17,14 @@ import {
 } from "@/lib/scenarios";
 
 type MotionPhase = "rest" | "rewind" | "reconstruct";
+type CaseSectionId = "context" | "replay" | "decision" | "evidence";
+
+const caseSections: Array<{ id: CaseSectionId; index: string; label: string; note: string }> = [
+  { id: "context", index: "01", label: "Context", note: "Problem and consequence" },
+  { id: "replay", index: "02", label: "Replay", note: "Change one condition" },
+  { id: "decision", index: "03", label: "Decision", note: "Compare resulting state" },
+  { id: "evidence", index: "04", label: "Evidence", note: "Open proof and source" },
+];
 
 function readableOutcome(slug: Scenario["slug"], value: string) {
   const labels: Record<string, string> = {
@@ -237,14 +246,13 @@ function EvidenceDialog({
       <div className="evidence-sheet" ref={sheetRef}>
         <aside className="evidence-inspector">
           <div className="evidence-sheet-head">
+            <button ref={closeRef} className="evidence-close-action" onClick={onClose} type="button" aria-label="Close attached evidence">
+              <span aria-hidden="true">×</span>
+            </button>
             <div>
               <p className="micro-label">Attached evidence</p>
               <p id="evidence-dialog-title">{exhibitLabel}</p>
             </div>
-            <button ref={closeRef} className="evidence-close-action" onClick={onClose} type="button" aria-label="Close attached evidence">
-              <span aria-hidden="true">×</span>
-              <small>Close</small>
-            </button>
           </div>
           <div className="evidence-inspector-copy">
             <p className="evidence-focus-label">What to verify</p>
@@ -293,9 +301,11 @@ export function DebuggerWorkspace({
   const [activeKeys, setActiveKeys] = useState<string[]>([]);
   const [statusMessage, setStatusMessage] = useState("Replay ready.");
   const [evidence, setEvidence] = useState<Evidence | null>(null);
+  const [activeSection, setActiveSection] = useState<CaseSectionId>("context");
   const timers = useRef<number[]>([]);
   const targetConditions = useRef<Conditions>(initialConditions);
   const workspaceTitleRef = useRef<HTMLHeadingElement>(null);
+  const caseFrame = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 460, minWidth: 700 });
 
   useEffect(() => () => timers.current.forEach(window.clearTimeout), []);
 
@@ -318,6 +328,23 @@ export function DebuggerWorkspace({
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [evidence]);
+
+  useEffect(() => {
+    if (!("IntersectionObserver" in window)) return;
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (visible?.target.id && caseSections.some((section) => section.id === visible.target.id)) {
+        setActiveSection(visible.target.id as CaseSectionId);
+      }
+    }, { root: caseFrame.frameRef.current, rootMargin: "-25% 0px -55% 0px", threshold: [0.15, 0.35, 0.6] });
+    for (const section of caseSections) {
+      const node = document.getElementById(section.id);
+      if (node) observer.observe(node);
+    }
+    return () => observer.disconnect();
+  }, [caseFrame.frameRef]);
 
   const baseline = useMemo(
     () => projectScenario(scenario.slug, conditions, "baseline"),
@@ -453,13 +480,37 @@ export function DebuggerWorkspace({
     );
   }
 
+  function scrollToCaseSection(event: MouseEvent<HTMLAnchorElement>, sectionId: CaseSectionId) {
+    event.preventDefault();
+    setActiveSection(sectionId);
+    const container = caseFrame.frameRef.current;
+    const target = document.getElementById(sectionId);
+    if (!container || !target) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const chromeHeight = container.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
+    const progressHeight = container.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
+    const top = container.scrollTop + targetRect.top - containerRect.top - chromeHeight - progressHeight - 20;
+    container.scrollTo({ behavior: "smooth", top: Math.max(0, top) });
+    window.history.replaceState(null, "", `#${sectionId}`);
+  }
+
   return (
     <>
-      <main className={`case-page case-${scenario.slug}`} data-motion-phase={phase} id="main-content">
-        <div className="case-workspace-chrome" aria-label="Selected work workspace">
+      <main
+        className={`case-page case-${scenario.slug} selected-work-window`}
+        data-dragging={caseFrame.dragging}
+        data-motion-phase={phase}
+        data-resizing={caseFrame.resizing}
+        data-snap={caseFrame.snap ?? undefined}
+        id="main-content"
+        ref={caseFrame.frameRef}
+        style={caseFrame.style}
+      >
+        <div className="case-workspace-chrome" aria-label="Selected work workspace" {...caseFrame.titlebarProps}>
           <Link className="case-close-action" href="/#selected-work" aria-label="Close selected work and return to the work list">
             <span aria-hidden="true">×</span>
-            <small>Close</small>
           </Link>
           <div className="case-location">
             <p className="micro-label">Selected work</p>
@@ -471,11 +522,20 @@ export function DebuggerWorkspace({
             <Link href={`/case/${nextScenario.slug}`}>Next</Link>
           </div>
         </div>
+        {windowResizeEdges.map((edge) => <span key={edge} {...caseFrame.resizeHandleProps(edge)} />)}
         <nav className="case-progress" aria-label="Case chapters">
-          <a href="#context"><span>01</span> Context</a>
-          <a href="#replay"><span>02</span> Replay</a>
-          <a href="#decision"><span>03</span> Decision</a>
-          <a href="#evidence"><span>04</span> Evidence</a>
+          {caseSections.map((section) => (
+            <a
+              aria-current={activeSection === section.id ? "step" : undefined}
+              href={`#${section.id}`}
+              key={section.id}
+              onClick={(event) => scrollToCaseSection(event, section.id)}
+            >
+              <span>{section.index}</span>
+              <b>{section.label}</b>
+              <small>{section.note}</small>
+            </a>
+          ))}
         </nav>
         <section className="case-intro" id="context">
           <div className="case-index-block">
@@ -560,7 +620,7 @@ export function DebuggerWorkspace({
           <div><span>With safeguard</span><strong>{designedOutcomeLabel}</strong></div>
         </div>
         <details className="debugger-details">
-          <summary>See every state change</summary>
+          <summary><span>Open state trace</span><small>Compare baseline, designed path, and audit tape</small></summary>
         <section className="debugger-shell">
           <div className="debugger-projections">
             <Projection label="Baseline" variantLabel={scenario.baselineLabel} nodes={baseline} affectedIds={affectedIds.baseline} phase={phase} outcomeNodeId={scenario.outcomeNodeId} />
