@@ -1,0 +1,230 @@
+"use client";
+
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+
+type WindowFrameOptions = {
+  defaultHeight: number;
+  defaultWidth: number;
+  minHeight?: number;
+  minWidth?: number;
+};
+
+export type ResizeEdge = "top" | "right" | "bottom" | "left" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
+type SnapEdge = "left" | "right" | "top" | "bottom" | null;
+type FrameRect = { height: number; width: number; x: number; y: number };
+
+export const windowResizeEdges: ResizeEdge[] = ["top", "right", "bottom", "left", "top-left", "top-right", "bottom-left", "bottom-right"];
+
+export function useWindowFrame({
+  defaultHeight,
+  defaultWidth,
+  minHeight = 520,
+  minWidth = 720,
+}: WindowFrameOptions) {
+  const frameRef = useRef<HTMLElement>(null);
+  const sessionRef = useRef<{
+    edge?: ResizeEdge;
+    kind: "idle" | "drag" | "resize";
+    pointerId: number;
+    rect: FrameRect;
+    startX: number;
+    startY: number;
+  }>({ kind: "idle", pointerId: -1, rect: { height: defaultHeight, width: defaultWidth, x: 32, y: 86 }, startX: 0, startY: 0 });
+  const [rect, setRect] = useState<FrameRect>({ height: defaultHeight, width: defaultWidth, x: 32, y: 86 });
+  const [dragging, setDragging] = useState(false);
+  const [resizing, setResizing] = useState(false);
+  const [snap, setSnap] = useState<SnapEdge>(null);
+  const snapRef = useRef<SnapEdge>(null);
+
+  function defaultRect(): FrameRect {
+    const width = Math.min(defaultWidth, window.innerWidth - 40);
+    const height = Math.min(defaultHeight, window.innerHeight - 104);
+    return {
+      height,
+      width,
+      x: Math.max(12, Math.round((window.innerWidth - width) / 2)),
+      y: Math.max(72, Math.round((window.innerHeight - height) / 2) + 10),
+    };
+  }
+
+  function resetFrame() {
+    setRect(defaultRect());
+    setDragging(false);
+    setResizing(false);
+    setSnap(null);
+    snapRef.current = null;
+    sessionRef.current = { kind: "idle", pointerId: -1, rect: defaultRect(), startX: 0, startY: 0 };
+  }
+
+  function snapTo(edge: Exclude<SnapEdge, null>) {
+    setRect(clamp(snapRect(edge)));
+    setDragging(false);
+    setResizing(false);
+    setSnap(null);
+    snapRef.current = null;
+  }
+
+  useEffect(() => {
+    setRect(defaultRect());
+  }, [defaultHeight, defaultWidth]);
+
+  function clamp(next: FrameRect): FrameRect {
+    const maxWidth = Math.max(minWidth, window.innerWidth - 24);
+    const maxHeight = Math.max(minHeight, window.innerHeight - 78);
+    const width = Math.min(Math.max(minWidth, next.width), maxWidth);
+    const height = Math.min(Math.max(minHeight, next.height), maxHeight);
+    return {
+      height,
+      width,
+      x: Math.min(Math.max(12, next.x), Math.max(12, window.innerWidth - width - 12)),
+      y: Math.min(Math.max(66, next.y), Math.max(66, window.innerHeight - height - 12)),
+    };
+  }
+
+  function snapFor(event: PointerEvent<HTMLElement>): SnapEdge {
+    const threshold = 34;
+    if (event.clientX <= threshold) return "left";
+    if (event.clientX >= window.innerWidth - threshold) return "right";
+    if (event.clientY <= 72 + threshold) return "top";
+    if (event.clientY >= window.innerHeight - threshold) return "bottom";
+    return null;
+  }
+
+  function snapRect(edge: Exclude<SnapEdge, null>): FrameRect {
+    const gap = 12;
+    const top = 66;
+    const availableWidth = window.innerWidth - gap * 3;
+    const availableHeight = window.innerHeight - top - gap * 2;
+    if (edge === "left") return { x: gap, y: top, width: Math.round(availableWidth / 2), height: availableHeight };
+    if (edge === "right") return { x: gap * 2 + Math.round(availableWidth / 2), y: top, width: Math.floor(availableWidth / 2), height: availableHeight };
+    if (edge === "top") return { x: gap, y: top, width: window.innerWidth - gap * 2, height: Math.round(availableHeight / 2) };
+    return { x: gap, y: top + gap + Math.round(availableHeight / 2), width: window.innerWidth - gap * 2, height: Math.floor(availableHeight / 2) };
+  }
+
+  function startDrag(event: PointerEvent<HTMLElement>) {
+    const target = event.target as HTMLElement;
+    if (target.closest("button, a")) return;
+    if (window.matchMedia("(max-width: 760px)").matches) return;
+    const nodeRect = frameRef.current?.getBoundingClientRect();
+    const base = clamp({
+      height: nodeRect?.height ?? rect.height,
+      width: nodeRect?.width ?? rect.width,
+      x: nodeRect?.left ?? rect.x,
+      y: nodeRect?.top ?? rect.y,
+    });
+    sessionRef.current = {
+      kind: "drag",
+      pointerId: event.pointerId,
+      rect: base,
+      startX: event.clientX,
+      startY: event.clientY,
+    };
+    setRect(base);
+    setDragging(true);
+    setSnap(null);
+    snapRef.current = null;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function startResize(edge: ResizeEdge) {
+    return (event: PointerEvent<HTMLElement>) => {
+      if (window.matchMedia("(max-width: 760px)").matches) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const nodeRect = frameRef.current?.getBoundingClientRect();
+      const base = clamp({
+        height: nodeRect?.height ?? rect.height,
+        width: nodeRect?.width ?? rect.width,
+        x: nodeRect?.left ?? rect.x,
+        y: nodeRect?.top ?? rect.y,
+      });
+      sessionRef.current = {
+        edge,
+        kind: "resize",
+        pointerId: event.pointerId,
+        rect: base,
+        startX: event.clientX,
+        startY: event.clientY,
+      };
+      setRect(base);
+      setResizing(true);
+      setSnap(null);
+      snapRef.current = null;
+      event.currentTarget.setPointerCapture(event.pointerId);
+    };
+  }
+
+  function move(event: PointerEvent<HTMLElement>) {
+    const session = sessionRef.current;
+    if (event.pointerId !== session.pointerId || session.kind === "idle") return;
+    const dx = event.clientX - session.startX;
+    const dy = event.clientY - session.startY;
+
+    if (session.kind === "drag") {
+      setRect(clamp({ ...session.rect, x: session.rect.x + dx, y: session.rect.y + dy }));
+      const nextSnap = snapFor(event);
+      snapRef.current = nextSnap;
+      setSnap(nextSnap);
+      return;
+    }
+
+    const edge = session.edge ?? "bottom-right";
+    let next = { ...session.rect };
+    if (edge.includes("right")) next.width = session.rect.width + dx;
+    if (edge.includes("bottom")) next.height = session.rect.height + dy;
+    if (edge.includes("left")) {
+      next.width = Math.max(minWidth, session.rect.width - dx);
+      next.x = session.rect.x + (session.rect.width - next.width);
+    }
+    if (edge.includes("top")) {
+      next.height = Math.max(minHeight, session.rect.height - dy);
+      next.y = session.rect.y + (session.rect.height - next.height);
+    }
+    setRect(clamp(next));
+  }
+
+  function end(event: PointerEvent<HTMLElement>) {
+    if (event.pointerId !== sessionRef.current.pointerId) return;
+    if (sessionRef.current.kind === "drag" && snapRef.current) {
+      setRect(clamp(snapRect(snapRef.current)));
+    }
+    sessionRef.current = { kind: "idle", pointerId: -1, rect, startX: 0, startY: 0 };
+    setDragging(false);
+    setResizing(false);
+    setSnap(null);
+    snapRef.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+
+  return {
+    frameRef,
+    dragging,
+    resetFrame,
+    resizing,
+    resizeHandleProps: (edge: ResizeEdge) => ({
+      "aria-hidden": true,
+      className: `window-resize-handle resize-${edge}`,
+      onPointerCancel: end,
+      onPointerDown: startResize(edge),
+      onPointerMove: move,
+      onPointerUp: end,
+    }),
+    snap,
+    snapTo,
+    style: {
+      "--window-height": `${rect.height}px`,
+      "--window-min-height": `${minHeight}px`,
+      "--window-min-width": `${minWidth}px`,
+      "--window-width": `${rect.width}px`,
+      "--window-x": `${rect.x}px`,
+      "--window-y": `${rect.y}px`,
+    } as CSSProperties,
+    titlebarProps: {
+      onDoubleClick: () => setRect(clamp(snapRect("top"))),
+      onPointerCancel: end,
+      onPointerDown: startDrag,
+      onPointerMove: move,
+      onPointerUp: end,
+    },
+  };
+}
