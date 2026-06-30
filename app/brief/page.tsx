@@ -31,7 +31,15 @@ const viewCopy: Record<BriefView, { label: string; note: string }> = {
 export default function BriefPage() {
   const [view, setView] = useState<BriefView>("recruiter");
   const [openExperience, setOpenExperience] = useState(0);
-  const experienceFrame = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 420, minWidth: 680 });
+  const {
+    dragging,
+    frameRef,
+    resizeHandleProps,
+    resizing,
+    snap,
+    style,
+    titlebarProps,
+  } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 420, minWidth: 680 });
 
   function openContactWindow(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault();
@@ -43,15 +51,15 @@ export default function BriefPage() {
       <PortfolioHeader />
       <main
         className="brief-page experience-window"
-        data-dragging={experienceFrame.dragging}
-        data-resizing={experienceFrame.resizing}
-        data-snap={experienceFrame.snap ?? undefined}
+        data-dragging={dragging}
+        data-resizing={resizing}
+        data-snap={snap ?? undefined}
         data-view={view}
         id="main-content"
-        ref={experienceFrame.frameRef}
-        style={experienceFrame.style}
+        ref={frameRef}
+        style={style}
       >
-        <div className="portfolio-window-chrome experience-window-chrome" {...experienceFrame.titlebarProps}>
+        <div className="portfolio-window-chrome experience-window-chrome" {...titlebarProps}>
           <Link className="window-close-action experience-window-close" href="/?desktop=1" aria-label="Close experience window">
             <span aria-hidden="true">×</span>
           </Link>
@@ -59,7 +67,7 @@ export default function BriefPage() {
             <p className="micro-label">Experience</p>
           </div>
         </div>
-        {windowResizeEdges.map((edge) => <span key={edge} {...experienceFrame.resizeHandleProps(edge)} />)}
+        {windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />)}
         <section className="brief-hero">
           <div>
             <h1>Muhammad<br />A. Fattah</h1>

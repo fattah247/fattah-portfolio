@@ -305,7 +305,15 @@ export function DebuggerWorkspace({
   const timers = useRef<number[]>([]);
   const targetConditions = useRef<Conditions>(initialConditions);
   const workspaceTitleRef = useRef<HTMLHeadingElement>(null);
-  const caseFrame = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 460, minWidth: 700 });
+  const {
+    dragging,
+    frameRef,
+    resizeHandleProps,
+    resizing,
+    snap,
+    style,
+    titlebarProps,
+  } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 460, minWidth: 700 });
 
   useEffect(() => () => timers.current.forEach(window.clearTimeout), []);
 
@@ -338,13 +346,13 @@ export function DebuggerWorkspace({
       if (visible?.target.id && caseSections.some((section) => section.id === visible.target.id)) {
         setActiveSection(visible.target.id as CaseSectionId);
       }
-    }, { root: caseFrame.frameRef.current, rootMargin: "-25% 0px -55% 0px", threshold: [0.15, 0.35, 0.6] });
+    }, { root: frameRef.current, rootMargin: "-25% 0px -55% 0px", threshold: [0.15, 0.35, 0.6] });
     for (const section of caseSections) {
       const node = document.getElementById(section.id);
       if (node) observer.observe(node);
     }
     return () => observer.disconnect();
-  }, [caseFrame.frameRef]);
+  }, [frameRef]);
 
   const baseline = useMemo(
     () => projectScenario(scenario.slug, conditions, "baseline"),
@@ -483,7 +491,7 @@ export function DebuggerWorkspace({
   function scrollToCaseSection(event: MouseEvent<HTMLAnchorElement>, sectionId: CaseSectionId) {
     event.preventDefault();
     setActiveSection(sectionId);
-    const container = caseFrame.frameRef.current;
+    const container = frameRef.current;
     const target = document.getElementById(sectionId);
     if (!container || !target) return;
 
@@ -500,15 +508,15 @@ export function DebuggerWorkspace({
     <>
       <main
         className={`case-page case-${scenario.slug} selected-work-window`}
-        data-dragging={caseFrame.dragging}
+        data-dragging={dragging}
         data-motion-phase={phase}
-        data-resizing={caseFrame.resizing}
-        data-snap={caseFrame.snap ?? undefined}
+        data-resizing={resizing}
+        data-snap={snap ?? undefined}
         id="main-content"
-        ref={caseFrame.frameRef}
-        style={caseFrame.style}
+        ref={frameRef}
+        style={style}
       >
-        <div className="case-workspace-chrome" aria-label="Selected work workspace" {...caseFrame.titlebarProps}>
+        <div className="case-workspace-chrome" aria-label="Selected work workspace" {...titlebarProps}>
           <Link className="case-close-action" href="/#selected-work" aria-label="Close selected work and return to the work list">
             <span aria-hidden="true">×</span>
           </Link>
@@ -522,7 +530,7 @@ export function DebuggerWorkspace({
             <Link href={`/case/${nextScenario.slug}`}>Next</Link>
           </div>
         </div>
-        {windowResizeEdges.map((edge) => <span key={edge} {...caseFrame.resizeHandleProps(edge)} />)}
+        {windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />)}
         <nav className="case-progress" aria-label="Case chapters">
           {caseSections.map((section) => (
             <a

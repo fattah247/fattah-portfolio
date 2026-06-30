@@ -11,7 +11,15 @@ type NavKey = "work" | "experience" | "contact";
 
 function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
-  const contactFrame = useWindowFrame({ defaultHeight: 500, defaultWidth: 520, minHeight: 320, minWidth: 360 });
+  const {
+    dragging,
+    frameRef,
+    resizeHandleProps,
+    resizing,
+    snap,
+    style,
+    titlebarProps,
+  } = useWindowFrame({ defaultHeight: 500, defaultWidth: 520, minHeight: 320, minWidth: 360 });
 
   useEffect(() => {
     if (!open) return;
@@ -34,22 +42,22 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
       <button className="contact-window-scrim" aria-label="Close contact window" onClick={onClose} type="button" />
       <section
         className="contact-window"
-        data-dragging={contactFrame.dragging}
-        data-resizing={contactFrame.resizing}
-        data-snap={contactFrame.snap ?? undefined}
-        ref={contactFrame.frameRef}
+        data-dragging={dragging}
+        data-resizing={resizing}
+        data-snap={snap ?? undefined}
+        ref={frameRef}
         role="dialog"
         aria-modal="false"
         aria-labelledby="contact-window-title"
-        style={contactFrame.style}
+        style={style}
       >
-        <div className="window-titlebar contact-titlebar" {...contactFrame.titlebarProps}>
+        <div className="window-titlebar contact-titlebar" {...titlebarProps}>
           <button ref={closeRef} className="window-close-action" onClick={onClose} type="button" aria-label="Close contact window">
             <span aria-hidden="true">×</span>
           </button>
           <p id="contact-window-title">Contact</p>
         </div>
-        {windowResizeEdges.map((edge) => <span key={edge} {...contactFrame.resizeHandleProps(edge)} />)}
+        {windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />)}
         <div className="contact-window-body">
           <p className="micro-label">Available channel</p>
           <h2>Email or public profile.</h2>
@@ -112,10 +120,7 @@ export function PortfolioHeader({ caseNumber }: { caseNumber?: string }) {
 
   useLayoutEffect(() => {
     const nav = navRef.current;
-    if (!displayed) {
-      setIndicator((current) => ({ ...current, ready: false }));
-      return;
-    }
+    if (!displayed) return;
     const item = itemRefs.current[displayed];
     if (!nav || !item) return;
     const position = () => {
@@ -138,6 +143,7 @@ export function PortfolioHeader({ caseNumber }: { caseNumber?: string }) {
     "--nav-indicator-x": `${indicator.x}px`,
     "--nav-indicator-width": `${indicator.width}px`,
   } as CSSProperties;
+  const indicatorReady = displayed ? indicator.ready : false;
 
   function closeContact() {
     setContactOpen(false);
@@ -176,7 +182,7 @@ export function PortfolioHeader({ caseNumber }: { caseNumber?: string }) {
           <Link data-nav-key="work" ref={(node) => { itemRefs.current.work = node; }} className="nav-item" href="/" aria-current={active === "work" ? "page" : undefined} onClick={openWork} onMouseEnter={() => setPreview("work")} onFocus={() => setPreview("work")} onBlur={() => setPreview(null)}>Work</Link>
           <Link data-nav-key="experience" ref={(node) => { itemRefs.current.experience = node; }} className="nav-item" href="/brief" aria-current={active === "experience" ? "page" : undefined} onClick={openExperience} onMouseEnter={() => setPreview("experience")} onFocus={() => setPreview("experience")} onBlur={() => setPreview(null)}>Experience</Link>
           <Link data-nav-key="contact" ref={(node) => { itemRefs.current.contact = node; }} className="nav-item" href="#contact" aria-current={active === "contact" ? "page" : undefined} onClick={openContact} onMouseEnter={() => setPreview("contact")} onFocus={() => setPreview("contact")} onBlur={() => setPreview(null)}>Contact</Link>
-          <span className={`nav-trace ${indicator.ready ? "is-ready" : ""}`} aria-hidden="true"><i /></span>
+          <span className={`nav-trace ${indicatorReady ? "is-ready" : ""}`} aria-hidden="true"><i /></span>
         </nav>
 
         <div className="header-folio" aria-label={caseNumber ? `Case ${caseNumber} of 3` : "Portfolio 2026"}>

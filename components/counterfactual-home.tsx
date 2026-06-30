@@ -317,9 +317,39 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
   const workContentRef = useRef<HTMLDivElement>(null);
   const pendingWorkScroll = useRef<"selected-work" | null>(null);
   const mountedRef = useRef(false);
-  const workFrame = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 420, minWidth: 680 });
-  const experienceFrame = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 420, minWidth: 680 });
-  const caseFrame = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 460, minWidth: 700 });
+  const {
+    dragging: workDragging,
+    frameRef: workFrameRef,
+    resetFrame: resetWorkFrame,
+    resizeHandleProps: workResizeHandleProps,
+    resizing: workResizing,
+    snap: workSnap,
+    snapTo: snapWorkFrame,
+    style: workWindowStyle,
+    titlebarProps: workTitlebarProps,
+  } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 420, minWidth: 680 });
+  const {
+    dragging: experienceDragging,
+    frameRef: experienceFrameRef,
+    resetFrame: resetExperienceFrame,
+    resizeHandleProps: experienceResizeHandleProps,
+    resizing: experienceResizing,
+    snap: experienceSnap,
+    snapTo: snapExperienceFrame,
+    style: experienceWindowStyle,
+    titlebarProps: experienceTitlebarProps,
+  } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 420, minWidth: 680 });
+  const {
+    dragging: caseDragging,
+    frameRef: caseFrameRef,
+    resetFrame: resetCaseFrame,
+    resizeHandleProps: caseResizeHandleProps,
+    resizing: caseResizing,
+    snap: caseSnap,
+    snapTo: snapCaseFrame,
+    style: caseWindowStyle,
+    titlebarProps: caseTitlebarProps,
+  } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 460, minWidth: 700 });
   const isWorkOpen = openWindows.includes("work");
   const isExperienceOpen = openWindows.includes("experience");
   const isCaseOpen = openWindows.includes("case");
@@ -421,21 +451,21 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
     setSplashStage("done");
     if (windowName === "work" && target) pendingWorkScroll.current = target;
     if (!openWindows.includes(windowName)) {
-      if (windowName === "work") workFrame.resetFrame();
-      if (windowName === "experience") experienceFrame.resetFrame();
-      if (windowName === "case") caseFrame.resetFrame();
+      if (windowName === "work") resetWorkFrame();
+      if (windowName === "experience") resetExperienceFrame();
+      if (windowName === "case") resetCaseFrame();
     }
     if (windowName === "experience" && openWindows.includes("work")) {
-      workFrame.snapTo("left");
-      experienceFrame.snapTo("right");
+      snapWorkFrame("left");
+      snapExperienceFrame("right");
     }
     if (windowName === "case" && openWindows.includes("work")) {
-      workFrame.snapTo("left");
-      caseFrame.snapTo("right");
+      snapWorkFrame("left");
+      snapCaseFrame("right");
     }
     if (windowName === "work" && openWindows.includes("experience")) {
-      workFrame.snapTo("left");
-      experienceFrame.snapTo("right");
+      snapWorkFrame("left");
+      snapExperienceFrame("right");
     }
     setOpenWindows((current) => (current.includes(windowName) ? current : [...current, windowName]));
     focusWindow(windowName);
@@ -510,15 +540,15 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
             className="portfolio-window home-window"
             aria-label="Work window"
             data-active-window={activeWindow === "work"}
-            data-dragging={workFrame.dragging}
-            data-resizing={workFrame.resizing}
-            data-snap={workFrame.snap ?? undefined}
+            data-dragging={workDragging}
+            data-resizing={workResizing}
+            data-snap={workSnap ?? undefined}
             data-window-state={windowState("work")}
             onPointerDown={() => focusWindow("work")}
-            ref={workFrame.frameRef}
-            style={frameStyle(workFrame.style, "work")}
+            ref={workFrameRef}
+            style={frameStyle(workWindowStyle, "work")}
           >
-            <div className="portfolio-window-chrome" {...workFrame.titlebarProps}>
+            <div className="portfolio-window-chrome" {...workTitlebarProps}>
               <button className="window-close-action work-window-close" onClick={() => closeWindow("work")} type="button" aria-label="Close work window">
                 <span aria-hidden="true">×</span>
               </button>
@@ -526,7 +556,7 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
                 <p className="micro-label">Work</p>
               </div>
             </div>
-            {windowResizeEdges.map((edge) => <span key={edge} {...workFrame.resizeHandleProps(edge)} />)}
+            {windowResizeEdges.map((edge) => <span key={edge} {...workResizeHandleProps(edge)} />)}
             <div className="portfolio-window-content" ref={workContentRef}>
               <section className="editorial-hero" ref={heroRef} aria-labelledby="home-title">
                 <div className="hero-identity">
@@ -584,15 +614,15 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
             className="portfolio-window home-window workspace-experience-window"
             aria-label="Experience window"
             data-active-window={activeWindow === "experience"}
-            data-dragging={experienceFrame.dragging}
-            data-resizing={experienceFrame.resizing}
-            data-snap={experienceFrame.snap ?? undefined}
+            data-dragging={experienceDragging}
+            data-resizing={experienceResizing}
+            data-snap={experienceSnap ?? undefined}
             data-window-state={windowState("experience")}
             onPointerDown={() => focusWindow("experience")}
-            ref={experienceFrame.frameRef}
-            style={frameStyle(experienceFrame.style, "experience")}
+            ref={experienceFrameRef}
+            style={frameStyle(experienceWindowStyle, "experience")}
           >
-            <div className="portfolio-window-chrome" {...experienceFrame.titlebarProps}>
+            <div className="portfolio-window-chrome" {...experienceTitlebarProps}>
               <button className="window-close-action work-window-close" onClick={() => closeWindow("experience")} type="button" aria-label="Close experience window">
                 <span aria-hidden="true">×</span>
               </button>
@@ -600,22 +630,22 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
                 <p className="micro-label">Experience</p>
               </div>
             </div>
-            {windowResizeEdges.map((edge) => <span key={edge} {...experienceFrame.resizeHandleProps(edge)} />)}
+            {windowResizeEdges.map((edge) => <span key={edge} {...experienceResizeHandleProps(edge)} />)}
             <ExperienceWindowContent onOpenContact={openContactWindow} />
           </section> : null}
           {isCaseOpen ? <section
             className="portfolio-window home-window workspace-case-window"
             aria-label="Selected work window"
             data-active-window={activeWindow === "case"}
-            data-dragging={caseFrame.dragging}
-            data-resizing={caseFrame.resizing}
-            data-snap={caseFrame.snap ?? undefined}
+            data-dragging={caseDragging}
+            data-resizing={caseResizing}
+            data-snap={caseSnap ?? undefined}
             data-window-state={windowState("case")}
             onPointerDown={() => focusWindow("case")}
-            ref={caseFrame.frameRef}
-            style={frameStyle(caseFrame.style, "case")}
+            ref={caseFrameRef}
+            style={frameStyle(caseWindowStyle, "case")}
           >
-            <div className="portfolio-window-chrome" {...caseFrame.titlebarProps}>
+            <div className="portfolio-window-chrome" {...caseTitlebarProps}>
               <button className="window-close-action work-window-close" onClick={() => closeWindow("case")} type="button" aria-label="Close selected work window">
                 <span aria-hidden="true">×</span>
               </button>
@@ -623,7 +653,7 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
                 <p className="micro-label">Selected work</p>
               </div>
             </div>
-            {windowResizeEdges.map((edge) => <span key={edge} {...caseFrame.resizeHandleProps(edge)} />)}
+            {windowResizeEdges.map((edge) => <span key={edge} {...caseResizeHandleProps(edge)} />)}
             <SelectedCaseWindowContent scenario={selectedCase} />
           </section> : null}
           </>
