@@ -50,6 +50,7 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
         aria-modal="false"
         aria-labelledby="contact-window-title"
         style={style}
+        suppressHydrationWarning
       >
         <div className="window-titlebar contact-titlebar" {...titlebarProps}>
           <button ref={closeRef} className="window-close-action" onClick={onClose} type="button" aria-label="Close contact window">
@@ -157,7 +158,10 @@ export function PortfolioHeader({ caseNumber }: { caseNumber?: string }) {
     setContactOpen(true);
   }
 
-  function openWork() {
+  function openWork(event: MouseEvent<HTMLAnchorElement>) {
+    if (pathname === "/") {
+      event.preventDefault();
+    }
     setDesktopClosed(false);
     window.dispatchEvent(new Event("portfolio-open-work"));
     window.dispatchEvent(new Event("portfolio-window-open"));

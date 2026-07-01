@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 
 type WindowFrameOptions = {
   defaultHeight: number;
@@ -21,9 +21,11 @@ export function useWindowFrame({
   minHeight = 520,
   minWidth = 720,
 }: WindowFrameOptions) {
+  const serverSafeRect = { height: defaultHeight, width: defaultWidth, x: 32, y: 86 };
+
   function defaultRect(): FrameRect {
     if (typeof window === "undefined") {
-      return { height: defaultHeight, width: defaultWidth, x: 32, y: 86 };
+      return serverSafeRect;
     }
 
     const width = Math.min(defaultWidth, window.innerWidth - 40);
@@ -36,7 +38,7 @@ export function useWindowFrame({
     };
   }
 
-  const initialRect = defaultRect();
+  const initialRect = serverSafeRect;
   const frameRef = useRef<HTMLElement>(null);
   const sessionRef = useRef<{
     edge?: ResizeEdge;
@@ -52,6 +54,12 @@ export function useWindowFrame({
   const [snap, setSnap] = useState<SnapEdge>(null);
   const snapRef = useRef<SnapEdge>(null);
 
+  useEffect(() => {
+    resetFrame();
+  // The first client pass must match the server. The viewport-aware rect is applied only after hydration.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function resetFrame() {
     const nextRect = defaultRect();
     setRect(nextRect);
@@ -63,19 +71,22 @@ export function useWindowFrame({
   }
 
   function snapTo(edge: Exclude<SnapEdge, null>) {
-    setRect(clamp(snapRect(edge)));
+    setRect(clamp(snapRect(edge), { respectMinimums: false }));
     setDragging(false);
     setResizing(false);
     setSnap(null);
     snapRef.current = null;
   }
 
-  function clamp(next: FrameRect): FrameRect {
+  function clamp(next: FrameRect, options: { respectMinimums?: boolean } = {}): FrameRect {
     if (typeof window === "undefined") return next;
+    const respectMinimums = options.respectMinimums ?? true;
     const maxWidth = Math.max(minWidth, window.innerWidth - 24);
     const maxHeight = Math.max(minHeight, window.innerHeight - 78);
-    const width = Math.min(Math.max(minWidth, next.width), maxWidth);
-    const height = Math.min(Math.max(minHeight, next.height), maxHeight);
+    const compactMinWidth = Math.min(minWidth, Math.max(280, Math.floor((window.innerWidth - 36) / 2)));
+    const compactMinHeight = Math.min(minHeight, Math.max(260, Math.floor((window.innerHeight - 90) / 2)));
+    const width = Math.min(Math.max(respectMinimums ? minWidth : compactMinWidth, next.width), maxWidth);
+    const height = Math.min(Math.max(respectMinimums ? minHeight : compactMinHeight, next.height), maxHeight);
     return {
       height,
       width,
@@ -189,7 +200,7 @@ export function useWindowFrame({
   function end(event: PointerEvent<HTMLElement>) {
     if (event.pointerId !== sessionRef.current.pointerId) return;
     if (sessionRef.current.kind === "drag" && snapRef.current) {
-      setRect(clamp(snapRect(snapRef.current)));
+      setRect(clamp(snapRect(snapRef.current), { respectMinimums: false }));
     }
     sessionRef.current = { kind: "idle", pointerId: -1, rect, startX: 0, startY: 0 };
     setDragging(false);
