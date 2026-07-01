@@ -5,12 +5,17 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { ArrowIcon } from "@/components/icons";
 import { CopyEmailButton } from "@/components/copy-email-button";
+import { DebuggerWorkspace } from "@/components/debugger-workspace";
 import { experience } from "@/lib/content";
 import { scenarios, type ScenarioSlug } from "@/lib/scenarios";
 import { useWindowFrame, windowResizeEdges } from "@/components/use-window-frame";
 
 type SplashStage = "showing" | "leaving" | "done";
 type WorkspaceWindow = "work" | "experience" | "case";
+
+function isMobileViewport() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
+}
 
 const caseDetails: Record<ScenarioSlug, { area: string; technology: string; result: ReactNode }> = {
   payflow: {
@@ -245,7 +250,13 @@ function DesktopSurface({
   );
 }
 
-function SelectedCaseWindowContent({ scenario }: { scenario: (typeof scenarios)[number] }) {
+function SelectedCaseWindowContent({
+  onOpenFullCase,
+  scenario,
+}: {
+  onOpenFullCase: (slug: ScenarioSlug) => void;
+  scenario: (typeof scenarios)[number];
+}) {
   const detail = caseDetails[scenario.slug];
   return (
     <div className="selected-case-window-content">
@@ -265,7 +276,9 @@ function SelectedCaseWindowContent({ scenario }: { scenario: (typeof scenarios)[
         </div>
       </section>
       <div className="selected-case-window-actions">
-        <Link className="primary-action" href={`/case/${scenario.slug}`}>Open full case <ArrowIcon /></Link>
+        <button className="primary-action" onClick={() => onOpenFullCase(scenario.slug)} type="button">
+          Open full case <ArrowIcon />
+        </button>
         <a className="inline-link" href={scenario.repo} target="_blank" rel="noopener noreferrer">Source code <ArrowIcon /></a>
       </div>
     </div>
@@ -311,12 +324,15 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
   const [splashStage, setSplashStage] = useState<SplashStage>(initialDesktop ? "done" : "showing");
   const [openWindows, setOpenWindows] = useState<WorkspaceWindow[]>(initialDesktop ? [] : ["work"]);
   const [focusOrder, setFocusOrder] = useState<WorkspaceWindow[]>(initialDesktop ? [] : ["work"]);
+  const [detailedCaseSlug, setDetailedCaseSlug] = useState<ScenarioSlug | null>(null);
+  const [mobileMode, setMobileMode] = useState(false);
   const [selectedCaseSlug, setSelectedCaseSlug] = useState<ScenarioSlug>("payflow");
   const splashTimers = useRef<number[]>([]);
   const heroRef = useRef<HTMLElement>(null);
   const workContentRef = useRef<HTMLDivElement>(null);
   const pendingWorkScroll = useRef<"selected-work" | null>(null);
   const mountedRef = useRef(false);
+  const previousOpenWindowsRef = useRef<WorkspaceWindow[]>(initialDesktop ? [] : ["work"]);
   const {
     dragging: workDragging,
     frameRef: workFrameRef,
@@ -353,10 +369,33 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
   const isWorkOpen = openWindows.includes("work");
   const isExperienceOpen = openWindows.includes("experience");
   const isCaseOpen = openWindows.includes("case");
+  const detailedCase = scenarios.find((scenario) => scenario.slug === detailedCaseSlug) ?? null;
   const selectedCase = scenarios.find((scenario) => scenario.slug === selectedCaseSlug) ?? scenarios[0];
   const hasOpenWindows = openWindows.length > 0;
   const activeWindow = focusOrder.filter((item) => openWindows.includes(item)).at(-1);
   const clearWindows = new Set(focusOrder.filter((item) => openWindows.includes(item)).slice(-2));
+
+  useEffect(() => {
+    const previousOpenWindows = previousOpenWindowsRef.current;
+    previousOpenWindowsRef.current = openWindows;
+    if (isMobileViewport()) return;
+    if (previousOpenWindows.length <= 1 || openWindows.length !== 1) return;
+    const remaining = openWindows[0];
+    window.requestAnimationFrame(() => {
+      resetFrameFor(remaining);
+      focusWindow(remaining);
+    });
+  // Runs only for window-count transitions; helpers intentionally read latest viewport/frame state.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openWindows]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 760px)");
+    const syncMobileMode = () => setMobileMode(media.matches);
+    syncMobileMode();
+    media.addEventListener("change", syncMobileMode);
+    return () => media.removeEventListener("change", syncMobileMode);
+  }, []);
 
   useEffect(() => {
     if (!mountedRef.current) {
@@ -436,21 +475,85 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
   useEffect(() => {
     if (!isWorkOpen || pendingWorkScroll.current !== "selected-work") return;
     pendingWorkScroll.current = null;
-    window.requestAnimationFrame(() => {
-      const target = workContentRef.current?.querySelector<HTMLElement>("#selected-work");
-      target?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    window.requestAnimationFrame(() => scrollWorkToSelected("smooth"));
+  // Reads the current frame refs and pending scroll flag; rerunning for every render is unnecessary.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isWorkOpen, openWindows]);
 
   function focusWindow(windowName: WorkspaceWindow) {
     setFocusOrder((current) => [...current.filter((item) => item !== windowName), windowName]);
   }
 
+  function resetFrameFor(windowName: WorkspaceWindow) {
+    if (windowName === "work") resetWorkFrame();
+    if (windowName === "experience") resetExperienceFrame();
+    if (windowName === "case") resetCaseFrame();
+  }
+
+  function scrollWorkToSelected(behavior: ScrollBehavior = "smooth") {
+    const container = workFrameRef.current;
+    const target = workContentRef.current?.querySelector<HTMLElement>("#selected-work");
+    if (!container || !target) return;
+
+    if (isMobileViewport()) {
+      const headerHeight = document.querySelector<HTMLElement>(".portfolio-header")?.getBoundingClientRect().height ?? 0;
+      const chromeHeight = container.querySelector<HTMLElement>(".portfolio-window-chrome")?.getBoundingClientRect().height ?? 0;
+      const top = target.getBoundingClientRect().top + window.scrollY - headerHeight - chromeHeight - 16;
+      window.scrollTo({ behavior, top: Math.max(0, top) });
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const chromeHeight = container.querySelector<HTMLElement>(".portfolio-window-chrome")?.getBoundingClientRect().height ?? 0;
+    const top = container.scrollTop + targetRect.top - containerRect.top - chromeHeight - 20;
+    container.scrollTo({ behavior, top: Math.max(0, top) });
+  }
+
   function openWindow(windowName: WorkspaceWindow, target?: "selected-work") {
     splashTimers.current.forEach(window.clearTimeout);
     setSplashStage("done");
-    if (windowName === "work" && target) pendingWorkScroll.current = target;
-    if (!openWindows.includes(windowName)) {
+    setDetailedCaseSlug(null);
+    const alreadyOpen = openWindows.includes(windowName);
+
+    if (isMobileViewport()) {
+      if (windowName === "work" && target) {
+        pendingWorkScroll.current = target;
+      }
+      setOpenWindows([windowName]);
+      setFocusOrder([windowName]);
+      if (windowName === "work" && target && openWindows.includes("work")) {
+        window.requestAnimationFrame(() => scrollWorkToSelected("smooth"));
+      }
+      if (windowName === "case") {
+        window.requestAnimationFrame(() => window.scrollTo({ behavior: "smooth", top: 0 }));
+      }
+      if (window.location.pathname === "/" && window.location.search) {
+        window.history.pushState(null, "", "/");
+      }
+      window.dispatchEvent(new Event("portfolio-window-state"));
+      window.dispatchEvent(new Event("portfolio-window-open"));
+      return;
+    }
+
+    if (windowName === "work" && target) {
+      if (openWindows.includes("work")) {
+        window.requestAnimationFrame(() => scrollWorkToSelected("smooth"));
+      } else {
+        pendingWorkScroll.current = target;
+      }
+    }
+    if (alreadyOpen) {
+      focusWindow(windowName);
+      if (window.location.pathname === "/" && window.location.search) {
+        window.history.pushState(null, "", "/");
+      }
+      window.dispatchEvent(new Event("portfolio-window-state"));
+      window.dispatchEvent(new Event("portfolio-window-open"));
+      return;
+    }
+
+    if (!alreadyOpen) {
       if (windowName === "work") resetWorkFrame();
       if (windowName === "experience") resetExperienceFrame();
       if (windowName === "case") resetCaseFrame();
@@ -473,23 +576,33 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
       window.history.pushState(null, "", "/");
     }
     window.dispatchEvent(new Event("portfolio-window-state"));
+    window.dispatchEvent(new Event("portfolio-window-open"));
   }
 
   function closeWindow(windowName: WorkspaceWindow) {
-    setOpenWindows((current) => {
-      const next = current.filter((item) => item !== windowName);
-      if (next.length === 0) {
-        window.history.pushState(null, "", "/?desktop=1");
-      }
-      return next;
-    });
-    setFocusOrder((current) => current.filter((item) => item !== windowName));
+    const nextOpenWindows = openWindows.filter((item) => item !== windowName);
+    const nextFocusOrder = focusOrder.filter((item) => item !== windowName);
+    setOpenWindows(nextOpenWindows);
+    setFocusOrder(nextFocusOrder);
+    if (nextOpenWindows.length === 0) {
+      window.history.pushState(null, "", "/?desktop=1");
+    }
     window.dispatchEvent(new Event("portfolio-window-state"));
   }
 
   function openCaseWindow(slug: ScenarioSlug) {
     setSelectedCaseSlug(slug);
     openWindow("case");
+  }
+
+  function openDetailedCaseWindow(slug: ScenarioSlug) {
+    setDetailedCaseSlug(slug);
+    setSplashStage("done");
+    if (isMobileViewport()) {
+      setOpenWindows(["case"]);
+      setFocusOrder(["case"]);
+      window.scrollTo({ behavior: "smooth", top: 0 });
+    }
   }
 
   useEffect(() => {
@@ -501,7 +614,9 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
       window.removeEventListener("portfolio-open-work", openWorkFromHeader);
       window.removeEventListener("portfolio-open-experience", openExperienceFromHeader);
     };
-  });
+  // The handlers should read the latest open/focus state without forcing stable callbacks through the window model.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openWindows, focusOrder]);
 
   function skipSplash() {
     splashTimers.current.forEach(window.clearTimeout);
@@ -524,14 +639,14 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
     const state = windowState(windowName);
     return {
       ...frameStyle,
-      "--window-z": activeWindow === windowName ? 42 : state === "clear" ? 34 : 24,
+      "--window-z": String(activeWindow === windowName ? 42 : state === "clear" ? 34 : 24),
     } as CSSProperties;
   }
 
   return (
     <>
       <Splash stage={splashStage} onSkip={skipSplash} />
-      <main className={`home-page editorial-home ${hasOpenWindows ? "has-work-window" : "is-desktop"}`} data-intro={splashStage} id="main-content">
+      <main className={`home-page editorial-home ${hasOpenWindows ? "has-work-window" : "is-desktop"}`} data-intro={splashStage} data-mobile-mode={mobileMode} id="main-content">
         {!hasOpenWindows ? (
           <DesktopSurface onOpenCase={openCaseWindow} onOpenWindow={openWindow} />
         ) : (
@@ -547,6 +662,7 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
             onPointerDown={() => focusWindow("work")}
             ref={workFrameRef}
             style={frameStyle(workWindowStyle, "work")}
+            suppressHydrationWarning
           >
             <div className="portfolio-window-chrome" {...workTitlebarProps}>
               <button className="window-close-action work-window-close" onClick={() => closeWindow("work")} type="button" aria-label="Close work window">
@@ -621,6 +737,7 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
             onPointerDown={() => focusWindow("experience")}
             ref={experienceFrameRef}
             style={frameStyle(experienceWindowStyle, "experience")}
+            suppressHydrationWarning
           >
             <div className="portfolio-window-chrome" {...experienceTitlebarProps}>
               <button className="window-close-action work-window-close" onClick={() => closeWindow("experience")} type="button" aria-label="Close experience window">
@@ -644,6 +761,7 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
             onPointerDown={() => focusWindow("case")}
             ref={caseFrameRef}
             style={frameStyle(caseWindowStyle, "case")}
+            suppressHydrationWarning
           >
             <div className="portfolio-window-chrome" {...caseTitlebarProps}>
               <button className="window-close-action work-window-close" onClick={() => closeWindow("case")} type="button" aria-label="Close selected work window">
@@ -654,11 +772,20 @@ export function CounterfactualHome({ initialDesktop = false }: { initialDesktop?
               </div>
             </div>
             {windowResizeEdges.map((edge) => <span key={edge} {...caseResizeHandleProps(edge)} />)}
-            <SelectedCaseWindowContent scenario={selectedCase} />
+            <SelectedCaseWindowContent onOpenFullCase={openDetailedCaseWindow} scenario={selectedCase} />
           </section> : null}
           </>
         )}
       </main>
+      {detailedCase ? (
+        <div className="workspace-detail-layer" role="presentation">
+          <DebuggerWorkspace
+            initialConditions={{ ...detailedCase.defaults }}
+            onClose={() => setDetailedCaseSlug(null)}
+            scenario={detailedCase}
+          />
+        </div>
+      ) : null}
     </>
   );
 }

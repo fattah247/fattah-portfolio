@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties, MouseEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowIcon, RewindIcon } from "@/components/icons";
 import { useWindowFrame, windowResizeEdges } from "@/components/use-window-frame";
 import {
@@ -18,6 +18,10 @@ import {
 
 type MotionPhase = "rest" | "rewind" | "reconstruct";
 type CaseSectionId = "context" | "replay" | "decision" | "evidence";
+
+function isMobileViewport() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
+}
 
 const caseSections: Array<{ id: CaseSectionId; index: string; label: string; note: string }> = [
   { id: "context", index: "01", label: "Context", note: "Problem and consequence" },
@@ -205,16 +209,35 @@ function EvidenceDialog({
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const [isClosing, setIsClosing] = useState(false);
+  const {
+    dragging,
+    frameRef,
+    resizeHandleProps,
+    resizing,
+    snap,
+    style,
+    titlebarProps,
+  } = useWindowFrame({ defaultHeight: 780, defaultWidth: 1180, minHeight: 480, minWidth: 720 });
+
+  const requestClose = useCallback(() => {
+    if (isClosing) return;
+    setIsClosing(true);
+    closeTimerRef.current = window.setTimeout(() => {
+      onClose();
+    }, 380);
+  }, [isClosing, onClose]);
 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const isolated = Array.from(document.querySelectorAll<HTMLElement>(".portfolio-header, .case-page"));
     const previousOverflow = document.body.style.overflow;
-    isolated.forEach((element) => element.setAttribute("inert", ""));
-    document.body.style.overflow = "hidden";
+    if (!isMobileViewport()) {
+      document.body.style.overflow = "hidden";
+    }
     closeRef.current?.focus();
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") requestClose();
       if (event.key === "Tab" && sheetRef.current) {
         const focusable = Array.from(
           sheetRef.current.querySelectorAll<HTMLElement>('button, a[href], [tabindex]:not([tabindex="-1"])'),
@@ -234,19 +257,33 @@ function EvidenceDialog({
     document.addEventListener("keydown", handleKey);
     return () => {
       document.removeEventListener("keydown", handleKey);
-      isolated.forEach((element) => element.removeAttribute("inert"));
       document.body.style.overflow = previousOverflow;
       previousFocus?.focus();
     };
-  }, [onClose]);
+  }, [requestClose]);
+
+  useEffect(() => () => {
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+  }, []);
 
   return (
-    <div className="evidence-dialog" role="dialog" aria-modal="true" aria-labelledby="evidence-dialog-title">
-      <button className="evidence-scrim" aria-label="Close evidence" onClick={onClose} type="button" />
-      <div className="evidence-sheet" ref={sheetRef}>
+    <div className="evidence-dialog" data-closing={isClosing} role="dialog" aria-modal="true" aria-labelledby="evidence-dialog-title">
+      <button className="evidence-scrim" aria-label="Close evidence" onClick={requestClose} type="button" />
+      <div
+        className="evidence-sheet"
+        data-dragging={dragging}
+        data-resizing={resizing}
+        data-snap={snap ?? undefined}
+        ref={(node) => {
+          sheetRef.current = node;
+          frameRef.current = node;
+        }}
+        style={style}
+        suppressHydrationWarning
+      >
         <aside className="evidence-inspector">
-          <div className="evidence-sheet-head">
-            <button ref={closeRef} className="evidence-close-action" onClick={onClose} type="button" aria-label="Close attached evidence">
+          <div className="evidence-sheet-head" {...titlebarProps}>
+            <button ref={closeRef} className="evidence-close-action" onClick={requestClose} type="button" aria-label="Close attached evidence">
               <span aria-hidden="true">×</span>
             </button>
             <div>
@@ -282,15 +319,18 @@ function EvidenceDialog({
             <Image src={evidence.src} alt={evidence.alt} fill sizes="(max-width: 760px) 100vw, 70vw" className="evidence-image" unoptimized />
           </div>
         </div>
+        {windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />)}
       </div>
     </div>
   );
 }
 
 export function DebuggerWorkspace({
+  onClose,
   scenario,
   initialConditions,
 }: {
+  onClose?: () => void;
   scenario: Scenario;
   initialConditions: Conditions;
 }) {
@@ -331,14 +371,19 @@ export function DebuggerWorkspace({
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || evidence) return;
+      if (onClose) {
+        onClose();
+        return;
+      }
       window.location.assign("/#selected-work");
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [evidence]);
+  }, [evidence, onClose]);
 
   useEffect(() => {
     if (!("IntersectionObserver" in window)) return;
+    const useDocumentRoot = isMobileViewport() || !frameRef.current || frameRef.current.scrollHeight <= frameRef.current.clientHeight + 1;
     const observer = new IntersectionObserver((entries) => {
       const visible = entries
         .filter((entry) => entry.isIntersecting)
@@ -346,12 +391,59 @@ export function DebuggerWorkspace({
       if (visible?.target.id && caseSections.some((section) => section.id === visible.target.id)) {
         setActiveSection(visible.target.id as CaseSectionId);
       }
-    }, { root: frameRef.current, rootMargin: "-25% 0px -55% 0px", threshold: [0.15, 0.35, 0.6] });
+    }, {
+      root: useDocumentRoot ? null : frameRef.current,
+      rootMargin: useDocumentRoot ? "-32% 0px -52% 0px" : "-25% 0px -55% 0px",
+      threshold: [0.15, 0.35, 0.6],
+    });
     for (const section of caseSections) {
       const node = document.getElementById(section.id);
       if (node) observer.observe(node);
     }
     return () => observer.disconnect();
+  }, [frameRef]);
+
+  useEffect(() => {
+    let ticking = false;
+    const readActiveSection = () => {
+      ticking = false;
+      const container = frameRef.current;
+      const useDocumentScroll = isMobileViewport() || !container || container.scrollHeight <= container.clientHeight + 1;
+      const headerHeight = document.querySelector<HTMLElement>(".portfolio-header")?.getBoundingClientRect().height ?? 0;
+      const chromeHeight = container?.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
+      const progressHeight = container?.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
+      const readLine = useDocumentScroll ? headerHeight + chromeHeight + progressHeight + 24 : chromeHeight + progressHeight + 24;
+      let nextActive = caseSections[0].id;
+
+      for (const section of caseSections) {
+        const node = document.getElementById(section.id);
+        if (!node) continue;
+        const top = useDocumentScroll
+          ? node.getBoundingClientRect().top
+          : node.getBoundingClientRect().top - (container?.getBoundingClientRect().top ?? 0);
+        if (top <= readLine) {
+          nextActive = section.id;
+        }
+      }
+      setActiveSection(nextActive);
+    };
+
+    const requestRead = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(readActiveSection);
+    };
+
+    const containerNode = frameRef.current;
+    requestRead();
+    window.addEventListener("scroll", requestRead, { passive: true });
+    containerNode?.addEventListener("scroll", requestRead, { passive: true });
+    window.addEventListener("resize", requestRead);
+    return () => {
+      window.removeEventListener("scroll", requestRead);
+      containerNode?.removeEventListener("scroll", requestRead);
+      window.removeEventListener("resize", requestRead);
+    };
   }, [frameRef]);
 
   const baseline = useMemo(
@@ -495,6 +587,17 @@ export function DebuggerWorkspace({
     const target = document.getElementById(sectionId);
     if (!container || !target) return;
 
+    const useDocumentScroll = isMobileViewport() || container.scrollHeight <= container.clientHeight + 1;
+    if (useDocumentScroll) {
+      const headerHeight = document.querySelector<HTMLElement>(".portfolio-header")?.getBoundingClientRect().height ?? 0;
+      const chromeHeight = container.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
+      const progressHeight = container.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
+      const top = target.getBoundingClientRect().top + window.scrollY - headerHeight - chromeHeight - progressHeight - 14;
+      window.scrollTo({ behavior: "smooth", top: Math.max(0, top) });
+      window.history.replaceState(null, "", `#${sectionId}`);
+      return;
+    }
+
     const containerRect = container.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
     const chromeHeight = container.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
@@ -515,11 +618,18 @@ export function DebuggerWorkspace({
         id="main-content"
         ref={frameRef}
         style={style}
+        suppressHydrationWarning
       >
         <div className="case-workspace-chrome" aria-label="Selected work workspace" {...titlebarProps}>
-          <Link className="case-close-action" href="/#selected-work" aria-label="Close selected work and return to the work list">
-            <span aria-hidden="true">×</span>
-          </Link>
+          {onClose ? (
+            <button className="case-close-action" onClick={onClose} type="button" aria-label="Close selected work detail">
+              <span aria-hidden="true">×</span>
+            </button>
+          ) : (
+            <Link className="case-close-action" href="/#selected-work" aria-label="Close selected work and return to the work list">
+              <span aria-hidden="true">×</span>
+            </Link>
+          )}
           <div className="case-location">
             <p className="micro-label">Selected work</p>
             <strong>{scenario.number} / {String(scenarios.length).padStart(2, "0")} · {caseCategory}</strong>

@@ -58,6 +58,7 @@ export default function BriefPage() {
         id="main-content"
         ref={frameRef}
         style={style}
+        suppressHydrationWarning
       >
         <div className="portfolio-window-chrome experience-window-chrome" {...titlebarProps}>
           <Link className="window-close-action experience-window-close" href="/?desktop=1" aria-label="Close experience window">
