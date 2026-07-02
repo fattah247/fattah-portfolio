@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { CSSProperties } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, MouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowIcon, RewindIcon } from "@/components/icons";
+import { useWindowFrame, windowResizeEdges } from "@/components/use-window-frame";
 import {
   explainScenario,
   projectScenario,
@@ -16,6 +17,25 @@ import {
 } from "@/lib/scenarios";
 
 type MotionPhase = "rest" | "rewind" | "reconstruct";
+type CaseSectionId = "context" | "replay" | "decision" | "evidence";
+
+function isMobileViewport() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
+}
+
+function getMobileDetailScroller(container: HTMLElement | null) {
+  if (!container || !isMobileViewport()) return null;
+  const scroller = container.closest<HTMLElement>(".workspace-detail-layer");
+  if (!scroller) return null;
+  return scroller.scrollHeight > scroller.clientHeight + 1 ? scroller : null;
+}
+
+const caseSections: Array<{ id: CaseSectionId; index: string; label: string; note: string }> = [
+  { id: "context", index: "01", label: "Context", note: "Problem and consequence" },
+  { id: "replay", index: "02", label: "Replay", note: "Change one condition" },
+  { id: "decision", index: "03", label: "Decision", note: "Compare resulting state" },
+  { id: "evidence", index: "04", label: "Evidence", note: "Open proof and source" },
+];
 
 function readableOutcome(slug: Scenario["slug"], value: string) {
   const labels: Record<string, string> = {
@@ -196,16 +216,35 @@ function EvidenceDialog({
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const [isClosing, setIsClosing] = useState(false);
+  const {
+    dragging,
+    frameRef,
+    resizeHandleProps,
+    resizing,
+    snap,
+    style,
+    titlebarProps,
+  } = useWindowFrame({ defaultHeight: 780, defaultWidth: 1180, minHeight: 480, minWidth: 720 });
+
+  const requestClose = useCallback(() => {
+    if (isClosing) return;
+    setIsClosing(true);
+    closeTimerRef.current = window.setTimeout(() => {
+      onClose();
+    }, 380);
+  }, [isClosing, onClose]);
 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const isolated = Array.from(document.querySelectorAll<HTMLElement>(".portfolio-header, .case-page"));
     const previousOverflow = document.body.style.overflow;
-    isolated.forEach((element) => element.setAttribute("inert", ""));
-    document.body.style.overflow = "hidden";
+    if (!isMobileViewport()) {
+      document.body.style.overflow = "hidden";
+    }
     closeRef.current?.focus();
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") requestClose();
       if (event.key === "Tab" && sheetRef.current) {
         const focusable = Array.from(
           sheetRef.current.querySelectorAll<HTMLElement>('button, a[href], [tabindex]:not([tabindex="-1"])'),
@@ -225,26 +264,39 @@ function EvidenceDialog({
     document.addEventListener("keydown", handleKey);
     return () => {
       document.removeEventListener("keydown", handleKey);
-      isolated.forEach((element) => element.removeAttribute("inert"));
       document.body.style.overflow = previousOverflow;
       previousFocus?.focus();
     };
-  }, [onClose]);
+  }, [requestClose]);
+
+  useEffect(() => () => {
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+  }, []);
 
   return (
-    <div className="evidence-dialog" role="dialog" aria-modal="true" aria-labelledby="evidence-dialog-title">
-      <button className="evidence-scrim" aria-label="Close evidence" onClick={onClose} type="button" />
-      <div className="evidence-sheet" ref={sheetRef}>
+    <div className="evidence-dialog" data-closing={isClosing} role="dialog" aria-modal="true" aria-labelledby="evidence-dialog-title">
+      <button className="evidence-scrim" aria-label="Close evidence" onClick={requestClose} type="button" />
+      <div
+        className="evidence-sheet"
+        data-dragging={dragging}
+        data-resizing={resizing}
+        data-snap={snap ?? undefined}
+        ref={(node) => {
+          sheetRef.current = node;
+          frameRef.current = node;
+        }}
+        style={style}
+        suppressHydrationWarning
+      >
         <aside className="evidence-inspector">
-          <div className="evidence-sheet-head">
+          <div className="evidence-sheet-head" {...titlebarProps}>
+            <button ref={closeRef} className="evidence-close-action" onClick={requestClose} type="button" aria-label="Close attached evidence">
+              <span aria-hidden="true">×</span>
+            </button>
             <div>
               <p className="micro-label">Attached evidence</p>
               <p id="evidence-dialog-title">{exhibitLabel}</p>
             </div>
-            <button ref={closeRef} className="evidence-close-action" onClick={onClose} type="button" aria-label="Close attached evidence">
-              <span aria-hidden="true">×</span>
-              <small>Close</small>
-            </button>
           </div>
           <div className="evidence-inspector-copy">
             <p className="evidence-focus-label">What to verify</p>
@@ -274,15 +326,18 @@ function EvidenceDialog({
             <Image src={evidence.src} alt={evidence.alt} fill sizes="(max-width: 760px) 100vw, 70vw" className="evidence-image" unoptimized />
           </div>
         </div>
+        {windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />)}
       </div>
     </div>
   );
 }
 
 export function DebuggerWorkspace({
+  onClose,
   scenario,
   initialConditions,
 }: {
+  onClose?: () => void;
   scenario: Scenario;
   initialConditions: Conditions;
 }) {
@@ -293,9 +348,19 @@ export function DebuggerWorkspace({
   const [activeKeys, setActiveKeys] = useState<string[]>([]);
   const [statusMessage, setStatusMessage] = useState("Replay ready.");
   const [evidence, setEvidence] = useState<Evidence | null>(null);
+  const [activeSection, setActiveSection] = useState<CaseSectionId>("context");
   const timers = useRef<number[]>([]);
   const targetConditions = useRef<Conditions>(initialConditions);
   const workspaceTitleRef = useRef<HTMLHeadingElement>(null);
+  const {
+    dragging,
+    frameRef,
+    resizeHandleProps,
+    resizing,
+    snap,
+    style,
+    titlebarProps,
+  } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 460, minWidth: 700 });
 
   useEffect(() => () => timers.current.forEach(window.clearTimeout), []);
 
@@ -313,11 +378,87 @@ export function DebuggerWorkspace({
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || evidence) return;
+      if (onClose) {
+        onClose();
+        return;
+      }
       window.location.assign("/#selected-work");
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [evidence]);
+  }, [evidence, onClose]);
+
+  useEffect(() => {
+    if (!("IntersectionObserver" in window)) return;
+    const mobileDetailScroller = getMobileDetailScroller(frameRef.current);
+    const useDocumentRoot = !mobileDetailScroller && (isMobileViewport() || !frameRef.current || frameRef.current.scrollHeight <= frameRef.current.clientHeight + 1);
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (visible?.target.id && caseSections.some((section) => section.id === visible.target.id)) {
+        setActiveSection(visible.target.id as CaseSectionId);
+      }
+    }, {
+      root: mobileDetailScroller ?? (useDocumentRoot ? null : frameRef.current),
+      rootMargin: useDocumentRoot ? "-32% 0px -52% 0px" : "-25% 0px -55% 0px",
+      threshold: [0.15, 0.35, 0.6],
+    });
+    for (const section of caseSections) {
+      const node = document.getElementById(section.id);
+      if (node) observer.observe(node);
+    }
+    return () => observer.disconnect();
+  }, [frameRef]);
+
+  useEffect(() => {
+    let ticking = false;
+    const readActiveSection = () => {
+      ticking = false;
+      const container = frameRef.current;
+      const mobileDetailScroller = getMobileDetailScroller(container);
+      const useDocumentScroll = !mobileDetailScroller && (isMobileViewport() || !container || container.scrollHeight <= container.clientHeight + 1);
+      const headerHeight = document.querySelector<HTMLElement>(".portfolio-header")?.getBoundingClientRect().height ?? 0;
+      const chromeHeight = container?.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
+      const progressHeight = container?.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
+      const readLine = mobileDetailScroller || !useDocumentScroll ? chromeHeight + progressHeight + 24 : headerHeight + chromeHeight + progressHeight + 24;
+      let nextActive = caseSections[0].id;
+
+      for (const section of caseSections) {
+        const node = document.getElementById(section.id);
+        if (!node) continue;
+        const top = mobileDetailScroller
+          ? node.getBoundingClientRect().top - mobileDetailScroller.getBoundingClientRect().top
+          : useDocumentScroll
+          ? node.getBoundingClientRect().top
+          : node.getBoundingClientRect().top - (container?.getBoundingClientRect().top ?? 0);
+        if (top <= readLine) {
+          nextActive = section.id;
+        }
+      }
+      setActiveSection(nextActive);
+    };
+
+    const requestRead = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(readActiveSection);
+    };
+
+    const containerNode = frameRef.current;
+    const mobileDetailScroller = getMobileDetailScroller(containerNode);
+    requestRead();
+    window.addEventListener("scroll", requestRead, { passive: true });
+    containerNode?.addEventListener("scroll", requestRead, { passive: true });
+    mobileDetailScroller?.addEventListener("scroll", requestRead, { passive: true });
+    window.addEventListener("resize", requestRead);
+    return () => {
+      window.removeEventListener("scroll", requestRead);
+      containerNode?.removeEventListener("scroll", requestRead);
+      mobileDetailScroller?.removeEventListener("scroll", requestRead);
+      window.removeEventListener("resize", requestRead);
+    };
+  }, [frameRef]);
 
   const baseline = useMemo(
     () => projectScenario(scenario.slug, conditions, "baseline"),
@@ -453,14 +594,69 @@ export function DebuggerWorkspace({
     );
   }
 
+  function scrollToCaseSection(event: MouseEvent<HTMLAnchorElement>, sectionId: CaseSectionId) {
+    event.preventDefault();
+    setActiveSection(sectionId);
+    const container = frameRef.current;
+    const target = document.getElementById(sectionId);
+    if (!container || !target) return;
+
+    const mobileDetailScroller = getMobileDetailScroller(container);
+    if (mobileDetailScroller) {
+      const scrollerRect = mobileDetailScroller.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const chromeHeight = container.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
+      const progressHeight = container.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
+      const top = mobileDetailScroller.scrollTop + targetRect.top - scrollerRect.top - chromeHeight - progressHeight - 14;
+      mobileDetailScroller.scrollTo({ behavior: "smooth", top: Math.max(0, top) });
+      window.history.replaceState(null, "", `#${sectionId}`);
+      return;
+    }
+
+    const useDocumentScroll = isMobileViewport() || container.scrollHeight <= container.clientHeight + 1;
+    if (useDocumentScroll) {
+      const headerHeight = document.querySelector<HTMLElement>(".portfolio-header")?.getBoundingClientRect().height ?? 0;
+      const chromeHeight = container.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
+      const progressHeight = container.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
+      const top = target.getBoundingClientRect().top + window.scrollY - headerHeight - chromeHeight - progressHeight - 14;
+      window.scrollTo({ behavior: "smooth", top: Math.max(0, top) });
+      window.history.replaceState(null, "", `#${sectionId}`);
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const chromeHeight = container.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
+    const progressHeight = container.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
+    const top = container.scrollTop + targetRect.top - containerRect.top - chromeHeight - progressHeight - 20;
+    container.scrollTo({ behavior: "smooth", top: Math.max(0, top) });
+    window.history.replaceState(null, "", `#${sectionId}`);
+  }
+
   return (
     <>
-      <main className={`case-page case-${scenario.slug}`} data-motion-phase={phase} id="main-content">
-        <div className="case-workspace-chrome" aria-label="Selected work workspace">
-          <Link className="case-close-action" href="/#selected-work" aria-label="Close selected work and return to the work list">
-            <span aria-hidden="true">×</span>
-            <small>Close</small>
-          </Link>
+      <main
+        className={`case-page case-${scenario.slug} selected-work-window`}
+        data-dragging={dragging}
+        data-motion-phase={phase}
+        data-resizing={resizing}
+        data-snap={snap ?? undefined}
+        data-window-mode={onClose ? "overlay" : "route"}
+        id="main-content"
+        ref={frameRef}
+        style={style}
+        suppressHydrationWarning
+      >
+        <div className="case-workspace-chrome" aria-label="Selected work workspace" {...titlebarProps}>
+          {onClose ? (
+            <button className="case-close-action" onClick={onClose} type="button" aria-label="Close selected work detail">
+              <span aria-hidden="true">×</span>
+            </button>
+          ) : (
+            <Link className="case-close-action" href="/#selected-work" aria-label="Close selected work and return to the work list">
+              <span aria-hidden="true">×</span>
+            </Link>
+          )}
           <div className="case-location">
             <p className="micro-label">Selected work</p>
             <strong>{scenario.number} / {String(scenarios.length).padStart(2, "0")} · {caseCategory}</strong>
@@ -471,11 +667,20 @@ export function DebuggerWorkspace({
             <Link href={`/case/${nextScenario.slug}`}>Next</Link>
           </div>
         </div>
+        {windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />)}
         <nav className="case-progress" aria-label="Case chapters">
-          <a href="#context"><span>01</span> Context</a>
-          <a href="#replay"><span>02</span> Replay</a>
-          <a href="#decision"><span>03</span> Decision</a>
-          <a href="#evidence"><span>04</span> Evidence</a>
+          {caseSections.map((section) => (
+            <a
+              aria-current={activeSection === section.id ? "step" : undefined}
+              href={`#${section.id}`}
+              key={section.id}
+              onClick={(event) => scrollToCaseSection(event, section.id)}
+            >
+              <span>{section.index}</span>
+              <b>{section.label}</b>
+              <small>{section.note}</small>
+            </a>
+          ))}
         </nav>
         <section className="case-intro" id="context">
           <div className="case-index-block">
@@ -560,7 +765,7 @@ export function DebuggerWorkspace({
           <div><span>With safeguard</span><strong>{designedOutcomeLabel}</strong></div>
         </div>
         <details className="debugger-details">
-          <summary>See every state change</summary>
+          <summary><span>Open state trace</span><small>Compare baseline, designed path, and audit tape</small></summary>
         <section className="debugger-shell">
           <div className="debugger-projections">
             <Projection label="Baseline" variantLabel={scenario.baselineLabel} nodes={baseline} affectedIds={affectedIds.baseline} phase={phase} outcomeNodeId={scenario.outcomeNodeId} />

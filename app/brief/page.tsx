@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { ArrowIcon } from "@/components/icons";
 import { CopyEmailButton } from "@/components/copy-email-button";
 import { PortfolioHeader } from "@/components/portfolio-header";
+import { useWindowFrame, windowResizeEdges } from "@/components/use-window-frame";
 import { experience, principles, systemScope } from "@/lib/content";
 import { scenarios } from "@/lib/scenarios";
 
@@ -30,14 +31,46 @@ const viewCopy: Record<BriefView, { label: string; note: string }> = {
 export default function BriefPage() {
   const [view, setView] = useState<BriefView>("recruiter");
   const [openExperience, setOpenExperience] = useState(0);
+  const {
+    dragging,
+    frameRef,
+    resizeHandleProps,
+    resizing,
+    snap,
+    style,
+    titlebarProps,
+  } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 420, minWidth: 680 });
+
+  function openContactWindow(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    window.dispatchEvent(new Event("portfolio-contact-open"));
+  }
 
   return (
     <>
       <PortfolioHeader />
-      <main className="brief-page" id="main-content" data-view={view}>
+      <main
+        className="brief-page experience-window"
+        data-dragging={dragging}
+        data-resizing={resizing}
+        data-snap={snap ?? undefined}
+        data-view={view}
+        id="main-content"
+        ref={frameRef}
+        style={style}
+        suppressHydrationWarning
+      >
+        <div className="portfolio-window-chrome experience-window-chrome" {...titlebarProps}>
+          <Link className="window-close-action experience-window-close" href="/?desktop=1" aria-label="Close experience window">
+            <span aria-hidden="true">×</span>
+          </Link>
+          <div className="window-location">
+            <p className="micro-label">Experience</p>
+          </div>
+        </div>
+        {windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />)}
         <section className="brief-hero">
           <div>
-            <p className="micro-label">Software engineering brief / CV + public evidence</p>
             <h1>Muhammad<br />A. Fattah</h1>
           </div>
           <div className="brief-summary">
@@ -66,16 +99,15 @@ export default function BriefPage() {
               <div><dt>Current</dt><dd>Bank Central Asia</dd></div>
               <div><dt>Focus</dt><dd>Android POS · Payment reliability</dd></div>
               <div><dt>Location</dt><dd>Indonesia · UTC+7</dd></div>
-              <div><dt>Contact</dt><dd><a href="#contact">Email</a> · <a href="https://www.linkedin.com/in/muhammad24fattah/" target="_blank" rel="noopener noreferrer">LinkedIn</a></dd></div>
+              <div><dt>Contact</dt><dd><a href="#contact" onClick={openContactWindow}>Email</a> · <a href="https://www.linkedin.com/in/muhammad24fattah/" target="_blank" rel="noopener noreferrer">LinkedIn</a></dd></div>
             </dl>
             <div className="brief-actions">
               <a className="brief-action brief-download-action" href={cvHref} download>
                 Download CV <ArrowIcon />
               </a>
               <a className="brief-action" href="https://github.com/fattah247" target="_blank" rel="noopener noreferrer">GitHub <span className="sr-only">opens in a new tab</span></a>
-              <a className="brief-action" href="#contact">Contact</a>
+              <a className="brief-action" href="#contact" onClick={openContactWindow}>Contact</a>
             </div>
-            <p className="brief-download-meta">PDF · 1 page · general software engineer CV</p>
           </div>
         </section>
 
