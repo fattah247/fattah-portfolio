@@ -23,6 +23,13 @@ function isMobileViewport() {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
 }
 
+function getMobileDetailScroller(container: HTMLElement | null) {
+  if (!container || !isMobileViewport()) return null;
+  const scroller = container.closest<HTMLElement>(".workspace-detail-layer");
+  if (!scroller) return null;
+  return scroller.scrollHeight > scroller.clientHeight + 1 ? scroller : null;
+}
+
 const caseSections: Array<{ id: CaseSectionId; index: string; label: string; note: string }> = [
   { id: "context", index: "01", label: "Context", note: "Problem and consequence" },
   { id: "replay", index: "02", label: "Replay", note: "Change one condition" },
@@ -383,7 +390,8 @@ export function DebuggerWorkspace({
 
   useEffect(() => {
     if (!("IntersectionObserver" in window)) return;
-    const useDocumentRoot = isMobileViewport() || !frameRef.current || frameRef.current.scrollHeight <= frameRef.current.clientHeight + 1;
+    const mobileDetailScroller = getMobileDetailScroller(frameRef.current);
+    const useDocumentRoot = !mobileDetailScroller && (isMobileViewport() || !frameRef.current || frameRef.current.scrollHeight <= frameRef.current.clientHeight + 1);
     const observer = new IntersectionObserver((entries) => {
       const visible = entries
         .filter((entry) => entry.isIntersecting)
@@ -392,7 +400,7 @@ export function DebuggerWorkspace({
         setActiveSection(visible.target.id as CaseSectionId);
       }
     }, {
-      root: useDocumentRoot ? null : frameRef.current,
+      root: mobileDetailScroller ?? (useDocumentRoot ? null : frameRef.current),
       rootMargin: useDocumentRoot ? "-32% 0px -52% 0px" : "-25% 0px -55% 0px",
       threshold: [0.15, 0.35, 0.6],
     });
@@ -408,17 +416,20 @@ export function DebuggerWorkspace({
     const readActiveSection = () => {
       ticking = false;
       const container = frameRef.current;
-      const useDocumentScroll = isMobileViewport() || !container || container.scrollHeight <= container.clientHeight + 1;
+      const mobileDetailScroller = getMobileDetailScroller(container);
+      const useDocumentScroll = !mobileDetailScroller && (isMobileViewport() || !container || container.scrollHeight <= container.clientHeight + 1);
       const headerHeight = document.querySelector<HTMLElement>(".portfolio-header")?.getBoundingClientRect().height ?? 0;
       const chromeHeight = container?.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
       const progressHeight = container?.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
-      const readLine = useDocumentScroll ? headerHeight + chromeHeight + progressHeight + 24 : chromeHeight + progressHeight + 24;
+      const readLine = mobileDetailScroller || !useDocumentScroll ? chromeHeight + progressHeight + 24 : headerHeight + chromeHeight + progressHeight + 24;
       let nextActive = caseSections[0].id;
 
       for (const section of caseSections) {
         const node = document.getElementById(section.id);
         if (!node) continue;
-        const top = useDocumentScroll
+        const top = mobileDetailScroller
+          ? node.getBoundingClientRect().top - mobileDetailScroller.getBoundingClientRect().top
+          : useDocumentScroll
           ? node.getBoundingClientRect().top
           : node.getBoundingClientRect().top - (container?.getBoundingClientRect().top ?? 0);
         if (top <= readLine) {
@@ -435,13 +446,16 @@ export function DebuggerWorkspace({
     };
 
     const containerNode = frameRef.current;
+    const mobileDetailScroller = getMobileDetailScroller(containerNode);
     requestRead();
     window.addEventListener("scroll", requestRead, { passive: true });
     containerNode?.addEventListener("scroll", requestRead, { passive: true });
+    mobileDetailScroller?.addEventListener("scroll", requestRead, { passive: true });
     window.addEventListener("resize", requestRead);
     return () => {
       window.removeEventListener("scroll", requestRead);
       containerNode?.removeEventListener("scroll", requestRead);
+      mobileDetailScroller?.removeEventListener("scroll", requestRead);
       window.removeEventListener("resize", requestRead);
     };
   }, [frameRef]);
@@ -587,6 +601,18 @@ export function DebuggerWorkspace({
     const target = document.getElementById(sectionId);
     if (!container || !target) return;
 
+    const mobileDetailScroller = getMobileDetailScroller(container);
+    if (mobileDetailScroller) {
+      const scrollerRect = mobileDetailScroller.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const chromeHeight = container.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
+      const progressHeight = container.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
+      const top = mobileDetailScroller.scrollTop + targetRect.top - scrollerRect.top - chromeHeight - progressHeight - 14;
+      mobileDetailScroller.scrollTo({ behavior: "smooth", top: Math.max(0, top) });
+      window.history.replaceState(null, "", `#${sectionId}`);
+      return;
+    }
+
     const useDocumentScroll = isMobileViewport() || container.scrollHeight <= container.clientHeight + 1;
     if (useDocumentScroll) {
       const headerHeight = document.querySelector<HTMLElement>(".portfolio-header")?.getBoundingClientRect().height ?? 0;
@@ -615,6 +641,7 @@ export function DebuggerWorkspace({
         data-motion-phase={phase}
         data-resizing={resizing}
         data-snap={snap ?? undefined}
+        data-window-mode={onClose ? "overlay" : "route"}
         id="main-content"
         ref={frameRef}
         style={style}
