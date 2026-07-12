@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { WorkspaceManagerProvider } from "@/components/workspace-manager";
 import "./globals.css";
+import "./window-system.css";
 
 const bodyFont = IBM_Plex_Sans({
   subsets: ["latin"],
@@ -38,7 +40,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${bodyFont.variable} ${monoFont.variable}`}>
-        {children}
+        <WorkspaceManagerProvider>{children}</WorkspaceManagerProvider>
         <Analytics />
       </body>
     </html>

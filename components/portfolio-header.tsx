@@ -1,16 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { ArrowIcon } from "@/components/icons";
 import { CopyEmailButton } from "@/components/copy-email-button";
 import { useWindowFrame, windowResizeEdges } from "@/components/use-window-frame";
+import { WindowChrome } from "@/components/window-chrome";
+import { useWorkspaceManager } from "@/components/workspace-manager";
 
 type NavKey = "work" | "experience" | "contact";
 
 function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const workspace = useWorkspaceManager();
   const closeRef = useRef<HTMLButtonElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const [isClosing, setIsClosing] = useState(false);
   const {
     dragging,
     frameRef,
@@ -26,38 +31,58 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeRef.current?.focus();
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") requestClose();
     };
     window.addEventListener("keydown", handleKey);
     return () => {
       window.removeEventListener("keydown", handleKey);
       previousFocus?.focus();
     };
-  }, [open, onClose]);
+  // The close request is intentionally read from the current render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  useEffect(() => () => {
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+  }, []);
+
+  function requestClose() {
+    if (isClosing) return;
+    setIsClosing(true);
+    closeTimerRef.current = window.setTimeout(() => {
+      setIsClosing(false);
+      onClose();
+    }, 320);
+  }
 
   if (!open) return null;
 
   return (
-    <div className="contact-window-layer" role="presentation">
-      <button className="contact-window-scrim" aria-label="Close contact window" onClick={onClose} type="button" />
+    <div className="contact-window-layer" data-closing={isClosing} role="presentation">
+      <div className="contact-window-scrim" aria-hidden="true" />
       <section
         className="contact-window"
+        data-active-window={workspace.activeWindow === "contact"}
         data-dragging={dragging}
         data-resizing={resizing}
         data-snap={snap ?? undefined}
+        data-window-state={workspace.stateFor("contact")}
+        onPointerDown={() => workspace.focusWindow("contact")}
         ref={frameRef}
         role="dialog"
         aria-modal="false"
-        aria-labelledby="contact-window-title"
-        style={style}
+        aria-label="Contact"
+        style={{ ...style, "--window-z": workspace.zIndexFor("contact") } as CSSProperties}
         suppressHydrationWarning
       >
-        <div className="window-titlebar contact-titlebar" {...titlebarProps}>
-          <button ref={closeRef} className="window-close-action" onClick={onClose} type="button" aria-label="Close contact window">
-            <span aria-hidden="true">×</span>
-          </button>
-          <p id="contact-window-title">Contact</p>
-        </div>
+        <WindowChrome
+          className="window-titlebar contact-titlebar"
+          closeRef={closeRef}
+          closeLabel="Close contact window"
+          label="Contact"
+          onClose={requestClose}
+          {...titlebarProps}
+        />
         {windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />)}
         <div className="contact-window-body">
           <p className="micro-label">Available channel</p>
@@ -78,46 +103,36 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
 
 export function PortfolioHeader({ caseNumber }: { caseNumber?: string }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const workspace = useWorkspaceManager();
   const navRef = useRef<HTMLElement>(null);
   const itemRefs = useRef<Record<NavKey, HTMLAnchorElement | null>>({ work: null, experience: null, contact: null });
-  const [contactOpen, setContactOpen] = useState(false);
-  const [desktopClosed, setDesktopClosed] = useState(false);
   const [preview, setPreview] = useState<NavKey | null>(null);
   const [indicator, setIndicator] = useState({ x: 0, width: 0, ready: false });
-  const active: NavKey | null = contactOpen
+  const contactOpen = workspace.isOpen("contact");
+  const active: NavKey | null = contactOpen && workspace.activeWindow === "contact"
     ? "contact"
-    : desktopClosed && pathname === "/"
-      ? null
-    : pathname.startsWith("/case/") || pathname === "/"
+    : pathname.startsWith("/case/") || (pathname === "/" && workspace.activeWindow !== "experience")
       ? "work"
       : "experience";
   const displayed = preview ?? active;
 
   useEffect(() => {
-    const syncDesktopState = () => setDesktopClosed(new URLSearchParams(window.location.search).get("desktop") === "1");
     const syncHash = () => {
-      syncDesktopState();
       if (window.location.hash === "#contact") {
-        setContactOpen(true);
+        workspace.openWindow("contact");
         window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
       }
     };
-    const openContactFromEvent = () => setContactOpen(true);
-    const markWindowOpen = () => setDesktopClosed(false);
+    const openContactFromEvent = () => workspace.openWindow("contact");
     syncHash();
     window.addEventListener("hashchange", syncHash);
-    window.addEventListener("popstate", syncDesktopState);
     window.addEventListener("portfolio-contact-open", openContactFromEvent);
-    window.addEventListener("portfolio-window-state", syncDesktopState);
-    window.addEventListener("portfolio-window-open", markWindowOpen);
     return () => {
       window.removeEventListener("hashchange", syncHash);
-      window.removeEventListener("popstate", syncDesktopState);
       window.removeEventListener("portfolio-contact-open", openContactFromEvent);
-      window.removeEventListener("portfolio-window-state", syncDesktopState);
-      window.removeEventListener("portfolio-window-open", markWindowOpen);
     };
-  }, [pathname]);
+  }, [pathname, workspace]);
 
   useLayoutEffect(() => {
     const nav = navRef.current;
@@ -147,7 +162,7 @@ export function PortfolioHeader({ caseNumber }: { caseNumber?: string }) {
   const indicatorReady = displayed ? indicator.ready : false;
 
   function closeContact() {
-    setContactOpen(false);
+    workspace.closeWindow("contact");
     if (window.location.hash === "#contact") {
       window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
     }
@@ -155,23 +170,21 @@ export function PortfolioHeader({ caseNumber }: { caseNumber?: string }) {
 
   function openContact(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault();
-    setContactOpen(true);
+    workspace.openWindow("contact");
   }
 
   function openWork(event: MouseEvent<HTMLAnchorElement>) {
-    if (pathname === "/") {
-      event.preventDefault();
-    }
-    setDesktopClosed(false);
+    event.preventDefault();
+    workspace.openWindow("work");
     window.dispatchEvent(new Event("portfolio-open-work"));
-    window.dispatchEvent(new Event("portfolio-window-open"));
+    if (pathname !== "/") router.push("/");
   }
 
   function openExperience(event: MouseEvent<HTMLAnchorElement>) {
-    if (pathname !== "/") return;
     event.preventDefault();
-    setDesktopClosed(false);
+    workspace.openWindow("experience");
     window.dispatchEvent(new Event("portfolio-open-experience"));
+    if (pathname !== "/") router.push("/");
   }
 
   return (

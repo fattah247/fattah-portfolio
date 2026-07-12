@@ -10,7 +10,7 @@ type WindowFrameOptions = {
 };
 
 export type ResizeEdge = "top" | "right" | "bottom" | "left" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
-type SnapEdge = "left" | "right" | "top" | "bottom" | null;
+export type SnapEdge = "left" | "right" | "top" | "bottom" | null;
 type FrameRect = { height: number; width: number; x: number; y: number };
 
 export const windowResizeEdges: ResizeEdge[] = ["top", "right", "bottom", "left", "top-left", "top-right", "bottom-left", "bottom-right"];
@@ -28,13 +28,15 @@ export function useWindowFrame({
       return serverSafeRect;
     }
 
-    const width = Math.min(defaultWidth, window.innerWidth - 40);
-    const height = Math.min(defaultHeight, window.innerHeight - 104);
+    const bounds = workspaceBounds();
+    const horizontalGutter = window.innerWidth > 760 ? 96 : 24;
+    const width = Math.min(defaultWidth, window.innerWidth - horizontalGutter);
+    const height = Math.min(defaultHeight, bounds.bottom - bounds.top - 24);
     return {
       height,
       width,
       x: Math.max(12, Math.round((window.innerWidth - width) / 2)),
-      y: Math.max(72, Math.round((window.innerHeight - height) / 2) + 10),
+      y: Math.max(bounds.top, Math.round(bounds.top + (bounds.bottom - bounds.top - height) / 2)),
     };
   }
 
@@ -52,6 +54,7 @@ export function useWindowFrame({
   const [dragging, setDragging] = useState(false);
   const [resizing, setResizing] = useState(false);
   const [snap, setSnap] = useState<SnapEdge>(null);
+  const [snapCandidate, setSnapCandidate] = useState<SnapEdge>(null);
   const snapRef = useRef<SnapEdge>(null);
 
   useEffect(() => {
@@ -60,12 +63,28 @@ export function useWindowFrame({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const keepInWorkspace = () => {
+      setRect((current) => snap ? clamp(snapRect(snap), { respectMinimums: false }) : clamp(current));
+    };
+    window.addEventListener("resize", keepInWorkspace);
+    return () => window.removeEventListener("resize", keepInWorkspace);
+  // Recalculate committed snaps and clamp floating windows when the viewport changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snap]);
+
+  function workspaceBounds() {
+    const headerBottom = document.querySelector<HTMLElement>(".portfolio-header")?.getBoundingClientRect().bottom ?? 60;
+    return { top: Math.max(60, Math.round(headerBottom + 8)), bottom: window.innerHeight - 12 };
+  }
+
   function resetFrame() {
     const nextRect = defaultRect();
     setRect(nextRect);
     setDragging(false);
     setResizing(false);
     setSnap(null);
+    setSnapCandidate(null);
     snapRef.current = null;
     sessionRef.current = { kind: "idle", pointerId: -1, rect: nextRect, startX: 0, startY: 0 };
   }
@@ -74,24 +93,28 @@ export function useWindowFrame({
     setRect(clamp(snapRect(edge), { respectMinimums: false }));
     setDragging(false);
     setResizing(false);
-    setSnap(null);
-    snapRef.current = null;
+    setSnap(edge);
+    setSnapCandidate(null);
+    snapRef.current = edge;
   }
 
   function clamp(next: FrameRect, options: { respectMinimums?: boolean } = {}): FrameRect {
     if (typeof window === "undefined") return next;
     const respectMinimums = options.respectMinimums ?? true;
-    const maxWidth = Math.max(minWidth, window.innerWidth - 24);
-    const maxHeight = Math.max(minHeight, window.innerHeight - 78);
+    const bounds = workspaceBounds();
+    const maxWidth = Math.max(280, window.innerWidth - 24);
+    const maxHeight = Math.max(260, bounds.bottom - bounds.top);
     const compactMinWidth = Math.min(minWidth, Math.max(280, Math.floor((window.innerWidth - 36) / 2)));
     const compactMinHeight = Math.min(minHeight, Math.max(260, Math.floor((window.innerHeight - 90) / 2)));
-    const width = Math.min(Math.max(respectMinimums ? minWidth : compactMinWidth, next.width), maxWidth);
-    const height = Math.min(Math.max(respectMinimums ? minHeight : compactMinHeight, next.height), maxHeight);
+    const effectiveMinWidth = Math.min(respectMinimums ? minWidth : compactMinWidth, maxWidth);
+    const effectiveMinHeight = Math.min(respectMinimums ? minHeight : compactMinHeight, maxHeight);
+    const width = Math.min(Math.max(effectiveMinWidth, next.width), maxWidth);
+    const height = Math.min(Math.max(effectiveMinHeight, next.height), maxHeight);
     return {
       height,
       width,
       x: Math.min(Math.max(12, next.x), Math.max(12, window.innerWidth - width - 12)),
-      y: Math.min(Math.max(66, next.y), Math.max(66, window.innerHeight - height - 12)),
+      y: Math.min(Math.max(bounds.top, next.y), Math.max(bounds.top, bounds.bottom - height)),
     };
   }
 
@@ -106,9 +129,10 @@ export function useWindowFrame({
 
   function snapRect(edge: Exclude<SnapEdge, null>): FrameRect {
     const gap = 12;
-    const top = 66;
+    const bounds = workspaceBounds();
+    const top = bounds.top;
     const availableWidth = window.innerWidth - gap * 3;
-    const availableHeight = window.innerHeight - top - gap * 2;
+    const availableHeight = bounds.bottom - top;
     if (edge === "left") return { x: gap, y: top, width: Math.round(availableWidth / 2), height: availableHeight };
     if (edge === "right") return { x: gap * 2 + Math.round(availableWidth / 2), y: top, width: Math.floor(availableWidth / 2), height: availableHeight };
     if (edge === "top") return { x: gap, y: top, width: window.innerWidth - gap * 2, height: Math.round(availableHeight / 2) };
@@ -136,6 +160,7 @@ export function useWindowFrame({
     setRect(base);
     setDragging(true);
     setSnap(null);
+    setSnapCandidate(null);
     snapRef.current = null;
     event.currentTarget.setPointerCapture(event.pointerId);
   }
@@ -163,6 +188,7 @@ export function useWindowFrame({
       setRect(base);
       setResizing(true);
       setSnap(null);
+      setSnapCandidate(null);
       snapRef.current = null;
       event.currentTarget.setPointerCapture(event.pointerId);
     };
@@ -178,7 +204,7 @@ export function useWindowFrame({
       setRect(clamp({ ...session.rect, x: session.rect.x + dx, y: session.rect.y + dy }));
       const nextSnap = snapFor(event);
       snapRef.current = nextSnap;
-      setSnap(nextSnap);
+      setSnapCandidate(nextSnap);
       return;
     }
 
@@ -199,13 +225,16 @@ export function useWindowFrame({
 
   function end(event: PointerEvent<HTMLElement>) {
     if (event.pointerId !== sessionRef.current.pointerId) return;
-    if (sessionRef.current.kind === "drag" && snapRef.current) {
-      setRect(clamp(snapRect(snapRef.current), { respectMinimums: false }));
+    const completedKind = sessionRef.current.kind;
+    const completedSnap = snapRef.current;
+    if (completedKind === "drag" && completedSnap) {
+      setRect(clamp(snapRect(completedSnap), { respectMinimums: false }));
     }
     sessionRef.current = { kind: "idle", pointerId: -1, rect, startX: 0, startY: 0 };
     setDragging(false);
     setResizing(false);
-    setSnap(null);
+    setSnap(completedKind === "drag" ? completedSnap : null);
+    setSnapCandidate(null);
     snapRef.current = null;
     event.currentTarget.releasePointerCapture(event.pointerId);
   }
@@ -224,6 +253,7 @@ export function useWindowFrame({
       onPointerUp: end,
     }),
     snap,
+    snapCandidate,
     snapTo,
     style: {
       "--window-height": `${rect.height}px`,
@@ -234,7 +264,7 @@ export function useWindowFrame({
       "--window-y": `${rect.y}px`,
     } as CSSProperties,
     titlebarProps: {
-      onDoubleClick: () => setRect(clamp(snapRect("top"))),
+      onDoubleClick: () => snapTo("top"),
       onPointerCancel: end,
       onPointerDown: startDrag,
       onPointerMove: move,

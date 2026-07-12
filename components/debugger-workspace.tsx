@@ -6,6 +6,8 @@ import type { CSSProperties, MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowIcon, RewindIcon } from "@/components/icons";
 import { useWindowFrame, windowResizeEdges } from "@/components/use-window-frame";
+import { WindowChrome } from "@/components/window-chrome";
+import { useWorkspaceManager } from "@/components/workspace-manager";
 import {
   explainScenario,
   projectScenario,
@@ -214,6 +216,7 @@ function EvidenceDialog({
   exhibitLabel: string;
   onClose: () => void;
 }) {
+  const workspace = useWorkspaceManager();
   const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<number | null>(null);
@@ -273,31 +276,44 @@ function EvidenceDialog({
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
   }, []);
 
+  useEffect(() => {
+    workspace.openWindow("evidence");
+    return () => {
+      workspace.closeWindow("evidence");
+      workspace.focusWindow("detail");
+    };
+  // The manager methods are stable; this lifecycle follows the inspector mount.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <div className="evidence-dialog" data-closing={isClosing} role="dialog" aria-modal="true" aria-labelledby="evidence-dialog-title">
+    <div className="evidence-dialog" data-closing={isClosing} role="dialog" aria-modal="false" aria-labelledby="evidence-dialog-title">
       <button className="evidence-scrim" aria-label="Close evidence" onClick={requestClose} type="button" />
       <div
         className="evidence-sheet"
         data-dragging={dragging}
         data-resizing={resizing}
         data-snap={snap ?? undefined}
+        data-window-state={workspace.stateFor("evidence")}
         ref={(node) => {
           sheetRef.current = node;
           frameRef.current = node;
         }}
-        style={style}
+        style={{ ...style, "--window-z": workspace.zIndexFor("evidence") } as CSSProperties}
         suppressHydrationWarning
       >
         <aside className="evidence-inspector">
-          <div className="evidence-sheet-head" {...titlebarProps}>
-            <button ref={closeRef} className="evidence-close-action" onClick={requestClose} type="button" aria-label="Close attached evidence">
-              <span aria-hidden="true">×</span>
-            </button>
-            <div>
-              <p className="micro-label">Attached evidence</p>
-              <p id="evidence-dialog-title">{exhibitLabel}</p>
-            </div>
-          </div>
+          <WindowChrome
+            className="evidence-sheet-head"
+            closeClassName="evidence-close-action"
+            closeLabel="Close attached evidence"
+            closeRef={closeRef}
+            label="Attached evidence"
+            onClose={requestClose}
+            title={exhibitLabel}
+            titleId="evidence-dialog-title"
+            {...titlebarProps}
+          />
           <div className="evidence-inspector-copy">
             <p className="evidence-focus-label">What to verify</p>
             <h2>{evidence.focus}</h2>
@@ -310,7 +326,7 @@ function EvidenceDialog({
             </div>
             <div>
               <dt>Interaction</dt>
-              <dd>Esc or Close returns to the case</dd>
+              <dd>Esc or × returns to the case</dd>
             </div>
           </dl>
           <a className="evidence-original" href={evidence.src} target="_blank" rel="noopener noreferrer">
@@ -334,13 +350,16 @@ function EvidenceDialog({
 
 export function DebuggerWorkspace({
   onClose,
+  onSelectScenario,
   scenario,
   initialConditions,
 }: {
   onClose?: () => void;
+  onSelectScenario?: (slug: Scenario["slug"]) => void;
   scenario: Scenario;
   initialConditions: Conditions;
 }) {
+  const workspace = useWorkspaceManager();
   const [conditions, setConditions] = useState<Conditions>(initialConditions);
   const [selectedConditions, setSelectedConditions] = useState<Conditions>(initialConditions);
   const [phase, setPhase] = useState<MotionPhase>("rest");
@@ -349,7 +368,9 @@ export function DebuggerWorkspace({
   const [statusMessage, setStatusMessage] = useState("Replay ready.");
   const [evidence, setEvidence] = useState<Evidence | null>(null);
   const [activeSection, setActiveSection] = useState<CaseSectionId>("context");
+  const [isClosing, setIsClosing] = useState(false);
   const timers = useRef<number[]>([]);
+  const closeTimerRef = useRef<number | null>(null);
   const targetConditions = useRef<Conditions>(initialConditions);
   const workspaceTitleRef = useRef<HTMLHeadingElement>(null);
   const {
@@ -362,31 +383,44 @@ export function DebuggerWorkspace({
     titlebarProps,
   } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 460, minWidth: 700 });
 
-  useEffect(() => () => timers.current.forEach(window.clearTimeout), []);
+  useEffect(() => () => {
+    timers.current.forEach(window.clearTimeout);
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+  }, []);
+
+  const requestWorkspaceClose = useCallback(() => {
+    if (!onClose || isClosing) return;
+    setIsClosing(true);
+    closeTimerRef.current = window.setTimeout(onClose, 320);
+  }, [isClosing, onClose]);
 
   useEffect(() => {
+    workspace.openWindow("detail");
     document.body.dataset.workspace = "case";
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const focusTimer = window.setTimeout(() => workspaceTitleRef.current?.focus({ preventScroll: true }), 80);
     return () => {
       window.clearTimeout(focusTimer);
       delete document.body.dataset.workspace;
+      workspace.closeWindow("detail");
       previousFocus?.focus();
     };
+  // Register the case workspace once per mounted scenario.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || evidence) return;
       if (onClose) {
-        onClose();
+        requestWorkspaceClose();
         return;
       }
       window.location.assign("/#selected-work");
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [evidence, onClose]);
+  }, [evidence, onClose, requestWorkspaceClose]);
 
   useEffect(() => {
     if (!("IntersectionObserver" in window)) return;
@@ -638,35 +672,34 @@ export function DebuggerWorkspace({
       <main
         className={`case-page case-${scenario.slug} selected-work-window`}
         data-dragging={dragging}
+        data-closing={isClosing}
         data-motion-phase={phase}
         data-resizing={resizing}
         data-snap={snap ?? undefined}
+        data-window-state={workspace.stateFor("detail")}
         data-window-mode={onClose ? "overlay" : "route"}
         id="main-content"
         ref={frameRef}
-        style={style}
+        style={{ ...style, "--window-z": workspace.zIndexFor("detail") } as CSSProperties}
         suppressHydrationWarning
       >
-        <div className="case-workspace-chrome" aria-label="Selected work workspace" {...titlebarProps}>
-          {onClose ? (
-            <button className="case-close-action" onClick={onClose} type="button" aria-label="Close selected work detail">
-              <span aria-hidden="true">×</span>
-            </button>
-          ) : (
-            <Link className="case-close-action" href="/#selected-work" aria-label="Close selected work and return to the work list">
-              <span aria-hidden="true">×</span>
-            </Link>
-          )}
-          <div className="case-location">
-            <p className="micro-label">Selected work</p>
-            <strong>{scenario.number} / {String(scenarios.length).padStart(2, "0")} · {caseCategory}</strong>
-            <span>{scenario.shortTitle}</span>
-          </div>
-          <div className="case-workspace-actions" aria-label="Move between selected work">
-            <Link href={`/case/${previousScenario.slug}`}>Previous</Link>
-            <Link href={`/case/${nextScenario.slug}`}>Next</Link>
-          </div>
-        </div>
+        <WindowChrome
+          actions={<div className="case-workspace-actions" aria-label="Move between selected work">
+            {onSelectScenario ? <button onClick={() => onSelectScenario(previousScenario.slug)} type="button">Previous</button> : <Link href={`/case/${previousScenario.slug}`}>Previous</Link>}
+            {onSelectScenario ? <button onClick={() => onSelectScenario(nextScenario.slug)} type="button">Next</button> : <Link href={`/case/${nextScenario.slug}`}>Next</Link>}
+          </div>}
+          aria-label="Selected work workspace"
+          className="case-workspace-chrome"
+          closeClassName="case-close-action"
+          closeHref={onClose ? undefined : "/#selected-work"}
+          closeLabel={onClose ? "Close selected work detail" : "Close selected work and return to the work list"}
+          label="Selected work"
+          locationClassName="case-location"
+          onClose={onClose ? requestWorkspaceClose : undefined}
+          subtitle={scenario.shortTitle}
+          title={`${scenario.number} / ${String(scenarios.length).padStart(2, "0")} · ${caseCategory}`}
+          {...titlebarProps}
+        />
         {windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />)}
         <nav className="case-progress" aria-label="Case chapters">
           {caseSections.map((section) => (
@@ -684,8 +717,7 @@ export function DebuggerWorkspace({
         </nav>
         <section className="case-intro" id="context">
           <div className="case-index-block">
-            <p className="micro-label" style={{ viewTransitionName: `case-number-${scenario.slug}` } as CSSProperties}>Engineering case / {scenario.number}</p>
-            <p className="case-short-title">{caseCategory}</p>
+            <p className="case-short-title" style={{ viewTransitionName: `case-number-${scenario.slug}` } as CSSProperties}>{caseCategory}</p>
           </div>
           <div className="case-thesis">
             <h1 ref={workspaceTitleRef} tabIndex={-1} style={{ viewTransitionName: `case-title-${scenario.slug}` } as CSSProperties}>{scenario.title}</h1>
@@ -824,9 +856,15 @@ export function DebuggerWorkspace({
             <p className="micro-label">Scope of this example</p>
             <p>{scenario.limitation}</p>
           </div>
-          <Link className="solid-link" href={scenario.slug === "payflow" ? "/case/iyup" : scenario.slug === "iyup" ? "/case/trustgate" : "/brief"}>
-            {scenario.slug === "payflow" ? "Next: Detect degradation" : scenario.slug === "iyup" ? "Next: Evaluate device trust" : "Read the work summary"} <ArrowIcon />
-          </Link>
+          {onSelectScenario && scenario.slug !== "trustgate" ? (
+            <button className="solid-link" onClick={() => onSelectScenario(nextScenario.slug)} type="button">
+              {scenario.slug === "payflow" ? "Next: Detect degradation" : "Next: Evaluate device trust"} <ArrowIcon />
+            </button>
+          ) : (
+            <Link className="solid-link" href={scenario.slug === "payflow" ? "/case/iyup" : scenario.slug === "iyup" ? "/case/trustgate" : "/brief"}>
+              {scenario.slug === "payflow" ? "Next: Detect degradation" : scenario.slug === "iyup" ? "Next: Evaluate device trust" : "Read the work summary"} <ArrowIcon />
+            </Link>
+          )}
         </section>
       </main>
 
