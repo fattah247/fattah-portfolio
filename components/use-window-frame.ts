@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from "react";
 
 type WindowFrameOptions = {
   defaultHeight: number;
@@ -11,9 +11,24 @@ type WindowFrameOptions = {
 
 export type ResizeEdge = "top" | "right" | "bottom" | "left" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
 export type SnapEdge = "left" | "right" | "top" | "bottom" | null;
-type FrameRect = { height: number; width: number; x: number; y: number };
+export type FrameRect = { height: number; width: number; x: number; y: number };
 
 export const windowResizeEdges: ResizeEdge[] = ["top", "right", "bottom", "left", "top-left", "top-right", "bottom-left", "bottom-right"];
+
+export function resizeFrame(rect: FrameRect, edge: ResizeEdge, dx: number, dy: number): FrameRect {
+  const next = { ...rect };
+  if (edge.includes("right")) next.width = rect.width + dx;
+  if (edge.includes("bottom")) next.height = rect.height + dy;
+  if (edge.includes("left")) {
+    next.width = rect.width - dx;
+    next.x = rect.x + dx;
+  }
+  if (edge.includes("top")) {
+    next.height = rect.height - dy;
+    next.y = rect.y + dy;
+  }
+  return next;
+}
 
 export function useWindowFrame({
   defaultHeight,
@@ -42,9 +57,15 @@ export function useWindowFrame({
 
   const initialRect = serverSafeRect;
   const frameRef = useRef<HTMLElement>(null);
+  const restoreRectRef = useRef<FrameRect | null>(null);
+  const restoreSnapRef = useRef<SnapEdge>(null);
+  const committedSnapRef = useRef<SnapEdge>(null);
   const sessionRef = useRef<{
     edge?: ResizeEdge;
     kind: "idle" | "drag" | "resize";
+    minimumHeight?: number;
+    minimumWidth?: number;
+    moved?: boolean;
     pointerId: number;
     rect: FrameRect;
     startX: number;
@@ -52,6 +73,7 @@ export function useWindowFrame({
   }>({ kind: "idle", pointerId: -1, rect: initialRect, startX: 0, startY: 0 });
   const [rect, setRect] = useState<FrameRect>(initialRect);
   const [dragging, setDragging] = useState(false);
+  const [maximized, setMaximized] = useState(false);
   const [resizing, setResizing] = useState(false);
   const [snap, setSnap] = useState<SnapEdge>(null);
   const [snapCandidate, setSnapCandidate] = useState<SnapEdge>(null);
@@ -65,13 +87,32 @@ export function useWindowFrame({
 
   useEffect(() => {
     const keepInWorkspace = () => {
-      setRect((current) => snap ? clamp(snapRect(snap), { respectMinimums: false }) : clamp(current));
+      setRect((current) => maximized
+        ? clamp(maximizedRect(), { respectMinimums: false })
+        : snap
+          ? clamp(snapRect(snap), { respectMinimums: false })
+          : clamp(current));
     };
     window.addEventListener("resize", keepInWorkspace);
     return () => window.removeEventListener("resize", keepInWorkspace);
   // Recalculate committed snaps and clamp floating windows when the viewport changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [snap]);
+  }, [maximized, snap]);
+
+  useEffect(() => {
+    const finishOutsideHandle = (event: globalThis.PointerEvent) => finish(event.pointerId);
+    const moveOutsideHandle = (event: globalThis.PointerEvent) => move(event as unknown as PointerEvent<HTMLElement>);
+    window.addEventListener("pointermove", moveOutsideHandle, true);
+    window.addEventListener("pointerup", finishOutsideHandle, true);
+    window.addEventListener("pointercancel", finishOutsideHandle, true);
+    return () => {
+      window.removeEventListener("pointermove", moveOutsideHandle, true);
+      window.removeEventListener("pointerup", finishOutsideHandle, true);
+      window.removeEventListener("pointercancel", finishOutsideHandle, true);
+    };
+  // Pointer capture should finish on the handle; this global guard prevents a lost release from leaving the frame locked.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function workspaceBounds() {
     const headerBottom = document.querySelector<HTMLElement>(".portfolio-header")?.getBoundingClientRect().bottom ?? 60;
@@ -82,23 +123,74 @@ export function useWindowFrame({
     const nextRect = defaultRect();
     setRect(nextRect);
     setDragging(false);
+    setMaximized(false);
     setResizing(false);
     setSnap(null);
     setSnapCandidate(null);
     snapRef.current = null;
+    restoreRectRef.current = null;
+    restoreSnapRef.current = null;
+    committedSnapRef.current = null;
     sessionRef.current = { kind: "idle", pointerId: -1, rect: nextRect, startX: 0, startY: 0 };
   }
 
   function snapTo(edge: Exclude<SnapEdge, null>) {
     setRect(clamp(snapRect(edge), { respectMinimums: false }));
     setDragging(false);
+    setMaximized(false);
     setResizing(false);
     setSnap(edge);
     setSnapCandidate(null);
     snapRef.current = edge;
+    committedSnapRef.current = edge;
+    restoreRectRef.current = null;
+    restoreSnapRef.current = null;
   }
 
-  function clamp(next: FrameRect, options: { respectMinimums?: boolean } = {}): FrameRect {
+  function maximizedRect(): FrameRect {
+    const gap = 12;
+    const bounds = workspaceBounds();
+    return {
+      height: bounds.bottom - bounds.top,
+      width: window.innerWidth - gap * 2,
+      x: gap,
+      y: bounds.top,
+    };
+  }
+
+  function toggleMaximize(event: MouseEvent<HTMLElement>) {
+    if ((event.target as HTMLElement).closest("button, a")) return;
+    if (window.matchMedia("(max-width: 760px)").matches) return;
+    if (maximized) {
+      const restoredSnap = restoreSnapRef.current;
+      setRect(restoredSnap
+        ? clamp(snapRect(restoredSnap), { respectMinimums: false })
+        : clamp(restoreRectRef.current ?? defaultRect()));
+      setMaximized(false);
+      setSnap(restoredSnap);
+      snapRef.current = restoredSnap;
+      committedSnapRef.current = restoredSnap;
+      restoreRectRef.current = null;
+      restoreSnapRef.current = null;
+      return;
+    }
+    const nodeRect = frameRef.current?.getBoundingClientRect();
+    const snapToRestore = snap ?? committedSnapRef.current;
+    restoreRectRef.current = clamp({
+      height: nodeRect?.height ?? rect.height,
+      width: nodeRect?.width ?? rect.width,
+      x: nodeRect?.left ?? rect.x,
+      y: nodeRect?.top ?? rect.y,
+    }, { respectMinimums: !snapToRestore });
+    restoreSnapRef.current = snapToRestore;
+    setRect(clamp(maximizedRect(), { respectMinimums: false }));
+    setMaximized(true);
+    setSnap(null);
+    setSnapCandidate(null);
+    snapRef.current = null;
+  }
+
+  function clamp(next: FrameRect, options: { minimumHeight?: number; minimumWidth?: number; respectMinimums?: boolean } = {}): FrameRect {
     if (typeof window === "undefined") return next;
     const respectMinimums = options.respectMinimums ?? true;
     const bounds = workspaceBounds();
@@ -106,8 +198,10 @@ export function useWindowFrame({
     const maxHeight = Math.max(260, bounds.bottom - bounds.top);
     const compactMinWidth = Math.min(minWidth, Math.max(280, Math.floor((window.innerWidth - 36) / 2)));
     const compactMinHeight = Math.min(minHeight, Math.max(260, Math.floor((window.innerHeight - 90) / 2)));
-    const effectiveMinWidth = Math.min(respectMinimums ? minWidth : compactMinWidth, maxWidth);
-    const effectiveMinHeight = Math.min(respectMinimums ? minHeight : compactMinHeight, maxHeight);
+    const requestedMinWidth = options.minimumWidth ?? (respectMinimums ? minWidth : compactMinWidth);
+    const requestedMinHeight = options.minimumHeight ?? (respectMinimums ? minHeight : compactMinHeight);
+    const effectiveMinWidth = Math.min(requestedMinWidth, maxWidth);
+    const effectiveMinHeight = Math.min(requestedMinHeight, maxHeight);
     const width = Math.min(Math.max(effectiveMinWidth, next.width), maxWidth);
     const height = Math.min(Math.max(effectiveMinHeight, next.height), maxHeight);
     return {
@@ -120,6 +214,12 @@ export function useWindowFrame({
 
   function snapFor(event: PointerEvent<HTMLElement>): SnapEdge {
     const threshold = 34;
+    const portraitTablet = window.innerWidth <= 1100 && window.innerHeight > window.innerWidth;
+    if (portraitTablet) {
+      if (event.clientY <= 72 + threshold) return "top";
+      if (event.clientY >= window.innerHeight - threshold) return "bottom";
+      return null;
+    }
     if (event.clientX <= threshold) return "left";
     if (event.clientX >= window.innerWidth - threshold) return "right";
     if (event.clientY <= 72 + threshold) return "top";
@@ -143,15 +243,19 @@ export function useWindowFrame({
     const target = event.target as HTMLElement;
     if (target.closest("button, a")) return;
     if (window.matchMedia("(max-width: 760px)").matches) return;
+    if (maximized) return;
     const nodeRect = frameRef.current?.getBoundingClientRect();
     const base = clamp({
       height: nodeRect?.height ?? rect.height,
       width: nodeRect?.width ?? rect.width,
       x: nodeRect?.left ?? rect.x,
       y: nodeRect?.top ?? rect.y,
-    });
+    }, { respectMinimums: !snap });
     sessionRef.current = {
       kind: "drag",
+      minimumHeight: Math.min(minHeight, base.height),
+      minimumWidth: Math.min(minWidth, base.width),
+      moved: false,
       pointerId: event.pointerId,
       rect: base,
       startX: event.clientX,
@@ -171,25 +275,31 @@ export function useWindowFrame({
       event.preventDefault();
       event.stopPropagation();
       const nodeRect = frameRef.current?.getBoundingClientRect();
+      const wasSnapped = Boolean(snap);
       const base = clamp({
         height: nodeRect?.height ?? rect.height,
         width: nodeRect?.width ?? rect.width,
         x: nodeRect?.left ?? rect.x,
         y: nodeRect?.top ?? rect.y,
-      });
+      }, { respectMinimums: !wasSnapped });
       sessionRef.current = {
         edge,
         kind: "resize",
+        minimumHeight: Math.min(minHeight, base.height),
+        minimumWidth: Math.min(minWidth, base.width),
         pointerId: event.pointerId,
         rect: base,
         startX: event.clientX,
         startY: event.clientY,
       };
       setRect(base);
+      setMaximized(false);
       setResizing(true);
       setSnap(null);
       setSnapCandidate(null);
       snapRef.current = null;
+      committedSnapRef.current = null;
+      restoreRectRef.current = null;
       event.currentTarget.setPointerCapture(event.pointerId);
     };
   }
@@ -201,7 +311,14 @@ export function useWindowFrame({
     const dy = event.clientY - session.startY;
 
     if (session.kind === "drag") {
-      setRect(clamp({ ...session.rect, x: session.rect.x + dx, y: session.rect.y + dy }));
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+        sessionRef.current.moved = true;
+        committedSnapRef.current = null;
+      }
+      setRect(clamp(
+        { ...session.rect, x: session.rect.x + dx, y: session.rect.y + dy },
+        { minimumHeight: session.minimumHeight, minimumWidth: session.minimumWidth },
+      ));
       const nextSnap = snapFor(event);
       snapRef.current = nextSnap;
       setSnapCandidate(nextSnap);
@@ -209,24 +326,26 @@ export function useWindowFrame({
     }
 
     const edge = session.edge ?? "bottom-right";
-    const next = { ...session.rect };
-    if (edge.includes("right")) next.width = session.rect.width + dx;
-    if (edge.includes("bottom")) next.height = session.rect.height + dy;
+    const next = resizeFrame(session.rect, edge, dx, dy);
+    const resizeOptions = {
+      minimumHeight: session.minimumHeight,
+      minimumWidth: session.minimumWidth,
+    };
+    let bounded = clamp(next, resizeOptions);
     if (edge.includes("left")) {
-      next.width = Math.max(minWidth, session.rect.width - dx);
-      next.x = session.rect.x + (session.rect.width - next.width);
+      bounded = clamp({ ...bounded, x: session.rect.x + session.rect.width - bounded.width }, resizeOptions);
     }
     if (edge.includes("top")) {
-      next.height = Math.max(minHeight, session.rect.height - dy);
-      next.y = session.rect.y + (session.rect.height - next.height);
+      bounded = clamp({ ...bounded, y: session.rect.y + session.rect.height - bounded.height }, resizeOptions);
     }
-    setRect(clamp(next));
+    setRect(bounded);
   }
 
-  function end(event: PointerEvent<HTMLElement>) {
-    if (event.pointerId !== sessionRef.current.pointerId) return;
+  function finish(pointerId: number, captureTarget?: HTMLElement) {
+    if (pointerId !== sessionRef.current.pointerId) return;
     const completedKind = sessionRef.current.kind;
     const completedSnap = snapRef.current;
+    const completedMove = sessionRef.current.moved;
     if (completedKind === "drag" && completedSnap) {
       setRect(clamp(snapRect(completedSnap), { respectMinimums: false }));
     }
@@ -234,14 +353,24 @@ export function useWindowFrame({
     setDragging(false);
     setResizing(false);
     setSnap(completedKind === "drag" ? completedSnap : null);
+    if (completedKind === "drag") {
+      committedSnapRef.current = completedSnap ?? (completedMove ? null : committedSnapRef.current);
+    }
     setSnapCandidate(null);
     snapRef.current = null;
-    event.currentTarget.releasePointerCapture(event.pointerId);
+    if (captureTarget?.hasPointerCapture(pointerId)) {
+      captureTarget.releasePointerCapture(pointerId);
+    }
+  }
+
+  function end(event: PointerEvent<HTMLElement>) {
+    finish(event.pointerId, event.currentTarget);
   }
 
   return {
     frameRef,
     dragging,
+    maximized,
     resetFrame,
     resizing,
     resizeHandleProps: (edge: ResizeEdge) => ({
@@ -249,6 +378,7 @@ export function useWindowFrame({
       className: `window-resize-handle resize-${edge}`,
       onPointerCancel: end,
       onPointerDown: startResize(edge),
+      onLostPointerCapture: end,
       onPointerMove: move,
       onPointerUp: end,
     }),
@@ -264,7 +394,8 @@ export function useWindowFrame({
       "--window-y": `${rect.y}px`,
     } as CSSProperties,
     titlebarProps: {
-      onDoubleClick: () => snapTo("top"),
+      onDoubleClick: toggleMaximize,
+      onLostPointerCapture: end,
       onPointerCancel: end,
       onPointerDown: startDrag,
       onPointerMove: move,
