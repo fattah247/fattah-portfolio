@@ -24,7 +24,7 @@ export default function EvidencePage() {
             <article className="claim-row" key={scenario.slug}>
               <div><span>{scenario.number}</span><h2>{scenario.shortTitle}</h2><p>{scenario.consequence}</p></div>
               <div className="claim-evidence">
-                <div className="claim-thumb"><Image src={scenario.evidence[0].src} alt="" fill sizes="180px" unoptimized /></div>
+                <div className="claim-thumb"><Image src={scenario.evidence[0].src} alt="" fill sizes="180px" /></div>
                 <div><p>{scenario.evidence[0].caption}</p><Link href={`/case/${scenario.slug}`}>Replay case <ArrowIcon /></Link></div>
               </div>
               <p>{scenario.limitation}</p>

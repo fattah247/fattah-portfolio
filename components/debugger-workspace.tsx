@@ -132,8 +132,11 @@ function ScenarioSignature({
     ["Emulator", conditions.emulator],
     ["Signature", conditions.signature],
   ];
+  const suspicious = conditions.root !== "clear" || conditions.emulator === "detected";
   const reason = outcome === "ALLOW"
-    ? "No suspicious device signal was found."
+    ? suspicious
+      ? "The signal remains visible, but this action can continue at the current sensitivity."
+      : "No suspicious device signal was found."
     : outcome === "BLOCK"
       ? "The signal combination requires this action to be blocked."
       : "A suspicious signal is present and this action is sensitive.";
@@ -218,8 +221,8 @@ function EvidenceDialog({
 }) {
   const workspace = useWorkspaceManager();
   const closeRef = useRef<HTMLButtonElement>(null);
-  const sheetRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<number | null>(null);
+  const closingRef = useRef(false);
   const [isClosing, setIsClosing] = useState(false);
   const {
     dragging,
@@ -232,12 +235,14 @@ function EvidenceDialog({
   } = useWindowFrame({ defaultHeight: 780, defaultWidth: 1180, minHeight: 480, minWidth: 720 });
 
   const requestClose = useCallback(() => {
-    if (isClosing) return;
+    if (closingRef.current) return;
+    closingRef.current = true;
     setIsClosing(true);
     closeTimerRef.current = window.setTimeout(() => {
+      closingRef.current = false;
       onClose();
     }, 380);
-  }, [isClosing, onClose]);
+  }, [onClose]);
 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -245,24 +250,9 @@ function EvidenceDialog({
     if (!isMobileViewport()) {
       document.body.style.overflow = "hidden";
     }
-    closeRef.current?.focus();
+    frameRef.current?.focus({ preventScroll: true });
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") requestClose();
-      if (event.key === "Tab" && sheetRef.current) {
-        const focusable = Array.from(
-          sheetRef.current.querySelectorAll<HTMLElement>('button, a[href], [tabindex]:not([tabindex="-1"])'),
-        );
-        if (focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
-      }
     };
     document.addEventListener("keydown", handleKey);
     return () => {
@@ -270,7 +260,7 @@ function EvidenceDialog({
       document.body.style.overflow = previousOverflow;
       previousFocus?.focus();
     };
-  }, [requestClose]);
+  }, [frameRef, requestClose]);
 
   useEffect(() => () => {
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
@@ -296,50 +286,52 @@ function EvidenceDialog({
         data-snap={snap ?? undefined}
         data-window-state={workspace.stateFor("evidence")}
         ref={(node) => {
-          sheetRef.current = node;
           frameRef.current = node;
         }}
         style={{ ...style, "--window-z": workspace.zIndexFor("evidence") } as CSSProperties}
         suppressHydrationWarning
+        tabIndex={-1}
       >
-        <aside className="evidence-inspector">
-          <WindowChrome
-            className="evidence-sheet-head"
-            closeClassName="evidence-close-action"
-            closeLabel="Close attached evidence"
-            closeRef={closeRef}
-            label="Attached evidence"
-            onClose={requestClose}
-            title={exhibitLabel}
-            titleId="evidence-dialog-title"
-            {...titlebarProps}
-          />
-          <div className="evidence-inspector-copy">
-            <p className="evidence-focus-label">What to verify</p>
-            <h2>{evidence.focus}</h2>
-            <p>{evidence.caption}</p>
-          </div>
-          <dl className="evidence-meta">
-            <div>
-              <dt>Source</dt>
-              <dd>Public project screenshot</dd>
+        <WindowChrome
+          className="evidence-sheet-head"
+          closeClassName="evidence-close-action"
+          closeLabel="Close attached evidence"
+          closeRef={closeRef}
+          label="Attached evidence"
+          onClose={requestClose}
+          title={exhibitLabel}
+          titleId="evidence-dialog-title"
+          {...titlebarProps}
+        />
+        <div className="evidence-sheet-content">
+          <aside className="evidence-inspector">
+            <div className="evidence-inspector-copy">
+              <p className="evidence-focus-label">What to verify</p>
+              <h2>{evidence.focus}</h2>
+              <p>{evidence.caption}</p>
             </div>
-            <div>
-              <dt>Interaction</dt>
-              <dd>Esc or × returns to the case</dd>
+            <dl className="evidence-meta">
+              <div>
+                <dt>Source</dt>
+                <dd>Public project screenshot</dd>
+              </div>
+              <div>
+                <dt>Interaction</dt>
+                <dd>Esc or × returns to the case</dd>
+              </div>
+            </dl>
+            <a className="evidence-original" href={evidence.src} target="_blank" rel="noopener noreferrer">
+              Open original image <span className="sr-only">in a new tab</span> <ArrowIcon />
+            </a>
+          </aside>
+          <div className="evidence-stage">
+            <div className="evidence-stage-label" aria-hidden="true">
+              <span>Inspect</span>
+              <span>{evidence.focus}</span>
             </div>
-          </dl>
-          <a className="evidence-original" href={evidence.src} target="_blank" rel="noopener noreferrer">
-            Open original image <span className="sr-only">in a new tab</span> <ArrowIcon />
-          </a>
-        </aside>
-        <div className="evidence-stage">
-          <div className="evidence-stage-label" aria-hidden="true">
-            <span>Inspect</span>
-            <span>{evidence.focus}</span>
-          </div>
-          <div className="evidence-image-wrap">
-            <Image src={evidence.src} alt={evidence.alt} fill sizes="(max-width: 760px) 100vw, 70vw" className="evidence-image" unoptimized />
+            <div className="evidence-image-wrap">
+              <Image src={evidence.src} alt={evidence.alt} fill sizes="(max-width: 760px) 100vw, 70vw" className="evidence-image" unoptimized />
+            </div>
           </div>
         </div>
         {windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />)}
@@ -371,6 +363,7 @@ export function DebuggerWorkspace({
   const [isClosing, setIsClosing] = useState(false);
   const timers = useRef<number[]>([]);
   const closeTimerRef = useRef<number | null>(null);
+  const workspaceClosingRef = useRef(false);
   const targetConditions = useRef<Conditions>(initialConditions);
   const workspaceTitleRef = useRef<HTMLHeadingElement>(null);
   const {
@@ -389,10 +382,11 @@ export function DebuggerWorkspace({
   }, []);
 
   const requestWorkspaceClose = useCallback(() => {
-    if (!onClose || isClosing) return;
+    if (!onClose || workspaceClosingRef.current) return;
+    workspaceClosingRef.current = true;
     setIsClosing(true);
     closeTimerRef.current = window.setTimeout(onClose, 320);
-  }, [isClosing, onClose]);
+  }, [onClose]);
 
   useEffect(() => {
     workspace.openWindow("detail");
@@ -631,6 +625,7 @@ export function DebuggerWorkspace({
   function scrollToCaseSection(event: MouseEvent<HTMLAnchorElement>, sectionId: CaseSectionId) {
     event.preventDefault();
     setActiveSection(sectionId);
+    const behavior: ScrollBehavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
     const container = frameRef.current;
     const target = document.getElementById(sectionId);
     if (!container || !target) return;
@@ -642,7 +637,7 @@ export function DebuggerWorkspace({
       const chromeHeight = container.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
       const progressHeight = container.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
       const top = mobileDetailScroller.scrollTop + targetRect.top - scrollerRect.top - chromeHeight - progressHeight - 14;
-      mobileDetailScroller.scrollTo({ behavior: "smooth", top: Math.max(0, top) });
+      mobileDetailScroller.scrollTo({ behavior, top: Math.max(0, top) });
       window.history.replaceState(null, "", `#${sectionId}`);
       return;
     }
@@ -653,7 +648,7 @@ export function DebuggerWorkspace({
       const chromeHeight = container.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
       const progressHeight = container.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
       const top = target.getBoundingClientRect().top + window.scrollY - headerHeight - chromeHeight - progressHeight - 14;
-      window.scrollTo({ behavior: "smooth", top: Math.max(0, top) });
+      window.scrollTo({ behavior, top: Math.max(0, top) });
       window.history.replaceState(null, "", `#${sectionId}`);
       return;
     }
@@ -663,7 +658,7 @@ export function DebuggerWorkspace({
     const chromeHeight = container.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
     const progressHeight = container.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
     const top = container.scrollTop + targetRect.top - containerRect.top - chromeHeight - progressHeight - 20;
-    container.scrollTo({ behavior: "smooth", top: Math.max(0, top) });
+    container.scrollTo({ behavior, top: Math.max(0, top) });
     window.history.replaceState(null, "", `#${sectionId}`);
   }
 
@@ -678,10 +673,11 @@ export function DebuggerWorkspace({
         data-snap={snap ?? undefined}
         data-window-state={workspace.stateFor("detail")}
         data-window-mode={onClose ? "overlay" : "route"}
-        id="main-content"
+        id={onClose ? "case-workspace" : "main-content"}
         ref={frameRef}
         style={{ ...style, "--window-z": workspace.zIndexFor("detail") } as CSSProperties}
         suppressHydrationWarning
+        tabIndex={-1}
       >
         <WindowChrome
           actions={<div className="case-workspace-actions" aria-label="Move between selected work">
@@ -842,7 +838,7 @@ export function DebuggerWorkspace({
                 <span className="evidence-number">EXHIBIT {scenario.number}.{index + 1}</span>
                 <span className="evidence-focus">{item.focus}</span>
                 <span className="evidence-thumb">
-                  <Image src={item.src} alt="" fill sizes="(max-width: 800px) 90vw, 30vw" className="evidence-thumb-image" unoptimized />
+                  <Image src={item.src} alt="" fill sizes="(max-width: 800px) 90vw, 30vw" className="evidence-thumb-image" />
                 </span>
                 <span className="evidence-caption">{item.caption}</span>
                 <span className="evidence-view">Open evidence <ArrowIcon /></span>
