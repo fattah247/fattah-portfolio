@@ -48,7 +48,7 @@ export function WindowChrome({
   return (
     <div className={`window-chrome ${className}`.trim()} {...titlebarProps}>
       {closeControl}
-      <div className={`window-location ${locationClassName}`.trim()}>
+      <div aria-atomic="true" aria-live={title ? "polite" : undefined} className={`window-location ${locationClassName}`.trim()}>
         <p className="micro-label">{label}</p>
         {title ? <strong id={titleId}>{title}</strong> : null}
         {subtitle ? <span>{subtitle}</span> : null}

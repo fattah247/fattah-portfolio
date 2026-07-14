@@ -15,6 +15,7 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
   const workspace = useWorkspaceManager();
   const closeRef = useRef<HTMLButtonElement>(null);
   const closeTimerRef = useRef<number | null>(null);
+  const closingRef = useRef(false);
   const [isClosing, setIsClosing] = useState(false);
   const {
     dragging,
@@ -29,7 +30,7 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
   useEffect(() => {
     if (!open) return;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    closeRef.current?.focus();
+    frameRef.current?.focus({ preventScroll: true });
     const handleKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") requestClose();
     };
@@ -47,9 +48,11 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
   }, []);
 
   function requestClose() {
-    if (isClosing) return;
+    if (closingRef.current) return;
+    closingRef.current = true;
     setIsClosing(true);
     closeTimerRef.current = window.setTimeout(() => {
+      closingRef.current = false;
       setIsClosing(false);
       onClose();
     }, 320);
@@ -74,6 +77,7 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
         aria-label="Contact"
         style={{ ...style, "--window-z": workspace.zIndexFor("contact") } as CSSProperties}
         suppressHydrationWarning
+        tabIndex={-1}
       >
         <WindowChrome
           className="window-titlebar contact-titlebar"
@@ -116,6 +120,7 @@ export function PortfolioHeader({ caseNumber }: { caseNumber?: string }) {
       ? "work"
       : "experience";
   const displayed = preview ?? active;
+  const skipTarget = workspace.isOpen("detail") || workspace.isOpen("evidence") ? "#case-workspace" : "#main-content";
 
   useEffect(() => {
     const syncHash = () => {
@@ -190,7 +195,7 @@ export function PortfolioHeader({ caseNumber }: { caseNumber?: string }) {
   return (
     <>
       <header className="portfolio-header">
-        <a className="skip-link" href="#main-content">Skip to main content</a>
+        <a className="skip-link" href={skipTarget}>Skip to main content</a>
         <Link className="wordmark" href="/" aria-label="Muhammad A. Fattah home">
           <span>Muhammad A. Fattah</span>
         </Link>

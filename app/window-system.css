@@ -40,17 +40,11 @@ body {
 }
 
 .portfolio-header::before {
-  background: var(--adverse);
-  content: "";
-  height: 5px;
-  left: max(18px, calc((100vw - 1540px) / 2));
-  position: absolute;
-  top: calc(50% - 2px);
-  width: 5px;
+  display: none;
 }
 
 .wordmark {
-  padding-left: 14px;
+  padding-left: 0;
 }
 
 .primary-nav {
@@ -149,6 +143,7 @@ body {
   box-shadow: var(--window-shadow) !important;
   isolation: isolate;
   overscroll-behavior: contain;
+  overflow-x: hidden !important;
   scroll-behavior: smooth;
   transition:
     border-color 180ms ease,
@@ -167,6 +162,13 @@ body {
   box-shadow: var(--window-shadow-active) !important;
   filter: none !important;
   opacity: 1 !important;
+}
+
+.portfolio-window:focus,
+.selected-work-window:focus,
+.contact-window:focus,
+.evidence-sheet:focus {
+  outline: none;
 }
 
 .portfolio-window[data-window-state="clear"],
@@ -281,11 +283,14 @@ body {
 }
 
 .window-chrome-grip {
-  background: var(--rule-strong);
-  height: 1px;
-  margin-left: auto;
-  opacity: .75;
-  width: 30px;
+  display: none;
+}
+
+.portfolio-window-chrome::after,
+.case-workspace-chrome::after,
+.contact-titlebar::after,
+.evidence-sheet-head::after {
+  display: none !important;
 }
 
 .window-close-action,
@@ -305,7 +310,9 @@ body {
   padding: 0 !important;
   position: relative;
   text-decoration: none;
-  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 180ms var(--os-ease);
+  transform-origin: center;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 260ms var(--os-ease);
+  will-change: transform;
   width: 44px !important;
 }
 
@@ -318,6 +325,7 @@ body {
   background: var(--adverse) !important;
   border-color: var(--adverse) !important;
   color: white !important;
+  transform: rotate(45deg);
 }
 
 .window-close-action:active,
@@ -325,7 +333,7 @@ body {
 .evidence-close-action:active {
   background: var(--adverse) !important;
   border-color: var(--adverse) !important;
-  transform: scale(.92);
+  transform: rotate(45deg) scale(.9);
 }
 
 .window-close-action > span,
@@ -401,10 +409,12 @@ body {
 
 .desktop-surface {
   border: 0 !important;
+  display: block !important;
   height: 100% !important;
   margin: 0 !important;
   min-height: 0 !important;
   padding: clamp(28px, 4vw, 56px) !important;
+  position: relative;
 }
 
 .desktop-surface-head {
@@ -425,7 +435,7 @@ body {
 .case-close-action:focus-visible > span,
 .evidence-close-action:hover > span,
 .evidence-close-action:focus-visible > span {
-  transform: rotate(90deg) !important;
+  transform: rotate(-45deg) !important;
 }
 
 .window-close-action:active > span,
@@ -434,7 +444,7 @@ body {
 [data-closing="true"] .window-close-action > span,
 [data-closing="true"] .case-close-action > span,
 [data-closing="true"] .evidence-close-action > span {
-  transform: rotate(135deg) scale(.9) !important;
+  transform: rotate(-45deg) scale(.92) !important;
 }
 
 [data-closing="true"] .window-close-action,
@@ -443,6 +453,7 @@ body {
   background: var(--adverse) !important;
   border-color: var(--adverse) !important;
   color: white !important;
+  transform: rotate(45deg);
 }
 
 .desktop-surface-head h2 {
@@ -460,13 +471,15 @@ body {
   align-content: center;
   display: grid !important;
   gap: clamp(24px, 4vw, 58px) clamp(20px, 4vw, 56px) !important;
-  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  box-sizing: border-box;
+  grid-template-columns: repeat(5, minmax(96px, 1fr));
   grid-template-rows: repeat(3, minmax(120px, 1fr));
   height: 100% !important;
   margin: 0 !important;
   min-height: 0 !important;
   padding: clamp(74px, 8vw, 110px) clamp(12px, 3vw, 42px) clamp(16px, 3vw, 40px) !important;
   position: relative;
+  width: 100% !important;
 }
 
 .desktop-board::before,
@@ -537,9 +550,15 @@ body {
 }
 
 .workspace-case-window .selected-case-window-content {
+  animation: case-preview-swap 260ms var(--os-ease) both;
   display: grid;
   grid-template-rows: auto auto auto auto;
   min-height: calc(100% - var(--window-chrome-height));
+}
+
+@keyframes case-preview-swap {
+  from { clip-path: inset(0 0 10% 0); opacity: .35; transform: translateY(8px); }
+  to { clip-path: inset(0); opacity: 1; transform: none; }
 }
 
 .selected-case-window-hero h2 {
@@ -657,7 +676,9 @@ body {
 }
 
 .evidence-sheet {
-  overflow: auto !important;
+  display: flex !important;
+  flex-direction: column;
+  overflow: hidden !important;
   pointer-events: auto !important;
 }
 
@@ -673,6 +694,56 @@ body {
   text-transform: uppercase;
 }
 
+.evidence-sheet-content {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(340px, .36fr) minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.evidence-inspector {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.evidence-stage {
+  background: #eef1f0 !important;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.evidence-stage::after {
+  display: none !important;
+}
+
+.case-preview-titlebar-actions {
+  display: flex;
+  gap: 6px;
+}
+
+@media (min-width: 761px) {
+  .portfolio-window-chrome,
+  .case-workspace-chrome,
+  .contact-titlebar,
+  .evidence-sheet-head {
+    touch-action: none;
+  }
+
+  .selected-case-window-hero h2,
+  .selected-work-window .case-thesis h1 {
+    font-size: clamp(3.4rem, 6vw, 6.6rem) !important;
+    line-height: .92 !important;
+  }
+}
+
+@media (max-width: 900px) and (min-width: 761px) {
+  .evidence-sheet-content {
+    grid-template-columns: minmax(250px, .38fr) minmax(0, 1fr);
+  }
+}
+
 .evidence-original {
   transition: background 180ms ease, color 180ms ease;
 }
@@ -681,6 +752,124 @@ body {
 .evidence-original:focus-visible {
   background: var(--adverse) !important;
   color: white !important;
+}
+
+/* Narrow desktop windows recompose like compact applications instead of clipping desktop columns. */
+@media (min-width: 761px) {
+  @container (max-width: 780px) {
+    .home-window .editorial-hero {
+      gap: 2.5rem !important;
+      grid-template-columns: minmax(0, 1fr) !important;
+      padding: 3rem 24px 4rem !important;
+    }
+
+    .home-window .hero-identity h1 {
+      font-size: clamp(4.2rem, 15cqw, 6.6rem) !important;
+      line-height: .84 !important;
+      margin-top: 2rem !important;
+    }
+
+    .home-window .hero-summary {
+      max-width: 34rem !important;
+      padding: 0 !important;
+    }
+
+    .home-window .editorial-work {
+      padding: 4rem 24px !important;
+    }
+
+    .home-window .work-intro {
+      gap: 1rem !important;
+      grid-template-columns: minmax(0, 1fr) !important;
+      margin-bottom: 2.5rem !important;
+    }
+
+    .home-window .work-intro h2 {
+      font-size: clamp(3rem, 11cqw, 4.8rem) !important;
+      max-width: 8ch;
+    }
+
+    .home-window .work-intro > p:last-child {
+      align-self: auto !important;
+      max-width: 32rem !important;
+    }
+
+    .home-window .editorial-work-row {
+      gap: .8rem 1rem !important;
+      grid-template-columns: 32px minmax(0, 1fr) 24px !important;
+      min-height: 0 !important;
+      padding: 1.5rem 0 !important;
+    }
+
+    .home-window .work-main {
+      min-width: 0;
+    }
+
+    .home-window .work-main strong {
+      font-size: clamp(1.45rem, 5cqw, 2.2rem) !important;
+      overflow-wrap: anywhere;
+    }
+
+    .home-window .work-side {
+      gap: .35rem !important;
+      grid-column: 2;
+    }
+
+    .home-window .work-preview {
+      display: none !important;
+    }
+
+    .home-window .work-arrow {
+      grid-column: 3;
+      grid-row: 1 / span 2;
+    }
+
+    .experience-window-content,
+    .selected-case-window-content {
+      gap: 2.25rem !important;
+      padding: 3rem 24px !important;
+    }
+
+    .experience-window-hero h2,
+    .selected-case-window-hero h2 {
+      font-size: clamp(3rem, 11cqw, 4.8rem) !important;
+      overflow-wrap: anywhere;
+    }
+
+    .experience-window-list article,
+    .selected-case-window-proof {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .experience-window-list h3,
+    .experience-window-list article > span,
+    .experience-window-list article > p:last-child {
+      grid-column: 1 !important;
+    }
+
+    .selected-case-window-image {
+      aspect-ratio: 4 / 3;
+    }
+
+    .selected-case-switcher {
+      padding-inline: 16px;
+    }
+
+    .selected-work-window .case-intro {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .selected-work-window .case-thesis h1,
+    .selected-work-window .interaction-title {
+      font-size: clamp(3rem, 11cqw, 5rem) !important;
+      overflow-wrap: anywhere;
+    }
+
+    .selected-work-window .case-facts,
+    .selected-work-window .case-interaction {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+  }
 }
 
 /* Mobile: one fixed application surface below the system bar. */
@@ -771,6 +960,24 @@ body {
     width: 100% !important;
   }
 
+  .case-page.selected-work-window[data-window-mode="route"] {
+    inset: var(--system-bar-height) 0 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  .case-page.selected-work-window[data-window-mode="route"] .case-workspace-chrome {
+    position: sticky !important;
+    top: 0 !important;
+  }
+
+  .case-page.selected-work-window[data-window-mode="route"] .case-progress {
+    position: sticky !important;
+    top: var(--window-chrome-height) !important;
+  }
+
   .home-window .editorial-hero {
     gap: 2.5rem !important;
     grid-template-columns: minmax(0, 1fr) !important;
@@ -791,7 +998,7 @@ body {
   }
 
   .home-window .hero-identity h1 {
-    font-size: clamp(3.25rem, 18vw, 4.7rem) !important;
+    font-size: clamp(2.85rem, 15vw, 4.7rem) !important;
     letter-spacing: -.065em !important;
     line-height: .86 !important;
     max-width: 100% !important;
@@ -908,6 +1115,19 @@ body {
     width: 100% !important;
   }
 
+  .evidence-sheet-content {
+    display: block;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .evidence-inspector {
+    overflow: visible;
+  }
+
   .desktop-surface {
     height: calc(100svh - var(--system-bar-height)) !important;
     margin-top: var(--system-bar-height) !important;
@@ -933,7 +1153,7 @@ body {
   .surface-contact { grid-column: 2; grid-row: 2; }
   .surface-shot-payflow { grid-column: 1; grid-row: 3; }
   .surface-shot-trustgate { grid-column: 2; grid-row: 3; }
-  .surface-shot-iyup { grid-column: 1 / span 2; grid-row: 4; }
+  .surface-shot-iyup { grid-column: 1; grid-row: 4; }
 
   .selected-case-switcher {
     bottom: 0;
@@ -947,6 +1167,12 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+
   .portfolio-window,
   .contact-window,
   .selected-work-window,
@@ -955,5 +1181,22 @@ body {
   .selected-work-window > * {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+@media (max-width: 760px) and (max-height: 700px) {
+  .desktop-surface-head {
+    display: none !important;
+  }
+
+  .desktop-board {
+    gap: 4px 10px !important;
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+    padding: 4px !important;
+  }
+
+  .desktop-object {
+    transform: scale(.74) !important;
+    transform-origin: center;
   }
 }
