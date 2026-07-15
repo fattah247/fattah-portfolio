@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { usePathname } from "next/navigation";
 import { ArrowIcon } from "@/components/icons";
 import { CopyEmailButton } from "@/components/copy-email-button";
 import { SystemShell } from "@/components/system-shell";
@@ -107,16 +108,43 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
         />
         {windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />)}
         <div className="contact-window-body">
-          <p className="micro-label">Available channel</p>
-          <h2>Email or public profile.</h2>
-          <div className="contact-window-row">
-            <span>Email</span>
-            <strong>fattahmuhammad17@gmail.com</strong>
-            <CopyEmailButton email="fattahmuhammad17@gmail.com" label="Copy email" copiedLabel="Copied" className="contact-window-copy" />
-          </div>
-          <a className="contact-window-link" href="https://www.linkedin.com/in/muhammad24fattah/" target="_blank" rel="noopener noreferrer">
-            LinkedIn <span className="sr-only">opens in a new tab</span> <ArrowIcon />
-          </a>
+          <h2>Where to find me.</h2>
+          <ul className="contact-directory">
+            <li>
+              <div className="contact-channel">
+                <span>Email</span>
+                <a href="mailto:fattahmuhammad17@gmail.com">fattahmuhammad17@gmail.com</a>
+              </div>
+              <CopyEmailButton email="fattahmuhammad17@gmail.com" label="Copy" copiedLabel="Copied" className="contact-directory-action" />
+            </li>
+            <li>
+              <div className="contact-channel">
+                <span>LinkedIn</span>
+                <a href="https://www.linkedin.com/in/muhammad24fattah/" target="_blank" rel="noopener noreferrer">linkedin.com/in/muhammad24fattah</a>
+              </div>
+              <a className="contact-directory-action" href="https://www.linkedin.com/in/muhammad24fattah/" target="_blank" rel="noopener noreferrer" aria-label="Open LinkedIn profile">
+                Open <ArrowIcon />
+              </a>
+            </li>
+            <li>
+              <div className="contact-channel">
+                <span>WhatsApp</span>
+                <a href="https://wa.me/6281944242422" target="_blank" rel="noopener noreferrer">0819 4424 2422</a>
+              </div>
+              <a className="contact-directory-action" href="https://wa.me/6281944242422" target="_blank" rel="noopener noreferrer" aria-label="Open WhatsApp conversation">
+                Open <ArrowIcon />
+              </a>
+            </li>
+            <li>
+              <div className="contact-channel">
+                <span>GitHub</span>
+                <a href="https://github.com/fattah247" target="_blank" rel="noopener noreferrer">github.com/fattah247</a>
+              </div>
+              <a className="contact-directory-action" href="https://github.com/fattah247" target="_blank" rel="noopener noreferrer" aria-label="Open GitHub profile">
+                Open <ArrowIcon />
+              </a>
+            </li>
+          </ul>
         </div>
       </section>
     </div>
@@ -124,8 +152,10 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
 }
 
 export function PortfolioHeader() {
+  const pathname = usePathname();
   const workspace = useWorkspaceManager();
   const contactOpen = workspace.isOpen("contact");
+  const standalonePage = pathname.startsWith("/products");
 
   useEffect(() => {
     const openContact = () => workspace.openWindow("contact");
@@ -136,7 +166,7 @@ export function PortfolioHeader() {
   return (
     <>
       <SystemShell />
-      <ContactWindow open={contactOpen} onClose={() => workspace.closeApp("contact")} />
+      <ContactWindow open={contactOpen && !standalonePage} onClose={() => workspace.closeApp("contact")} />
     </>
   );
 }

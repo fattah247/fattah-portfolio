@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   useWorkspaceManager,
@@ -20,8 +21,8 @@ const apps: Array<{
 
 function SystemGlyph({ name }: { name: "back" | "home" | "overview" }) {
   if (name === "back") return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15.5 5 8.5 12l7 7" /></svg>;
-  if (name === "home") return <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5.5" /></svg>;
-  return <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="6" y="5" width="12" height="14" rx="1.5" /></svg>;
+  if (name === "home") return <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="5" width="5" height="5" /><rect x="14" y="5" width="5" height="5" /><rect x="5" y="14" width="5" height="5" /><rect x="14" y="14" width="5" height="5" /></svg>;
+  return <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="7" width="11" height="12" /><path d="M8 4h11v12" /></svg>;
 }
 
 function AppMark({ app }: { app: PortfolioAppId }) {
@@ -34,6 +35,9 @@ export function SystemShell() {
   const router = useRouter();
   const workspace = useWorkspaceManager();
   const [clock, setClock] = useState({ time: "--:--", utc: "UTC" });
+  const [brandMenuOpen, setBrandMenuOpen] = useState(false);
+  const brandMenuRef = useRef<HTMLDivElement>(null);
+  const productPage = pathname.startsWith("/products");
   const runningApps = useMemo(
     () => workspace.recentApps.filter((app) => workspace.isAppOpen(app)),
     [workspace],
@@ -63,6 +67,24 @@ export function SystemShell() {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (!brandMenuOpen) return;
+
+    const dismissOnOutsidePress = (event: PointerEvent) => {
+      if (!brandMenuRef.current?.contains(event.target as Node)) setBrandMenuOpen(false);
+    };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setBrandMenuOpen(false);
+    };
+
+    window.addEventListener("pointerdown", dismissOnOutsidePress);
+    window.addEventListener("keydown", dismissOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", dismissOnOutsidePress);
+      window.removeEventListener("keydown", dismissOnEscape);
+    };
+  }, [brandMenuOpen]);
+
   function launchApp(app: PortfolioAppId) {
     const alreadyOpen = workspace.isAppOpen(app);
     workspace.focusApp(app);
@@ -87,12 +109,34 @@ export function SystemShell() {
   return (
     <>
       <header className="system-status-bar" data-mode={workspace.mode}>
-        <button className="system-brand" onClick={workspace.goHome} type="button" aria-label="Show portfolio desktop">
-          <span aria-hidden="true" />
-          <strong>Fattah OS</strong>
-        </button>
+        <div className="system-brand-menu" data-open={brandMenuOpen} ref={brandMenuRef}>
+          <button
+            aria-expanded={brandMenuOpen}
+            aria-haspopup="menu"
+            className="system-brand"
+            onClick={() => setBrandMenuOpen((open) => !open)}
+            type="button"
+          >
+            <span aria-hidden="true" />
+            <strong>Fattah</strong>
+          </button>
+          <div className="system-brand-popover" role="menu" aria-label="Fattah destinations">
+            <Link aria-current={productPage ? undefined : "page"} href="/" onClick={() => setBrandMenuOpen(false)} role="menuitem">
+              <span>Portfolio</span>
+              {!productPage ? <small>Current</small> : null}
+            </Link>
+            <a href="https://www.linkedin.com/in/muhammad24fattah/" onClick={() => setBrandMenuOpen(false)} rel="noopener noreferrer" role="menuitem" target="_blank">
+              <span>LinkedIn</span>
+              <small>↗</small>
+            </a>
+            <Link aria-current={productPage ? "page" : undefined} href="/products" onClick={() => setBrandMenuOpen(false)} role="menuitem">
+              <span>Product links</span>
+              {productPage ? <small>Current</small> : null}
+            </Link>
+          </div>
+        </div>
         <div className="system-active-app" aria-live="polite">
-          {workspace.surface === "home" ? "Desktop" : workspace.surface === "recents" ? "Application overview" : activeEntry?.label ?? "Desktop"}
+          {productPage ? "Product links" : workspace.surface === "home" ? "Desktop" : workspace.surface === "recents" ? "Application overview" : activeEntry?.label ?? "Desktop"}
         </div>
         <div className="system-status" aria-label={`Local time ${clock.time}, ${clock.utc}`}>
           <time>
@@ -102,7 +146,7 @@ export function SystemShell() {
         </div>
       </header>
 
-      <section className="system-home-screen" aria-label="Portfolio home screen" aria-hidden={workspace.surface !== "home"}>
+      {!productPage ? <><section className="system-home-screen" aria-label="Portfolio home screen" aria-hidden={workspace.surface !== "home"}>
         <div className="system-home-intro">
           <p>Software Engineer · Indonesia</p>
           <h1>Muhammad A. Fattah</h1>
@@ -150,12 +194,13 @@ export function SystemShell() {
       </section>
 
       <nav className="desktop-taskbar" aria-label="System taskbar">
-        <button className="taskbar-home" onClick={workspace.goHome} type="button" aria-label="Show desktop"><SystemGlyph name="home" /></button>
+        <button className="taskbar-home" data-label="Desktop" onClick={workspace.goHome} type="button" aria-label="Show desktop"><SystemGlyph name="home" /></button>
         <div className="taskbar-apps">
           {apps.map((app) => (
             <button
               className="taskbar-app"
               data-active={workspace.surface === "application" && workspace.activeApp === app.id}
+              data-label={app.label}
               data-running={workspace.isAppOpen(app.id)}
               data-minimized={workspace.isMinimized(app.id)}
               key={app.id}
@@ -169,7 +214,7 @@ export function SystemShell() {
             </button>
           ))}
         </div>
-        <button className="taskbar-overview" onClick={workspace.openRecents} type="button">Overview</button>
+        <button className="taskbar-overview" data-label="Overview" onClick={workspace.openRecents} type="button" aria-label="Application overview"><SystemGlyph name="overview" /></button>
       </nav>
 
       <nav className="tablet-shelf" aria-label="Tablet application shelf">
@@ -189,6 +234,7 @@ export function SystemShell() {
         <button onClick={workspace.goHome} type="button" aria-label="Home"><SystemGlyph name="home" /><span>Home</span></button>
         <button onClick={workspace.surface === "recents" ? workspace.dismissRecents : workspace.openRecents} type="button" aria-label="Recents"><SystemGlyph name="overview" /><span>Recents</span></button>
       </nav>
+      </> : null}
     </>
   );
 }
