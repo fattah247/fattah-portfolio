@@ -33,7 +33,7 @@ export function SystemShell() {
   const pathname = usePathname();
   const router = useRouter();
   const workspace = useWorkspaceManager();
-  const [clock, setClock] = useState("--:--");
+  const [clock, setClock] = useState({ time: "--:--", utc: "UTC" });
   const runningApps = useMemo(
     () => workspace.recentApps.filter((app) => workspace.isAppOpen(app)),
     [workspace],
@@ -41,7 +41,23 @@ export function SystemShell() {
   const activeEntry = apps.find((app) => app.id === workspace.activeApp);
 
   useEffect(() => {
-    const update = () => setClock(new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" }).format(new Date()));
+    const update = () => {
+      const now = new Date();
+      const time = new Intl.DateTimeFormat("en-GB", {
+        hour: "2-digit",
+        hourCycle: "h23",
+        minute: "2-digit",
+      }).format(now);
+      const offsetMinutes = -now.getTimezoneOffset();
+      const sign = offsetMinutes >= 0 ? "+" : "−";
+      const hours = Math.floor(Math.abs(offsetMinutes) / 60);
+      const minutes = Math.abs(offsetMinutes) % 60;
+      const utc = offsetMinutes === 0
+        ? "UTC"
+        : `UTC${sign}${hours}${minutes ? `:${String(minutes).padStart(2, "0")}` : ""}`;
+
+      setClock({ time, utc });
+    };
     update();
     const timer = window.setInterval(update, 30_000);
     return () => window.clearInterval(timer);
@@ -78,10 +94,11 @@ export function SystemShell() {
         <div className="system-active-app" aria-live="polite">
           {workspace.surface === "home" ? "Desktop" : workspace.surface === "recents" ? "Application overview" : activeEntry?.label ?? "Desktop"}
         </div>
-        <div className="system-status" aria-label={`Local time ${clock}`}>
-          <span className="system-network" aria-hidden="true" />
-          <span>ID</span>
-          <time>{clock}</time>
+        <div className="system-status" aria-label={`Local time ${clock.time}, ${clock.utc}`}>
+          <time>
+            <span>{clock.time}</span>
+            <small>{clock.utc}</small>
+          </time>
         </div>
       </header>
 
