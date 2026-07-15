@@ -9,7 +9,10 @@ type WindowChromeProps = HTMLAttributes<HTMLDivElement> & {
   closeRef?: Ref<HTMLButtonElement>;
   label: string;
   locationClassName?: string;
+  maximized?: boolean;
   onClose?: () => void;
+  onMinimize?: () => void;
+  onToggleMaximize?: () => void;
   subtitle?: string;
   title?: string;
   titleId?: string;
@@ -29,7 +32,10 @@ export function WindowChrome({
   closeLabel,
   label,
   locationClassName = "",
+  maximized = false,
   onClose,
+  onMinimize,
+  onToggleMaximize,
   subtitle,
   title,
   titleId,
@@ -47,7 +53,11 @@ export function WindowChrome({
 
   return (
     <div className={`window-chrome ${className}`.trim()} {...titlebarProps}>
-      {closeControl}
+      <div className="window-control-cluster">
+        {closeControl}
+        {onMinimize ? <button className="window-system-control minimize" onClick={onMinimize} type="button" aria-label={`Minimize ${label}`}><span aria-hidden="true">–</span></button> : null}
+        {onToggleMaximize ? <button className="window-system-control maximize" onClick={onToggleMaximize} type="button" aria-label={`${maximized ? "Restore" : "Maximize"} ${label}`}><span aria-hidden="true">{maximized ? "❐" : "□"}</span></button> : null}
+      </div>
       <div aria-atomic="true" aria-live={title ? "polite" : undefined} className={`window-location ${locationClassName}`.trim()}>
         <p className="micro-label">{label}</p>
         {title ? <strong id={titleId}>{title}</strong> : null}

@@ -115,8 +115,12 @@ export function useWindowFrame({
   }, []);
 
   function workspaceBounds() {
-    const headerBottom = document.querySelector<HTMLElement>(".portfolio-header")?.getBoundingClientRect().bottom ?? 60;
-    return { top: Math.max(60, Math.round(headerBottom + 8)), bottom: window.innerHeight - 12 };
+    const headerBottom = document.querySelector<HTMLElement>(".system-status-bar")?.getBoundingClientRect().bottom ?? 38;
+    const taskbarTop = document.querySelector<HTMLElement>(".desktop-taskbar")?.getBoundingClientRect().top;
+    return {
+      top: Math.max(46, Math.round(headerBottom + 10)),
+      bottom: taskbarTop && taskbarTop > headerBottom ? Math.round(taskbarTop - 10) : window.innerHeight - 12,
+    };
   }
 
   function resetFrame() {
@@ -158,9 +162,13 @@ export function useWindowFrame({
     };
   }
 
-  function toggleMaximize(event: MouseEvent<HTMLElement>) {
+  function toggleMaximizeFromTitlebar(event: MouseEvent<HTMLElement>) {
     if ((event.target as HTMLElement).closest("button, a")) return;
-    if (window.matchMedia("(max-width: 760px)").matches) return;
+    toggleMaximize();
+  }
+
+  function toggleMaximize() {
+    if (window.innerWidth <= 1100) return;
     if (maximized) {
       const restoredSnap = restoreSnapRef.current;
       setRect(restoredSnap
@@ -242,7 +250,7 @@ export function useWindowFrame({
   function startDrag(event: PointerEvent<HTMLElement>) {
     const target = event.target as HTMLElement;
     if (target.closest("button, a")) return;
-    if (window.matchMedia("(max-width: 760px)").matches) return;
+    if (window.innerWidth <= 1100) return;
     if (maximized) return;
     const nodeRect = frameRef.current?.getBoundingClientRect();
     const base = clamp({
@@ -271,7 +279,7 @@ export function useWindowFrame({
 
   function startResize(edge: ResizeEdge) {
     return (event: PointerEvent<HTMLElement>) => {
-      if (window.matchMedia("(max-width: 760px)").matches) return;
+      if (window.innerWidth <= 1100) return;
       event.preventDefault();
       event.stopPropagation();
       const nodeRect = frameRef.current?.getBoundingClientRect();
@@ -394,12 +402,13 @@ export function useWindowFrame({
       "--window-y": `${rect.y}px`,
     } as CSSProperties,
     titlebarProps: {
-      onDoubleClick: toggleMaximize,
+      onDoubleClick: toggleMaximizeFromTitlebar,
       onLostPointerCapture: end,
       onPointerCancel: end,
       onPointerDown: startDrag,
       onPointerMove: move,
       onPointerUp: end,
     },
+    toggleMaximize,
   };
 }
