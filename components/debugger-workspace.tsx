@@ -21,17 +21,6 @@ import {
 type MotionPhase = "rest" | "rewind" | "reconstruct";
 type CaseSectionId = "context" | "replay" | "decision" | "evidence";
 
-function isMobileViewport() {
-  return typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
-}
-
-function getMobileDetailScroller(container: HTMLElement | null) {
-  if (!container || !isMobileViewport()) return null;
-  const scroller = container.closest<HTMLElement>(".workspace-detail-layer");
-  if (!scroller) return null;
-  return scroller.scrollHeight > scroller.clientHeight + 1 ? scroller : null;
-}
-
 const caseSections: Array<{ id: CaseSectionId; index: string; label: string; note: string }> = [
   { id: "context", index: "01", label: "Context", note: "Problem and consequence" },
   { id: "replay", index: "02", label: "Replay", note: "Change one condition" },
@@ -220,6 +209,15 @@ function EvidenceDialog({
   onClose: () => void;
 }) {
   const workspace = useWorkspaceManager();
+  const {
+    activeWindow,
+    closeWindow,
+    focusWindow,
+    minimizeApp,
+    openWindow,
+    registerBackHandler,
+    surface,
+  } = workspace;
   const closeRef = useRef<HTMLButtonElement>(null);
   const closeTimerRef = useRef<number | null>(null);
   const closingRef = useRef(false);
@@ -227,11 +225,13 @@ function EvidenceDialog({
   const {
     dragging,
     frameRef,
+    maximized,
     resizeHandleProps,
     resizing,
     snap,
     style,
     titlebarProps,
+    toggleMaximize,
   } = useWindowFrame({ defaultHeight: 780, defaultWidth: 1180, minHeight: 480, minWidth: 720 });
 
   const requestClose = useCallback(() => {
@@ -247,7 +247,7 @@ function EvidenceDialog({
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
-    if (!isMobileViewport()) {
+    if (workspace.mode === "computer") {
       document.body.style.overflow = "hidden";
     }
     frameRef.current?.focus({ preventScroll: true });
@@ -260,24 +260,37 @@ function EvidenceDialog({
       document.body.style.overflow = previousOverflow;
       previousFocus?.focus();
     };
-  }, [frameRef, requestClose]);
+  }, [frameRef, requestClose, workspace.mode]);
+
+  useEffect(() => registerBackHandler(`work-evidence-${exhibitLabel}`, () => {
+    if (activeWindow !== "evidence" || surface !== "application") return false;
+    requestClose();
+    return true;
+  }), [activeWindow, exhibitLabel, registerBackHandler, requestClose, surface]);
 
   useEffect(() => () => {
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
   }, []);
 
   useEffect(() => {
-    workspace.openWindow("evidence");
+    openWindow("evidence");
     return () => {
-      workspace.closeWindow("evidence");
-      workspace.focusWindow("detail");
+      closeWindow("evidence");
+      focusWindow("detail");
     };
-  // The manager methods are stable; this lifecycle follows the inspector mount.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [closeWindow, focusWindow, openWindow]);
 
   return (
-    <div className="evidence-dialog" data-closing={isClosing} role="dialog" aria-modal="false" aria-labelledby="evidence-dialog-title">
+    <div
+      aria-labelledby="evidence-dialog-title"
+      aria-modal={workspace.mode !== "computer"}
+      className="evidence-dialog"
+      data-app-id="work"
+      data-closing={isClosing}
+      data-window-state={workspace.stateFor("evidence")}
+      role="dialog"
+      style={{ "--window-layer-z": workspace.zIndexFor("evidence") } as CSSProperties}
+    >
       <button className="evidence-scrim" aria-label="Close evidence" onClick={requestClose} type="button" />
       <div
         className="evidence-sheet"
@@ -285,6 +298,9 @@ function EvidenceDialog({
         data-resizing={resizing}
         data-snap={snap ?? undefined}
         data-window-state={workspace.stateFor("evidence")}
+        onPointerDownCapture={() => {
+          if (activeWindow !== "evidence") focusWindow("evidence");
+        }}
         ref={(node) => {
           frameRef.current = node;
         }}
@@ -298,7 +314,10 @@ function EvidenceDialog({
           closeLabel="Close attached evidence"
           closeRef={closeRef}
           label="Attached evidence"
+          maximized={maximized}
           onClose={requestClose}
+          onMinimize={() => minimizeApp("work")}
+          onToggleMaximize={toggleMaximize}
           title={exhibitLabel}
           titleId="evidence-dialog-title"
           {...titlebarProps}
@@ -317,7 +336,7 @@ function EvidenceDialog({
               </div>
               <div>
                 <dt>Interaction</dt>
-                <dd>Esc or × returns to the case</dd>
+                <dd>{workspace.mode === "computer" ? "Esc or × returns to the case" : "System Back returns to the case"}</dd>
               </div>
             </dl>
             <a className="evidence-original" href={evidence.src} target="_blank" rel="noopener noreferrer">
@@ -352,6 +371,17 @@ export function DebuggerWorkspace({
   initialConditions: Conditions;
 }) {
   const workspace = useWorkspaceManager();
+  const {
+    activeWindow,
+    closeWindow,
+    focusApp,
+    focusWindow,
+    minimizeApp,
+    openWindow,
+    registerBackHandler,
+    requestBack,
+    surface,
+  } = workspace;
   const [conditions, setConditions] = useState<Conditions>(initialConditions);
   const [selectedConditions, setSelectedConditions] = useState<Conditions>(initialConditions);
   const [phase, setPhase] = useState<MotionPhase>("rest");
@@ -362,6 +392,7 @@ export function DebuggerWorkspace({
   const [activeSection, setActiveSection] = useState<CaseSectionId>("context");
   const [isClosing, setIsClosing] = useState(false);
   const timers = useRef<number[]>([]);
+  const caseScrollFrame = useRef<number | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const workspaceClosingRef = useRef(false);
   const targetConditions = useRef<Conditions>(initialConditions);
@@ -369,15 +400,18 @@ export function DebuggerWorkspace({
   const {
     dragging,
     frameRef,
+    maximized,
     resizeHandleProps,
     resizing,
     snap,
     style,
     titlebarProps,
+    toggleMaximize,
   } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 460, minWidth: 700 });
 
   useEffect(() => () => {
     timers.current.forEach(window.clearTimeout);
+    if (caseScrollFrame.current) window.cancelAnimationFrame(caseScrollFrame.current);
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
   }, []);
 
@@ -388,78 +422,56 @@ export function DebuggerWorkspace({
     closeTimerRef.current = window.setTimeout(onClose, 320);
   }, [onClose]);
 
+  const returnToWorkIndex = useCallback(() => {
+    if (onClose) {
+      requestWorkspaceClose();
+      return;
+    }
+    window.location.assign("/#selected-work");
+  }, [onClose, requestWorkspaceClose]);
+
   useEffect(() => {
-    workspace.openWindow("detail");
+    openWindow("detail");
     document.body.dataset.workspace = "case";
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const focusTimer = window.setTimeout(() => workspaceTitleRef.current?.focus({ preventScroll: true }), 80);
     return () => {
       window.clearTimeout(focusTimer);
       delete document.body.dataset.workspace;
-      workspace.closeWindow("detail");
+      closeWindow("detail");
       previousFocus?.focus();
     };
-  // Register the case workspace once per mounted scenario.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [closeWindow, openWindow]);
+
+  useEffect(() => registerBackHandler(`work-detail-${scenario.slug}`, () => {
+    if (activeWindow !== "detail" || surface !== "application") return false;
+    returnToWorkIndex();
+    return true;
+  }), [activeWindow, registerBackHandler, returnToWorkIndex, scenario.slug, surface]);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || evidence) return;
-      if (onClose) {
-        requestWorkspaceClose();
-        return;
-      }
-      window.location.assign("/#selected-work");
+      requestBack();
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [evidence, onClose, requestWorkspaceClose]);
-
-  useEffect(() => {
-    if (!("IntersectionObserver" in window)) return;
-    const mobileDetailScroller = getMobileDetailScroller(frameRef.current);
-    const useDocumentRoot = !mobileDetailScroller && (isMobileViewport() || !frameRef.current || frameRef.current.scrollHeight <= frameRef.current.clientHeight + 1);
-    const observer = new IntersectionObserver((entries) => {
-      const visible = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-      if (visible?.target.id && caseSections.some((section) => section.id === visible.target.id)) {
-        setActiveSection(visible.target.id as CaseSectionId);
-      }
-    }, {
-      root: mobileDetailScroller ?? (useDocumentRoot ? null : frameRef.current),
-      rootMargin: useDocumentRoot ? "-32% 0px -52% 0px" : "-25% 0px -55% 0px",
-      threshold: [0.15, 0.35, 0.6],
-    });
-    for (const section of caseSections) {
-      const node = document.getElementById(section.id);
-      if (node) observer.observe(node);
-    }
-    return () => observer.disconnect();
-  }, [frameRef]);
+  }, [evidence, requestBack]);
 
   useEffect(() => {
     let ticking = false;
     const readActiveSection = () => {
       ticking = false;
       const container = frameRef.current;
-      const mobileDetailScroller = getMobileDetailScroller(container);
-      const useDocumentScroll = !mobileDetailScroller && (isMobileViewport() || !container || container.scrollHeight <= container.clientHeight + 1);
-      const headerHeight = document.querySelector<HTMLElement>(".portfolio-header")?.getBoundingClientRect().height ?? 0;
       const chromeHeight = container?.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
       const progressHeight = container?.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
-      const readLine = mobileDetailScroller || !useDocumentScroll ? chromeHeight + progressHeight + 24 : headerHeight + chromeHeight + progressHeight + 24;
+      const readLine = chromeHeight + progressHeight + 36;
       let nextActive = caseSections[0].id;
 
       for (const section of caseSections) {
         const node = document.getElementById(section.id);
         if (!node) continue;
-        const top = mobileDetailScroller
-          ? node.getBoundingClientRect().top - mobileDetailScroller.getBoundingClientRect().top
-          : useDocumentScroll
-          ? node.getBoundingClientRect().top
-          : node.getBoundingClientRect().top - (container?.getBoundingClientRect().top ?? 0);
+        const top = node.getBoundingClientRect().top - (container?.getBoundingClientRect().top ?? 0);
         if (top <= readLine) {
           nextActive = section.id;
         }
@@ -474,16 +486,11 @@ export function DebuggerWorkspace({
     };
 
     const containerNode = frameRef.current;
-    const mobileDetailScroller = getMobileDetailScroller(containerNode);
     requestRead();
-    window.addEventListener("scroll", requestRead, { passive: true });
     containerNode?.addEventListener("scroll", requestRead, { passive: true });
-    mobileDetailScroller?.addEventListener("scroll", requestRead, { passive: true });
     window.addEventListener("resize", requestRead);
     return () => {
-      window.removeEventListener("scroll", requestRead);
       containerNode?.removeEventListener("scroll", requestRead);
-      mobileDetailScroller?.removeEventListener("scroll", requestRead);
       window.removeEventListener("resize", requestRead);
     };
   }, [frameRef]);
@@ -625,40 +632,32 @@ export function DebuggerWorkspace({
   function scrollToCaseSection(event: MouseEvent<HTMLAnchorElement>, sectionId: CaseSectionId) {
     event.preventDefault();
     setActiveSection(sectionId);
-    const behavior: ScrollBehavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
     const container = frameRef.current;
     const target = document.getElementById(sectionId);
     if (!container || !target) return;
-
-    const mobileDetailScroller = getMobileDetailScroller(container);
-    if (mobileDetailScroller) {
-      const scrollerRect = mobileDetailScroller.getBoundingClientRect();
-      const targetRect = target.getBoundingClientRect();
-      const chromeHeight = container.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
-      const progressHeight = container.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
-      const top = mobileDetailScroller.scrollTop + targetRect.top - scrollerRect.top - chromeHeight - progressHeight - 14;
-      mobileDetailScroller.scrollTo({ behavior, top: Math.max(0, top) });
-      window.history.replaceState(null, "", `#${sectionId}`);
-      return;
-    }
-
-    const useDocumentScroll = isMobileViewport() || container.scrollHeight <= container.clientHeight + 1;
-    if (useDocumentScroll) {
-      const headerHeight = document.querySelector<HTMLElement>(".portfolio-header")?.getBoundingClientRect().height ?? 0;
-      const chromeHeight = container.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
-      const progressHeight = container.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
-      const top = target.getBoundingClientRect().top + window.scrollY - headerHeight - chromeHeight - progressHeight - 14;
-      window.scrollTo({ behavior, top: Math.max(0, top) });
-      window.history.replaceState(null, "", `#${sectionId}`);
-      return;
-    }
 
     const containerRect = container.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
     const chromeHeight = container.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
     const progressHeight = container.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
     const top = container.scrollTop + targetRect.top - containerRect.top - chromeHeight - progressHeight - 20;
-    container.scrollTo({ behavior, top: Math.max(0, top) });
+    const destination = Math.max(0, top);
+    if (caseScrollFrame.current) window.cancelAnimationFrame(caseScrollFrame.current);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      container.scrollTop = destination;
+    } else {
+      const start = container.scrollTop;
+      const distance = destination - start;
+      const startedAt = event.timeStamp;
+      const step = (now: number) => {
+        const progress = Math.min(1, (now - startedAt) / 520);
+        const eased = 1 - Math.pow(1 - progress, 4);
+        container.scrollTop = start + distance * eased;
+        if (progress < 1) caseScrollFrame.current = window.requestAnimationFrame(step);
+        else caseScrollFrame.current = null;
+      };
+      caseScrollFrame.current = window.requestAnimationFrame(step);
+    }
     window.history.replaceState(null, "", `#${sectionId}`);
   }
 
@@ -668,12 +667,16 @@ export function DebuggerWorkspace({
         className={`case-page case-${scenario.slug} selected-work-window`}
         data-dragging={dragging}
         data-closing={isClosing}
+        data-app-id="work"
         data-motion-phase={phase}
         data-resizing={resizing}
         data-snap={snap ?? undefined}
         data-window-state={workspace.stateFor("detail")}
         data-window-mode={onClose ? "overlay" : "route"}
         id={onClose ? "case-workspace" : "main-content"}
+        onPointerDownCapture={() => {
+          if (activeWindow !== "detail") focusWindow("detail");
+        }}
         ref={frameRef}
         style={{ ...style, "--window-z": workspace.zIndexFor("detail") } as CSSProperties}
         suppressHydrationWarning
@@ -691,7 +694,10 @@ export function DebuggerWorkspace({
           closeLabel={onClose ? "Close selected work detail" : "Close selected work and return to the work list"}
           label="Selected work"
           locationClassName="case-location"
+          maximized={maximized}
           onClose={onClose ? requestWorkspaceClose : undefined}
+          onMinimize={() => minimizeApp("work")}
+          onToggleMaximize={toggleMaximize}
           subtitle={scenario.shortTitle}
           title={`${scenario.number} / ${String(scenarios.length).padStart(2, "0")} · ${caseCategory}`}
           {...titlebarProps}
@@ -852,10 +858,16 @@ export function DebuggerWorkspace({
             <p className="micro-label">Scope of this example</p>
             <p>{scenario.limitation}</p>
           </div>
-          {onSelectScenario && scenario.slug !== "trustgate" ? (
-            <button className="solid-link" onClick={() => onSelectScenario(nextScenario.slug)} type="button">
-              {scenario.slug === "payflow" ? "Next: Detect degradation" : "Next: Evaluate device trust"} <ArrowIcon />
-            </button>
+          {onSelectScenario ? (
+            scenario.slug === "trustgate" ? (
+              <button className="solid-link" onClick={() => focusApp("experience")} type="button">
+                Read the work summary <ArrowIcon />
+              </button>
+            ) : (
+              <button className="solid-link" onClick={() => onSelectScenario(nextScenario.slug)} type="button">
+                {scenario.slug === "payflow" ? "Next: Detect degradation" : "Next: Evaluate device trust"} <ArrowIcon />
+              </button>
+            )
           ) : (
             <Link className="solid-link" href={scenario.slug === "payflow" ? "/case/iyup" : scenario.slug === "iyup" ? "/case/trustgate" : "/brief"}>
               {scenario.slug === "payflow" ? "Next: Detect degradation" : scenario.slug === "iyup" ? "Next: Evaluate device trust" : "Read the work summary"} <ArrowIcon />

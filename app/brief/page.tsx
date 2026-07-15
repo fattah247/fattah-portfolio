@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type MouseEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { ArrowIcon } from "@/components/icons";
 import { CopyEmailButton } from "@/components/copy-email-button";
 import { PortfolioHeader } from "@/components/portfolio-header";
 import { useWindowFrame, windowResizeEdges } from "@/components/use-window-frame";
+import { WindowChrome } from "@/components/window-chrome";
+import { useWorkspaceManager } from "@/components/workspace-manager";
 import { experience, principles, systemScope } from "@/lib/content";
 import { scenarios } from "@/lib/scenarios";
 
@@ -29,17 +32,49 @@ const viewCopy: Record<BriefView, { label: string; note: string }> = {
 };
 
 export default function BriefPage() {
+  const router = useRouter();
+  const workspace = useWorkspaceManager();
+  const openExperienceWindow = workspace.openWindow;
   const [view, setView] = useState<BriefView>("recruiter");
   const [openExperience, setOpenExperience] = useState(0);
+  const [isClosing, setIsClosing] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
   const {
     dragging,
     frameRef,
+    maximized,
     resizeHandleProps,
     resizing,
     snap,
     style,
     titlebarProps,
+    toggleMaximize,
   } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 420, minWidth: 680 });
+
+  useEffect(() => {
+    openExperienceWindow("experience");
+    return () => {
+      if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+    };
+  }, [openExperienceWindow]);
+
+  useEffect(() => {
+    if (workspace.mode === "computer") return;
+    return workspace.registerBackHandler("experience-brief", () => {
+      requestClose();
+      return true;
+    });
+  });
+
+  function requestClose() {
+    if (isClosing) return;
+    setIsClosing(true);
+    closeTimerRef.current = window.setTimeout(() => {
+      workspace.closeApp("experience");
+      router.push("/");
+    }, 320);
+  }
 
   function openContactWindow(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault();
@@ -51,23 +86,32 @@ export default function BriefPage() {
       <PortfolioHeader />
       <main
         className="brief-page experience-window"
+        data-active-window={workspace.activeWindow === "experience"}
+        data-app-id="experience"
+        data-closing={isClosing}
         data-dragging={dragging}
         data-resizing={resizing}
         data-snap={snap ?? undefined}
+        data-window-state={workspace.stateFor("experience")}
         data-view={view}
         id="main-content"
+        onPointerDown={() => workspace.focusWindow("experience")}
         ref={frameRef}
-        style={style}
+        style={{ ...style, "--window-z": workspace.zIndexFor("experience") } as CSSProperties}
         suppressHydrationWarning
       >
-        <div className="portfolio-window-chrome experience-window-chrome" {...titlebarProps}>
-          <Link className="window-close-action experience-window-close" href="/?desktop=1" aria-label="Close experience window">
-            <span aria-hidden="true">×</span>
-          </Link>
-          <div className="window-location">
-            <p className="micro-label">Experience</p>
-          </div>
-        </div>
+        <WindowChrome
+          className="portfolio-window-chrome experience-window-chrome"
+          closeLabel="Close experience window"
+          closeRef={closeRef}
+          label="Experience"
+          maximized={maximized}
+          onClose={requestClose}
+          onMinimize={() => workspace.minimizeApp("experience")}
+          onToggleMaximize={toggleMaximize}
+          subtitle="Full engineering brief and CV"
+          {...titlebarProps}
+        />
         {windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />)}
         <section className="brief-hero">
           <div>

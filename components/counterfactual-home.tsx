@@ -15,14 +15,15 @@ import { useWindowFrame, windowResizeEdges, type SnapEdge } from "@/components/u
 type SplashStage = "showing" | "leaving" | "done";
 type WorkspaceWindow = Extract<WorkspaceWindowId, "work" | "experience" | "case">;
 const mainWindowIds: WorkspaceWindow[] = ["work", "experience", "case"];
+const workRouteSession: {
+  detailedCase: ScenarioSlug | null;
+  scrollTop: number;
+  selectedCase: ScenarioSlug;
+} = { detailedCase: null, scrollTop: 0, selectedCase: "payflow" };
 
 function WindowSnapPreview({ edge }: { edge: SnapEdge }) {
   if (!edge) return null;
   return <div className="window-snap-preview" data-edge={edge} aria-hidden="true" />;
-}
-
-function isMobileViewport() {
-  return typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches;
 }
 
 const caseDetails: Record<ScenarioSlug, { area: string; technology: string; result: ReactNode }> = {
@@ -215,10 +216,7 @@ function DesktopSurface({
 
   return (
     <section className="desktop-surface" aria-labelledby="desktop-surface-title">
-      <div className="desktop-surface-head">
-        <h2 id="desktop-surface-title">Portfolio workspace</h2>
-        <p>Open a folder or a case file.</p>
-      </div>
+      <h2 className="sr-only" id="desktop-surface-title">Applications and engineering case files</h2>
       <div className="desktop-board" aria-label="Portfolio desktop shortcuts">
         {desktopItems.map((item) => (
           <Link
@@ -345,20 +343,21 @@ export function CounterfactualHome() {
   const workspace = useWorkspaceManager();
   const [splashStage, setSplashStage] = useState<SplashStage>("showing");
   const [detailedCaseSlug, setDetailedCaseSlug] = useState<ScenarioSlug | null>(null);
-  const [mobileMode, setMobileMode] = useState(false);
   const [selectedCaseSlug, setSelectedCaseSlug] = useState<ScenarioSlug>("payflow");
   const [closingWindows, setClosingWindows] = useState<WorkspaceWindow[]>([]);
   const closeTimers = useRef<number[]>([]);
-  const previousMobileModeRef = useRef(false);
   const caseCloseRef = useRef<HTMLButtonElement>(null);
   const experienceCloseRef = useRef<HTMLButtonElement>(null);
   const heroRef = useRef<HTMLElement>(null);
   const workContentRef = useRef<HTMLDivElement>(null);
   const workCloseRef = useRef<HTMLButtonElement>(null);
   const pendingWorkScroll = useRef<"selected-work" | null>(null);
+  const selectedCaseSessionRef = useRef(selectedCaseSlug);
+  const detailedCaseSessionRef = useRef(detailedCaseSlug);
   const {
     dragging: workDragging,
     frameRef: workFrameRef,
+    maximized: workMaximized,
     resetFrame: resetWorkFrame,
     resizeHandleProps: workResizeHandleProps,
     resizing: workResizing,
@@ -367,10 +366,12 @@ export function CounterfactualHome() {
     snapTo: snapWorkFrame,
     style: workWindowStyle,
     titlebarProps: workTitlebarProps,
+    toggleMaximize: toggleWorkMaximize,
   } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 420, minWidth: 680 });
   const {
     dragging: experienceDragging,
     frameRef: experienceFrameRef,
+    maximized: experienceMaximized,
     resetFrame: resetExperienceFrame,
     resizeHandleProps: experienceResizeHandleProps,
     resizing: experienceResizing,
@@ -379,10 +380,12 @@ export function CounterfactualHome() {
     snapTo: snapExperienceFrame,
     style: experienceWindowStyle,
     titlebarProps: experienceTitlebarProps,
+    toggleMaximize: toggleExperienceMaximize,
   } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 420, minWidth: 680 });
   const {
     dragging: caseDragging,
     frameRef: caseFrameRef,
+    maximized: caseMaximized,
     resetFrame: resetCaseFrame,
     resizeHandleProps: caseResizeHandleProps,
     resizing: caseResizing,
@@ -391,6 +394,7 @@ export function CounterfactualHome() {
     snapTo: snapCaseFrame,
     style: caseWindowStyle,
     titlebarProps: caseTitlebarProps,
+    toggleMaximize: toggleCaseMaximize,
   } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 460, minWidth: 700 });
   const openWindows = workspace.openWindows.filter((item): item is WorkspaceWindow => mainWindowIds.includes(item as WorkspaceWindow));
   const isWorkOpen = workspace.isOpen("work");
@@ -402,33 +406,27 @@ export function CounterfactualHome() {
   const activeWindow = workspace.activeWindow;
   const activeSnapCandidate = activeWindow === "work" ? workSnapCandidate : activeWindow === "experience" ? experienceSnapCandidate : activeWindow === "case" ? caseSnapCandidate : null;
 
-  useEffect(() => {
-    const media = window.matchMedia("(max-width: 760px)");
-    const syncMobileMode = () => setMobileMode(media.matches);
-    syncMobileMode();
-    media.addEventListener("change", syncMobileMode);
-    return () => media.removeEventListener("change", syncMobileMode);
-  }, []);
+  selectedCaseSessionRef.current = selectedCaseSlug;
+  detailedCaseSessionRef.current = detailedCaseSlug;
 
   useEffect(() => {
-    if (!mobileMode || openWindows.length <= 1) return;
-    const nextWindow = detailedCase
-      ? "case"
-      : mainWindowIds.includes(activeWindow as WorkspaceWindow)
-        ? activeWindow as WorkspaceWindow
-        : openWindows.at(-1) ?? "work";
-    workspace.showOnlyWindow(nextWindow);
-  }, [activeWindow, detailedCase, mobileMode, openWindows, workspace]);
+    const workFrame = workFrameRef.current;
+    setSelectedCaseSlug(workRouteSession.selectedCase);
+    setDetailedCaseSlug(workRouteSession.detailedCase);
+    const restoreFrame = window.requestAnimationFrame(() => {
+      if (workRouteSession.scrollTop > 0) workFrame?.scrollTo({ behavior: "auto", top: workRouteSession.scrollTop });
+    });
+    return () => {
+      window.cancelAnimationFrame(restoreFrame);
+      workRouteSession.selectedCase = selectedCaseSessionRef.current;
+      workRouteSession.detailedCase = detailedCaseSessionRef.current;
+      workRouteSession.scrollTop = workFrame?.scrollTop ?? 0;
+    };
+  }, [workFrameRef]);
 
   useEffect(() => {
-    const wasMobile = previousMobileModeRef.current;
-    previousMobileModeRef.current = mobileMode;
-    if (!wasMobile || mobileMode || openWindows.length !== 1) return;
-    const remainingWindow = openWindows[0];
-    if (remainingWindow === "work") resetWorkFrame();
-    if (remainingWindow === "experience") resetExperienceFrame();
-    if (remainingWindow === "case") resetCaseFrame();
-  }, [mobileMode, openWindows, resetCaseFrame, resetExperienceFrame, resetWorkFrame]);
+    if (workspace.mode !== "computer") setSplashStage("done");
+  }, [workspace.mode]);
 
   useEffect(() => {
     if (window.location.hash !== "#selected-work") return;
@@ -559,14 +557,13 @@ export function CounterfactualHome() {
 
   function openWindow(windowName: WorkspaceWindow, target?: "selected-work") {
     setSplashStage("done");
-    setDetailedCaseSlug(null);
     const alreadyOpen = openWindows.includes(windowName);
 
-    if (isMobileViewport()) {
+    if (workspace.mode !== "computer") {
       if (windowName === "work" && target) {
         pendingWorkScroll.current = target;
       }
-      workspace.showOnlyWindow(windowName);
+      workspace.openWindow(windowName);
       if (windowName === "work" && target && openWindows.includes("work")) {
         window.requestAnimationFrame(() => scrollWorkToSelected(preferredScrollBehavior()));
       }
@@ -627,21 +624,21 @@ export function CounterfactualHome() {
     const remainingWindows = openWindows.filter((item) => item !== windowName);
     setClosingWindows((current) => [...current, windowName]);
     closeTimers.current.push(window.setTimeout(() => {
-      if (windowName === "case" && isMobileViewport()) {
+      if (windowName === "case" && workspace.mode !== "computer") {
         pendingWorkScroll.current = "selected-work";
-        workspace.showOnlyWindow("work");
+        workspace.openWindow("work");
         window.requestAnimationFrame(() => scrollWorkToSelected(preferredScrollBehavior()));
       } else {
         workspace.closeWindow(windowName);
       }
-      if (!isMobileViewport() && remainingWindows.length === 1) {
+      if (workspace.mode === "computer" && remainingWindows.length === 1) {
         const remaining = remainingWindows[0];
         window.requestAnimationFrame(() => {
           resetFrameFor(remaining);
           focusWindow(remaining);
           focusWindowControl(remaining);
         });
-      } else if (!isMobileViewport() && remainingWindows.length > 1) {
+      } else if (workspace.mode === "computer" && remainingWindows.length > 1) {
         const promoted = activeWindow !== windowName && remainingWindows.includes(activeWindow as WorkspaceWindow)
           ? activeWindow as WorkspaceWindow
           : remainingWindows.find((item) => windowState(item) === "clear") ?? remainingWindows.at(-1)!;
@@ -659,6 +656,29 @@ export function CounterfactualHome() {
     }, 320));
   }
 
+  function closeApplication(app: "work" | "experience", visualWindow: WorkspaceWindow) {
+    if (closingWindows.includes(visualWindow)) return;
+    const removedWindows: WorkspaceWindow[] = app === "work"
+      ? openWindows.filter((item) => item === "work" || item === "case")
+      : openWindows.filter((item) => item === "experience");
+    const remainingWindows = openWindows.filter((item) => !removedWindows.includes(item));
+    setClosingWindows((current) => [...current, visualWindow]);
+    closeTimers.current.push(window.setTimeout(() => {
+      workspace.closeApp(app);
+      if (app === "work") setDetailedCaseSlug(null);
+      if (workspace.mode === "computer" && remainingWindows.length === 1) {
+        const remaining = remainingWindows[0];
+        window.requestAnimationFrame(() => {
+          resetFrameFor(remaining);
+          focusWindow(remaining);
+          focusWindowControl(remaining);
+        });
+      }
+      setClosingWindows((current) => current.filter((item) => item !== visualWindow));
+      window.dispatchEvent(new Event("portfolio-window-state"));
+    }, 320));
+  }
+
   function openCaseWindow(slug: ScenarioSlug) {
     setSelectedCaseSlug(slug);
     openWindow("case");
@@ -667,8 +687,8 @@ export function CounterfactualHome() {
   function openDetailedCaseWindow(slug: ScenarioSlug) {
     setDetailedCaseSlug(slug);
     setSplashStage("done");
-    if (isMobileViewport()) {
-      workspace.showOnlyWindow("case");
+    if (workspace.mode !== "computer") {
+      workspace.openWindow("case");
       window.scrollTo({ behavior: preferredScrollBehavior(), top: 0 });
     }
     workspace.openWindow("detail");
@@ -680,7 +700,30 @@ export function CounterfactualHome() {
     workspace.focusWindow("case");
   }
 
+  useEffect(() => {
+    if (workspace.mode === "computer" || workspace.activeApp !== "work") return;
+    return workspace.registerBackHandler("work-navigation", () => {
+      if (detailedCase) return false;
+      if (isCaseOpen) {
+        closeWindow("case");
+        return true;
+      }
+      if (isWorkOpen) {
+        workspace.goHome();
+        return true;
+      }
+      return false;
+    });
+  // The handler deliberately follows the currently visible Work depth.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailedCase, isCaseOpen, isWorkOpen, workspace.activeApp, workspace.mode]);
+
   useEffect(() => () => closeTimers.current.forEach(window.clearTimeout), []);
+
+  useEffect(() => {
+    if (workspace.isAppOpen("work")) return;
+    setDetailedCaseSlug(null);
+  }, [workspace.openWindows, workspace]);
 
   useEffect(() => {
     if (!activeWindow || !mainWindowIds.includes(activeWindow as WorkspaceWindow) || detailedCase) return;
@@ -695,7 +738,7 @@ export function CounterfactualHome() {
   }, [activeWindow, detailedCase, closingWindows]);
 
   useEffect(() => {
-    const openWorkFromHeader = () => openWindow("work");
+    const openWorkFromHeader = () => openWindow("work", "selected-work");
     const openExperienceFromHeader = () => openWindow("experience");
     window.addEventListener("portfolio-open-work", openWorkFromHeader);
     window.addEventListener("portfolio-open-experience", openExperienceFromHeader);
@@ -727,27 +770,31 @@ export function CounterfactualHome() {
     } as CSSProperties;
   }
 
+  const detailIsForeground = Boolean(
+    detailedCase && (workspace.activeWindow === "detail" || workspace.activeWindow === "evidence"),
+  );
+
   return (
     <>
       <Splash stage={splashStage} onSkip={skipSplash} />
       <main
-        aria-hidden={detailedCase ? true : undefined}
+        aria-hidden={detailIsForeground ? true : undefined}
         className={`home-page editorial-home ${hasOpenWindows ? "has-work-window" : "is-desktop"}`}
         data-intro={splashStage}
-        data-mobile-mode={mobileMode}
+        data-system-mode={workspace.mode}
         id="main-content"
-        inert={detailedCase ? true : undefined}
+        inert={detailIsForeground ? true : undefined}
         tabIndex={-1}
       >
-        {!hasOpenWindows ? (
-          <DesktopSurface onOpenCase={openCaseWindow} onOpenWindow={openWindow} />
-        ) : (
+        <DesktopSurface onOpenCase={openCaseWindow} onOpenWindow={openWindow} />
+        <WindowSnapPreview edge={activeSnapCandidate} />
+        {hasOpenWindows ? (
           <>
-          <WindowSnapPreview edge={activeSnapCandidate} />
           {isWorkOpen ? <section
             className="portfolio-window home-window"
             aria-label="Work window"
             data-active-window={activeWindow === "work"}
+            data-app-id="work"
             data-closing={closingWindows.includes("work")}
             data-dragging={workDragging}
             data-resizing={workResizing}
@@ -761,7 +808,7 @@ export function CounterfactualHome() {
             suppressHydrationWarning
             tabIndex={-1}
           >
-            <WindowChrome className="portfolio-window-chrome" closeLabel="Close work window" closeRef={workCloseRef} label="Work" onClose={() => closeWindow("work")} {...workTitlebarProps} />
+            <WindowChrome className="portfolio-window-chrome" closeLabel="Close work window" closeRef={workCloseRef} label="Work" maximized={workMaximized} onClose={() => closeApplication("work", "work")} onMinimize={() => workspace.minimizeApp("work")} onToggleMaximize={toggleWorkMaximize} {...workTitlebarProps} />
             {windowResizeEdges.map((edge) => <span key={edge} {...workResizeHandleProps(edge)} />)}
             <div className="portfolio-window-content" ref={workContentRef}>
               <section className="editorial-hero" ref={heroRef} aria-labelledby="home-title">
@@ -820,6 +867,7 @@ export function CounterfactualHome() {
             className="portfolio-window home-window workspace-experience-window"
             aria-label="Experience window"
             data-active-window={activeWindow === "experience"}
+            data-app-id="experience"
             data-closing={closingWindows.includes("experience")}
             data-dragging={experienceDragging}
             data-resizing={experienceResizing}
@@ -833,7 +881,7 @@ export function CounterfactualHome() {
             suppressHydrationWarning
             tabIndex={-1}
           >
-            <WindowChrome className="portfolio-window-chrome" closeLabel="Close experience window" closeRef={experienceCloseRef} label="Experience" onClose={() => closeWindow("experience")} {...experienceTitlebarProps} />
+            <WindowChrome className="portfolio-window-chrome" closeLabel="Close experience window" closeRef={experienceCloseRef} label="Experience" maximized={experienceMaximized} onClose={() => closeApplication("experience", "experience")} onMinimize={() => workspace.minimizeApp("experience")} onToggleMaximize={toggleExperienceMaximize} {...experienceTitlebarProps} />
             {windowResizeEdges.map((edge) => <span key={edge} {...experienceResizeHandleProps(edge)} />)}
             <ExperienceWindowContent onOpenContact={openContactWindow} />
           </section> : null}
@@ -841,6 +889,7 @@ export function CounterfactualHome() {
             className="portfolio-window home-window workspace-case-window"
             aria-label="Selected work window"
             data-active-window={activeWindow === "case"}
+            data-app-id="work"
             data-closing={closingWindows.includes("case")}
             data-dragging={caseDragging}
             data-resizing={caseResizing}
@@ -863,19 +912,31 @@ export function CounterfactualHome() {
               closeLabel="Close selected work window"
               closeRef={caseCloseRef}
               label="Selected work"
+              maximized={caseMaximized}
               onClose={() => closeWindow("case")}
+              onMinimize={() => workspace.minimizeApp("work")}
+              onToggleMaximize={toggleCaseMaximize}
               subtitle={selectedCase.consequence}
               title={`${selectedCase.number} / ${String(scenarios.length).padStart(2, "0")} · ${caseDetails[selectedCase.slug].area}`}
               {...caseTitlebarProps}
             />
             {windowResizeEdges.map((edge) => <span key={edge} {...caseResizeHandleProps(edge)} />)}
-            <SelectedCaseWindowContent key={selectedCase.slug} onOpenFullCase={openDetailedCaseWindow} onSelectCase={setSelectedCaseSlug} scenario={selectedCase} />
+            <SelectedCaseWindowContent onOpenFullCase={openDetailedCaseWindow} onSelectCase={setSelectedCaseSlug} scenario={selectedCase} />
           </section> : null}
           </>
-        )}
+        ) : null}
       </main>
       {detailedCase ? (
-        <div className="workspace-detail-layer" role="presentation">
+        <div
+          className="workspace-detail-layer"
+          data-window-state={workspace.activeWindow === "evidence" ? "active" : workspace.stateFor("detail")}
+          role="presentation"
+          style={{
+            "--window-layer-z": workspace.activeWindow === "evidence"
+              ? workspace.zIndexFor("evidence")
+              : workspace.zIndexFor("detail"),
+          } as CSSProperties}
+        >
           <DebuggerWorkspace
             initialConditions={{ ...detailedCase.defaults }}
             key={detailedCase.slug}

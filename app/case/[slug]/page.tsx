@@ -28,7 +28,7 @@ export default async function CasePage({ params, searchParams }: CasePageProps) 
 
   return (
     <>
-      <PortfolioHeader caseNumber={scenario.number} />
+      <PortfolioHeader />
       <DebuggerWorkspace key={scenario.slug} scenario={scenario} initialConditions={initialConditions} />
     </>
   );
