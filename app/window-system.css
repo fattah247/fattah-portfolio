@@ -1273,16 +1273,28 @@ body {
 .system-status {
   align-items: center;
   display: flex;
-  gap: 10px;
+  font-variant-numeric: tabular-nums;
   justify-self: end;
+  white-space: nowrap;
 }
 
-.system-network {
-  border: 1px solid var(--ink-secondary);
-  border-width: 0 0 1px 1px;
-  height: 7px;
-  transform: skew(-22deg);
-  width: 10px;
+.system-status time {
+  align-items: baseline;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.system-status time > span {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+}
+
+.system-status time > small {
+  color: var(--ink-secondary);
+  font: inherit;
+  font-size: .55rem;
+  letter-spacing: .06em;
 }
 
 .desktop-taskbar {
@@ -1827,9 +1839,6 @@ html[data-system-mode="computer"][data-system-surface="recents"] .contact-window
 
   .system-brand strong { font-size: .62rem; }
   .system-active-app { font-size: .61rem; }
-  .system-status { gap: 6px; }
-  .system-status > span:not(.system-network) { display: none; }
-
   .system-home-screen,
   .system-recents {
     bottom: var(--os-phone-nav);
