@@ -1,21 +1,29 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SystemShell } from "./system-shell";
-import { WorkspaceManagerProvider } from "./workspace-manager";
+import { useWorkspaceManager, WorkspaceManagerProvider } from "./workspace-manager";
 
-const push = vi.fn();
-let pathname = "/";
+const navigation = vi.hoisted(() => ({ pathname: "/", push: vi.fn() }));
+const push = navigation.push;
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => pathname,
+  usePathname: () => navigation.pathname,
   useRouter: () => ({ push }),
 }));
+
+function OpenProductRoute() {
+  const workspace = useWorkspaceManager();
+  const openWindow = workspace.openWindow;
+  useEffect(() => openWindow("products"), [openWindow]);
+  return null;
+}
 
 describe("SystemShell", () => {
   beforeEach(() => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 1440 });
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 900 });
-    pathname = "/";
+    navigation.pathname = "/";
     push.mockReset();
   });
 
@@ -37,15 +45,24 @@ describe("SystemShell", () => {
 
     expect(screen.queryByRole("navigation", { name: "Desktop application menu" })).toBeNull();
     expect(within(statusBar).queryByRole("button")).toBeNull();
-    expect(within(statusBar).getByText("Work")).toBeTruthy();
+    expect(within(statusBar).getByText("Desktop")).toBeTruthy();
 
     fireEvent.click(taskbar.getByRole("button", { name: /Open Experience\. Not running/i }));
     expect(within(statusBar).getByText("Experience")).toBeTruthy();
   });
 
-  it("identifies a direct route by its owning app without adding a top launcher", () => {
-    pathname = "/products";
+  it("suppresses the native page context menu", () => {
     render(<WorkspaceManagerProvider><SystemShell /></WorkspaceManagerProvider>);
+
+    const contextMenu = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    document.dispatchEvent(contextMenu);
+
+    expect(contextMenu.defaultPrevented).toBe(true);
+  });
+
+  it("identifies a direct route by its owning app without adding a top launcher", () => {
+    navigation.pathname = "/products";
+    render(<WorkspaceManagerProvider><SystemShell /><OpenProductRoute /></WorkspaceManagerProvider>);
 
     const statusBar = screen.getByRole("banner");
     expect(within(statusBar).getByText("Product Links")).toBeTruthy();
@@ -95,20 +112,21 @@ describe("SystemShell", () => {
     expect(home?.getAttribute("aria-hidden")).toBe("false");
     expect(screen.getAllByText("Work").length).toBeGreaterThan(0);
     expect(phoneNavigation.getByRole("button", { name: "Home" }).getAttribute("data-active")).toBe("true");
-    expect(screen.getByRole("button", { name: "Continue Work" })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Open Work" }).length).toBeGreaterThan(0);
 
     fireEvent.click(phoneNavigation.getByRole("button", { name: "Recents" }));
     expect(recents?.getAttribute("aria-hidden")).toBe("false");
     expect(phoneNavigation.getByRole("button", { name: "Recents" }).getAttribute("data-active")).toBe("true");
-    expect(screen.getByRole("button", { name: "Switch to Work" })).toBeTruthy();
-    expect(recents?.querySelector('[data-current="true"]')).toBeTruthy();
+    expect(screen.getByText("No apps open.")).toBeTruthy();
+    expect(recents?.querySelector('[data-current="true"]')).toBeNull();
   });
 
   it("returns to the workspace when closing the application that owns a direct route", () => {
-    pathname = "/case/payflow";
+    navigation.pathname = "/case/payflow";
     render(<WorkspaceManagerProvider><SystemShell /></WorkspaceManagerProvider>);
     const taskbar = within(screen.getByRole("navigation", { name: "System taskbar" }));
 
+    fireEvent.click(taskbar.getByRole("button", { name: /Open Work\. Not running/i }));
     fireEvent.click(taskbar.getByRole("button", { name: "Application overview" }));
     fireEvent.click(screen.getByRole("button", { name: "Close Work" }));
 
