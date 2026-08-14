@@ -380,10 +380,51 @@ describe("CounterfactualHome", () => {
     expect(document.querySelector('.workspace-work-window[data-view="summary"]')).toBeTruthy();
 
     fireEvent.click(phoneNavigation.getByRole("button", { name: "Back" }));
-    act(() => vi.advanceTimersByTime(340));
     expect(screen.getByRole("region", { name: "Work window" }).getAttribute("data-view")).toBe("index");
+    const workWindow = screen.getByRole("region", { name: "Work window" });
+    const selectedWork = workWindow.querySelector<HTMLElement>("#selected-work")!;
+    const chrome = workWindow.querySelector<HTMLElement>(".portfolio-window-chrome")!;
+    vi.spyOn(workWindow, "getBoundingClientRect").mockReturnValue({
+      bottom: 812, height: 812, left: 0, right: 390, top: 0, width: 390, x: 0, y: 0, toJSON: () => ({}),
+    });
+    vi.spyOn(selectedWork, "getBoundingClientRect").mockReturnValue({
+      bottom: 1200, height: 600, left: 0, right: 390, top: 600, width: 390, x: 0, y: 600, toJSON: () => ({}),
+    });
+    vi.spyOn(chrome, "getBoundingClientRect").mockReturnValue({
+      bottom: 62, height: 62, left: 0, right: 390, top: 0, width: 390, x: 0, y: 0, toJSON: () => ({}),
+    });
+    const scrollTo = vi.mocked(HTMLElement.prototype.scrollTo);
+    scrollTo.mockClear();
+    act(() => vi.advanceTimersByTime(340));
+    expect(scrollTo).toHaveBeenCalledWith({ behavior: "auto", top: 518 });
 
     fireEvent.click(phoneNavigation.getByRole("button", { name: "Back" }));
     expect(home.getAttribute("aria-hidden")).toBe("false");
+  });
+
+  it("keeps the merged Experience mobile Back chain inside its parent app", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+    render(
+      <WorkspaceManagerProvider>
+        <SystemShell />
+        <CounterfactualHome />
+      </WorkspaceManagerProvider>,
+    );
+
+    const home = screen.getByRole("region", { name: "Portfolio home screen" });
+    fireEvent.click(within(home).getByRole("button", { name: "Open Experience" }));
+    const experienceWindow = screen.getByRole("region", { name: "Experience window" });
+    fireEvent.click(within(experienceWindow).getByRole("link", { name: /Open full brief/i }));
+    expect(experienceWindow.getAttribute("data-view")).toBe("full-brief");
+
+    const phoneNavigation = within(screen.getByRole("navigation", { name: "Phone system navigation" }));
+    fireEvent.click(phoneNavigation.getByRole("button", { name: "Back" }));
+    expect(experienceWindow.getAttribute("data-view")).toBe("summary");
+    expect(screen.getByRole("region", { name: "Experience window" })).toBe(experienceWindow);
+
+    fireEvent.click(phoneNavigation.getByRole("button", { name: "Back" }));
+    expect(home.getAttribute("aria-hidden")).toBe("false");
+    expect(document.querySelectorAll('[data-app-id="experience"]')).toHaveLength(1);
   });
 });
