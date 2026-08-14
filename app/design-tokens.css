@@ -1,9 +1,13 @@
 :root {
   color-scheme: light;
 
+  /* Locally bundled typefaces */
+  --font-body: "IBM Plex Sans";
+  --font-mono: "IBM Plex Mono";
+
   /* Surfaces and ink */
   --paper: #eef1f0;
-  --paper-raised: #fbfcfa;
+  --paper-raised: #fefefd;
   --paper-recessed: #e4e8e6;
   --paper-cool: #e8edec;
   --paper-warm: #f2eee6;
