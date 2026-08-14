@@ -904,7 +904,11 @@ export function CounterfactualHome({
     setWorkView("index");
     window.history.replaceState(null, "", "/#selected-work");
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
-      workFrameRef.current?.scrollTo({ behavior: "auto", top: workIndexScrollRef.current });
+      if (workspace.mode === "computer") {
+        workFrameRef.current?.scrollTo({ behavior: "auto", top: workIndexScrollRef.current });
+      } else {
+        scrollWorkToSelected("auto");
+      }
       workFrameRef.current?.focus({ preventScroll: true });
     }));
   }
