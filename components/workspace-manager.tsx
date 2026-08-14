@@ -57,13 +57,13 @@ export type WorkspaceAction =
   | { type: "sync-mode"; mode: DeviceMode };
 
 export const initialWorkspaceState: WorkspaceState = {
-  open: ["work"],
-  focus: ["work"],
+  open: [],
+  focus: [],
   minimized: [],
   mode: "computer",
   modeReady: false,
-  recents: ["work"],
-  surface: "application",
+  recents: [],
+  surface: "home",
 };
 
 export function appForWindow(id: WorkspaceWindowId): PortfolioAppId {

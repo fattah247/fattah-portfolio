@@ -24,6 +24,9 @@ function installBrowserStubs(reducedMotion = false) {
       removeEventListener: vi.fn(),
     })),
   });
+  Object.defineProperty(HTMLElement.prototype, "hasPointerCapture", { configurable: true, value: vi.fn(() => false) });
+  Object.defineProperty(HTMLElement.prototype, "releasePointerCapture", { configurable: true, value: vi.fn() });
+  Object.defineProperty(HTMLElement.prototype, "setPointerCapture", { configurable: true, value: vi.fn() });
   Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: vi.fn() });
   Object.defineProperty(window, "scrollTo", { configurable: true, value: vi.fn() });
 }
@@ -32,16 +35,22 @@ function activeSelectedWindow() {
   return document.querySelector<HTMLElement>('.workspace-work-window[data-active-window="true"]')!;
 }
 
+function openWorkFromDesktop() {
+  fireEvent.click(screen.getByRole("link", { name: /WorkFront page/i }));
+}
+
 describe("CounterfactualHome", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     installBrowserStubs();
     push.mockReset();
+    window.sessionStorage.clear();
     window.history.replaceState(null, "", "/");
   });
 
   afterEach(() => {
     cleanup();
+    delete document.documentElement.dataset.systemMode;
     vi.runOnlyPendingTimers();
     vi.useRealTimers();
   });
@@ -50,8 +59,50 @@ describe("CounterfactualHome", () => {
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
 
     expect(screen.queryByRole("region", { name: "Opening portfolio workspace" })).toBeNull();
+    expect(screen.getByRole("region", { name: "Engineering workspace" })).toBeTruthy();
+    expect(document.querySelector(".desktop-wallpaper")?.getAttribute("aria-hidden")).toBe("true");
+    expect(screen.queryByText("Second Attempt")).toBeNull();
+    expect(screen.queryByRole("region", { name: "Work window" })).toBeNull();
+    openWorkFromDesktop();
     expect(screen.getByRole("region", { name: "Work window" })).toBeTruthy();
     expect(screen.getByRole("link", { name: /View selected work/i })).toBeTruthy();
+  });
+
+  it("restores desktop shortcut positions for the current browser session", () => {
+    window.sessionStorage.setItem("fattah.desktop.shortcuts.v1", JSON.stringify({
+      "surface-work": { x: 36, y: 20 },
+    }));
+
+    render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
+    act(() => vi.runOnlyPendingTimers());
+
+    const workShortcut = screen.getByRole("link", { name: /WorkFront page/i });
+    expect(workShortcut.style.getPropertyValue("--desktop-offset-x")).toBe("36px");
+    expect(workShortcut.style.getPropertyValue("--desktop-offset-y")).toBe("20px");
+  });
+
+  it("moves a desktop shortcut without opening it and persists its position and stack order", () => {
+    document.documentElement.dataset.systemMode = "computer";
+    render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
+
+    const board = screen.getByLabelText("Portfolio desktop shortcuts");
+    const workShortcut = screen.getByRole("link", { name: /WorkFront page/i });
+    vi.spyOn(board, "getBoundingClientRect").mockReturnValue({
+      bottom: 700, height: 700, left: 0, right: 1000, top: 0, width: 1000, x: 0, y: 0, toJSON: () => ({}),
+    });
+    vi.spyOn(workShortcut, "getBoundingClientRect").mockReturnValue({
+      bottom: 168, height: 136, left: 32, right: 180, top: 32, width: 148, x: 32, y: 32, toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(workShortcut, { button: 0, clientX: 100, clientY: 100, pointerId: 7 });
+    fireEvent.pointerMove(workShortcut, { clientX: 180, clientY: 160, pointerId: 7 });
+    fireEvent.pointerUp(workShortcut, { clientX: 180, clientY: 160, pointerId: 7 });
+    fireEvent.click(workShortcut);
+
+    expect(screen.queryByRole("region", { name: "Work window" })).toBeNull();
+    const savedOffsets = JSON.parse(window.sessionStorage.getItem("fattah.desktop.shortcuts.v1") ?? "{}");
+    expect(savedOffsets["surface-work"]).toEqual({ x: 80, y: 60, z: 1 });
+    expect(workShortcut.style.zIndex).toBe("1");
   });
 
   it("keeps the immediate workspace contract when reduced motion is requested", () => {
@@ -59,11 +110,13 @@ describe("CounterfactualHome", () => {
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
 
     expect(screen.queryByRole("region", { name: "Opening portfolio workspace" })).toBeNull();
+    openWorkFromDesktop();
     expect(screen.getByRole("region", { name: "Work window" })).toBeTruthy();
   });
 
   it("keeps the full Work journey discoverable from the identity to a selected entry", () => {
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
+    openWorkFromDesktop();
 
     fireEvent.click(screen.getByRole("link", { name: /View selected work/i }));
     expect(screen.getByRole("heading", { name: "Three failures, three decisions." })).toBeTruthy();
@@ -75,6 +128,7 @@ describe("CounterfactualHome", () => {
 
   it("opens and refocuses internal application links without navigating or duplicating UI", () => {
     const { container } = render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
+    openWorkFromDesktop();
     const experienceLink = container.querySelector<HTMLAnchorElement>('.hero-secondary-actions a[href="/brief"]')!;
 
     fireEvent.click(experienceLink);
@@ -88,6 +142,7 @@ describe("CounterfactualHome", () => {
 
   it("gives every selected-work entry its own readable state instrument", () => {
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
+    openWorkFromDesktop();
     fireEvent.click(screen.getByRole("link", { name: /View selected work/i }));
     fireEvent.click(screen.getByRole("link", { name: /A payment callback arrived twice/i }));
     const workWindow = screen.getByRole("region", { name: "Work window" });
@@ -123,6 +178,7 @@ describe("CounterfactualHome", () => {
 
   it.each(scenarios)("maps the $slug index entry to its complete selected-work summary", (scenario) => {
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
+    openWorkFromDesktop();
     fireEvent.click(screen.getByRole("link", { name: new RegExp(scenario.consequence, "i") }));
 
     const selectedWindow = screen.getByRole("region", { name: "Work window" });
@@ -139,6 +195,7 @@ describe("CounterfactualHome", () => {
 
   it("replaces the selected-work summary with the full case and restores it through Back", () => {
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
+    openWorkFromDesktop();
     fireEvent.click(screen.getByRole("link", { name: /View selected work/i }));
     fireEvent.click(screen.getByRole("link", { name: /A payment callback arrived twice/i }));
     fireEvent.click(screen.getByRole("button", { name: /Open full case/i }));
@@ -156,6 +213,7 @@ describe("CounterfactualHome", () => {
 
   it("restores the selected-work preview when browser history returns to the root route", () => {
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
+    openWorkFromDesktop();
     fireEvent.click(screen.getByRole("link", { name: /A payment callback arrived twice/i }));
     fireEvent.click(screen.getByRole("button", { name: /Open full case/i }));
 
@@ -168,20 +226,36 @@ describe("CounterfactualHome", () => {
     expect(screen.getByRole("button", { name: /Open full case/i })).toBeTruthy();
   });
 
-  it("opens the selected-work list directly from its hash without an overlay", () => {
+  it.each([
+    ["computer", 1440, 960],
+    ["tablet", 768, 1024],
+    ["phone", 390, 844],
+  ] as const)("treats a stale selected-work hash as a clean %s launch with no application open", (mode, width, height) => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: height });
     window.history.replaceState(null, "", "/#selected-work");
-    render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
+    render(
+      <WorkspaceManagerProvider>
+        <SystemShell />
+        <CounterfactualHome />
+      </WorkspaceManagerProvider>,
+    );
     act(() => vi.advanceTimersByTime(20));
 
     expect(screen.queryByRole("region", { name: "Opening portfolio workspace" })).toBeNull();
-    expect(screen.getByRole("heading", { name: "Three failures, three decisions." })).toBeTruthy();
-    expect(HTMLElement.prototype.scrollTo).toHaveBeenCalled();
+    expect(screen.queryByRole("region", { name: "Work window" })).toBeNull();
+    expect(document.querySelector(".system-home-screen")?.getAttribute("aria-hidden")).toBe("false");
+    expect(document.querySelector(".system-home-screen")?.getAttribute("data-mode")).toBe(mode);
+    expect(document.querySelectorAll('.taskbar-app[data-running="true"]')).toHaveLength(0);
+    expect(window.location.pathname).toBe("/");
+    expect(window.location.hash).toBe("");
   });
 
   it("returns from a selected summary to the Work index without closing or duplicating Work", () => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 375 });
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 812 });
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
+    openWorkFromDesktop();
     fireEvent.click(screen.getByRole("link", { name: /A payment callback arrived twice/i }));
 
     const workWindow = screen.getByRole("region", { name: "Work window" });
@@ -195,6 +269,7 @@ describe("CounterfactualHome", () => {
 
   it("normalizes route and detail state when the desktop titlebar closes a full case", () => {
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
+    openWorkFromDesktop();
     fireEvent.click(screen.getByRole("link", { name: /A payment callback arrived twice/i }));
     fireEvent.click(screen.getByRole("button", { name: /Open full case/i }));
     expect(window.location.pathname).toBe("/case/payflow");
@@ -221,7 +296,7 @@ describe("CounterfactualHome", () => {
     const home = document.querySelector<HTMLElement>(".system-home-screen")!;
     fireEvent.click(phoneNavigation.getByRole("button", { name: "Home" }));
     expect(home.getAttribute("aria-hidden")).toBe("false");
-    fireEvent.click(within(home).getByRole("button", { name: "Continue Work" }));
+    fireEvent.click(home.querySelector<HTMLButtonElement>(".system-resume-app")!);
     fireEvent.click(screen.getByRole("link", { name: /A payment callback arrived twice/i }));
     fireEvent.click(within(activeSelectedWindow()).getByRole("button", { name: /Open full case/i }));
     expect(document.querySelector('.workspace-work-window[data-view="full-case"]')).toBeTruthy();

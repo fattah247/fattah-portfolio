@@ -326,14 +326,14 @@ body {
 .portfolio-window[data-window-state="clear"],
 .selected-work-window[data-window-state="clear"],
 .contact-window[data-window-state="clear"] {
-  filter: saturate(.82) contrast(.97) !important;
+  filter: none !important;
   opacity: 1 !important;
 }
 
 .portfolio-window[data-window-state="blurred"],
 .selected-work-window[data-window-state="blurred"],
 .contact-window[data-window-state="blurred"] {
-  filter: saturate(.82) contrast(.97) !important;
+  filter: none !important;
   opacity: 1 !important;
 }
 
@@ -1623,6 +1623,225 @@ body {
   }
 }
 
+/* Desktop wallpaper and filing grid */
+html[data-system-mode="computer"] .desktop-surface {
+  background: var(--paper) !important;
+  isolation: isolate;
+  padding: 0 !important;
+}
+
+html[data-system-mode="computer"] .desktop-board {
+  align-content: start;
+  align-items: start;
+  animation: none !important;
+  gap: var(--space-6) var(--space-4) !important;
+  grid-template-columns: repeat(4, 148px) !important;
+  grid-template-rows: repeat(2, 148px) !important;
+  justify-content: start;
+  justify-items: start;
+  padding: var(--space-8) var(--space-8) calc(var(--os-taskbar) + var(--space-6)) !important;
+  position: relative;
+  transform: none !important;
+  z-index: 1;
+}
+
+html[data-system-mode="computer"] .desktop-object {
+  align-self: start;
+  animation: none !important;
+  box-sizing: border-box;
+  cursor: default;
+  gap: var(--space-2) !important;
+  justify-items: center;
+  min-height: 136px;
+  outline: 1px solid transparent;
+  outline-offset: -1px;
+  padding: var(--space-2) !important;
+  text-align: center;
+  touch-action: none;
+  transition: background-color var(--duration-micro) ease, outline-color var(--duration-micro) ease;
+  transform: translate3d(var(--desktop-offset-x), var(--desktop-offset-y), 0) !important;
+  user-select: none;
+  width: 148px !important;
+}
+
+.desktop-wallpaper {
+  display: none;
+}
+
+html[data-system-mode="computer"] .desktop-wallpaper {
+  display: block;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  z-index: 0;
+}
+
+html[data-system-mode="computer"] .desktop-wallpaper svg {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+html[data-system-mode="computer"] .desktop-wallpaper-field-warm {
+  fill: var(--paper-warm);
+  opacity: .72;
+}
+
+html[data-system-mode="computer"] .desktop-wallpaper-field-cool {
+  fill: var(--paper-cool);
+  opacity: .78;
+}
+
+html[data-system-mode="computer"] .desktop-wallpaper-weave {
+  opacity: .52;
+}
+
+html[data-system-mode="computer"] .desktop-wallpaper-thread {
+  fill: none;
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+html[data-system-mode="computer"] .desktop-wallpaper-ribbons {
+  fill: none;
+  opacity: .48;
+  stroke: var(--rule-strong);
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-width: 14;
+}
+
+html[data-system-mode="computer"] .desktop-wallpaper-ribbons path:last-child {
+  opacity: .68;
+  stroke: var(--designed-wash);
+  stroke-width: 36;
+}
+
+html[data-system-mode="computer"] .desktop-wallpaper-pixels {
+  fill: var(--designed);
+  opacity: .22;
+}
+
+html[data-system-mode="computer"] .desktop-wallpaper-perforations {
+  fill: var(--ink-secondary);
+  opacity: .2;
+}
+
+html[data-system-mode="computer"] .desktop-object[data-dragging="true"] {
+  cursor: grabbing;
+  z-index: 3;
+}
+
+html[data-system-mode="computer"] .surface-work { grid-column: 1; grid-row: 1; }
+html[data-system-mode="computer"] .surface-experience { grid-column: 2; grid-row: 1; }
+html[data-system-mode="computer"] .surface-contact { grid-column: 3; grid-row: 1; }
+html[data-system-mode="computer"] .surface-products { grid-column: 4; grid-row: 1; }
+html[data-system-mode="computer"] .surface-selected { grid-column: 1; grid-row: 2; }
+html[data-system-mode="computer"] .surface-shot-payflow { grid-column: 2; grid-row: 2; }
+html[data-system-mode="computer"] .surface-shot-iyup { grid-column: 3; grid-row: 2; }
+html[data-system-mode="computer"] .surface-shot-trustgate { grid-column: 4; grid-row: 2; }
+
+html[data-system-mode="computer"] .desktop-object:hover {
+  background: var(--paper-recessed);
+  outline-color: var(--rule);
+}
+
+html[data-system-mode="computer"] .desktop-object:focus-visible {
+  background: var(--selection);
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+html[data-system-mode="computer"] .desktop-object:active {
+  background: var(--paper-cool);
+}
+
+html[data-system-mode="computer"] .desktop-object-copy {
+  gap: var(--space-1) !important;
+  max-width: 132px;
+  padding: 0 !important;
+  width: 100%;
+}
+
+html[data-system-mode="computer"] .desktop-object-copy strong {
+  font-size: .9rem !important;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-system-mode="computer"] .desktop-object-copy small {
+  font-size: .55rem;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-system-mode="computer"] .desktop-app-glyph,
+html[data-system-mode="computer"] .desktop-case-glyph,
+html[data-system-mode="computer"] .evidence-polaroid {
+  border-color: var(--rule-strong) !important;
+  box-shadow: var(--icon-shadow) !important;
+  transition: box-shadow var(--duration-micro) ease, transform var(--duration-micro) ease;
+}
+
+html[data-system-mode="computer"] .desktop-app-glyph,
+html[data-system-mode="computer"] .desktop-case-glyph {
+  height: 72px;
+  width: 84px;
+}
+
+html[data-system-mode="computer"] .desktop-app-glyph .system-app-mark {
+  height: 46px;
+  width: 46px;
+}
+
+html[data-system-mode="computer"] .desktop-case-glyph {
+  padding: var(--space-3);
+}
+
+html[data-system-mode="computer"] .evidence-polaroid {
+  aspect-ratio: auto;
+  height: 72px;
+  padding: var(--space-1) var(--space-1) var(--space-4);
+  width: 112px;
+}
+
+html[data-system-mode="computer"] .evidence-polaroid img {
+  background: var(--paper-recessed);
+  height: 52px !important;
+  inset: var(--space-1) var(--space-1) var(--space-4) !important;
+  object-fit: contain;
+  width: calc(100% - var(--space-2)) !important;
+}
+
+html[data-system-mode="computer"] .evidence-polaroid::after {
+  bottom: var(--space-2);
+  height: var(--space-1);
+  left: var(--space-2);
+  width: var(--space-1);
+}
+
+html[data-system-mode="computer"] .desktop-object:hover .desktop-app-glyph,
+html[data-system-mode="computer"] .desktop-object:focus-visible .desktop-app-glyph,
+html[data-system-mode="computer"] .desktop-object:hover .desktop-case-glyph,
+html[data-system-mode="computer"] .desktop-object:focus-visible .desktop-case-glyph,
+html[data-system-mode="computer"] .desktop-object:hover .evidence-polaroid,
+html[data-system-mode="computer"] .desktop-object:focus-visible .evidence-polaroid {
+  box-shadow: var(--icon-shadow) !important;
+  transform: none !important;
+}
+
+html[data-system-mode="computer"] .desktop-object:active .desktop-app-glyph,
+html[data-system-mode="computer"] .desktop-object:active .desktop-case-glyph,
+html[data-system-mode="computer"] .desktop-object:active .evidence-polaroid {
+  box-shadow: var(--control-shadow-pressed) !important;
+  transform: translate(1px, 1px) !important;
+}
+
 @media (max-width: 760px) {
   .system-launcher {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1664,7 +1883,9 @@ body {
   .selected-work-window,
   .evidence-sheet,
   .portfolio-window > *,
-  .selected-work-window > * {
+  .selected-work-window > *,
+  .taskbar-app > i,
+  .tablet-shelf button > i {
     animation: none !important;
     transition: none !important;
   }
@@ -1955,14 +2176,34 @@ body {
   background: transparent;
   bottom: 2px;
   height: 2px;
-  left: 12px;
+  left: 50%;
+  opacity: 0;
   position: absolute;
-  right: 12px;
+  transform: translateX(-50%) scaleX(0);
+  transform-origin: center;
+  transition:
+    background-color var(--duration-micro) var(--os-ease),
+    opacity var(--duration-micro) var(--os-ease),
+    transform var(--duration-micro) var(--os-ease);
+  width: 28px;
 }
 
-.taskbar-app[data-running="true"] > i { background: var(--rule-strong); }
-.taskbar-app[data-active="true"] > i { background: var(--adverse); }
-.taskbar-app[data-minimized="true"] > i { left: 40%; right: 40%; }
+.taskbar-app[data-running="true"] > i {
+  background: var(--rule-strong);
+  opacity: .8;
+  transform: translateX(-50%) scaleX(.5);
+}
+
+.taskbar-app[data-active="true"] > i {
+  background: var(--ink);
+  height: 4px;
+  opacity: 1;
+  transform: translateX(-50%) scaleX(1);
+}
+
+.taskbar-app[data-minimized="true"] > i {
+  transform: translateX(-50%) scaleX(.25);
+}
 
 .system-app-mark {
   align-items: center;
@@ -2334,6 +2575,15 @@ body {
     justify-content: space-between;
     min-width: 0;
   }
+}
+
+/* Desktop shortcuts use the same top-left origin as a conventional PC desktop. */
+html[data-system-mode="computer"] .desktop-board {
+  height: calc(100svh - var(--os-topbar) - var(--os-taskbar)) !important;
+  inset: 0 !important;
+  padding: var(--space-8) var(--space-8) calc(var(--os-taskbar) + var(--space-6)) !important;
+  position: absolute !important;
+  transform: none !important;
 }
 
 .system-home-screen,
@@ -2839,8 +3089,25 @@ html[data-system-mode="computer"][data-system-surface="recents"] .contact-window
     position: relative;
   }
 
-  .tablet-shelf button[data-active="true"] { background: var(--paper-recessed); }
-  .tablet-shelf button > i { background: var(--adverse); bottom: 1px; height: 3px; position: absolute; width: 14px; }
+.tablet-shelf button[data-active="true"] { background: var(--paper-recessed); }
+.tablet-shelf button > i {
+  background: var(--rule-strong);
+  bottom: 1px;
+  height: 2px;
+  position: absolute;
+  transform: scaleX(.5);
+  transform-origin: center;
+  transition:
+    background-color var(--duration-micro) var(--os-ease),
+    transform var(--duration-micro) var(--os-ease);
+  width: 28px;
+}
+
+.tablet-shelf button[data-active="true"] > i {
+  background: var(--ink);
+  height: 4px;
+  transform: scaleX(1);
+}
 
   .tablet-shelf button[data-active="true"] svg,
   .tablet-shelf button[data-active="true"] .system-app-mark {
@@ -3761,7 +4028,7 @@ html[data-system-mode="computer"][data-system-surface="recents"] .contact-window
 }
 
 .system-desktop-menu button[aria-current="page"]::after {
-  background: var(--designed);
+  background: var(--ink);
   bottom: 0;
   content: "";
   height: 2px;
@@ -3776,16 +4043,22 @@ html[data-system-mode="computer"][data-system-surface="recents"] .contact-window
 
 [data-window-state="active"] > .window-chrome::before,
 [data-window-state="active"] .evidence-sheet-head::before,
-[data-active-window="true"] > .window-chrome::before,
+[data-active-window="true"] > .window-chrome::before {
+  background: transparent !important;
+}
+
 .taskbar-app[data-active="true"] > i,
-.system-launcher-app > i,
-.tablet-shelf button > i {
-  background: var(--designed) !important;
+.tablet-shelf button[data-active="true"] > i {
+  background: var(--ink) !important;
+}
+
+.system-launcher-app > i {
+  background: var(--rule-strong) !important;
 }
 
 .system-resume-app:hover,
 .system-resume-app:focus-visible {
-  background: var(--designed);
+  background: var(--ink);
 }
 
 .system-recent-close {
@@ -3924,10 +4197,10 @@ html[data-system-mode="tablet"] .system-recents > header > button {
 @media (orientation: landscape) {
   html[data-system-mode="tablet"] .editorial-home:has(.portfolio-window[data-window-state="clear"]) .portfolio-window[data-window-state="clear"] {
     bottom: calc(var(--os-shelf) + 14px) !important;
-    filter: saturate(.72) contrast(.94);
+    filter: none;
     inset: calc(var(--os-topbar) + 14px) auto calc(var(--os-shelf) + 14px) 14px !important;
     left: 14px !important;
-    opacity: .82 !important;
+    opacity: 1 !important;
     pointer-events: auto !important;
     right: auto !important;
     visibility: visible !important;
@@ -3992,7 +4265,7 @@ html[data-system-mode="phone"] .phone-system-navigation button[data-active="true
 }
 
 html[data-system-mode="phone"] .phone-system-navigation button[data-active="true"] svg {
-  color: var(--designed);
+  color: var(--ink);
 }
 
 html[data-system-mode="phone"] .system-home-screen,
@@ -4226,15 +4499,23 @@ html[data-system-mode="phone"] {
   --os-topbar: calc(48px + env(safe-area-inset-top));
 }
 
-/* Designed blue owns active, current, and running application state. */
+/* System chrome stays neutral; colour is reserved for semantic document state. */
 .system-brand > span,
-.system-brand-popover a[aria-current="page"]::before,
+.system-brand-popover a[aria-current="page"]::before {
+  border-color: var(--ink) !important;
+  background: var(--ink) !important;
+}
+
 .taskbar-app[data-running="true"] > i,
+.tablet-shelf button[data-running="true"] > i {
+  border-color: var(--rule-strong) !important;
+  background: var(--rule-strong) !important;
+}
+
 .taskbar-app[data-active="true"] > i,
-.tablet-shelf button[data-running="true"] > i,
-.case-progress a[aria-current="step"]::after {
-  border-color: var(--designed) !important;
-  background: var(--designed) !important;
+.tablet-shelf button[data-active="true"] > i {
+  border-color: var(--ink) !important;
+  background: var(--ink) !important;
 }
 
 .portfolio-window[data-active-window="true"],
@@ -4242,29 +4523,39 @@ html[data-system-mode="phone"] {
 .portfolio-window[data-window-state="active"],
 .selected-work-window[data-window-state="active"],
 .evidence-sheet[data-window-state="active"] {
-  border-color: var(--designed) !important;
+  border-color: var(--ink) !important;
 }
 
 .portfolio-window[data-active-window="true"] > .portfolio-window-chrome,
 .contact-window[data-active-window="true"] > .window-titlebar,
 .selected-work-window[data-window-state="active"] > .case-workspace-chrome,
 .evidence-sheet[data-window-state="active"] .evidence-sheet-head {
-  box-shadow: inset 0 -2px 0 var(--designed) !important;
+  box-shadow: none !important;
 }
 
 .system-recent-card[data-current="true"] {
-  border-color: var(--designed);
+  border-color: var(--ink);
 }
 
 .system-recent-card[data-current="true"] .system-recent-preview-bar > small {
-  color: var(--designed);
+  color: var(--ink);
 }
 
 .primary-action::before,
 .primary-action::after,
-.brief-download-action::before,
-.condition-option::before {
-  background: var(--designed) !important;
+.brief-download-action::before {
+  background: var(--adverse) !important;
+}
+
+.brief-download-action::before {
+  opacity: 0 !important;
+  transform: scaleX(0) !important;
+}
+
+.brief-download-action:hover::before,
+.brief-download-action:focus-visible::before {
+  opacity: 1 !important;
+  transform: scaleX(1) !important;
 }
 
 .condition-option[aria-pressed="true"] {
@@ -4298,11 +4589,11 @@ html[data-system-mode="phone"] {
 
 .taskbar-app[data-running="true"] > i {
   height: 2px;
-  opacity: .72;
+  opacity: .8;
 }
 
 .taskbar-app[data-active="true"] > i {
-  height: 3px;
+  height: 4px;
   opacity: 1;
 }
 
@@ -4421,7 +4712,7 @@ html[data-system-mode="tablet"] .portfolio-window[data-window-state="active"],
 html[data-system-mode="tablet"] .contact-window[data-window-state="active"],
 html[data-system-mode="tablet"] .selected-work-window[data-window-state="active"],
 html[data-system-mode="tablet"] .evidence-sheet[data-window-state="active"] {
-  border-color: var(--designed) !important;
+  border-color: var(--ink) !important;
 }
 
 html[data-system-mode="tablet"] .workspace-case-window,
@@ -4433,8 +4724,14 @@ html[data-system-mode="tablet"] .product-links-window {
   overscroll-behavior: contain;
 }
 
-html[data-system-mode="tablet"] .tablet-shelf button[data-running="true"] > i {
-  background: var(--designed) !important;
+html[data-system-mode="tablet"] .tablet-shelf button[data-running="true"]:not([data-active="true"]) > i {
+  background: var(--rule-strong) !important;
+  transform: scaleX(.5);
+}
+
+html[data-system-mode="tablet"] .tablet-shelf button[data-active="true"] > i {
+  background: var(--ink) !important;
+  transform: scaleX(1);
 }
 
 /* Phone is one edge-to-edge application with Android-like system navigation. */
@@ -4489,7 +4786,7 @@ html[data-system-mode="tablet"] .system-active-app {
 }
 
 .system-brand > span {
-  background: var(--designed) !important;
+  background: var(--ink) !important;
   transition: none;
 }
 

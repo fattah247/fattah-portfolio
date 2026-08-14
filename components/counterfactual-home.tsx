@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { ArrowIcon } from "./icons";
 import { CopyEmailButton } from "./copy-email-button";
 import { DebuggerWorkspace } from "./debugger-workspace";
@@ -148,6 +148,34 @@ const desktopItems = [
   },
 ] as const;
 
+type DesktopOffset = { x: number; y: number; z: number };
+type DesktopOffsets = Record<string, DesktopOffset>;
+
+const desktopOffsetsSessionKey = "fattah.desktop.shortcuts.v1";
+
+function readDesktopOffsets(): DesktopOffsets {
+  try {
+    const parsed = JSON.parse(window.sessionStorage.getItem(desktopOffsetsSessionKey) ?? "{}") as Record<string, unknown>;
+    return Object.fromEntries(Object.entries(parsed).flatMap(([key, value]) => {
+      if (!value || typeof value !== "object") return [];
+      const offset = value as Partial<DesktopOffset>;
+      return Number.isFinite(offset.x) && Number.isFinite(offset.y)
+        ? [[key, { x: Number(offset.x), y: Number(offset.y), z: Number.isFinite(offset.z) ? Number(offset.z) : 0 }]]
+        : [];
+    }));
+  } catch {
+    return {};
+  }
+}
+
+function storeDesktopOffsets(offsets: DesktopOffsets) {
+  try {
+    window.sessionStorage.setItem(desktopOffsetsSessionKey, JSON.stringify(offsets));
+  } catch {
+    // Session storage is an enhancement; shortcut dragging still works without it.
+  }
+}
+
 function DesktopSurface({
   onOpenCase,
   onOpenWindow,
@@ -155,6 +183,140 @@ function DesktopSurface({
   onOpenCase: (slug: ScenarioSlug) => void;
   onOpenWindow: (windowName: WorkspaceWindow, target?: "selected-work") => void;
 }) {
+  const boardRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    baseLeft: number;
+    baseTop: number;
+    height: number;
+    key: string;
+    latest: DesktopOffset;
+    moved: boolean;
+    origin: DesktopOffset;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    topZ: number;
+    width: number;
+  } | null>(null);
+  const suppressClickRef = useRef<string | null>(null);
+  const [desktopOffsets, setDesktopOffsets] = useState<DesktopOffsets>({});
+  const [draggingDesktopItem, setDraggingDesktopItem] = useState<string | null>(null);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setDesktopOffsets(readDesktopOffsets()));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  useEffect(() => {
+    function clampShortcutsToBoard() {
+      const board = boardRef.current;
+      if (!board) return;
+      const boardRect = board.getBoundingClientRect();
+
+      setDesktopOffsets((current) => {
+        let changed = false;
+        const next = { ...current };
+        for (const [key, offset] of Object.entries(current)) {
+          const shortcut = board.querySelector<HTMLElement>(`.${key}`);
+          if (!shortcut) continue;
+          const rect = shortcut.getBoundingClientRect();
+          const x = offset.x + Math.max(0, boardRect.left - rect.left) - Math.max(0, rect.right - boardRect.right);
+          const y = offset.y + Math.max(0, boardRect.top - rect.top) - Math.max(0, rect.bottom - boardRect.bottom);
+          if (x !== offset.x || y !== offset.y) {
+            next[key] = { ...offset, x, y };
+            changed = true;
+          }
+        }
+        if (changed) storeDesktopOffsets(next);
+        return changed ? next : current;
+      });
+    }
+
+    window.addEventListener("resize", clampShortcutsToBoard);
+    const frame = window.requestAnimationFrame(clampShortcutsToBoard);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", clampShortcutsToBoard);
+    };
+  }, []);
+
+  function beginDesktopDrag(event: ReactPointerEvent<HTMLAnchorElement>, key: string) {
+    if (event.button !== 0 || document.documentElement.dataset.systemMode !== "computer") return;
+    const board = boardRef.current;
+    if (!board) return;
+    const boardRect = board.getBoundingClientRect();
+    const shortcutRect = event.currentTarget.getBoundingClientRect();
+    const origin = desktopOffsets[key] ?? { x: 0, y: 0, z: 0 };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      baseLeft: shortcutRect.left - boardRect.left - origin.x,
+      baseTop: shortcutRect.top - boardRect.top - origin.y,
+      height: shortcutRect.height,
+      key,
+      latest: origin,
+      moved: false,
+      origin,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      topZ: Math.max(0, ...Object.values(desktopOffsets).map((offset) => offset.z)) + 1,
+      width: shortcutRect.width,
+    };
+  }
+
+  function moveDesktopShortcut(event: ReactPointerEvent<HTMLAnchorElement>) {
+    const drag = dragRef.current;
+    const board = boardRef.current;
+    if (!drag || drag.pointerId !== event.pointerId || !board) return;
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+    if (!drag.moved && Math.hypot(deltaX, deltaY) < 5) return;
+    event.preventDefault();
+    if (!drag.moved) {
+      drag.moved = true;
+      drag.latest = { ...drag.latest, z: drag.topZ };
+    }
+    const boardRect = board.getBoundingClientRect();
+    const next = {
+      x: Math.min(boardRect.width - drag.baseLeft - drag.width, Math.max(-drag.baseLeft, drag.origin.x + deltaX)),
+      y: Math.min(boardRect.height - drag.baseTop - drag.height, Math.max(-drag.baseTop, drag.origin.y + deltaY)),
+      z: drag.latest.z,
+    };
+    drag.latest = next;
+    setDraggingDesktopItem(drag.key);
+    setDesktopOffsets((current) => {
+      const updated = { ...current, [drag.key]: next };
+      storeDesktopOffsets(updated);
+      return updated;
+    });
+  }
+
+  function endDesktopDrag(event: ReactPointerEvent<HTMLAnchorElement>) {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (drag.moved) {
+      suppressClickRef.current = drag.key;
+      setDesktopOffsets((current) => {
+        const next = { ...current, [drag.key]: drag.latest };
+        storeDesktopOffsets(next);
+        return next;
+      });
+      window.setTimeout(() => {
+        if (suppressClickRef.current === drag.key) suppressClickRef.current = null;
+      }, 0);
+    }
+    setDraggingDesktopItem(null);
+    dragRef.current = null;
+  }
+
+  function draggedClick(event: MouseEvent<HTMLAnchorElement>, key: string) {
+    if (suppressClickRef.current !== key) return false;
+    event.preventDefault();
+    suppressClickRef.current = null;
+    return true;
+  }
+
   function openContact(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault();
     window.dispatchEvent(new Event("portfolio-contact-open"));
@@ -169,34 +331,68 @@ function DesktopSurface({
 
   return (
     <section className="desktop-surface" aria-labelledby="desktop-surface-title">
-      <header className="desktop-surface-head">
-        <p>Second Attempt</p>
-        <h2 id="desktop-surface-title">Engineering workspace</h2>
-      </header>
-      <div className="desktop-board" aria-label="Portfolio desktop shortcuts">
+      <div className="desktop-wallpaper" aria-hidden="true">
+        <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" focusable="false">
+          <defs>
+            <pattern id="desktop-weave" width="48" height="48" patternUnits="userSpaceOnUse">
+              <path className="desktop-wallpaper-thread" d="M0 12h12V0M36 48V36h12" />
+            </pattern>
+          </defs>
+          <path className="desktop-wallpaper-field-warm" d="M1060 0h540v900H880V780h120V660h120V540h120V420h120V300h120V180h100V0Z" />
+          <path className="desktop-wallpaper-field-cool" d="M1290 0h310v900h-166V768h-96V636h-96V504h-96V372h-96V240h240V0Z" />
+          <rect className="desktop-wallpaper-weave" x="720" y="0" width="880" height="900" fill="url(#desktop-weave)" />
+          <g className="desktop-wallpaper-ribbons">
+            <path d="M760 842h120V722h120V602h120V482h120V362h120V242h120V122h140" />
+            <path d="M920 900V804h120v-96h120v-96h120v-96h120v-96h120V324h100" />
+          </g>
+          <g className="desktop-wallpaper-pixels">
+            <path d="M1116 92h20v20h-20zM1164 92h20v20h-20zM1212 92h20v20h-20zM1260 92h20v20h-20z" />
+            <path d="M1140 116h20v20h-20zM1188 116h20v20h-20zM1236 116h20v20h-20z" />
+            <path d="M1476 596h28v28h-28zM1516 596h28v28h-28zM1556 596h28v28h-28z" />
+          </g>
+          <g className="desktop-wallpaper-perforations">
+            <path d="M756 520h12v12h-12zM788 520h12v12h-12zM820 520h12v12h-12zM852 520h12v12h-12z" />
+            <path d="M924 836h12v12h-12zM956 836h12v12h-12zM988 836h12v12h-12zM1020 836h12v12h-12z" />
+          </g>
+        </svg>
+      </div>
+      <h2 className="sr-only" id="desktop-surface-title">Engineering workspace</h2>
+      <div className="desktop-board" aria-label="Portfolio desktop shortcuts" ref={boardRef}>
         {desktopItems.map((item) => (
           <Link
             className={`desktop-object ${item.type === "folder" ? "desktop-folder" : "desktop-evidence"} ${item.className}`}
+            data-dragging={draggingDesktopItem === item.className ? "true" : undefined}
             href={item.href}
             key={item.label}
+            onDragStart={(event) => event.preventDefault()}
             onClick={
               item.label === "Contact"
-                ? openContact
+                ? (event) => { if (!draggedClick(event, item.className)) openContact(event); }
                 : item.label === "Work"
-                  ? openDesktopWindow("work")
+                  ? (event) => { if (!draggedClick(event, item.className)) openDesktopWindow("work")(event); }
                   : item.label === "Selected work"
-                    ? openDesktopWindow("work", "selected-work")
+                    ? (event) => { if (!draggedClick(event, item.className)) openDesktopWindow("work", "selected-work")(event); }
                     : item.label === "Experience"
-                      ? openDesktopWindow("experience")
+                      ? (event) => { if (!draggedClick(event, item.className)) openDesktopWindow("experience")(event); }
                       : item.label === "Product Links"
-                        ? openDesktopWindow("products")
+                        ? (event) => { if (!draggedClick(event, item.className)) openDesktopWindow("products")(event); }
                       : item.type === "image"
                         ? (event) => {
+                          if (draggedClick(event, item.className)) return;
                           event.preventDefault();
                           onOpenCase(item.href.replace("/case/", "") as ScenarioSlug);
                         }
                       : undefined
             }
+            onPointerCancel={endDesktopDrag}
+            onPointerDown={(event) => beginDesktopDrag(event, item.className)}
+            onPointerMove={moveDesktopShortcut}
+            onPointerUp={endDesktopDrag}
+            style={{
+              "--desktop-offset-x": `${desktopOffsets[item.className]?.x ?? 0}px`,
+              "--desktop-offset-y": `${desktopOffsets[item.className]?.y ?? 0}px`,
+              zIndex: desktopOffsets[item.className]?.z || undefined,
+            } as CSSProperties}
           >
             {item.type === "folder" ? item.label === "Selected work" ? (
               <span className="desktop-case-glyph" aria-hidden="true"><i>03</i><b>CASES</b></span>
@@ -421,13 +617,9 @@ export function CounterfactualHome({
   }, [initialCaseSlug]);
 
   useEffect(() => {
-    if (window.location.hash !== "#selected-work") return;
-    pendingWorkScroll.current = "selected-work";
-    workspace.openWindow("work");
-    window.requestAnimationFrame(() => scrollWorkToSelected("auto"));
-  // Consume the deep-link once when the Work window mounts.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (initialCaseSlug || window.location.pathname !== "/" || !window.location.hash) return;
+    window.history.replaceState(null, "", "/");
+  }, [initialCaseSlug]);
 
   useEffect(() => {
     if (!isWorkOpen) return;
@@ -751,12 +943,12 @@ export function CounterfactualHome({
   useEffect(() => () => closeTimers.current.forEach(window.clearTimeout), []);
 
   useEffect(() => {
-    if (workspace.isAppOpen("work")) return;
+    if (workspace.isAppOpen("work") || initialCaseSlug) return;
     setWorkView("index");
     if (window.location.pathname.startsWith("/case/")) {
       window.history.replaceState(null, "", "/");
     }
-  }, [workspace.openWindows, workspace]);
+  }, [initialCaseSlug, workspace.openWindows, workspace]);
 
   useEffect(() => {
     if (!activeWindow || !mainWindowIds.includes(activeWindow as WorkspaceWindow) || (activeWindow === "work" && workView === "full-case")) return;
