@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import { WorkspaceManagerProvider } from "@/components/workspace-manager";
 import "./globals.css";
+import "./design-tokens.css";
 import "./window-system.css";
 
 const bodyFont = IBM_Plex_Sans({

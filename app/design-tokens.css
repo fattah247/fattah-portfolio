@@ -1,0 +1,101 @@
+:root {
+  color-scheme: light;
+
+  /* Surfaces and ink */
+  --paper: #eef1f0;
+  --paper-raised: #fbfcfa;
+  --paper-recessed: #e4e8e6;
+  --paper-cool: #e8edec;
+  --paper-warm: #f2eee6;
+  --surface: var(--paper-raised);
+  --ink: #101416;
+  --ink-secondary: #566168;
+  --ink-tertiary: #626d72;
+  --rule: #cbd1cf;
+  --rule-strong: #8d9896;
+  --baseline: #62696d;
+  --baseline-wash: #e4e7e8;
+
+  /* Causal and semantic state */
+  --designed: #155b8f;
+  --designed-bright: #1e78b4;
+  --designed-wash: #dceaf1;
+  --confirmed: #237368;
+  --confirmed-wash: #d9e8e3;
+  --uncertain: #8a5514;
+  --uncertain-wash: #f0dfc5;
+  --adverse: #d44834;
+  --adverse-ink: #c23a2a;
+  --adverse-wash: #f1d9d4;
+  --focus: #155b8f;
+  --selection: #d9e6eb;
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --content-gutter: clamp(1rem, 3vw, 3rem);
+  --causal-label-column: 190px;
+  --reading-measure: 68ch;
+  --shell: min(1540px, calc(100vw - 64px));
+
+  /* System and window geometry */
+  --system-bar-height: 58px;
+  --os-topbar: 38px;
+  --os-taskbar: 66px;
+  --os-shelf: calc(72px + env(safe-area-inset-bottom));
+  --os-phone-nav: 62px;
+  --window-chrome-height: 58px;
+  --window-chrome-gap: 1.45rem;
+  --window-chrome-pad-x: clamp(1.25rem, 2.2vw, 2rem);
+  --window-close-hit: 44px;
+  --window-close-mark: 32px;
+  --window-edge-gap: 12px;
+  --mobile-header-height: 70px;
+  --radius-control: 0;
+  --radius-window: 0;
+
+  /* Depth */
+  --window-shadow: 0 24px 70px rgb(16 20 22 / 12%), 0 2px 7px rgb(16 20 22 / 6%);
+  --window-shadow-active: 0 32px 95px rgb(16 20 22 / 18%), 0 2px 9px rgb(16 20 22 / 8%);
+  --control-shadow-raised: 3px 3px 0 var(--rule-strong);
+  --control-shadow-pressed: inset 2px 2px 0 var(--rule);
+  --icon-shadow: 2px 2px 0 var(--ink);
+
+  /* Motion */
+  --duration-micro: 140ms;
+  --duration-focus: 180ms;
+  --duration-window: 240ms;
+  --duration-navigation: 260ms;
+  --duration-causal: 380ms;
+  --duration-boot: 720ms;
+  --ease-event: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-rewind: cubic-bezier(0.65, 0, 0.78, 0);
+  --ease-decision: cubic-bezier(0.16, 1, 0.3, 1);
+  --os-ease: var(--ease-decision);
+}
+
+@media (max-width: 1100px) {
+  :root {
+    --os-topbar: 42px;
+    --window-chrome-height: 58px;
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --content-gutter: 1rem;
+    --mobile-header-height: 54px;
+    --os-phone-nav: calc(58px + env(safe-area-inset-bottom));
+    --os-topbar: calc(40px + env(safe-area-inset-top));
+    --system-bar-height: 54px;
+    --window-chrome-height: 62px;
+    --window-chrome-gap: 1rem;
+    --window-chrome-pad-x: 1rem;
+  }
+}
