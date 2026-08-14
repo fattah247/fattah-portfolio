@@ -27,4 +27,13 @@ describe("window frame resize contract", () => {
       if (edge.includes("bottom")) expect(resized.y).toBe(rect.y);
     }
   });
+
+  it("supports inward resizing from every corner without changing the anchored corner", () => {
+    const rect: FrameRect = { x: 120, y: 96, width: 760, height: 520 };
+    const topLeft = resizeFrame(rect, "top-left", 80, 60);
+    const bottomRight = resizeFrame(rect, "bottom-right", -80, -60);
+
+    expect(topLeft).toEqual({ x: 200, y: 156, width: 680, height: 460 });
+    expect(bottomRight).toEqual({ x: 120, y: 96, width: 680, height: 460 });
+  });
 });

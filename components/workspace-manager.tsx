@@ -12,14 +12,31 @@ import {
 } from "react";
 
 export type DeviceMode = "computer" | "tablet" | "phone";
-export type PortfolioAppId = "work" | "experience" | "contact";
+export type PortfolioAppId = "work" | "experience" | "contact" | "products";
 export type SystemSurface = "home" | "application" | "recents";
-export type WorkspaceWindowId = "work" | "experience" | "case" | "detail" | "contact" | "evidence";
+export type ProjectWindowId = "case-payflow" | "case-iyup" | "case-trustgate";
+export type EvidenceWindowId =
+  | "evidence-payflow-01"
+  | "evidence-payflow-02"
+  | "evidence-iyup-01"
+  | "evidence-iyup-02"
+  | "evidence-trustgate-01"
+  | "evidence-trustgate-02";
+export type WorkspaceWindowId =
+  | "work"
+  | "experience"
+  | "case"
+  | ProjectWindowId
+  | "detail"
+  | "contact"
+  | "evidence"
+  | EvidenceWindowId
+  | "products";
 export type WorkspaceWindowState = "active" | "clear" | "blurred" | "background" | "minimized" | "closed";
 
 export type WorkspaceState = {
   focus: WorkspaceWindowId[];
-  minimized: PortfolioAppId[];
+  minimized: WorkspaceWindowId[];
   mode: DeviceMode;
   modeReady: boolean;
   open: WorkspaceWindowId[];
@@ -34,9 +51,10 @@ export type WorkspaceAction =
   | { type: "focus"; id: WorkspaceWindowId }
   | { type: "focus-app"; app: PortfolioAppId }
   | { type: "minimize-app"; app: PortfolioAppId }
+  | { type: "minimize-window"; id: WorkspaceWindowId }
   | { type: "show-only"; id: WorkspaceWindowId }
   | { type: "surface"; surface: SystemSurface }
-  | { type: "sync-mode"; mode: DeviceMode; preferHome?: boolean };
+  | { type: "sync-mode"; mode: DeviceMode };
 
 export const initialWorkspaceState: WorkspaceState = {
   open: ["work"],
@@ -51,11 +69,16 @@ export const initialWorkspaceState: WorkspaceState = {
 export function appForWindow(id: WorkspaceWindowId): PortfolioAppId {
   if (id === "experience") return "experience";
   if (id === "contact") return "contact";
+  if (id === "products") return "products";
   return "work";
 }
 
 function primaryWindowFor(app: PortfolioAppId): WorkspaceWindowId {
   return app;
+}
+
+function isChildDocument(id: WorkspaceWindowId) {
+  return id === "detail" || id === "evidence" || id.startsWith("evidence-");
 }
 
 function promote<T>(items: T[], id: T) {
@@ -75,12 +98,11 @@ function mostRecentWindowForApp(state: WorkspaceState, app: PortfolioAppId) {
 export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): WorkspaceState {
   if (action.type === "sync-mode") {
     if (state.mode === action.mode && state.modeReady) return state;
-    const firstCompactPass = !state.modeReady && action.mode !== "computer" && action.preferHome !== false;
     return {
       ...state,
       mode: action.mode,
       modeReady: true,
-      surface: firstCompactPass ? "home" : state.surface === "recents" ? "application" : state.surface,
+      surface: state.surface === "recents" ? "application" : state.surface,
     };
   }
 
@@ -94,7 +116,7 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       ...state,
       open: state.open.includes(action.id) ? state.open : [...state.open, action.id],
       focus: promote(state.focus.filter((item) => state.open.includes(item) || item === action.id), action.id),
-      minimized: state.minimized.filter((item) => item !== app),
+      minimized: state.minimized.filter((item) => item !== action.id),
       recents: promote(state.recents, app),
       surface: "application",
     };
@@ -106,7 +128,7 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
     return {
       ...state,
       focus: promote(state.focus, action.id),
-      minimized: state.minimized.filter((item) => item !== app),
+      minimized: state.minimized.filter((item) => item !== action.id),
       recents: promote(state.recents, app),
       surface: "application",
     };
@@ -119,22 +141,35 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       ...state,
       open,
       focus: promote(state.focus.filter((item) => open.includes(item) || item === id), id),
-      minimized: state.minimized.filter((item) => item !== action.app),
+      minimized: state.minimized.filter((item) => item !== id),
       recents: promote(state.recents, action.app),
       surface: "application",
     };
   }
 
   if (action.type === "minimize-app") {
-    if (!openWindowsForApp(state, action.app).length) return state;
+    const appWindows = openWindowsForApp(state, action.app);
+    if (!appWindows.length) return state;
     return {
       ...state,
       focus: state.focus.filter((id) => appForWindow(id) !== action.app),
-      minimized: promote(state.minimized, action.app),
+      minimized: [...state.minimized.filter((id) => !appWindows.includes(id)), ...appWindows],
       recents: promote(state.recents, action.app),
       surface: state.focus.some((id) => state.open.includes(id) && appForWindow(id) !== action.app)
         ? "application"
         : "home",
+    };
+  }
+
+  if (action.type === "minimize-window") {
+    if (!state.open.includes(action.id)) return state;
+    const focus = state.focus.filter((id) => id !== action.id);
+    return {
+      ...state,
+      focus,
+      minimized: promote(state.minimized, action.id),
+      recents: promote(state.recents, appForWindow(action.id)),
+      surface: focus.some((id) => state.open.includes(id) && !state.minimized.includes(id)) ? "application" : "home",
     };
   }
 
@@ -146,7 +181,7 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       ...state,
       open,
       focus: promote(state.focus.filter((item) => open.includes(item)), action.id),
-      minimized: state.minimized.filter((item) => item !== app),
+      minimized: state.minimized.filter((item) => item !== action.id),
       recents: promote(state.recents, app),
       surface: "application",
     };
@@ -159,7 +194,7 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       ...state,
       open: remainingOpen,
       focus: remainingFocus,
-      minimized: state.minimized.filter((item) => item !== action.app),
+      minimized: state.minimized.filter((id) => appForWindow(id) !== action.app),
       recents: state.recents.filter((item) => item !== action.app),
       surface: remainingFocus.length ? "application" : "home",
     };
@@ -173,7 +208,7 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
     ...state,
     open,
     focus,
-    minimized: appStillOpen ? state.minimized : state.minimized.filter((item) => item !== app),
+    minimized: state.minimized.filter((item) => item !== action.id),
     recents: appStillOpen ? state.recents : state.recents.filter((item) => item !== app),
     surface: focus.length ? state.surface : "home",
   };
@@ -182,13 +217,16 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
 export function workspaceWindowState(state: WorkspaceState, id: WorkspaceWindowId): WorkspaceWindowState {
   if (!state.open.includes(id)) return "closed";
   const app = appForWindow(id);
-  if (state.minimized.includes(app)) return "minimized";
+  if (state.minimized.includes(id)) return "minimized";
   const orderedOpen = state.focus.filter((item) => state.open.includes(item));
   const active = orderedOpen.at(-1);
   if (state.surface !== "application") return "background";
   if (active === id) return "active";
-  if (state.mode !== "computer") return "background";
   const activeApp = active ? appForWindow(active) : null;
+  if (state.mode === "phone") return "background";
+  if (state.mode === "tablet") {
+    return new Set(orderedOpen.slice(-2)).has(id) ? "clear" : "background";
+  }
   if (activeApp && app !== activeApp) {
     const recentApps = [...orderedOpen]
       .reverse()
@@ -197,7 +235,7 @@ export function workspaceWindowState(state: WorkspaceState, id: WorkspaceWindowI
       .slice(0, 2);
     if (!recentApps.includes(app)) return "blurred";
     const representative = [...orderedOpen].reverse().find((windowId) => (
-      !["detail", "evidence"].includes(windowId) && appForWindow(windowId) === app
+      !isChildDocument(windowId) && appForWindow(windowId) === app
     ));
     return representative === id ? "clear" : "blurred";
   }
@@ -219,6 +257,7 @@ type WorkspaceManagerValue = {
   isMinimized: (app: PortfolioAppId) => boolean;
   isOpen: (id: WorkspaceWindowId) => boolean;
   minimizeApp: (app: PortfolioAppId) => void;
+  minimizeWindow: (id: WorkspaceWindowId) => void;
   mode: DeviceMode;
   openRecents: () => void;
   openWindow: (id: WorkspaceWindowId) => void;
@@ -235,9 +274,9 @@ type WorkspaceManagerValue = {
 
 const WorkspaceManagerContext = createContext<WorkspaceManagerValue | null>(null);
 
-function modeForWidth(width: number): DeviceMode {
-  if (width <= 760) return "phone";
-  if (width <= 1100) return "tablet";
+export function modeForViewport(width: number, height: number, coarsePointer = false): DeviceMode {
+  if (Math.min(width, height) <= 500) return "phone";
+  if (coarsePointer || width <= 1100) return "tablet";
   return "computer";
 }
 
@@ -249,14 +288,24 @@ export function WorkspaceManagerProvider({ children }: { children: ReactNode }) 
   const activeApp = activeWindow ? appForWindow(activeWindow) : null;
 
   useEffect(() => {
+    const coarsePointer = typeof window.matchMedia === "function"
+      ? window.matchMedia("(pointer: coarse)")
+      : null;
     const sync = () => dispatch({
       type: "sync-mode",
-      mode: modeForWidth(window.innerWidth),
-      preferHome: window.location.pathname === "/",
+      mode: modeForViewport(
+        window.innerWidth,
+        window.innerHeight,
+        coarsePointer?.matches ?? false,
+      ),
     });
     sync();
     window.addEventListener("resize", sync);
-    return () => window.removeEventListener("resize", sync);
+    coarsePointer?.addEventListener("change", sync);
+    return () => {
+      window.removeEventListener("resize", sync);
+      coarsePointer?.removeEventListener("change", sync);
+    };
   }, []);
 
   useEffect(() => {
@@ -277,24 +326,28 @@ export function WorkspaceManagerProvider({ children }: { children: ReactNode }) 
   const focusApp = useCallback((app: PortfolioAppId) => dispatch({ type: "focus-app", app }), []);
   const closeApp = useCallback((app: PortfolioAppId) => dispatch({ type: "close-app", app }), []);
   const minimizeApp = useCallback((app: PortfolioAppId) => dispatch({ type: "minimize-app", app }), []);
+  const minimizeWindow = useCallback((id: WorkspaceWindowId) => dispatch({ type: "minimize-window", id }), []);
   const goHome = useCallback(() => dispatch({ type: "surface", surface: "home" }), []);
   const openRecents = useCallback(() => dispatch({ type: "surface", surface: "recents" }), []);
   const dismissRecents = useCallback(() => dispatch({ type: "surface", surface: activeWindow ? "application" : "home" }), [activeWindow]);
   const isOpen = useCallback((id: WorkspaceWindowId) => state.open.includes(id), [state.open]);
   const isAppOpen = useCallback((app: PortfolioAppId) => state.open.some((id) => appForWindow(id) === app), [state.open]);
-  const isMinimized = useCallback((app: PortfolioAppId) => state.minimized.includes(app), [state.minimized]);
+  const isMinimized = useCallback((app: PortfolioAppId) => {
+    const windows = state.open.filter((id) => appForWindow(id) === app);
+    return windows.length > 0 && windows.every((id) => state.minimized.includes(id));
+  }, [state.minimized, state.open]);
   const stateFor = useCallback((id: WorkspaceWindowId) => workspaceWindowState(state, id), [state]);
   const zIndexFor = useCallback((id: WorkspaceWindowId) => {
     const index = orderedOpen.indexOf(id);
     return index < 0 ? 0 : 24 + index * 8;
   }, [orderedOpen]);
   const toggleApp = useCallback((app: PortfolioAppId) => {
-    if (state.surface === "application" && activeApp === app && !state.minimized.includes(app)) {
+    if (state.surface === "application" && activeApp === app && activeWindow && !state.minimized.includes(activeWindow)) {
       dispatch({ type: "minimize-app", app });
       return;
     }
     dispatch({ type: "focus-app", app });
-  }, [activeApp, state.minimized, state.surface]);
+  }, [activeApp, activeWindow, state.minimized, state.surface]);
   const registerBackHandler = useCallback((key: string, handler: BackHandler) => {
     backHandlers.current = [...backHandlers.current.filter((item) => item.key !== key), { key, handler }];
     return () => {
@@ -325,6 +378,7 @@ export function WorkspaceManagerProvider({ children }: { children: ReactNode }) 
     isMinimized,
     isOpen,
     minimizeApp,
+    minimizeWindow,
     mode: state.mode,
     openRecents,
     openWindow,
@@ -337,7 +391,7 @@ export function WorkspaceManagerProvider({ children }: { children: ReactNode }) 
     surface: state.surface,
     toggleApp,
     zIndexFor,
-  }), [activeApp, activeWindow, closeApp, closeWindow, dismissRecents, focusApp, focusWindow, goHome, isAppOpen, isMinimized, isOpen, minimizeApp, openRecents, openWindow, registerBackHandler, requestBack, showOnlyWindow, state.mode, state.open, state.recents, state.surface, stateFor, toggleApp, zIndexFor]);
+  }), [activeApp, activeWindow, closeApp, closeWindow, dismissRecents, focusApp, focusWindow, goHome, isAppOpen, isMinimized, isOpen, minimizeApp, minimizeWindow, openRecents, openWindow, registerBackHandler, requestBack, showOnlyWindow, state.mode, state.open, state.recents, state.surface, stateFor, toggleApp, zIndexFor]);
 
   return <WorkspaceManagerContext.Provider value={value}>{children}</WorkspaceManagerContext.Provider>;
 }
