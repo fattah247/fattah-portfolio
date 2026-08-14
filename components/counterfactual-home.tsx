@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { ArrowIcon } from "./icons";
 import { CopyEmailButton } from "./copy-email-button";
 import { DebuggerWorkspace } from "./debugger-workspace";
+import { ExperienceBriefContent } from "./experience-brief-content";
 import { ProductLinksAppContent } from "./product-links-app";
 import { AppMark } from "./system-shell";
 import { WindowChrome } from "./window-chrome";
@@ -16,6 +17,7 @@ import { useWindowFrame, windowResizeEdges, type SnapEdge } from "./use-window-f
 
 type WorkspaceWindow = Extract<WorkspaceWindowId, "work" | "experience" | "products">;
 type WorkView = "index" | "summary" | "full-case";
+type ExperienceView = "summary" | "full-brief";
 const mainWindowIds: WorkspaceWindow[] = ["work", "experience", "products"];
 
 function WindowSnapPreview({ edge }: { edge: SnapEdge }) {
@@ -86,15 +88,6 @@ const desktopItems = [
     className: "surface-work",
     href: "/",
     label: "Work",
-    detail: "Front page",
-    app: "work",
-    type: "folder",
-  },
-  {
-    className: "surface-selected",
-    href: "/#selected-work",
-    label: "Selected work",
-    detail: "Failure → decision",
     app: "work",
     type: "folder",
   },
@@ -102,7 +95,6 @@ const desktopItems = [
     className: "surface-experience",
     href: "/brief",
     label: "Experience",
-    detail: "Brief + CV",
     app: "experience",
     type: "folder",
   },
@@ -110,7 +102,6 @@ const desktopItems = [
     className: "surface-contact",
     href: "#contact",
     label: "Contact",
-    detail: "Email / profile",
     app: "contact",
     type: "folder",
   },
@@ -118,7 +109,6 @@ const desktopItems = [
     className: "surface-products",
     href: "/products",
     label: "Product Links",
-    detail: "Searchable directory",
     app: "products",
     type: "folder",
   },
@@ -126,7 +116,6 @@ const desktopItems = [
     className: "surface-shot-payflow",
     href: "/case/payflow",
     label: "Payment case",
-    detail: "Callback replay",
     type: "image",
     src: "/projects/payflow/audit-trail.png",
   },
@@ -134,7 +123,6 @@ const desktopItems = [
     className: "surface-shot-iyup",
     href: "/case/iyup",
     label: "Service case",
-    detail: "Latency replay",
     type: "image",
     src: "/projects/iyup/grafana-dashboard.png",
   },
@@ -142,7 +130,6 @@ const desktopItems = [
     className: "surface-shot-trustgate",
     href: "/case/trustgate",
     label: "Device case",
-    detail: "Signal policy",
     type: "image",
     src: "/projects/trustgate/security-event-log.png",
   },
@@ -370,9 +357,7 @@ function DesktopSurface({
                 ? (event) => { if (!draggedClick(event, item.className)) openContact(event); }
                 : item.label === "Work"
                   ? (event) => { if (!draggedClick(event, item.className)) openDesktopWindow("work")(event); }
-                  : item.label === "Selected work"
-                    ? (event) => { if (!draggedClick(event, item.className)) openDesktopWindow("work", "selected-work")(event); }
-                    : item.label === "Experience"
+                  : item.label === "Experience"
                       ? (event) => { if (!draggedClick(event, item.className)) openDesktopWindow("experience")(event); }
                       : item.label === "Product Links"
                         ? (event) => { if (!draggedClick(event, item.className)) openDesktopWindow("products")(event); }
@@ -394,9 +379,7 @@ function DesktopSurface({
               zIndex: desktopOffsets[item.className]?.z || undefined,
             } as CSSProperties}
           >
-            {item.type === "folder" ? item.label === "Selected work" ? (
-              <span className="desktop-case-glyph" aria-hidden="true"><i>03</i><b>CASES</b></span>
-            ) : (
+            {item.type === "folder" ? (
               <span className="desktop-app-glyph" aria-hidden="true"><AppMark app={item.app} /></span>
             ) : (
               <span className="evidence-polaroid" aria-hidden="true">
@@ -405,7 +388,6 @@ function DesktopSurface({
             )}
             <span className="desktop-object-copy">
               <strong>{item.label}</strong>
-              <small>{item.detail}</small>
             </span>
           </Link>
         ))}
@@ -496,7 +478,13 @@ function CaseEntryInstrument({ scenario }: { scenario: (typeof scenarios)[number
 
 const cvHref = "/cv/muhammad-abdul-fattah-general-software-engineer-cv.pdf";
 
-function ExperienceWindowContent({ onOpenContact }: { onOpenContact: (event: MouseEvent<HTMLAnchorElement>) => void }) {
+function ExperienceWindowContent({
+  onOpenContact,
+  onOpenFullBrief,
+}: {
+  onOpenContact: (event: MouseEvent<HTMLAnchorElement>) => void;
+  onOpenFullBrief: (event: MouseEvent<HTMLAnchorElement>) => void;
+}) {
   return (
     <div className="experience-window-content">
       <section className="experience-window-hero">
@@ -521,7 +509,7 @@ function ExperienceWindowContent({ onOpenContact }: { onOpenContact: (event: Mou
           </article>
         ))}
       </section>
-      <Link className="inline-link experience-window-full" href="/brief">
+      <Link className="inline-link experience-window-full" href="/brief" onClick={onOpenFullBrief}>
         Open full brief <ArrowIcon />
       </Link>
     </div>
@@ -531,18 +519,22 @@ function ExperienceWindowContent({ onOpenContact }: { onOpenContact: (event: Mou
 export function CounterfactualHome({
   initialCaseConditions,
   initialCaseSlug,
+  initialExperienceView,
 }: {
   initialCaseConditions?: Conditions;
   initialCaseSlug?: ScenarioSlug;
+  initialExperienceView?: ExperienceView;
 } = {}) {
   const workspace = useWorkspaceManager();
   const [selectedCaseSlug, setSelectedCaseSlug] = useState<ScenarioSlug>(initialCaseSlug ?? "payflow");
   const [workView, setWorkView] = useState<WorkView>(initialCaseSlug ? "full-case" : "index");
+  const [experienceView, setExperienceView] = useState<ExperienceView>(initialExperienceView ?? "summary");
   const [closingWindows, setClosingWindows] = useState<WorkspaceWindow[]>([]);
   const closeTimers = useRef<number[]>([]);
   const caseSummaryScrollRef = useRef<Record<ScenarioSlug, number>>({ payflow: 0, iyup: 0, trustgate: 0 });
   const workIndexScrollRef = useRef(0);
   const experienceCloseRef = useRef<HTMLButtonElement>(null);
+  const experienceSummaryScrollRef = useRef(0);
   const heroRef = useRef<HTMLElement>(null);
   const workContentRef = useRef<HTMLDivElement>(null);
   const workCloseRef = useRef<HTMLButtonElement>(null);
@@ -615,6 +607,16 @@ export function CounterfactualHome({
   // This restores the Work document once for the route that mounted it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialCaseSlug]);
+
+  useEffect(() => {
+    if (initialExperienceView !== "full-brief") return;
+    setExperienceView("full-brief");
+    workspace.openWindow("experience");
+    workspace.focusWindow("experience");
+    window.requestAnimationFrame(() => experienceFrameRef.current?.scrollTo({ behavior: "auto", top: 0 }));
+  // This restores the Experience document once for a direct /brief load.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialExperienceView]);
 
   useEffect(() => {
     if (initialCaseSlug || window.location.pathname !== "/" || !window.location.hash) return;
@@ -817,6 +819,10 @@ export function CounterfactualHome({
         setWorkView("index");
         if (window.location.pathname.startsWith("/case/")) window.history.replaceState(null, "", "/");
       }
+      if (app === "experience") {
+        setExperienceView("summary");
+        if (window.location.pathname === "/brief") window.history.replaceState(null, "", "/");
+      }
       if (workspace.mode === "computer" && remainingWindows.length === 1) {
         const remaining = remainingWindows[0];
         window.requestAnimationFrame(() => {
@@ -838,6 +844,31 @@ export function CounterfactualHome({
     workspace.openWindow("work");
     workspace.focusWindow("work");
     window.history.pushState({ portfolioView: "selected-work", slug }, "", "/#selected-work");
+  }
+
+  function openExperienceBrief(event?: MouseEvent<HTMLAnchorElement>) {
+    event?.preventDefault();
+    experienceSummaryScrollRef.current = experienceFrameRef.current?.scrollTop ?? experienceSummaryScrollRef.current;
+    setExperienceView("full-brief");
+    workspace.openWindow("experience");
+    workspace.focusWindow("experience");
+    if (window.location.pathname !== "/brief") {
+      window.history.pushState({ portfolioView: "experience-brief" }, "", "/brief");
+    }
+    window.requestAnimationFrame(() => experienceFrameRef.current?.scrollTo({ behavior: "auto", top: 0 }));
+  }
+
+  function closeExperienceBrief() {
+    setExperienceView("summary");
+    workspace.openWindow("experience");
+    workspace.focusWindow("experience");
+    if (window.location.pathname === "/brief") {
+      window.history.replaceState(null, "", "/");
+    }
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      experienceFrameRef.current?.scrollTo({ behavior: "auto", top: experienceSummaryScrollRef.current });
+      experienceFrameRef.current?.focus({ preventScroll: true });
+    }));
   }
 
   function selectCaseSummary(slug: ScenarioSlug) {
@@ -897,6 +928,7 @@ export function CounterfactualHome({
         workspace.focusWindow("work");
         return;
       }
+      if (window.location.pathname !== "/") return;
       if (window.location.hash === "#selected-work" && event.state?.portfolioView === "selected-work") {
         const slug = scenarios.some((scenario) => scenario.slug === event.state.slug)
           ? event.state.slug as ScenarioSlug
@@ -922,6 +954,27 @@ export function CounterfactualHome({
   }, [selectedCaseSlug, workspace]);
 
   useEffect(() => {
+    const syncExperienceHistory = () => {
+      if (window.location.pathname === "/brief") {
+        setExperienceView("full-brief");
+        workspace.openWindow("experience");
+        workspace.focusWindow("experience");
+        window.requestAnimationFrame(() => experienceFrameRef.current?.scrollTo({ behavior: "auto", top: 0 }));
+        return;
+      }
+      if (experienceView !== "full-brief") return;
+      setExperienceView("summary");
+      workspace.openWindow("experience");
+      workspace.focusWindow("experience");
+      window.requestAnimationFrame(() => experienceFrameRef.current?.scrollTo({ behavior: "auto", top: experienceSummaryScrollRef.current }));
+    };
+    window.addEventListener("popstate", syncExperienceHistory);
+    return () => window.removeEventListener("popstate", syncExperienceHistory);
+  // The frame ref is stable; keeping the dependency shape fixed also keeps Fast Refresh safe.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [experienceView, workspace]);
+
+  useEffect(() => {
     if (workspace.activeApp !== "work") return;
     return workspace.registerBackHandler("work-navigation", () => {
       if (workspace.activeWindow !== "work") return false;
@@ -939,6 +992,17 @@ export function CounterfactualHome({
   // The handler deliberately follows the currently visible Work depth.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isWorkOpen, workView, workspace.activeApp, workspace.activeWindow, workspace.mode]);
+
+  useEffect(() => {
+    if (workspace.activeApp !== "experience" || experienceView !== "full-brief") return;
+    return workspace.registerBackHandler("experience-navigation", () => {
+      if (workspace.activeWindow !== "experience") return false;
+      closeExperienceBrief();
+      return true;
+    });
+  // The handler follows the internal Experience document depth.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [experienceView, workspace.activeApp, workspace.activeWindow]);
 
   useEffect(() => () => closeTimers.current.forEach(window.clearTimeout), []);
 
@@ -1047,7 +1111,7 @@ export function CounterfactualHome({
               label="Work"
               maximized={workMaximized}
               onClose={() => closeApplication("work", "work")}
-              onCompactBack={workspace.requestBack}
+              onCompactBack={workspace.mode === "phone" ? workspace.requestBack : undefined}
               onMinimize={() => workspace.minimizeWindow("work")}
               onToggleMaximize={toggleWorkMaximize}
               subtitle={workView === "index" ? undefined : selectedScenario.shortTitle}
@@ -1129,6 +1193,7 @@ export function CounterfactualHome({
             data-resizing={experienceResizing}
             data-snap={experienceSnap ?? undefined}
             data-snap-candidate={experienceSnapCandidate ?? undefined}
+            data-view={experienceView}
             data-window-state={windowState("experience")}
             onFocusCapture={() => focusWindow("experience")}
             onPointerDown={() => focusWindow("experience")}
@@ -1137,9 +1202,30 @@ export function CounterfactualHome({
             suppressHydrationWarning
             tabIndex={-1}
           >
-            <WindowChrome className="portfolio-window-chrome" closeLabel="Close experience window" closeRef={experienceCloseRef} compactBackLabel="Return from Experience" label="Experience" maximized={experienceMaximized} onClose={() => closeApplication("experience", "experience")} onCompactBack={workspace.requestBack} onMinimize={() => workspace.minimizeWindow("experience")} onToggleMaximize={toggleExperienceMaximize} {...experienceTitlebarProps} />
+            <WindowChrome
+              actions={experienceView === "full-brief" ? <div className="case-workspace-actions experience-brief-titlebar-actions">
+                <button className="case-back-action" onClick={closeExperienceBrief} type="button">← Overview</button>
+              </div> : null}
+              className="portfolio-window-chrome"
+              closeLabel="Close experience window"
+              closeRef={experienceCloseRef}
+              compactBackLabel={experienceView === "full-brief" ? "Return to Experience overview" : "Return from Experience"}
+              label="Experience"
+              maximized={experienceMaximized}
+              onClose={() => closeApplication("experience", "experience")}
+              onCompactBack={workspace.mode === "phone" ? (experienceView === "full-brief" ? closeExperienceBrief : workspace.requestBack) : undefined}
+              onMinimize={() => workspace.minimizeWindow("experience")}
+              onToggleMaximize={toggleExperienceMaximize}
+              subtitle={experienceView === "full-brief" ? "CV, selected work, and operating scope" : undefined}
+              title={experienceView === "full-brief" ? "Full engineering brief" : undefined}
+              {...experienceTitlebarProps}
+            />
             {windowResizeEdges.map((edge) => <span key={edge} {...experienceResizeHandleProps(edge)} />)}
-            <ExperienceWindowContent onOpenContact={openContactWindow} />
+            {experienceView === "summary" ? (
+              <ExperienceWindowContent onOpenContact={openContactWindow} onOpenFullBrief={openExperienceBrief} />
+            ) : (
+              <ExperienceBriefContent onOpenCase={openDetailedCaseWindow} onOpenContact={openContactWindow} />
+            )}
           </section> : null}
           {isProductsOpen ? <section
             className="portfolio-window home-window product-links-window"
@@ -1166,7 +1252,7 @@ export function CounterfactualHome({
               label="Product Links"
               maximized={productsMaximized}
               onClose={() => closeApplication("products", "products")}
-              onCompactBack={workspace.requestBack}
+              onCompactBack={workspace.mode === "phone" ? workspace.requestBack : undefined}
               onMinimize={() => workspace.minimizeWindow("products")}
               onToggleMaximize={toggleProductsMaximize}
               subtitle="Searchable tools and products directory"
