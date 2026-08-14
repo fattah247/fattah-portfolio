@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { PortfolioHeader } from "@/components/portfolio-header";
-import { ProductLinksDirectory } from "@/components/product-links-directory";
-import { productLinks } from "@/lib/product-links";
+import { ProductLinksRouteWindow } from "@/components/product-links-app";
 
 export const metadata: Metadata = {
   title: "Product links",
@@ -12,15 +11,7 @@ export default function ProductLinksPage() {
   return (
     <>
       <PortfolioHeader />
-      <main className="product-links-page">
-        <header className="product-links-intro">
-          <p>Product links</p>
-          <h1>Products I use.</h1>
-          <span>Browse alphabetically or search by product name and ID.</span>
-        </header>
-
-        <ProductLinksDirectory links={productLinks} />
-      </main>
+      <ProductLinksRouteWindow />
     </>
   );
 }

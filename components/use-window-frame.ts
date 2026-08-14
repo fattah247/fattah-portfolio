@@ -15,6 +15,15 @@ export type FrameRect = { height: number; width: number; x: number; y: number };
 
 export const windowResizeEdges: ResizeEdge[] = ["top", "right", "bottom", "left", "top-left", "top-right", "bottom-left", "bottom-right"];
 
+function usesCompactWindowModel() {
+  if (typeof window === "undefined") return false;
+  const declaredMode = document.documentElement.dataset.systemMode;
+  if (declaredMode) return declaredMode !== "computer";
+  return Math.min(window.innerWidth, window.innerHeight) <= 500
+    || window.innerWidth <= 1100
+    || window.matchMedia("(pointer: coarse)").matches;
+}
+
 export function resizeFrame(rect: FrameRect, edge: ResizeEdge, dx: number, dy: number): FrameRect {
   const next = { ...rect };
   if (edge.includes("right")) next.width = rect.width + dx;
@@ -60,6 +69,10 @@ export function useWindowFrame({
   const restoreRectRef = useRef<FrameRect | null>(null);
   const restoreSnapRef = useRef<SnapEdge>(null);
   const committedSnapRef = useRef<SnapEdge>(null);
+  const desktopRectRef = useRef<FrameRect | null>(null);
+  const compactModeRef = useRef(usesCompactWindowModel());
+  const manipulationFrameRef = useRef<number | null>(null);
+  const pendingManipulationRef = useRef<{ rect: FrameRect; snapCandidate: SnapEdge } | null>(null);
   const sessionRef = useRef<{
     edge?: ResizeEdge;
     kind: "idle" | "drag" | "resize";
@@ -80,18 +93,32 @@ export function useWindowFrame({
   const snapRef = useRef<SnapEdge>(null);
 
   useEffect(() => {
+    compactModeRef.current = usesCompactWindowModel();
     resetFrame();
   // The first client pass must match the server. The viewport-aware rect is applied only after hydration.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    if (usesCompactWindowModel() || maximized || snap) return;
+    desktopRectRef.current = rect;
+  }, [maximized, rect, snap]);
+
+  useEffect(() => () => {
+    if (manipulationFrameRef.current) window.cancelAnimationFrame(manipulationFrameRef.current);
+  }, []);
+
+  useEffect(() => {
     const keepInWorkspace = () => {
-      setRect((current) => maximized
-        ? clamp(maximizedRect(), { respectMinimums: false })
-        : snap
-          ? clamp(snapRect(snap), { respectMinimums: false })
-          : clamp(current));
+      const compact = usesCompactWindowModel();
+      const returningToDesktop = compactModeRef.current && !compact;
+      compactModeRef.current = compact;
+      setRect((current) => {
+        if (maximized) return clamp(maximizedRect(), { respectMinimums: false });
+        if (snap) return clamp(snapRect(snap), { respectMinimums: false });
+        if (returningToDesktop) return clamp(desktopRectRef.current ?? defaultRect());
+        return clamp(current);
+      });
     };
     window.addEventListener("resize", keepInWorkspace);
     return () => window.removeEventListener("resize", keepInWorkspace);
@@ -125,6 +152,9 @@ export function useWindowFrame({
 
   function resetFrame() {
     const nextRect = defaultRect();
+    if (manipulationFrameRef.current) window.cancelAnimationFrame(manipulationFrameRef.current);
+    manipulationFrameRef.current = null;
+    pendingManipulationRef.current = null;
     setRect(nextRect);
     setDragging(false);
     setMaximized(false);
@@ -139,6 +169,15 @@ export function useWindowFrame({
   }
 
   function snapTo(edge: Exclude<SnapEdge, null>) {
+    if (!snap) {
+      const nodeRect = frameRef.current?.getBoundingClientRect();
+      restoreRectRef.current = clamp({
+        height: nodeRect?.height ?? rect.height,
+        width: nodeRect?.width ?? rect.width,
+        x: nodeRect?.left ?? rect.x,
+        y: nodeRect?.top ?? rect.y,
+      });
+    }
     setRect(clamp(snapRect(edge), { respectMinimums: false }));
     setDragging(false);
     setMaximized(false);
@@ -147,7 +186,6 @@ export function useWindowFrame({
     setSnapCandidate(null);
     snapRef.current = edge;
     committedSnapRef.current = edge;
-    restoreRectRef.current = null;
     restoreSnapRef.current = null;
   }
 
@@ -168,7 +206,7 @@ export function useWindowFrame({
   }
 
   function toggleMaximize() {
-    if (window.innerWidth <= 1100) return;
+    if (usesCompactWindowModel()) return;
     if (maximized) {
       const restoredSnap = restoreSnapRef.current;
       setRect(restoredSnap
@@ -222,7 +260,7 @@ export function useWindowFrame({
 
   function snapFor(event: PointerEvent<HTMLElement>): SnapEdge {
     const threshold = 34;
-    const portraitTablet = window.innerWidth <= 1100 && window.innerHeight > window.innerWidth;
+    const portraitTablet = usesCompactWindowModel() && window.innerHeight > window.innerWidth;
     if (portraitTablet) {
       if (event.clientY <= 72 + threshold) return "top";
       if (event.clientY >= window.innerHeight - threshold) return "bottom";
@@ -250,15 +288,25 @@ export function useWindowFrame({
   function startDrag(event: PointerEvent<HTMLElement>) {
     const target = event.target as HTMLElement;
     if (target.closest("button, a")) return;
-    if (window.innerWidth <= 1100) return;
-    if (maximized) return;
+    if (usesCompactWindowModel()) return;
     const nodeRect = frameRef.current?.getBoundingClientRect();
-    const base = clamp({
+    const currentFrame = clamp({
       height: nodeRect?.height ?? rect.height,
       width: nodeRect?.width ?? rect.width,
       x: nodeRect?.left ?? rect.x,
       y: nodeRect?.top ?? rect.y,
     }, { respectMinimums: !snap });
+    const wasRestorable = maximized || Boolean(snap);
+    const floatingFrame = wasRestorable ? clamp(restoreRectRef.current ?? desktopRectRef.current ?? defaultRect()) : currentFrame;
+    const pointerRatio = nodeRect?.width ? (event.clientX - nodeRect.left) / nodeRect.width : .5;
+    const base = wasRestorable
+      ? clamp({
+          ...floatingFrame,
+          x: event.clientX - floatingFrame.width * Math.min(.86, Math.max(.14, pointerRatio)),
+          y: event.clientY - Math.min(30, event.clientY - workspaceBounds().top),
+        })
+      : currentFrame;
+    if (wasRestorable) restoreRectRef.current = null;
     sessionRef.current = {
       kind: "drag",
       minimumHeight: Math.min(minHeight, base.height),
@@ -271,6 +319,7 @@ export function useWindowFrame({
     };
     setRect(base);
     setDragging(true);
+    setMaximized(false);
     setSnap(null);
     setSnapCandidate(null);
     snapRef.current = null;
@@ -279,7 +328,7 @@ export function useWindowFrame({
 
   function startResize(edge: ResizeEdge) {
     return (event: PointerEvent<HTMLElement>) => {
-      if (window.innerWidth <= 1100) return;
+      if (usesCompactWindowModel()) return;
       event.preventDefault();
       event.stopPropagation();
       const nodeRect = frameRef.current?.getBoundingClientRect();
@@ -312,6 +361,19 @@ export function useWindowFrame({
     };
   }
 
+  function scheduleManipulation(nextRect: FrameRect, nextSnapCandidate: SnapEdge = null) {
+    pendingManipulationRef.current = { rect: nextRect, snapCandidate: nextSnapCandidate };
+    if (manipulationFrameRef.current) return;
+    manipulationFrameRef.current = window.requestAnimationFrame(() => {
+      const pending = pendingManipulationRef.current;
+      manipulationFrameRef.current = null;
+      pendingManipulationRef.current = null;
+      if (!pending) return;
+      setRect(pending.rect);
+      setSnapCandidate(pending.snapCandidate);
+    });
+  }
+
   function move(event: PointerEvent<HTMLElement>) {
     const session = sessionRef.current;
     if (event.pointerId !== session.pointerId || session.kind === "idle") return;
@@ -323,13 +385,13 @@ export function useWindowFrame({
         sessionRef.current.moved = true;
         committedSnapRef.current = null;
       }
-      setRect(clamp(
+      const nextRect = clamp(
         { ...session.rect, x: session.rect.x + dx, y: session.rect.y + dy },
         { minimumHeight: session.minimumHeight, minimumWidth: session.minimumWidth },
-      ));
+      );
       const nextSnap = snapFor(event);
       snapRef.current = nextSnap;
-      setSnapCandidate(nextSnap);
+      scheduleManipulation(nextRect, nextSnap);
       return;
     }
 
@@ -346,7 +408,7 @@ export function useWindowFrame({
     if (edge.includes("top")) {
       bounded = clamp({ ...bounded, y: session.rect.y + session.rect.height - bounded.height }, resizeOptions);
     }
-    setRect(bounded);
+    scheduleManipulation(bounded);
   }
 
   function finish(pointerId: number, captureTarget?: HTMLElement) {
@@ -354,8 +416,15 @@ export function useWindowFrame({
     const completedKind = sessionRef.current.kind;
     const completedSnap = snapRef.current;
     const completedMove = sessionRef.current.moved;
+    const pendingRect = pendingManipulationRef.current?.rect;
+    if (manipulationFrameRef.current) window.cancelAnimationFrame(manipulationFrameRef.current);
+    manipulationFrameRef.current = null;
+    pendingManipulationRef.current = null;
     if (completedKind === "drag" && completedSnap) {
+      restoreRectRef.current = sessionRef.current.rect;
       setRect(clamp(snapRect(completedSnap), { respectMinimums: false }));
+    } else if (pendingRect) {
+      setRect(pendingRect);
     }
     sessionRef.current = { kind: "idle", pointerId: -1, rect, startX: 0, startY: 0 };
     setDragging(false);

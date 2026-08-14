@@ -102,7 +102,8 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
           label="Contact"
           maximized={maximized}
           onClose={requestClose}
-          onMinimize={() => workspace.minimizeApp("contact")}
+          onCompactBack={workspace.requestBack}
+          onMinimize={() => workspace.minimizeWindow("contact")}
           onToggleMaximize={toggleMaximize}
           {...titlebarProps}
         />
