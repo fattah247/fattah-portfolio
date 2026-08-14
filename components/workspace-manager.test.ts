@@ -16,22 +16,23 @@ function reduce(
 }
 
 describe("workspaceReducer", () => {
-  it("boots into the Work application with an explicit desktop session", () => {
+  it("boots into an empty desktop session", () => {
     expect(initialWorkspaceState).toMatchObject({
-      focus: ["work"],
+      focus: [],
       minimized: [],
       mode: "computer",
       modeReady: false,
-      open: ["work"],
-      recents: ["work"],
-      surface: "application",
+      open: [],
+      recents: [],
+      surface: "home",
     });
-    expect(workspaceWindowState(initialWorkspaceState, "work")).toBe("active");
+    expect(workspaceWindowState(initialWorkspaceState, "work")).toBe("closed");
   });
 
   it("opens applications without duplicating an already open window", () => {
     const state = reduce(
       initialWorkspaceState,
+      { type: "open", id: "work" },
       { type: "open", id: "experience" },
       { type: "open", id: "work" },
     );
@@ -45,6 +46,7 @@ describe("workspaceReducer", () => {
   it("focuses the most recent window belonging to an application", () => {
     const state = reduce(
       initialWorkspaceState,
+      { type: "open", id: "work" },
       { type: "open", id: "case" },
       { type: "open", id: "detail" },
       { type: "open", id: "experience" },
@@ -60,6 +62,7 @@ describe("workspaceReducer", () => {
   it("minimizes an application without destroying its windows or recent entry", () => {
     const state = reduce(
       initialWorkspaceState,
+      { type: "open", id: "work" },
       { type: "open", id: "case" },
       { type: "minimize-app", app: "work" },
     );
@@ -75,6 +78,7 @@ describe("workspaceReducer", () => {
   it("restores a minimized application to its last focused window", () => {
     const state = reduce(
       initialWorkspaceState,
+      { type: "open", id: "work" },
       { type: "open", id: "case" },
       { type: "minimize-app", app: "work" },
       { type: "focus-app", app: "work" },
@@ -89,6 +93,7 @@ describe("workspaceReducer", () => {
   it("minimizes one project window without hiding its Work siblings", () => {
     const state = reduce(
       initialWorkspaceState,
+      { type: "open", id: "work" },
       { type: "open", id: "case-payflow" },
       { type: "open", id: "case-trustgate" },
       { type: "minimize-window", id: "case-trustgate" },
@@ -103,6 +108,7 @@ describe("workspaceReducer", () => {
   it("keeps open application sessions intact while visiting Home and Recents", () => {
     const openState = reduce(
       initialWorkspaceState,
+      { type: "open", id: "work" },
       { type: "open", id: "experience" },
       { type: "open", id: "contact" },
     );
@@ -122,6 +128,7 @@ describe("workspaceReducer", () => {
   it("preserves open, focused, minimized, and recent application state across device modes", () => {
     const session = reduce(
       initialWorkspaceState,
+      { type: "open", id: "work" },
       { type: "open", id: "experience" },
       { type: "minimize-app", app: "experience" },
     );
@@ -143,6 +150,7 @@ describe("workspaceReducer", () => {
   it("dismisses Recents to the application surface during a mode change without losing sessions", () => {
     const recents = reduce(
       { ...initialWorkspaceState, modeReady: true },
+      { type: "open", id: "work" },
       { type: "open", id: "experience" },
       { type: "surface", surface: "recents" },
     );
@@ -157,6 +165,7 @@ describe("workspaceReducer", () => {
   it("keeps show-only as a non-destructive compatibility action", () => {
     const existingSession = reduce(
       initialWorkspaceState,
+      { type: "open", id: "work" },
       { type: "open", id: "experience" },
       { type: "open", id: "contact" },
     );
@@ -171,6 +180,7 @@ describe("workspaceReducer", () => {
   it("closes an application as one session while preserving unrelated applications", () => {
     const state = reduce(
       initialWorkspaceState,
+      { type: "open", id: "work" },
       { type: "open", id: "case" },
       { type: "open", id: "evidence" },
       { type: "open", id: "experience" },
@@ -186,6 +196,7 @@ describe("workspaceReducer", () => {
   it("keeps only the two most recently focused desktop windows clear", () => {
     const state = reduce(
       { ...initialWorkspaceState, modeReady: true },
+      { type: "open", id: "work" },
       { type: "open", id: "experience" },
       { type: "open", id: "contact" },
     );
@@ -206,6 +217,7 @@ describe("workspaceReducer", () => {
   it("keeps one companion application available on tablet without exposing sibling Work documents", () => {
     const tablet = reduce(
       { ...initialWorkspaceState, mode: "tablet", modeReady: true },
+      { type: "open", id: "work" },
       { type: "open", id: "case" },
       { type: "open", id: "experience" },
     );
@@ -219,7 +231,8 @@ describe("workspaceReducer", () => {
   });
 
   it("treats Product Links as one first-class application session", () => {
-    const opened = workspaceReducer(initialWorkspaceState, { type: "focus-app", app: "products" });
+    const withWork = workspaceReducer(initialWorkspaceState, { type: "open", id: "work" });
+    const opened = workspaceReducer(withWork, { type: "focus-app", app: "products" });
     const minimized = workspaceReducer(opened, { type: "minimize-app", app: "products" });
     const restored = workspaceReducer(minimized, { type: "focus-app", app: "products" });
 
@@ -234,6 +247,7 @@ describe("workspaceReducer", () => {
   it("reconciles rapid app transitions without duplicate or ghost sessions", () => {
     const state = reduce(
       initialWorkspaceState,
+      { type: "open", id: "work" },
       { type: "focus-app", app: "products" },
       { type: "minimize-app", app: "products" },
       { type: "focus-app", app: "products" },

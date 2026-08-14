@@ -82,6 +82,12 @@ export function SystemShell() {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const preventPageContextMenu = (event: globalThis.MouseEvent) => event.preventDefault();
+    document.addEventListener("contextmenu", preventPageContextMenu);
+    return () => document.removeEventListener("contextmenu", preventPageContextMenu);
+  }, []);
+
   function launchApp(app: PortfolioAppId) {
     const alreadyOpen = workspace.isAppOpen(app);
     workspace.focusApp(app);

@@ -2,7 +2,7 @@
 
 ## Product idea
 
-This portfolio is a counterfactual engineering workspace called **Second Attempt**. It is not a conventional landing page with operating-system decoration. The operating system is the navigation model: visitors open applications, inspect failure cases, change one condition, compare the resulting state, and open the evidence that supports the explanation.
+This portfolio is an interactive engineering workspace. It is not a conventional landing page with operating-system decoration. The operating system is the navigation model: visitors open applications, inspect failure cases, change one condition, compare the resulting state, and open the evidence that supports the explanation.
 
 The interface serves two audiences at once:
 
