@@ -36,7 +36,7 @@ function activeSelectedWindow() {
 }
 
 function openWorkFromDesktop() {
-  fireEvent.click(screen.getByRole("link", { name: /WorkFront page/i }));
+  fireEvent.click(screen.getByRole("link", { name: "Work" }));
 }
 
 describe("CounterfactualHome", () => {
@@ -62,6 +62,8 @@ describe("CounterfactualHome", () => {
     expect(screen.getByRole("region", { name: "Engineering workspace" })).toBeTruthy();
     expect(document.querySelector(".desktop-wallpaper")?.getAttribute("aria-hidden")).toBe("true");
     expect(screen.queryByText("Second Attempt")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Selected work" })).toBeNull();
+    expect(document.querySelector(".desktop-object-copy small")).toBeNull();
     expect(screen.queryByRole("region", { name: "Work window" })).toBeNull();
     openWorkFromDesktop();
     expect(screen.getByRole("region", { name: "Work window" })).toBeTruthy();
@@ -76,7 +78,7 @@ describe("CounterfactualHome", () => {
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
     act(() => vi.runOnlyPendingTimers());
 
-    const workShortcut = screen.getByRole("link", { name: /WorkFront page/i });
+    const workShortcut = screen.getByRole("link", { name: "Work" });
     expect(workShortcut.style.getPropertyValue("--desktop-offset-x")).toBe("36px");
     expect(workShortcut.style.getPropertyValue("--desktop-offset-y")).toBe("20px");
   });
@@ -86,7 +88,7 @@ describe("CounterfactualHome", () => {
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
 
     const board = screen.getByLabelText("Portfolio desktop shortcuts");
-    const workShortcut = screen.getByRole("link", { name: /WorkFront page/i });
+    const workShortcut = screen.getByRole("link", { name: "Work" });
     vi.spyOn(board, "getBoundingClientRect").mockReturnValue({
       bottom: 700, height: 700, left: 0, right: 1000, top: 0, width: 1000, x: 0, y: 0, toJSON: () => ({}),
     });
@@ -138,6 +140,62 @@ describe("CounterfactualHome", () => {
     expect(screen.getByRole("region", { name: "Experience window" }).getAttribute("data-active-window")).toBe("true");
     expect(window.location.pathname).toBe("/");
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it("does not duplicate Back and Close controls in tablet window title bars", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 768 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 1024 });
+    render(
+      <WorkspaceManagerProvider>
+        <SystemShell />
+        <CounterfactualHome />
+      </WorkspaceManagerProvider>,
+    );
+    act(() => vi.advanceTimersByTime(20));
+
+    const shelf = within(screen.getByRole("navigation", { name: "Tablet application shelf" }));
+    fireEvent.click(shelf.getByRole("button", { name: "Open Experience. Not running" }));
+    const experienceWindow = screen.getByRole("region", { name: "Experience window" });
+
+    expect(within(experienceWindow).getByRole("button", { name: "Close experience window" })).toBeTruthy();
+    expect(within(experienceWindow).queryByRole("button", { name: "Return from Experience" })).toBeNull();
+    expect(shelf.getByRole("button", { name: "Back" })).toBeTruthy();
+  });
+
+  it("opens the full brief inside the existing active Experience application", () => {
+    render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
+    fireEvent.click(screen.getByRole("link", { name: "Experience" }));
+
+    const experienceWindow = screen.getByRole("region", { name: "Experience window" });
+    fireEvent.click(within(experienceWindow).getByRole("link", { name: /Open full brief/i }));
+
+    expect(screen.getByRole("region", { name: "Experience window" })).toBe(experienceWindow);
+    expect(experienceWindow.getAttribute("data-view")).toBe("full-brief");
+    expect(experienceWindow.getAttribute("data-active-window")).toBe("true");
+    expect(within(experienceWindow).getByText("Full engineering brief")).toBeTruthy();
+    expect(within(experienceWindow).getByRole("heading", { name: /MuhammadA\. Fattah/i })).toBeTruthy();
+    expect(document.querySelectorAll('[data-app-id="experience"]')).toHaveLength(1);
+    expect(window.location.pathname).toBe("/brief");
+
+    fireEvent.click(within(experienceWindow).getByRole("button", { name: "← Overview" }));
+
+    expect(screen.getByRole("region", { name: "Experience window" })).toBe(experienceWindow);
+    expect(experienceWindow.getAttribute("data-view")).toBe("summary");
+    expect(experienceWindow.getAttribute("data-active-window")).toBe("true");
+    expect(within(experienceWindow).getByRole("link", { name: /Open full brief/i })).toBeTruthy();
+    expect(window.location.pathname).toBe("/");
+  });
+
+  it("loads /brief as the focused full view of the one Experience application", () => {
+    window.history.replaceState(null, "", "/brief");
+    render(<WorkspaceManagerProvider><CounterfactualHome initialExperienceView="full-brief" /></WorkspaceManagerProvider>);
+
+    const experienceWindow = screen.getByRole("region", { name: "Experience window" });
+    expect(experienceWindow.getAttribute("data-view")).toBe("full-brief");
+    expect(experienceWindow.getAttribute("data-active-window")).toBe("true");
+    expect(within(experienceWindow).getByText("Full engineering brief")).toBeTruthy();
+    expect(document.querySelectorAll('[data-app-id="experience"]')).toHaveLength(1);
+    expect(screen.queryByRole("region", { name: "Work window" })).toBeNull();
   });
 
   it("gives every selected-work entry its own readable state instrument", () => {
