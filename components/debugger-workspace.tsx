@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { CSSProperties, MouseEvent } from "react";
+import type { CSSProperties, MouseEvent, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowIcon, RewindIcon } from "@/components/icons";
-import { useWindowFrame, windowResizeEdges } from "@/components/use-window-frame";
-import { WindowChrome } from "@/components/window-chrome";
-import { useWorkspaceManager } from "@/components/workspace-manager";
+import { createPortal } from "react-dom";
+import { ArrowIcon, RewindIcon } from "./icons";
+import { useWindowFrame, windowResizeEdges } from "./use-window-frame";
+import { WindowChrome } from "./window-chrome";
+import { useWorkspaceManager, type WorkspaceWindowId } from "./workspace-manager";
 import {
   explainScenario,
   projectScenario,
@@ -16,12 +17,12 @@ import {
   type Evidence,
   type ProjectionNode,
   type Scenario,
-} from "@/lib/scenarios";
+} from "../lib/scenarios";
 
 type MotionPhase = "rest" | "rewind" | "reconstruct";
 type CaseSectionId = "context" | "replay" | "decision" | "evidence";
 
-const caseSections: Array<{ id: CaseSectionId; index: string; label: string; note: string }> = [
+export const caseSections: Array<{ id: CaseSectionId; index: string; label: string; note: string }> = [
   { id: "context", index: "01", label: "Context", note: "Problem and consequence" },
   { id: "replay", index: "02", label: "Replay", note: "Change one condition" },
   { id: "decision", index: "03", label: "Decision", note: "Compare resulting state" },
@@ -60,11 +61,15 @@ function ScenarioSignature({
   outcome: string;
   activeKeys: string[];
 }) {
+  const signatureGridStyle = {
+    gridTemplateColumns: "var(--causal-label-column) minmax(0, 1fr)",
+  } as CSSProperties;
+
   if (scenario.slug === "payflow") {
     const duplicate = conditions.delivery !== "once";
     const order = conditions.delivery === "out-of-order" ? ["02", "01"] : ["01", "02"];
     return (
-      <section className="scenario-signature signature-payflow" data-active-keys={activeKeys.join(" ")} aria-label="Callback identity comparison diagram">
+      <section className="scenario-signature signature-payflow" data-active-keys={activeKeys.join(" ")} aria-label="Callback identity comparison diagram" style={signatureGridStyle}>
         <div className="signature-title"><span>Same input, different handling</span><p>Both lanes receive the same deliveries. The identity check changes only the second result.</p></div>
         <div className="callback-comparison">
           <div className="callback-head" aria-hidden="true"><span /><span>First delivery</span><span>Repeat</span><span>Boundary</span><span>Result</span></div>
@@ -93,7 +98,7 @@ function ScenarioSignature({
     const metric = latencyMap[conditions.latency as keyof typeof latencyMap] ?? latencyMap.normal;
     const degraded = conditions.latency !== "normal";
     return (
-      <section className={`scenario-signature signature-iyup health-${conditions.health} latency-${conditions.latency} alert-${conditions.alert} ${missing ? "has-gap" : ""} ${degraded ? "is-degraded" : ""}`} data-active-keys={activeKeys.join(" ")} aria-label="Service health and latency comparison diagram">
+      <section className={`scenario-signature signature-iyup health-${conditions.health} latency-${conditions.latency} alert-${conditions.alert} ${missing ? "has-gap" : ""} ${degraded ? "is-degraded" : ""}`} data-active-keys={activeKeys.join(" ")} aria-label="Service health and latency comparison diagram" style={signatureGridStyle}>
         <div className="signature-title"><span>One timeline, three signals</span><p>Read the latency value against the 500 ms line, then check how long it stayed above it.</p></div>
         <div className="latency-summary">
           <span><small>State</small><b>{missing ? "Unknown" : metric.state}</b></span>
@@ -131,7 +136,7 @@ function ScenarioSignature({
       : "A suspicious signal is present and this action is sensitive.";
   const tryNext = conditions.root === "clear" ? "Try Root: Possible root signal" : "Compare with Root: No root signal";
   return (
-    <section className="scenario-signature signature-trustgate" data-active-keys={activeKeys.join(" ")} aria-label="Device signal policy diagram">
+    <section className="scenario-signature signature-trustgate" data-active-keys={activeKeys.join(" ")} aria-label="Device signal policy diagram" style={signatureGridStyle}>
       <div className="signature-title"><span>Change evidence → watch the decision</span><p>{tryNext}. The explanation on the right updates with it.</p></div>
       <div className="policy-flow">
         <div className="policy-stage policy-evidence"><span className="stage-label">1 · Device evidence</span>{signals.map(([label, value]) => <div className={`signal-state-${value}`} key={label}><span>{label}</span><b>{value}</b></div>)}</div>
@@ -161,7 +166,7 @@ function Projection({
   phase: MotionPhase;
   outcomeNodeId: string;
   evidence?: Evidence;
-  onOpenEvidence?: (evidence: Evidence) => void;
+  onOpenEvidence?: (evidence: Evidence, trigger: HTMLElement) => void;
 }) {
   return (
     <section className={`projection projection-${label.toLowerCase()}`} aria-label={`${label} system projection`}>
@@ -186,7 +191,7 @@ function Projection({
               <p className="causal-value">{item.value}</p>
               <p className="causal-detail">{item.detail}</p>
               {item.id === outcomeNodeId && evidence && onOpenEvidence ? (
-                <button className="node-evidence-link" onClick={() => onOpenEvidence(evidence)} type="button">
+                <button className="node-evidence-link" onClick={(event) => onOpenEvidence(evidence, event.currentTarget)} type="button">
                   View supporting evidence
                 </button>
               ) : null}
@@ -201,19 +206,25 @@ function Projection({
 
 function EvidenceDialog({
   evidence,
+  evidenceWindowId,
   exhibitLabel,
   onClose,
+  parentWindowId,
+  returnFocus,
 }: {
   evidence: Evidence;
+  evidenceWindowId: WorkspaceWindowId;
   exhibitLabel: string;
   onClose: () => void;
+  parentWindowId: WorkspaceWindowId;
+  returnFocus: HTMLElement | null;
 }) {
   const workspace = useWorkspaceManager();
   const {
     activeWindow,
     closeWindow,
     focusWindow,
-    minimizeApp,
+    minimizeWindow,
     openWindow,
     registerBackHandler,
     surface,
@@ -258,53 +269,65 @@ function EvidenceDialog({
     return () => {
       document.removeEventListener("keydown", handleKey);
       document.body.style.overflow = previousOverflow;
-      previousFocus?.focus();
+      window.setTimeout(() => {
+        const focusTarget = returnFocus?.isConnected ? returnFocus : previousFocus;
+        focusTarget?.focus({ preventScroll: true });
+      }, 0);
     };
-  }, [frameRef, requestClose, workspace.mode]);
+  }, [frameRef, requestClose, returnFocus, workspace.mode]);
 
-  useEffect(() => registerBackHandler(`work-evidence-${exhibitLabel}`, () => {
-    if (activeWindow !== "evidence" || surface !== "application") return false;
+  useEffect(() => registerBackHandler(`work-${evidenceWindowId}`, () => {
+    if (activeWindow !== evidenceWindowId || surface !== "application") return false;
     requestClose();
     return true;
-  }), [activeWindow, exhibitLabel, registerBackHandler, requestClose, surface]);
+  }), [activeWindow, evidenceWindowId, registerBackHandler, requestClose, surface]);
 
   useEffect(() => () => {
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
   }, []);
 
   useEffect(() => {
-    openWindow("evidence");
+    openWindow(evidenceWindowId);
     return () => {
-      closeWindow("evidence");
-      focusWindow("detail");
+      closeWindow(evidenceWindowId);
+      focusWindow(parentWindowId);
     };
-  }, [closeWindow, focusWindow, openWindow]);
+  }, [closeWindow, evidenceWindowId, focusWindow, openWindow, parentWindowId]);
 
-  return (
+  const titleId = `${evidenceWindowId}-title`;
+
+  return createPortal(
     <div
-      aria-labelledby="evidence-dialog-title"
+      aria-labelledby={titleId}
       aria-modal={workspace.mode !== "computer"}
       className="evidence-dialog"
       data-app-id="work"
       data-closing={isClosing}
-      data-window-state={workspace.stateFor("evidence")}
+      data-window-id={evidenceWindowId}
+      data-window-state={workspace.stateFor(evidenceWindowId)}
       role="dialog"
-      style={{ "--window-layer-z": workspace.zIndexFor("evidence") } as CSSProperties}
+      style={{ "--window-layer-z": workspace.zIndexFor(evidenceWindowId) } as CSSProperties}
     >
-      <button className="evidence-scrim" aria-label="Close evidence" onClick={requestClose} type="button" />
+      <button
+        aria-hidden="true"
+        className="evidence-scrim"
+        onClick={requestClose}
+        tabIndex={-1}
+        type="button"
+      />
       <div
         className="evidence-sheet"
         data-dragging={dragging}
         data-resizing={resizing}
         data-snap={snap ?? undefined}
-        data-window-state={workspace.stateFor("evidence")}
+        data-window-state={workspace.stateFor(evidenceWindowId)}
         onPointerDownCapture={() => {
-          if (activeWindow !== "evidence") focusWindow("evidence");
+          if (activeWindow !== evidenceWindowId) focusWindow(evidenceWindowId);
         }}
         ref={(node) => {
           frameRef.current = node;
         }}
-        style={{ ...style, "--window-z": workspace.zIndexFor("evidence") } as CSSProperties}
+        style={{ ...style, "--window-z": workspace.zIndexFor(evidenceWindowId) } as CSSProperties}
         suppressHydrationWarning
         tabIndex={-1}
       >
@@ -316,10 +339,10 @@ function EvidenceDialog({
           label="Attached evidence"
           maximized={maximized}
           onClose={requestClose}
-          onMinimize={() => minimizeApp("work")}
+          onMinimize={() => minimizeWindow(evidenceWindowId)}
           onToggleMaximize={toggleMaximize}
           title={exhibitLabel}
-          titleId="evidence-dialog-title"
+          titleId={titleId}
           {...titlebarProps}
         />
         <div className="evidence-sheet-content">
@@ -349,26 +372,33 @@ function EvidenceDialog({
               <span>{evidence.focus}</span>
             </div>
             <div className="evidence-image-wrap">
-              <Image src={evidence.src} alt={evidence.alt} fill sizes="(max-width: 760px) 100vw, 70vw" className="evidence-image" unoptimized />
+              <Image src={evidence.src} alt={evidence.alt} className="evidence-image" fill loading="eager" sizes="(max-width: 760px) 100vw, 70vw" unoptimized />
             </div>
           </div>
         </div>
         {windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />)}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
 export function DebuggerWorkspace({
+  embedded = false,
   onClose,
   onSelectScenario,
   scenario,
   initialConditions,
+  scrollContainerRef,
+  workspaceWindowId,
 }: {
+  embedded?: boolean;
   onClose?: () => void;
   onSelectScenario?: (slug: Scenario["slug"]) => void;
   scenario: Scenario;
   initialConditions: Conditions;
+  scrollContainerRef?: RefObject<HTMLElement | null>;
+  workspaceWindowId?: WorkspaceWindowId;
 }) {
   const workspace = useWorkspaceManager();
   const {
@@ -376,7 +406,7 @@ export function DebuggerWorkspace({
     closeWindow,
     focusApp,
     focusWindow,
-    minimizeApp,
+    minimizeWindow,
     openWindow,
     registerBackHandler,
     requestBack,
@@ -394,6 +424,7 @@ export function DebuggerWorkspace({
   const timers = useRef<number[]>([]);
   const caseScrollFrame = useRef<number | null>(null);
   const closeTimerRef = useRef<number | null>(null);
+  const evidenceTriggerRef = useRef<HTMLElement | null>(null);
   const workspaceClosingRef = useRef(false);
   const targetConditions = useRef<Conditions>(initialConditions);
   const workspaceTitleRef = useRef<HTMLHeadingElement>(null);
@@ -408,6 +439,23 @@ export function DebuggerWorkspace({
     titlebarProps,
     toggleMaximize,
   } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 460, minWidth: 700 });
+  const hostWindowId: WorkspaceWindowId = workspaceWindowId ?? (embedded ? "case" : "detail");
+
+  const openEvidence = useCallback((item: Evidence, trigger: HTMLElement) => {
+    evidenceTriggerRef.current = trigger;
+    setEvidence(item);
+  }, []);
+
+  const closeEvidence = useCallback(() => {
+    const trigger = evidenceTriggerRef.current;
+    setEvidence(null);
+    window.setTimeout(() => trigger?.focus({ preventScroll: true }), 80);
+  }, []);
+
+  const scrollFrame = useCallback(
+    () => embedded ? scrollContainerRef?.current ?? null : frameRef.current,
+    [embedded, frameRef, scrollContainerRef],
+  );
 
   useEffect(() => () => {
     timers.current.forEach(window.clearTimeout);
@@ -431,23 +479,23 @@ export function DebuggerWorkspace({
   }, [onClose, requestWorkspaceClose]);
 
   useEffect(() => {
-    openWindow("detail");
+    if (!embedded) openWindow("detail");
     document.body.dataset.workspace = "case";
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const focusTimer = window.setTimeout(() => workspaceTitleRef.current?.focus({ preventScroll: true }), 80);
     return () => {
       window.clearTimeout(focusTimer);
       delete document.body.dataset.workspace;
-      closeWindow("detail");
+      if (!embedded) closeWindow("detail");
       previousFocus?.focus();
     };
-  }, [closeWindow, openWindow]);
+  }, [closeWindow, embedded, openWindow]);
 
   useEffect(() => registerBackHandler(`work-detail-${scenario.slug}`, () => {
-    if (activeWindow !== "detail" || surface !== "application") return false;
+    if (activeWindow !== hostWindowId || surface !== "application") return false;
     returnToWorkIndex();
     return true;
-  }), [activeWindow, registerBackHandler, returnToWorkIndex, scenario.slug, surface]);
+  }), [activeWindow, hostWindowId, registerBackHandler, returnToWorkIndex, scenario.slug, surface]);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -462,14 +510,14 @@ export function DebuggerWorkspace({
     let ticking = false;
     const readActiveSection = () => {
       ticking = false;
-      const container = frameRef.current;
-      const chromeHeight = container?.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
+      const container = scrollFrame();
+      const chromeHeight = container?.querySelector<HTMLElement>(embedded ? ".portfolio-window-chrome" : ".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
       const progressHeight = container?.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
       const readLine = chromeHeight + progressHeight + 36;
       let nextActive = caseSections[0].id;
 
       for (const section of caseSections) {
-        const node = document.getElementById(section.id);
+        const node = container?.querySelector<HTMLElement>(`#${section.id}`);
         if (!node) continue;
         const top = node.getBoundingClientRect().top - (container?.getBoundingClientRect().top ?? 0);
         if (top <= readLine) {
@@ -485,7 +533,7 @@ export function DebuggerWorkspace({
       window.requestAnimationFrame(readActiveSection);
     };
 
-    const containerNode = frameRef.current;
+    const containerNode = scrollFrame();
     requestRead();
     containerNode?.addEventListener("scroll", requestRead, { passive: true });
     window.addEventListener("resize", requestRead);
@@ -493,7 +541,49 @@ export function DebuggerWorkspace({
       containerNode?.removeEventListener("scroll", requestRead);
       window.removeEventListener("resize", requestRead);
     };
-  }, [frameRef]);
+  }, [embedded, scrollFrame]);
+
+  useEffect(() => {
+    const requestedSection = window.location.hash.slice(1) as CaseSectionId;
+    if (!caseSections.some((section) => section.id === requestedSection)) return;
+    const routeBase = `${window.location.pathname}${window.location.search}`;
+    window.history.replaceState(null, "", routeBase);
+    let cancelled = false;
+    const settleTimers: number[] = [];
+    const cancelSettling = () => {
+      cancelled = true;
+      settleTimers.forEach((timer) => window.clearTimeout(timer));
+    };
+    const activeFrame = scrollFrame();
+    const alignRequestedSection = () => {
+      if (cancelled) return;
+      scrollContainerToSection(requestedSection, "auto");
+      setActiveSection(requestedSection);
+      window.history.replaceState(null, "", `${routeBase}#${requestedSection}`);
+    };
+    const firstFrame = window.requestAnimationFrame(() => {
+      alignRequestedSection();
+      settleTimers.push(
+        window.setTimeout(alignRequestedSection, 180),
+        window.setTimeout(alignRequestedSection, 720),
+        window.setTimeout(alignRequestedSection, 1000),
+      );
+      void document.fonts?.ready.then(alignRequestedSection);
+    });
+    activeFrame?.addEventListener("pointerdown", cancelSettling, { once: true });
+    activeFrame?.addEventListener("touchstart", cancelSettling, { once: true, passive: true });
+    activeFrame?.addEventListener("wheel", cancelSettling, { once: true, passive: true });
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(firstFrame);
+      settleTimers.forEach((timer) => window.clearTimeout(timer));
+      activeFrame?.removeEventListener("pointerdown", cancelSettling);
+      activeFrame?.removeEventListener("touchstart", cancelSettling);
+      activeFrame?.removeEventListener("wheel", cancelSettling);
+    };
+  // Re-align when the responsive workspace mode settles so the measured chrome is final.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scenario.slug, workspace.mode]);
 
   const baseline = useMemo(
     () => projectScenario(scenario.slug, conditions, "baseline"),
@@ -538,7 +628,8 @@ export function DebuggerWorkspace({
       }
     }
     const query = params.toString();
-    window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
+    const hash = window.location.hash;
+    window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${hash}`);
   }
 
   function changeCondition(key: string, value: string, force = false) {
@@ -577,13 +668,13 @@ export function DebuggerWorkspace({
         setConditions(next);
         updateUrl(next);
         setPhase("reconstruct");
-      }, 230),
+      }, 200),
       window.setTimeout(() => {
         setPhase("rest");
         setAffectedIds({ baseline: [], designed: [] });
         setActiveKeys([]);
         setStatusMessage(`${scenario.controls.find((control) => control.key === key)?.label} changed. Result: ${readableOutcome(scenario.slug, nextOutcome)}.`);
-      }, 1260),
+      }, 880),
     );
   }
 
@@ -619,38 +710,36 @@ export function DebuggerWorkspace({
         setConditions(scenario.defaults);
         updateUrl(scenario.defaults);
         setPhase("reconstruct");
-      }, 230),
+      }, 200),
       window.setTimeout(() => {
         setPhase("rest");
         setAffectedIds({ baseline: [], designed: [] });
         setActiveKeys([]);
         setStatusMessage("Scenario reset.");
-      }, 1260),
+      }, 880),
     );
   }
 
-  function scrollToCaseSection(event: MouseEvent<HTMLAnchorElement>, sectionId: CaseSectionId) {
-    event.preventDefault();
-    setActiveSection(sectionId);
-    const container = frameRef.current;
-    const target = document.getElementById(sectionId);
+  function scrollContainerToSection(sectionId: CaseSectionId, behavior: ScrollBehavior) {
+    const container = scrollFrame();
+    const target = container?.querySelector<HTMLElement>(`#${sectionId}`) ?? document.getElementById(sectionId);
     if (!container || !target) return;
 
     const containerRect = container.getBoundingClientRect();
     const targetRect = target.getBoundingClientRect();
-    const chromeHeight = container.querySelector<HTMLElement>(".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
+    const chromeHeight = container.querySelector<HTMLElement>(embedded ? ".portfolio-window-chrome" : ".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
     const progressHeight = container.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
-    const top = container.scrollTop + targetRect.top - containerRect.top - chromeHeight - progressHeight - 20;
+    const top = container.scrollTop + targetRect.top - containerRect.top - chromeHeight - progressHeight - 24;
     const destination = Math.max(0, top);
     if (caseScrollFrame.current) window.cancelAnimationFrame(caseScrollFrame.current);
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (behavior === "auto" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       container.scrollTop = destination;
     } else {
       const start = container.scrollTop;
       const distance = destination - start;
-      const startedAt = event.timeStamp;
+      const startedAt = performance.now();
       const step = (now: number) => {
-        const progress = Math.min(1, (now - startedAt) / 520);
+        const progress = Math.min(1, (now - startedAt) / 360);
         const eased = 1 - Math.pow(1 - progress, 4);
         container.scrollTop = start + distance * eased;
         if (progress < 1) caseScrollFrame.current = window.requestAnimationFrame(step);
@@ -658,31 +747,42 @@ export function DebuggerWorkspace({
       };
       caseScrollFrame.current = window.requestAnimationFrame(step);
     }
+  }
+
+  function scrollToCaseSection(event: MouseEvent<HTMLAnchorElement>, sectionId: CaseSectionId) {
+    event.preventDefault();
+    setActiveSection(sectionId);
+    scrollContainerToSection(sectionId, "smooth");
     window.history.replaceState(null, "", `#${sectionId}`);
   }
 
+  const WorkspaceElement = embedded ? "div" : "main";
+
   return (
     <>
-      <main
-        className={`case-page case-${scenario.slug} selected-work-window`}
+      <WorkspaceElement
+        className={`case-page case-${scenario.slug} selected-work-window ${embedded ? "embedded-case-workspace" : ""}`.trim()}
         data-dragging={dragging}
         data-closing={isClosing}
         data-app-id="work"
         data-motion-phase={phase}
         data-resizing={resizing}
         data-snap={snap ?? undefined}
-        data-window-state={workspace.stateFor("detail")}
-        data-window-mode={onClose ? "overlay" : "route"}
-        id={onClose ? "case-workspace" : "main-content"}
-        onPointerDownCapture={() => {
-          if (activeWindow !== "detail") focusWindow("detail");
+        data-window-state={workspace.stateFor(hostWindowId)}
+        data-window-mode={embedded ? "embedded" : onClose ? "overlay" : "route"}
+        id={embedded ? "embedded-case-workspace" : onClose ? "case-workspace" : "main-content"}
+        onPointerDownCapture={(event) => {
+          if ((event.target as Element).closest(".evidence-dialog")) return;
+          if (activeWindow !== hostWindowId) focusWindow(hostWindowId);
         }}
-        ref={frameRef}
-        style={{ ...style, "--window-z": workspace.zIndexFor("detail") } as CSSProperties}
+        ref={embedded ? undefined : (node) => {
+          frameRef.current = node;
+        }}
+        style={embedded ? undefined : { ...style, "--window-z": workspace.zIndexFor("detail") } as CSSProperties}
         suppressHydrationWarning
         tabIndex={-1}
       >
-        <WindowChrome
+        {!embedded ? <WindowChrome
           actions={<div className="case-workspace-actions" aria-label="Move between selected work">
             {onSelectScenario ? <button onClick={() => onSelectScenario(previousScenario.slug)} type="button">Previous</button> : <Link href={`/case/${previousScenario.slug}`}>Previous</Link>}
             {onSelectScenario ? <button onClick={() => onSelectScenario(nextScenario.slug)} type="button">Next</button> : <Link href={`/case/${nextScenario.slug}`}>Next</Link>}
@@ -696,13 +796,13 @@ export function DebuggerWorkspace({
           locationClassName="case-location"
           maximized={maximized}
           onClose={onClose ? requestWorkspaceClose : undefined}
-          onMinimize={() => minimizeApp("work")}
+          onMinimize={() => minimizeWindow(hostWindowId)}
           onToggleMaximize={toggleMaximize}
           subtitle={scenario.shortTitle}
           title={`${scenario.number} / ${String(scenarios.length).padStart(2, "0")} · ${caseCategory}`}
           {...titlebarProps}
-        />
-        {windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />)}
+        /> : null}
+        {!embedded ? windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />) : null}
         <nav className="case-progress" aria-label="Case chapters">
           {caseSections.map((section) => (
             <a
@@ -752,7 +852,7 @@ export function DebuggerWorkspace({
           {scenario.slug === "payflow" ? (
             <div className="guided-case-action">
               <button className="primary-action case-replay-action" onClick={() => changeCondition("delivery", "duplicate", true)} type="button">
-                Replay the duplicate callback <ArrowIcon />
+                Replay duplicate callback <ArrowIcon />
               </button>
               <p>Watch the repeated delivery stop before payment state changes again.</p>
             </div>
@@ -806,7 +906,7 @@ export function DebuggerWorkspace({
             <div className="divergence-seam" aria-hidden="true">
               <span>decision point</span>
             </div>
-            <Projection label="Designed" variantLabel={scenario.designedLabel} nodes={designed} affectedIds={affectedIds.designed} phase={phase} outcomeNodeId={scenario.outcomeNodeId} evidence={scenario.evidence[0]} onOpenEvidence={setEvidence} />
+            <Projection label="Designed" variantLabel={scenario.designedLabel} nodes={designed} affectedIds={affectedIds.designed} phase={phase} outcomeNodeId={scenario.outcomeNodeId} evidence={scenario.evidence[0]} onOpenEvidence={openEvidence} />
           </div>
 
           <aside className="audit-tape" aria-label="Audit explanation">
@@ -840,11 +940,11 @@ export function DebuggerWorkspace({
           </div>
           <div className="evidence-grid">
             {scenario.evidence.map((item, index) => (
-              <button className="evidence-card" key={item.src} onClick={() => setEvidence(item)} type="button">
+              <button className="evidence-card" key={item.src} onClick={(event) => openEvidence(item, event.currentTarget)} type="button">
                 <span className="evidence-number">EXHIBIT {scenario.number}.{index + 1}</span>
                 <span className="evidence-focus">{item.focus}</span>
                 <span className="evidence-thumb">
-                  <Image src={item.src} alt="" fill sizes="(max-width: 800px) 90vw, 30vw" className="evidence-thumb-image" />
+                  <Image src={item.src} alt="" className="evidence-thumb-image" fill loading={index === 0 ? "eager" : "lazy"} sizes="(max-width: 800px) 90vw, 30vw" />
                 </span>
                 <span className="evidence-caption">{item.caption}</span>
                 <span className="evidence-view">Open evidence <ArrowIcon /></span>
@@ -874,13 +974,16 @@ export function DebuggerWorkspace({
             </Link>
           )}
         </section>
-      </main>
+      </WorkspaceElement>
 
       {evidence ? (
         <EvidenceDialog
           evidence={evidence}
+          evidenceWindowId={`evidence-${scenario.slug}-0${Math.max(0, scenario.evidence.findIndex((item) => item.src === evidence.src)) + 1}` as WorkspaceWindowId}
           exhibitLabel={`Exhibit ${scenario.number}.${Math.max(0, scenario.evidence.findIndex((item) => item.src === evidence.src)) + 1}`}
-          onClose={() => setEvidence(null)}
+          onClose={closeEvidence}
+          parentWindowId={hostWindowId}
+          returnFocus={evidenceTriggerRef.current}
         />
       ) : null}
     </>

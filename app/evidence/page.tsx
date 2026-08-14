@@ -1,17 +1,97 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { ArrowIcon } from "@/components/icons";
 import { PortfolioHeader } from "@/components/portfolio-header";
+import { useWindowFrame, windowResizeEdges } from "@/components/use-window-frame";
+import { WindowChrome } from "@/components/window-chrome";
+import { useWorkspaceManager } from "@/components/workspace-manager";
 import { additionalRepos } from "@/lib/content";
 import { scenarios } from "@/lib/scenarios";
 
 export default function EvidencePage() {
+  const router = useRouter();
+  const workspace = useWorkspaceManager();
+  const closeEvidenceWindow = workspace.closeWindow;
+  const openEvidenceWindow = workspace.openWindow;
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const [isClosing, setIsClosing] = useState(false);
+  const {
+    dragging,
+    frameRef,
+    maximized,
+    resizeHandleProps,
+    resizing,
+    snap,
+    style,
+    titlebarProps,
+    toggleMaximize,
+  } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 460, minWidth: 700 });
+
+  useEffect(() => {
+    openEvidenceWindow("evidence");
+    return () => {
+      if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+      closeEvidenceWindow("evidence");
+    };
+  }, [closeEvidenceWindow, openEvidenceWindow]);
+
+  useEffect(() => {
+    if (workspace.mode === "computer") return;
+    return workspace.registerBackHandler("evidence-ledger", () => {
+      requestClose();
+      return true;
+    });
+  });
+
+  function requestClose() {
+    if (isClosing) return;
+    setIsClosing(true);
+    closeTimerRef.current = window.setTimeout(() => {
+      workspace.closeWindow("evidence");
+      router.push("/#selected-work");
+    }, 240);
+  }
+
   return (
     <>
       <PortfolioHeader />
-      <main className="evidence-page" id="main-content">
+      <main
+        className="evidence-page portfolio-window evidence-route-window"
+        data-active-window={workspace.activeWindow === "evidence"}
+        data-app-id="work"
+        data-closing={isClosing}
+        data-dragging={dragging}
+        data-resizing={resizing}
+        data-snap={snap ?? undefined}
+        data-window-state={workspace.stateFor("evidence")}
+        id="main-content"
+        onPointerDown={() => workspace.focusWindow("evidence")}
+        ref={frameRef}
+        style={{ ...style, "--window-z": workspace.zIndexFor("evidence") } as CSSProperties}
+        suppressHydrationWarning
+        tabIndex={-1}
+      >
+        <WindowChrome
+          className="portfolio-window-chrome evidence-route-chrome"
+          closeLabel="Close evidence ledger"
+          closeRef={closeRef}
+          label="Work"
+          maximized={maximized}
+          onClose={requestClose}
+          onMinimize={() => workspace.minimizeWindow("evidence")}
+          onToggleMaximize={toggleMaximize}
+          subtitle="Public work, limits, and source material"
+          title="Evidence ledger"
+          {...titlebarProps}
+        />
+        {windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />)}
+        <div className="evidence-route-content">
         <section className="evidence-hero">
-          <p className="micro-label">Public work and boundaries</p>
           <h1>Claims should leave evidence.</h1>
           <p>
             Public labs support the technical claims below. Professional experience is described separately and does not imply access to employer source code.
@@ -33,7 +113,7 @@ export default function EvidencePage() {
         </section>
 
         <section className="repository-index">
-          <div><p className="micro-label">Other projects</p><h2>Additional public repositories</h2></div>
+          <div><h2>Additional public repositories</h2></div>
           <div>
             {additionalRepos.map((repo) => (
               <a href={repo.href} target="_blank" rel="noopener noreferrer" key={repo.name}>
@@ -42,6 +122,7 @@ export default function EvidencePage() {
             ))}
           </div>
         </section>
+        </div>
       </main>
     </>
   );
