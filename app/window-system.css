@@ -1623,6 +1623,99 @@ body {
   }
 }
 
+/* The full brief is an internal Experience document, not a second window. */
+.workspace-experience-window .experience-brief-content {
+  margin: 0 auto;
+  max-width: none;
+  padding-bottom: clamp(var(--space-8), 6cqw, var(--space-16));
+  width: 100%;
+}
+
+.workspace-experience-window .experience-brief-content > .brief-hero,
+.workspace-experience-window .experience-brief-content > .brief-section,
+.workspace-experience-window .experience-brief-content > .brief-contact {
+  margin-inline: clamp(var(--space-6), 4cqw, var(--space-16));
+}
+
+.workspace-experience-window .experience-brief-content > .brief-hero {
+  min-height: min(680px, calc(100% - var(--window-chrome-height)));
+  padding-block: clamp(var(--space-12), 7cqw, 7rem);
+}
+
+.workspace-experience-window .experience-brief-content .brief-hero h1 {
+  font-size: clamp(4.5rem, 10cqw, 9rem);
+}
+
+.workspace-experience-window[data-active-window="true"] > .portfolio-window-chrome {
+  background: var(--paper-raised) !important;
+  color: var(--ink);
+}
+
+@container (max-width: 980px) {
+  .workspace-experience-window .experience-brief-content > .brief-hero {
+    gap: var(--space-8);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workspace-experience-window .experience-brief-content .brief-summary {
+    max-width: 720px;
+  }
+
+  .workspace-experience-window .experience-brief-content .brief-hero h1 {
+    font-size: clamp(4rem, 15cqw, 7.5rem);
+  }
+}
+
+@container (max-width: 720px) {
+  .workspace-experience-window .experience-brief-content > .brief-hero,
+  .workspace-experience-window .experience-brief-content > .brief-section,
+  .workspace-experience-window .experience-brief-content > .brief-contact {
+    margin-inline: var(--space-6);
+  }
+
+  .workspace-experience-window .experience-brief-content > .brief-hero {
+    min-height: 0;
+    padding-block: var(--space-12);
+  }
+
+  .workspace-experience-window .experience-brief-content > .brief-section {
+    gap: var(--space-8);
+    grid-template-columns: minmax(0, 1fr);
+    padding-block: var(--space-12);
+  }
+
+  .workspace-experience-window .experience-brief-content .brief-section-heading {
+    margin-bottom: 0;
+    position: static;
+  }
+
+  .workspace-experience-window .experience-brief-content .experience-entry {
+    gap: var(--space-4);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workspace-experience-window .experience-brief-content .experience-toggle {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .workspace-experience-window .experience-brief-content .experience-toggle > small {
+    display: none;
+  }
+
+  .workspace-experience-window .experience-brief-content .scope-row {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .workspace-experience-window .experience-brief-content .scope-row p {
+    grid-column: 2;
+  }
+
+  .workspace-experience-window .experience-brief-content .brief-contact {
+    min-height: 0;
+    padding-block: var(--space-16);
+  }
+}
+
 /* Desktop wallpaper and filing grid */
 html[data-system-mode="computer"] .desktop-surface {
   background: var(--paper) !important;
@@ -1737,10 +1830,9 @@ html[data-system-mode="computer"] .surface-work { grid-column: 1; grid-row: 1; }
 html[data-system-mode="computer"] .surface-experience { grid-column: 2; grid-row: 1; }
 html[data-system-mode="computer"] .surface-contact { grid-column: 3; grid-row: 1; }
 html[data-system-mode="computer"] .surface-products { grid-column: 4; grid-row: 1; }
-html[data-system-mode="computer"] .surface-selected { grid-column: 1; grid-row: 2; }
-html[data-system-mode="computer"] .surface-shot-payflow { grid-column: 2; grid-row: 2; }
-html[data-system-mode="computer"] .surface-shot-iyup { grid-column: 3; grid-row: 2; }
-html[data-system-mode="computer"] .surface-shot-trustgate { grid-column: 4; grid-row: 2; }
+html[data-system-mode="computer"] .surface-shot-payflow { grid-column: 1; grid-row: 2; }
+html[data-system-mode="computer"] .surface-shot-iyup { grid-column: 2; grid-row: 2; }
+html[data-system-mode="computer"] .surface-shot-trustgate { grid-column: 3; grid-row: 2; }
 
 html[data-system-mode="computer"] .desktop-object:hover {
   background: var(--paper-recessed);
@@ -1767,14 +1859,6 @@ html[data-system-mode="computer"] .desktop-object-copy {
 html[data-system-mode="computer"] .desktop-object-copy strong {
   font-size: .9rem !important;
   line-height: 1.15;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-html[data-system-mode="computer"] .desktop-object-copy small {
-  font-size: .55rem;
-  line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4225,6 +4309,27 @@ html[data-system-mode="phone"] .window-control-cluster {
   display: none !important;
 }
 
+/* Compact device docks use icon-only controls, matching the desktop taskbar language. */
+html[data-system-mode="tablet"] .tablet-app-label,
+html[data-system-mode="phone"] .phone-system-navigation span {
+  display: none !important;
+}
+
+html[data-system-mode="tablet"] .tablet-shelf button {
+  gap: 0 !important;
+  min-width: 64px !important;
+}
+
+html[data-system-mode="phone"] .phone-system-navigation button {
+  gap: 0 !important;
+}
+
+html[data-system-mode="tablet"] .tablet-shelf svg,
+html[data-system-mode="phone"] .phone-system-navigation svg {
+  height: 22px;
+  width: 22px;
+}
+
 html[data-system-mode="phone"] .system-status-bar {
   grid-template-columns: minmax(0, 1fr) auto;
   padding: env(safe-area-inset-top) max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left));
@@ -4900,4 +5005,75 @@ html[data-system-mode="tablet"] .editorial-work-row {
     justify-content: space-between;
     min-width: 0;
   }
+}
+
+/* Final active-app authority: one neutral, physically inset control on every shell. */
+.taskbar-app[data-active="true"],
+.taskbar-home[data-active="true"],
+.taskbar-overview[data-active="true"] {
+  background: var(--paper-recessed) !important;
+  box-shadow:
+    inset 2px 2px 0 var(--rule-strong),
+    inset -2px -2px 0 var(--paper-raised) !important;
+  transform: translateY(1px);
+}
+
+/* Large touch targets keep their inset panel away from the shelf/nav boundary. */
+html[data-system-mode="tablet"] .tablet-shelf button[data-active="true"],
+html[data-system-mode="phone"] .phone-system-navigation button[data-active="true"] {
+  background: transparent !important;
+  box-shadow: none !important;
+  isolation: isolate;
+  position: relative;
+  transform: none !important;
+}
+
+html[data-system-mode="tablet"] .tablet-shelf button[data-active="true"]::before,
+html[data-system-mode="phone"] .phone-system-navigation button[data-active="true"]::before {
+  background: var(--paper-recessed);
+  box-shadow:
+    inset 2px 2px 0 var(--rule-strong),
+    inset -2px -2px 0 var(--paper-raised);
+  content: "";
+  inset: 5px 7px;
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
+}
+
+html[data-system-mode="phone"] .phone-system-navigation button[data-active="true"]::before {
+  inset-inline: clamp(10px, 4vw, 18px);
+}
+
+.taskbar-app[data-active="true"] > i,
+html[data-system-mode="tablet"] .tablet-shelf button[data-active="true"] > i {
+  background: var(--ink) !important;
+  border-color: var(--ink) !important;
+}
+
+html[data-system-mode="phone"] .phone-system-navigation button[data-active="true"] svg {
+  color: var(--ink) !important;
+}
+
+html[data-system-mode="tablet"] .tablet-shelf button[data-active="true"] svg,
+html[data-system-mode="tablet"] .tablet-shelf button[data-active="true"] .system-app-mark,
+html[data-system-mode="phone"] .phone-system-navigation button[data-active="true"] svg {
+  transform: none !important;
+}
+
+/* Tablet already has Back in its shelf; only phone renders the compact title-bar Back control. */
+html[data-system-mode="tablet"] .window-compact-back-action {
+  display: none !important;
+}
+
+html[data-system-mode="tablet"] .window-control-cluster {
+  display: flex !important;
+}
+
+html[data-system-mode="phone"] .window-compact-back-action {
+  display: inline-flex !important;
+}
+
+html[data-system-mode="phone"] .window-control-cluster {
+  display: none !important;
 }
