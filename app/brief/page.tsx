@@ -107,7 +107,7 @@ export default function BriefPage() {
           label="Experience"
           maximized={maximized}
           onClose={requestClose}
-          onMinimize={() => workspace.minimizeApp("experience")}
+          onMinimize={() => workspace.minimizeWindow("experience")}
           onToggleMaximize={toggleMaximize}
           subtitle="Full engineering brief and CV"
           {...titlebarProps}
@@ -156,7 +156,7 @@ export default function BriefPage() {
         </section>
 
         <section className="brief-section brief-experience-section" data-brief-section="experience">
-          <div className="section-label"><span>01</span><p>Experience</p></div>
+          <header className="brief-section-heading"><h2>Experience</h2></header>
           <div className="experience-list">
             {experience.map((item, index) => {
               const isOpen = openExperience === index;
@@ -194,7 +194,7 @@ export default function BriefPage() {
         </section>
 
         <section className="brief-section brief-work-section" data-brief-section="work">
-          <div className="section-label"><span>02</span><p>Selected work</p></div>
+          <header className="brief-section-heading"><h2>Selected work</h2></header>
           <div className="brief-case-list">
             {scenarios.map((scenario) => (
               <Link className="brief-case" href={`/case/${scenario.slug}`} key={scenario.slug}>
@@ -207,7 +207,7 @@ export default function BriefPage() {
         </section>
 
         <section className="brief-section brief-scope-section" data-brief-section="scope">
-          <div className="section-label"><span>03</span><p>System scope</p></div>
+          <header className="brief-section-heading"><h2>System scope</h2></header>
           <div className="scope-map">
             {systemScope.map((item, index) => (
               <div className="scope-row" key={item.label}>
@@ -218,7 +218,7 @@ export default function BriefPage() {
         </section>
 
         <section className="brief-section principles-section">
-          <div className="section-label"><span>04</span><p>Operating principles</p></div>
+          <header className="brief-section-heading"><h2>Operating principles</h2></header>
           <ol className="principles-list">
             {principles.map((principle, index) => <li key={principle}><span>{String(index + 1).padStart(2, "0")}</span>{principle}</li>)}
           </ol>

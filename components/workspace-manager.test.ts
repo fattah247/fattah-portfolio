@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   appForWindow,
   initialWorkspaceState,
+  modeForViewport,
   workspaceReducer,
   workspaceWindowState,
   type WorkspaceState,
@@ -64,7 +65,7 @@ describe("workspaceReducer", () => {
     );
 
     expect(state.open).toEqual(["work", "case"]);
-    expect(state.minimized).toEqual(["work"]);
+    expect(state.minimized).toEqual(["work", "case"]);
     expect(state.recents).toEqual(["work"]);
     expect(state.surface).toBe("home");
     expect(workspaceWindowState(state, "work")).toBe("minimized");
@@ -79,10 +80,24 @@ describe("workspaceReducer", () => {
       { type: "focus-app", app: "work" },
     );
 
-    expect(state.minimized).toEqual([]);
+    expect(state.minimized).toEqual(["work"]);
     expect(state.focus.at(-1)).toBe("case");
     expect(state.surface).toBe("application");
     expect(workspaceWindowState(state, "case")).toBe("active");
+  });
+
+  it("minimizes one project window without hiding its Work siblings", () => {
+    const state = reduce(
+      initialWorkspaceState,
+      { type: "open", id: "case-payflow" },
+      { type: "open", id: "case-trustgate" },
+      { type: "minimize-window", id: "case-trustgate" },
+    );
+
+    expect(state.open).toEqual(["work", "case-payflow", "case-trustgate"]);
+    expect(state.minimized).toEqual(["case-trustgate"]);
+    expect(workspaceWindowState(state, "case-trustgate")).toBe("minimized");
+    expect(workspaceWindowState(state, "case-payflow")).toBe("active");
   });
 
   it("keeps open application sessions intact while visiting Home and Recents", () => {
@@ -120,7 +135,7 @@ describe("workspaceReducer", () => {
       expect(state.minimized).toEqual(session.minimized);
       expect(state.recents).toEqual(session.recents);
     }
-    expect(phoneState).toMatchObject({ mode: "phone", modeReady: true, surface: "home" });
+    expect(phoneState).toMatchObject({ mode: "phone", modeReady: true, surface: "application" });
     expect(tabletState.mode).toBe("tablet");
     expect(computerState.mode).toBe("computer");
   });
@@ -179,6 +194,58 @@ describe("workspaceReducer", () => {
     expect(workspaceWindowState(state, "experience")).toBe("clear");
     expect(workspaceWindowState(state, "contact")).toBe("active");
   });
+
+  it("classifies phone landscape and coarse-pointer tablet landscape by device shape", () => {
+    expect(modeForViewport(390, 844)).toBe("phone");
+    expect(modeForViewport(844, 390)).toBe("phone");
+    expect(modeForViewport(1024, 768)).toBe("tablet");
+    expect(modeForViewport(1194, 834, true)).toBe("tablet");
+    expect(modeForViewport(1440, 900)).toBe("computer");
+  });
+
+  it("keeps one companion application available on tablet without exposing sibling Work documents", () => {
+    const tablet = reduce(
+      { ...initialWorkspaceState, mode: "tablet", modeReady: true },
+      { type: "open", id: "case" },
+      { type: "open", id: "experience" },
+    );
+
+    expect(workspaceWindowState(tablet, "experience")).toBe("active");
+    expect(workspaceWindowState(tablet, "case")).toBe("clear");
+    expect(workspaceWindowState(tablet, "work")).toBe("background");
+
+    const phone = workspaceReducer(tablet, { type: "sync-mode", mode: "phone" });
+    expect(workspaceWindowState(phone, "case")).toBe("background");
+  });
+
+  it("treats Product Links as one first-class application session", () => {
+    const opened = workspaceReducer(initialWorkspaceState, { type: "focus-app", app: "products" });
+    const minimized = workspaceReducer(opened, { type: "minimize-app", app: "products" });
+    const restored = workspaceReducer(minimized, { type: "focus-app", app: "products" });
+
+    expect(opened.open).toEqual(["work", "products"]);
+    expect(opened.recents.at(-1)).toBe("products");
+    expect(workspaceWindowState(opened, "products")).toBe("active");
+    expect(workspaceWindowState(minimized, "products")).toBe("minimized");
+    expect(restored.minimized).not.toContain("products");
+    expect(restored.focus.at(-1)).toBe("products");
+  });
+
+  it("reconciles rapid app transitions without duplicate or ghost sessions", () => {
+    const state = reduce(
+      initialWorkspaceState,
+      { type: "focus-app", app: "products" },
+      { type: "minimize-app", app: "products" },
+      { type: "focus-app", app: "products" },
+      { type: "focus-app", app: "experience" },
+      { type: "close-app", app: "products" },
+    );
+
+    expect(state.open).toEqual(["work", "experience"]);
+    expect(state.recents).toEqual(["work", "experience"]);
+    expect(state.focus.at(-1)).toBe("experience");
+    expect(state.minimized).toEqual([]);
+  });
 });
 
 describe("appForWindow", () => {
@@ -189,5 +256,6 @@ describe("appForWindow", () => {
     expect(appForWindow("evidence")).toBe("work");
     expect(appForWindow("experience")).toBe("experience");
     expect(appForWindow("contact")).toBe("contact");
+    expect(appForWindow("products")).toBe("products");
   });
 });

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { DebuggerWorkspace } from "@/components/debugger-workspace";
+import { CounterfactualHome } from "@/components/counterfactual-home";
 import { PortfolioHeader } from "@/components/portfolio-header";
 import { getScenario, scenarios } from "@/lib/scenarios";
 
@@ -29,7 +29,11 @@ export default async function CasePage({ params, searchParams }: CasePageProps) 
   return (
     <>
       <PortfolioHeader />
-      <DebuggerWorkspace key={scenario.slug} scenario={scenario} initialConditions={initialConditions} />
+      <CounterfactualHome
+        initialCaseConditions={initialConditions}
+        initialCaseSlug={scenario.slug}
+        key={scenario.slug}
+      />
     </>
   );
 }
