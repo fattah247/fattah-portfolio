@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
 import { WorkspaceManagerProvider } from "@/components/workspace-manager";
+import { LimitedAnalytics } from "@/components/limited-analytics";
 import "@fontsource/ibm-plex-sans/latin-400.css";
 import "@fontsource/ibm-plex-sans/latin-500.css";
 import "@fontsource/ibm-plex-sans/latin-600.css";
@@ -36,7 +36,7 @@ export default function RootLayout({
     <html data-scroll-behavior="smooth" lang="en">
       <body>
         <WorkspaceManagerProvider>{children}</WorkspaceManagerProvider>
-        <Analytics />
+        <LimitedAnalytics production={process.env.VERCEL_ENV === "production"} />
       </body>
     </html>
   );
