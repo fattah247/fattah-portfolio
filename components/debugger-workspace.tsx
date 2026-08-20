@@ -783,16 +783,16 @@ export function DebuggerWorkspace({
         tabIndex={-1}
       >
         {!embedded ? <WindowChrome
-          actions={<div className="case-workspace-actions" aria-label="Move between selected work">
+          actions={<div className="case-workspace-actions" aria-label="Move between projects">
             {onSelectScenario ? <button onClick={() => onSelectScenario(previousScenario.slug)} type="button">Previous</button> : <Link href={`/case/${previousScenario.slug}`}>Previous</Link>}
             {onSelectScenario ? <button onClick={() => onSelectScenario(nextScenario.slug)} type="button">Next</button> : <Link href={`/case/${nextScenario.slug}`}>Next</Link>}
           </div>}
-          aria-label="Selected work workspace"
+          aria-label="Project workspace"
           className="case-workspace-chrome"
           closeClassName="case-close-action"
           closeHref={onClose ? undefined : "/#selected-work"}
-          closeLabel={onClose ? "Close selected work detail" : "Close selected work and return to the work list"}
-          label="Selected work"
+          closeLabel={onClose ? "Close project detail" : "Close project and return to the project list"}
+          label="Project"
           locationClassName="case-location"
           maximized={maximized}
           onClose={onClose ? requestWorkspaceClose : undefined}

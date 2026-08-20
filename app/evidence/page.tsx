@@ -80,12 +80,12 @@ export default function EvidencePage() {
           className="portfolio-window-chrome evidence-route-chrome"
           closeLabel="Close evidence ledger"
           closeRef={closeRef}
-          label="Work"
+          label="Projects"
           maximized={maximized}
           onClose={requestClose}
           onMinimize={() => workspace.minimizeWindow("evidence")}
           onToggleMaximize={toggleMaximize}
-          subtitle="Public work, limits, and source material"
+          subtitle="Public evidence, limits, and source material"
           title="Evidence ledger"
           {...titlebarProps}
         />
