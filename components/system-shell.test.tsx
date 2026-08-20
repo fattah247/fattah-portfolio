@@ -32,7 +32,7 @@ describe("SystemShell", () => {
   it("renders one launcher, taskbar, shelf, and Recents identity for every top-level app", () => {
     render(<WorkspaceManagerProvider><SystemShell /></WorkspaceManagerProvider>);
 
-    for (const label of ["Work", "Experience", "Contact", "Product Links"]) {
+    for (const label of ["Projects", "Experience", "Contact", "Product Links"]) {
       expect(screen.getAllByRole("button", { name: new RegExp(`Open ${label}|Switch to ${label}`) }).length).toBeGreaterThan(0);
     }
     expect(screen.getAllByText("Product Links").length).toBeGreaterThan(1);
@@ -110,9 +110,9 @@ describe("SystemShell", () => {
 
     fireEvent.click(phoneNavigation.getByRole("button", { name: "Home" }));
     expect(home?.getAttribute("aria-hidden")).toBe("false");
-    expect(screen.getAllByText("Work").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Projects").length).toBeGreaterThan(0);
     expect(phoneNavigation.getByRole("button", { name: "Home" }).getAttribute("data-active")).toBe("true");
-    expect(screen.getAllByRole("button", { name: "Open Work" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Open Projects" }).length).toBeGreaterThan(0);
 
     fireEvent.click(phoneNavigation.getByRole("button", { name: "Recents" }));
     expect(recents?.getAttribute("aria-hidden")).toBe("false");
@@ -126,9 +126,9 @@ describe("SystemShell", () => {
     render(<WorkspaceManagerProvider><SystemShell /></WorkspaceManagerProvider>);
     const taskbar = within(screen.getByRole("navigation", { name: "System taskbar" }));
 
-    fireEvent.click(taskbar.getByRole("button", { name: /Open Work\. Not running/i }));
+    fireEvent.click(taskbar.getByRole("button", { name: /Open Projects\. Not running/i }));
     fireEvent.click(taskbar.getByRole("button", { name: "Application overview" }));
-    fireEvent.click(screen.getByRole("button", { name: "Close Work" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close Projects" }));
 
     expect(push).toHaveBeenCalledWith("/");
   });

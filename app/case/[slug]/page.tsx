@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { CounterfactualHome } from "@/components/counterfactual-home";
 import { PortfolioHeader } from "@/components/portfolio-header";
+import { PortfolioWorkspace } from "@/components/portfolio-workspace";
 import { getScenario, scenarios } from "@/lib/scenarios";
 
 export function generateStaticParams() {
@@ -29,7 +29,7 @@ export default async function CasePage({ params, searchParams }: CasePageProps) 
   return (
     <>
       <PortfolioHeader />
-      <CounterfactualHome
+      <PortfolioWorkspace
         initialCaseConditions={initialConditions}
         initialCaseSlug={scenario.slug}
         key={scenario.slug}

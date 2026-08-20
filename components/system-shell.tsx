@@ -15,6 +15,7 @@ function appForRoute(pathname: string): PortfolioAppId | null {
     pathname === "/evidence"
     || pathname.startsWith("/evidence/")
     || pathname.startsWith("/case/")
+    || pathname.startsWith("/projects/")
   ) return "work";
   return null;
 }

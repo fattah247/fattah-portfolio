@@ -1,11 +1,11 @@
-import { CounterfactualHome } from "@/components/counterfactual-home";
 import { PortfolioHeader } from "@/components/portfolio-header";
+import { PortfolioWorkspace } from "@/components/portfolio-workspace";
 
 export default function Home() {
   return (
     <>
       <PortfolioHeader />
-      <CounterfactualHome />
+      <PortfolioWorkspace />
     </>
   );
 }
