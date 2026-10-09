@@ -7,6 +7,7 @@ import {
   workspaceWindowState,
   type WorkspaceState,
 } from "./workspace-manager";
+import { capabilitiesForViewport, tabletPairingStage } from "../lib/device-capabilities";
 
 function reduce(
   state: WorkspaceState,
@@ -162,21 +163,6 @@ describe("workspaceReducer", () => {
     expect(tablet.recents).toEqual(["work", "experience"]);
   });
 
-  it("keeps show-only as a non-destructive compatibility action", () => {
-    const existingSession = reduce(
-      initialWorkspaceState,
-      { type: "open", id: "work" },
-      { type: "open", id: "experience" },
-      { type: "open", id: "contact" },
-    );
-    const switched = workspaceReducer(existingSession, { type: "show-only", id: "case" });
-
-    expect(switched.open).toEqual(["work", "experience", "contact", "case"]);
-    expect(switched.focus.at(-1)).toBe("case");
-    expect(switched.recents).toEqual(["experience", "contact", "work"]);
-    expect(workspaceWindowState(switched, "case")).toBe("active");
-  });
-
   it("closes an application as one session while preserving unrelated applications", () => {
     const state = reduce(
       initialWorkspaceState,
@@ -193,6 +179,25 @@ describe("workspaceReducer", () => {
     expect(state.surface).toBe("application");
   });
 
+  it("keeps the phone's Recents open while its cards are closed, down to the empty state", () => {
+    const phone = reduce(
+      initialWorkspaceState,
+      { type: "sync-mode", mode: "phone" },
+      { type: "open", id: "work" },
+      { type: "open", id: "contact" },
+      { type: "surface", surface: "recents" },
+    );
+    const afterForeground = reduce(phone, { type: "close-app", app: "contact" });
+    expect(afterForeground.surface).toBe("recents");
+    expect(afterForeground.open).toEqual(["work"]);
+    const empty = reduce(afterForeground, { type: "close-app", app: "work" });
+    expect(empty.surface).toBe("recents");
+    expect(empty.open).toEqual([]);
+    // A desktop overview keeps its existing behavior: closing returns to the remaining window.
+    const desktop = reduce({ ...phone, mode: "computer" }, { type: "close-app", app: "contact" });
+    expect(desktop.surface).toBe("application");
+  });
+
   it("keeps only the two most recently focused desktop windows clear", () => {
     const state = reduce(
       { ...initialWorkspaceState, modeReady: true },
@@ -206,28 +211,62 @@ describe("workspaceReducer", () => {
     expect(workspaceWindowState(state, "contact")).toBe("active");
   });
 
-  it("classifies phone landscape and coarse-pointer tablet landscape by device shape", () => {
+  it("classifies device mode at the phone, tablet, desktop, and touch-first boundaries", () => {
     expect(modeForViewport(390, 844)).toBe("phone");
-    expect(modeForViewport(844, 390)).toBe("phone");
+    expect(modeForViewport(600, 960)).toBe("phone");
+    expect(modeForViewport(601, 960)).toBe("tablet");
+    expect(modeForViewport(960, 600)).toBe("tablet");
+    expect(modeForViewport(960, 500, true, false)).toBe("phone");
+    expect(modeForViewport(960, 500, true, true)).toBe("tablet");
     expect(modeForViewport(1024, 768)).toBe("tablet");
-    expect(modeForViewport(1194, 834, true)).toBe("tablet");
+    expect(modeForViewport(1100, 900)).toBe("tablet");
+    expect(modeForViewport(1101, 900)).toBe("computer");
+    expect(modeForViewport(1194, 834, true, false)).toBe("tablet");
+    expect(modeForViewport(1366, 768, true, false)).toBe("tablet");
+    expect(modeForViewport(1366, 768, true, true)).toBe("computer");
     expect(modeForViewport(1440, 900)).toBe("computer");
   });
 
-  it("keeps one companion application available on tablet without exposing sibling Work documents", () => {
+  it("reports tablet pairing eligibility only when the tablet stage can hold two panes", () => {
+    expect(tabletPairingStage).toMatchObject({ height: 600, paneMinWidth: 480, width: 1040 });
+    expect(capabilitiesForViewport({ width: 768, height: 1024 })).toMatchObject({
+      mode: "tablet",
+      pairingEligible: false,
+    });
+    expect(capabilitiesForViewport({ width: 1194, height: 834, coarsePointer: true, hover: false })).toMatchObject({
+      mode: "tablet",
+      pairingEligible: true,
+    });
+    expect(capabilitiesForViewport({ width: 1366, height: 768, coarsePointer: true, hover: false })).toMatchObject({
+      mode: "tablet",
+      pairingEligible: true,
+    });
+    expect(capabilitiesForViewport({ width: 1440, height: 900, coarsePointer: false, hover: true })).toMatchObject({
+      mode: "computer",
+      pairingEligible: false,
+    });
+  });
+
+  it("keeps tablet applications single-pane until Projects and Experience are explicitly paired", () => {
     const tablet = reduce(
       { ...initialWorkspaceState, mode: "tablet", modeReady: true },
+      { type: "open", id: "products" },
       { type: "open", id: "work" },
-      { type: "open", id: "case" },
       { type: "open", id: "experience" },
     );
 
     expect(workspaceWindowState(tablet, "experience")).toBe("active");
-    expect(workspaceWindowState(tablet, "case")).toBe("clear");
     expect(workspaceWindowState(tablet, "work")).toBe("background");
+    expect(workspaceWindowState({ ...tablet, paired: true }, "work")).toBe("clear");
+    expect(workspaceWindowState({ ...tablet, paired: true }, "products")).toBe("background");
+
+    // Only the Projects + Experience stage pairs; another foreground app returns to one pane.
+    const withProducts = workspaceReducer({ ...tablet, paired: true }, { type: "focus-app", app: "products" });
+    expect(workspaceWindowState(withProducts, "products")).toBe("active");
+    expect(workspaceWindowState(withProducts, "experience")).toBe("background");
 
     const phone = workspaceReducer(tablet, { type: "sync-mode", mode: "phone" });
-    expect(workspaceWindowState(phone, "case")).toBe("background");
+    expect(workspaceWindowState({ ...phone, paired: true }, "work")).toBe("background");
   });
 
   it("treats Product Links as one first-class application session", () => {

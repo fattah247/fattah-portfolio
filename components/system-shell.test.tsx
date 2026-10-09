@@ -52,10 +52,13 @@ describe("SystemShell", () => {
   });
 
   it("suppresses the native page context menu", () => {
-    render(<WorkspaceManagerProvider><SystemShell /></WorkspaceManagerProvider>);
+    const { container } = render(<WorkspaceManagerProvider><SystemShell /></WorkspaceManagerProvider>);
+    const surface = document.createElement("section");
+    surface.className = "desktop-surface";
+    container.appendChild(surface);
 
     const contextMenu = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
-    document.dispatchEvent(contextMenu);
+    surface.dispatchEvent(contextMenu);
 
     expect(contextMenu.defaultPrevented).toBe(true);
   });
@@ -87,6 +90,8 @@ describe("SystemShell", () => {
   });
 
   it("reports running state through the tablet shelf without creating another app identity", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 768 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 1024 });
     render(<WorkspaceManagerProvider><SystemShell /></WorkspaceManagerProvider>);
     const shelf = within(screen.getByRole("navigation", { name: "Tablet application shelf" }));
 
@@ -95,6 +100,30 @@ describe("SystemShell", () => {
 
     expect(shelf.getByRole("button", { name: "Switch to Product Links. Active" })).toBeTruthy();
     expect(shelf.getAllByRole("button", { name: /Product Links/i })).toHaveLength(1);
+  });
+
+  it("makes the tablet shelf the launcher: labelled groups, Back resting on Home, Recents toggling", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 834 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 1194 });
+    const { container } = render(<WorkspaceManagerProvider><SystemShell /></WorkspaceManagerProvider>);
+    const shelfElement = screen.getByRole("navigation", { name: "Tablet application shelf" });
+    const shelf = within(shelfElement);
+
+    // Back, Home, the four apps, then Recents, each with a visible name.
+    expect(Array.from(shelfElement.querySelectorAll(".tablet-app-label"), (label) => label.textContent)).toEqual(["Back", "Home", "Projects", "Experience", "Contact", "Products", "Recents"]);
+    expect(shelfElement.querySelectorAll('[data-group="apps"] button')).toHaveLength(4);
+    expect(shelf.getByRole("button", { name: "Back" }).hasAttribute("disabled")).toBe(true);
+
+    fireEvent.click(shelf.getByRole("button", { name: "Open Projects. Not running" }));
+    expect(shelf.getByRole("button", { name: "Back" }).hasAttribute("disabled")).toBe(false);
+    fireEvent.click(shelf.getByRole("button", { name: "Recents" }));
+    expect(document.documentElement.dataset.systemSurface).toBe("recents");
+    fireEvent.click(shelf.getByRole("button", { name: "Recents" }));
+    expect(document.documentElement.dataset.systemSurface).toBe("application");
+
+    // The tablet Home board carries the role history from the same content as Experience.
+    const roles = Array.from(container.querySelectorAll(".home-experience .home-role strong"), (role) => role.textContent);
+    expect(roles).toEqual(["Software Engineer / IT Specialist", "iOS Engineer Intern", "iOS Developer"]);
   });
 
   it("keeps phone Home and Recents as system surfaces without closing running apps", () => {
@@ -121,7 +150,7 @@ describe("SystemShell", () => {
     expect(recents?.querySelector('[data-current="true"]')).toBeNull();
   });
 
-  it("returns to the workspace when closing the application that owns a direct route", () => {
+  it("closes a session from the overview without a router navigation; route hosts rewrite their own address", () => {
     navigation.pathname = "/case/payflow";
     render(<WorkspaceManagerProvider><SystemShell /></WorkspaceManagerProvider>);
     const taskbar = within(screen.getByRole("navigation", { name: "System taskbar" }));
@@ -130,6 +159,40 @@ describe("SystemShell", () => {
     fireEvent.click(taskbar.getByRole("button", { name: "Application overview" }));
     fireEvent.click(screen.getByRole("button", { name: "Close Projects" }));
 
-    expect(push).toHaveBeenCalledWith("/");
+    expect(screen.getByText("No apps open.")).toBeTruthy();
+    expect(taskbar.getByRole("button", { name: /Open Projects\. Not running/i })).toBeTruthy();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("puts identity, CV, contact, the three cases, and every app on the phone Home", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+    const { container } = render(<WorkspaceManagerProvider><SystemShell /></WorkspaceManagerProvider>);
+    const home = within(container.querySelector<HTMLElement>(".system-home-screen")!);
+
+    expect(home.getByRole("heading", { level: 1, name: "Muhammad A. Fattah" })).toBeTruthy();
+    expect(home.getByRole("link", { name: /CV/ }).hasAttribute("download")).toBe(true);
+    expect(home.getByRole("button", { name: "Contact" })).toBeTruthy();
+    expect(home.getAllByRole("button").filter((button) => button.classList.contains("home-case"))).toHaveLength(3);
+    expect(container.querySelectorAll(".system-launcher-app")).toHaveLength(4);
+    // Continue only appears once something is running.
+    expect(container.querySelector(".system-resume-app")).toBeNull();
+  });
+
+  it("orders Recents oldest to newest so the newest card is reached first from the end", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 390 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 844 });
+    const { container } = render(<WorkspaceManagerProvider><SystemShell /><OpenProductRoute /></WorkspaceManagerProvider>);
+    const phoneNavigation = within(screen.getByRole("navigation", { name: "Phone system navigation" }));
+
+    fireEvent.click(phoneNavigation.getByRole("button", { name: "Home" }));
+    fireEvent.click(container.querySelector<HTMLButtonElement>('.system-launcher-app[data-app="experience"]')!);
+    fireEvent.click(phoneNavigation.getByRole("button", { name: "Recents" }));
+
+    const cards = Array.from(container.querySelectorAll<HTMLElement>(".system-recent-card"));
+    expect(cards.map((card) => card.querySelector(".system-recent-preview")?.getAttribute("data-app"))).toEqual(["products", "experience"]);
+    expect(cards.at(-1)?.getAttribute("data-current")).toBe("true");
+    expect(screen.getByRole("heading", { name: "Recents" })).toBeTruthy();
+    expect(screen.getByText("2 apps open")).toBeTruthy();
   });
 });

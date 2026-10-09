@@ -52,10 +52,3 @@ export const principles = [
   "A security signal is evidence, not automatically a verdict.",
   "Operational interfaces should support the next decision.",
 ] as const;
-
-export const additionalRepos = [
-  { name: "SnapSort-iOS", detail: "iOS photo management", href: "https://github.com/fattah247/SnapSort-iOS" },
-  { name: "Stock-Triage", detail: "IDX filing automation", href: "https://github.com/fattah247/Stock-Triage" },
-  { name: "Xpire", detail: "Expiration reminders", href: "https://github.com/fattah247/Xpire" },
-  { name: "IoTifyHome", detail: "Smart-home control", href: "https://github.com/fattah247/IoTifyHome" },
-] as const;

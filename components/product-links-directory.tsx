@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowIcon } from "./icons";
+import { useOptionalWorkspaceManager } from "./workspace-manager";
 import {
   filterProductLinks,
   groupProductLinks,
@@ -20,15 +22,16 @@ function MarketplaceMark({ marketplace }: { marketplace: Marketplace }) {
   return <svg aria-hidden="true" className="marketplace-mark" viewBox="0 0 24 24"><path d="M14 4v11.2a3.8 3.8 0 1 1-3-3.7" /><path d="M14 4c.8 2.4 2.4 3.7 5 4" /></svg>;
 }
 
+const letterIndexThreshold = 12;
+
 function ProductRow({ product }: { product: IndexedProductLink }) {
   return (
     <li className="product-link-row">
       <span className="product-link-id">{product.id}</span>
       <div className="product-link-copy">
         <strong className="product-link-name">{product.name}</strong>
-        <p>{product.offers.length} {product.offers.length === 1 ? "marketplace" : "marketplaces"}</p>
       </div>
-      <div className="product-link-offers" aria-label={`Buy ${product.name}`}>
+      <div className="product-link-offers" role="group" aria-label={`Buy ${product.name}`}>
         {product.offers.map((offer) => (
           <a
             aria-label={`Open ${product.name} on ${marketplaceLabel(offer.marketplace)}`}
@@ -41,7 +44,7 @@ function ProductRow({ product }: { product: IndexedProductLink }) {
           >
             <MarketplaceMark marketplace={offer.marketplace} />
             <span>{marketplaceLabel(offer.marketplace)}</span>
-            <b aria-hidden="true">↗</b>
+            <b aria-hidden="true"><ArrowIcon /></b>
           </a>
         ))}
       </div>
@@ -50,8 +53,16 @@ function ProductRow({ product }: { product: IndexedProductLink }) {
 }
 
 export function ProductLinksDirectory({ links }: { links: ProductLink[] }) {
-  const [query, setQuery] = useState("");
-  const [marketplace, setMarketplace] = useState<Marketplace | "all">("all");
+  const workspace = useOptionalWorkspaceManager();
+  const [query, setQuery] = useState(() => String(workspace?.readDocumentState("products", "directory")?.data?.query ?? ""));
+  const [marketplace, setMarketplace] = useState<Marketplace | "all">(() => {
+    const saved = workspace?.readDocumentState("products", "directory")?.data?.marketplace;
+    return marketplaceDirectory.some((entry) => entry.id === saved) ? saved as Marketplace : "all";
+  });
+  const writeDocumentState = workspace?.writeDocumentState;
+  useEffect(() => {
+    writeDocumentState?.("products", "directory", { data: { query, marketplace } });
+  }, [marketplace, query, writeDocumentState]);
   const searchRef = useRef<HTMLInputElement>(null);
   const products = useMemo(() => indexProductLinks(links), [links]);
   const availableMarketplaces = useMemo(() => marketplaceDirectory.filter((entry) => (
@@ -72,11 +83,17 @@ export function ProductLinksDirectory({ links }: { links: ProductLink[] }) {
         <input
           aria-controls="product-link-results"
           autoComplete="off"
+          enterKeyHint="search"
           id="product-link-search"
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {
+            // The results are already live; on a touch screen the keyboard's Search key just
+            // puts the keyboard away so the list can be read.
+            if (event.key === "Enter" && window.matchMedia("(pointer: coarse)").matches) { event.currentTarget.blur(); return; }
             if (event.key !== "Escape" || !query) return;
+            // Clearing the field consumes Escape; the window stays open.
             event.preventDefault();
+            event.stopPropagation();
             setQuery("");
           }}
           placeholder="Search product or marketplace"
@@ -89,20 +106,21 @@ export function ProductLinksDirectory({ links }: { links: ProductLink[] }) {
           searchRef.current?.focus();
         }} type="button">Clear</button> : null}
       </div>
-      {availableMarketplaces.length > 1 ? <nav aria-label="Filter product links by marketplace" className="product-marketplace-filter">
+      {availableMarketplaces.length > 1 ? <div role="group" aria-label="Filter product links by marketplace" className="product-marketplace-filter">
         <button aria-pressed={marketplace === "all"} onClick={() => setMarketplace("all")} type="button">All</button>
         {availableMarketplaces.map((entry) => <button aria-pressed={marketplace === entry.id} key={entry.id} onClick={() => setMarketplace(entry.id)} type="button">
           <MarketplaceMark marketplace={entry.id} />
           <span>{entry.label}</span>
         </button>)}
-      </nav> : null}
+      </div> : null}
       <p className="product-links-count" role="status">
         {`${results.length} ${results.length === 1 ? "product" : "products"} · ${visibleOfferCount} ${visibleOfferCount === 1 ? "link" : "links"}`}
       </p>
 
       {results.length ? (
-        hasQuery || hasFilter ? (
-          <ol className="product-links-list" aria-label="Matching product links" id="product-link-results">
+        // An A–Z index only helps once the catalogue is long; a short one reads as one list.
+        hasQuery || hasFilter || results.length <= letterIndexThreshold ? (
+          <ol className="product-links-list" aria-label={hasQuery || hasFilter ? "Matching product links" : "Product links"} id="product-link-results">
             {results.map((product) => <ProductRow key={product.id} product={product} />)}
           </ol>
         ) : (
@@ -121,7 +139,7 @@ export function ProductLinksDirectory({ links }: { links: ProductLink[] }) {
         <div className="product-links-empty" id="product-link-results">
           <div>
             <p>{hasQuery ? `No product matches “${query.trim()}”.` : hasFilter ? `No ${marketplaceLabel(marketplace)} links are published yet.` : "No product links are published yet."}</p>
-            <span>{hasQuery ? "Try another product name, ID, or marketplace." : hasFilter ? "Choose another marketplace." : "Add a product and marketplace offer to the product-links list."}</span>
+            {hasQuery || hasFilter ? <span>{hasQuery ? "Try another product name, ID, or marketplace." : "Choose another marketplace."}</span> : null}
           </div>
         </div>
       )}

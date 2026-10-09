@@ -1,17 +1,29 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from "react";
+import { capabilitiesForWindow } from "../lib/device-capabilities";
+import { useOptionalWorkspaceManager, type PortfolioAppId } from "./workspace-manager";
 
 type WindowFrameOptions = {
   defaultHeight: number;
   defaultWidth: number;
   minHeight?: number;
   minWidth?: number;
+  appId?: PortfolioAppId;
+  enabled?: boolean;
 };
 
 export type ResizeEdge = "top" | "right" | "bottom" | "left" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
 export type SnapEdge = "left" | "right" | "top" | "bottom" | null;
 export type FrameRect = { height: number; width: number; x: number; y: number };
+
+/** Opening positions relative to the centre of the workspace, in pixels. */
+const cascadeOffsets: Record<PortfolioAppId, [number, number]> = {
+  work: [-40, -8],
+  experience: [32, 16],
+  products: [88, 36],
+  contact: [150, 48],
+};
 
 export const windowResizeEdges: ResizeEdge[] = ["top", "right", "bottom", "left", "top-left", "top-right", "bottom-left", "bottom-right"];
 
@@ -19,9 +31,7 @@ function usesCompactWindowModel() {
   if (typeof window === "undefined") return false;
   const declaredMode = document.documentElement.dataset.systemMode;
   if (declaredMode) return declaredMode !== "computer";
-  return Math.min(window.innerWidth, window.innerHeight) <= 500
-    || window.innerWidth <= 1100
-    || window.matchMedia("(pointer: coarse)").matches;
+  return capabilitiesForWindow().compactWindows;
 }
 
 export function resizeFrame(rect: FrameRect, edge: ResizeEdge, dx: number, dy: number): FrameRect {
@@ -44,7 +54,11 @@ export function useWindowFrame({
   defaultWidth,
   minHeight = 520,
   minWidth = 720,
+  appId,
+  enabled = true,
 }: WindowFrameOptions) {
+  const workspace = useOptionalWorkspaceManager();
+  const writeDocumentState = workspace?.writeDocumentState;
   const serverSafeRect = { height: defaultHeight, width: defaultWidth, x: 32, y: 86 };
 
   function defaultRect(): FrameRect {
@@ -56,11 +70,16 @@ export function useWindowFrame({
     const horizontalGutter = window.innerWidth > 760 ? 96 : 24;
     const width = Math.min(defaultWidth, window.innerWidth - horizontalGutter);
     const height = Math.min(defaultHeight, bounds.bottom - bounds.top - 24);
+    // Each app opens at its own place in a light cascade, so two windows never land exactly on
+    // top of each other and the desktop stays visible around a smaller one.
+    const [offsetX, offsetY] = appId ? cascadeOffsets[appId] : [0, 0];
+    const centredX = Math.round((window.innerWidth - width) / 2) + offsetX;
+    const centredY = Math.round(bounds.top + (bounds.bottom - bounds.top - height) / 2) + offsetY;
     return {
       height,
       width,
-      x: Math.max(12, Math.round((window.innerWidth - width) / 2)),
-      y: Math.max(bounds.top, Math.round(bounds.top + (bounds.bottom - bounds.top - height) / 2)),
+      x: Math.min(Math.max(12, centredX), Math.max(12, window.innerWidth - width - 12)),
+      y: Math.min(Math.max(bounds.top, centredY), Math.max(bounds.top, bounds.bottom - height - 12)),
     };
   }
 
@@ -91,10 +110,15 @@ export function useWindowFrame({
   const [snap, setSnap] = useState<SnapEdge>(null);
   const [snapCandidate, setSnapCandidate] = useState<SnapEdge>(null);
   const snapRef = useRef<SnapEdge>(null);
+  const keyboardRect = useRef<FrameRect | null>(null);
 
   useEffect(() => {
     compactModeRef.current = usesCompactWindowModel();
-    resetFrame();
+    const saved = appId ? workspace?.readDocumentState(appId, "frame")?.geometry : undefined;
+    // Hydration restores the client-only session geometry after the deterministic server frame.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (saved) setRect(clamp(saved));
+    else resetFrame();
   // The first client pass must match the server. The viewport-aware rect is applied only after hydration.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -102,7 +126,8 @@ export function useWindowFrame({
   useEffect(() => {
     if (usesCompactWindowModel() || maximized || snap) return;
     desktopRectRef.current = rect;
-  }, [maximized, rect, snap]);
+    if (appId && enabled) writeDocumentState?.(appId, "frame", { geometry: rect });
+  }, [appId, enabled, maximized, rect, snap, writeDocumentState]);
 
   useEffect(() => () => {
     if (manipulationFrameRef.current) window.cancelAnimationFrame(manipulationFrameRef.current);
@@ -110,7 +135,8 @@ export function useWindowFrame({
 
   useEffect(() => {
     const keepInWorkspace = () => {
-      const compact = usesCompactWindowModel();
+      // Read capabilities directly: this listener may run before the provider publishes the new mode.
+      const compact = capabilitiesForWindow().compactWindows;
       const returningToDesktop = compactModeRef.current && !compact;
       compactModeRef.current = compact;
       setRect((current) => {
@@ -127,6 +153,7 @@ export function useWindowFrame({
   }, [maximized, snap]);
 
   useEffect(() => {
+    if (!enabled || workspace?.mode && workspace.mode !== "computer" || (!dragging && !resizing)) return;
     const finishOutsideHandle = (event: globalThis.PointerEvent) => finish(event.pointerId);
     const moveOutsideHandle = (event: globalThis.PointerEvent) => move(event as unknown as PointerEvent<HTMLElement>);
     window.addEventListener("pointermove", moveOutsideHandle, true);
@@ -139,7 +166,7 @@ export function useWindowFrame({
     };
   // Pointer capture should finish on the handle; this global guard prevents a lost release from leaving the frame locked.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [dragging, enabled, resizing, workspace?.mode]);
 
   function workspaceBounds() {
     const headerBottom = document.querySelector<HTMLElement>(".system-status-bar")?.getBoundingClientRect().bottom ?? 38;
@@ -266,10 +293,12 @@ export function useWindowFrame({
       if (event.clientY >= window.innerHeight - threshold) return "bottom";
       return null;
     }
-    if (event.clientX <= threshold) return "left";
-    if (event.clientX >= window.innerWidth - threshold) return "right";
-    if (event.clientY <= 72 + threshold) return "top";
-    if (event.clientY >= window.innerHeight - threshold) return "bottom";
+    // Desktop convention: the pointer reaches a screen edge. Left and right tile halves; the
+    // top bar fills the workspace. There is no bottom target; the dock lives there.
+    const edgeThreshold = 16;
+    if (event.clientX <= edgeThreshold) return "left";
+    if (event.clientX >= window.innerWidth - edgeThreshold) return "right";
+    if (event.clientY <= workspaceBounds().top + 2) return "top";
     return null;
   }
 
@@ -281,13 +310,13 @@ export function useWindowFrame({
     const availableHeight = bounds.bottom - top;
     if (edge === "left") return { x: gap, y: top, width: Math.round(availableWidth / 2), height: availableHeight };
     if (edge === "right") return { x: gap * 2 + Math.round(availableWidth / 2), y: top, width: Math.floor(availableWidth / 2), height: availableHeight };
-    if (edge === "top") return { x: gap, y: top, width: window.innerWidth - gap * 2, height: Math.round(availableHeight / 2) };
+    if (edge === "top") return { x: gap, y: top, width: window.innerWidth - gap * 2, height: availableHeight };
     return { x: gap, y: top + gap + Math.round(availableHeight / 2), width: window.innerWidth - gap * 2, height: Math.floor(availableHeight / 2) };
   }
 
   function startDrag(event: PointerEvent<HTMLElement>) {
     const target = event.target as HTMLElement;
-    if (target.closest("button, a")) return;
+    if (target.closest("button, a, summary, input, select, textarea")) return;
     if (usesCompactWindowModel()) return;
     const nodeRect = frameRef.current?.getBoundingClientRect();
     const currentFrame = clamp({
@@ -444,6 +473,16 @@ export function useWindowFrame({
     finish(event.pointerId, event.currentTarget);
   }
 
+  const windowManagement = {
+    begin: () => { keyboardRect.current = rect; },
+    cancel: () => { if (keyboardRect.current) setRect(keyboardRect.current); keyboardRect.current = null; },
+    commit: () => { keyboardRect.current = null; },
+    move: (dx: number, dy: number) => { setMaximized(false); setSnap(null); setRect((current) => clamp({ ...current, x: current.x + dx, y: current.y + dy })); },
+    resize: (dx: number, dy: number) => { setMaximized(false); setSnap(null); setRect((current) => clamp({ ...current, width: current.width + dx, height: current.height + dy })); },
+    reset: resetFrame,
+    snap: snapTo,
+  };
+
   return {
     frameRef,
     dragging,
@@ -471,6 +510,7 @@ export function useWindowFrame({
       "--window-y": `${rect.y}px`,
     } as CSSProperties,
     titlebarProps: {
+      windowManagement,
       onDoubleClick: toggleMaximizeFromTitlebar,
       onLostPointerCapture: end,
       onPointerCancel: end,

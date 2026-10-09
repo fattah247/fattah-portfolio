@@ -1,15 +1,16 @@
 import { CounterfactualHome } from "./counterfactual-home";
-import { getGithubProjects } from "../lib/github-projects";
+import type { GithubProjectsPayload } from "../lib/github-projects";
 import type { Conditions, ScenarioSlug } from "../lib/scenarios";
 
 type PortfolioWorkspaceProps = {
   initialCaseConditions?: Conditions;
   initialCaseSlug?: ScenarioSlug;
   initialExperienceOpen?: boolean;
+  initialProductsOpen?: boolean;
   initialGithubProjectId?: string;
+  github?: GithubProjectsPayload;
 };
 
-export async function PortfolioWorkspace(props: PortfolioWorkspaceProps = {}) {
-  const github = await getGithubProjects();
-  return <CounterfactualHome {...props} githubProjects={github.projects} githubProjectsSource={github.source} />;
+export function PortfolioWorkspace({ github, ...props }: PortfolioWorkspaceProps = {}) {
+  return <CounterfactualHome {...props} githubProjects={github?.projects} githubProjectsSource={github?.source} />;
 }

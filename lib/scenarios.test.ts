@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { projectScenario, scenarios } from "./scenarios";
+import { projectScenario, resolveScenarioConditions, scenarios } from "./scenarios";
 
 describe("selected work scenario contracts", () => {
   it("keeps every project and both evidence entries available", () => {
@@ -21,6 +21,19 @@ describe("selected work scenario contracts", () => {
 
     expect(decision?.value).toBe("INCOMPLETE");
     expect(decision?.detail).toContain("unavailable");
+  });
+
+  it.each(scenarios)("falls back to $slug defaults for missing or invalid condition values", (scenario) => {
+    const incomplete = Object.fromEntries(
+      scenario.controls.map((control) => [control.key, undefined]),
+    ) as unknown as Record<string, string>;
+    const invalid = Object.fromEntries(
+      scenario.controls.map((control) => [control.key, "stale-session-value"]),
+    );
+
+    expect(resolveScenarioConditions(scenario, incomplete)).toEqual(scenario.defaults);
+    expect(resolveScenarioConditions(scenario, invalid)).toEqual(scenario.defaults);
+    expect(() => projectScenario(scenario.slug, incomplete, "designed")).not.toThrow();
   });
 
   it("keeps a suspicious device signal visible when a low-risk action is allowed", () => {

@@ -1,22 +1,26 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { ArrowIcon } from "./icons";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { ChevronIcon } from "./icons";
+import { CaseCover } from "./case-cover";
 import { DebuggerWorkspace } from "./debugger-workspace";
 import { ExperienceBriefContent } from "./experience-brief-content";
 import { GithubProjectPreview, GithubProjectsIndex } from "./github-projects";
 import { ProductLinksAppContent } from "./product-links-app";
-import { AppMark } from "./system-shell";
+import { DesktopSurface } from "./desktop-surface";
 import { WindowChrome } from "./window-chrome";
-import { useWorkspaceManager, type WorkspaceWindowId } from "./workspace-manager";
+import { ApplicationFrame, findScrollOwner } from "./application-frame";
+import { decodeWorkspaceRoute, documentKey, encodeWorkspaceRoute, isWorkspaceTraversal, overlayNode, syncWorkspaceStack, workspaceHistory, type StackNode } from "../lib/workspace-navigation";
+import { portfolioApp } from "./app-registry";
+import { loadGithubProjects } from "../lib/github-project-loader";
+import { portfolioTitle } from "../lib/portfolio-identity";
+import { useWorkspaceManager, type PortfolioAppId, type WorkspaceWindowId } from "./workspace-manager";
 import { scenarios, type Conditions, type ScenarioSlug } from "../lib/scenarios";
 import type { GithubProject, GithubProjectsPayload } from "../lib/github-projects";
-import { useWindowFrame, windowResizeEdges, type SnapEdge } from "./use-window-frame";
+import { useWindowFrame, type SnapEdge } from "./use-window-frame";
 
 type WorkspaceWindow = Extract<WorkspaceWindowId, "work" | "experience" | "products">;
-type WorkView = "index" | "summary" | "full-case" | "github-project";
+type WorkView = "index" | "full-case" | "github-project";
 const mainWindowIds: WorkspaceWindow[] = ["work", "experience", "products"];
 
 function WindowSnapPreview({ edge }: { edge: SnapEdge }) {
@@ -24,23 +28,9 @@ function WindowSnapPreview({ edge }: { edge: SnapEdge }) {
   return <div className="window-snap-preview" data-edge={edge} aria-hidden="true" />;
 }
 
-const caseDetails: Record<ScenarioSlug, { area: string; technology: string; result: ReactNode }> = {
-  payflow: {
-    area: "Payment reliability",
-    technology: "Spring Boot · PostgreSQL",
-    result: <><b>2</b> deliveries <span>/</span> <b>1</b> payment change</>,
-  },
-  iyup: {
-    area: "Service observability",
-    technology: "Prometheus · Grafana",
-    result: <>Latency warned <b>before</b> health failed</>,
-  },
-  trustgate: {
-    area: "Android device trust",
-    technology: "Kotlin · Jetpack Compose",
-    result: <>Suspicion became <b>confirmation</b>, not an automatic block</>,
-  },
-};
+const caseDetails = Object.fromEntries(scenarios.map((scenario) => [scenario.slug, {
+  area: scenario.category, technology: scenario.indexTechnology, result: scenario.indexResult,
+}])) as Record<ScenarioSlug, { area: string; technology: string; result: ReactNode }>;
 
 function WorkRow({
   onOpenCase,
@@ -53,482 +43,41 @@ function WorkRow({
   return (
     <a
       href={`/case/${scenario.slug}`}
-      className="editorial-work-row"
+      className="case-entry"
+      data-case={scenario.slug}
       onClick={(event) => {
         event.preventDefault();
         onOpenCase(scenario.slug);
       }}
     >
-      <span className="work-index" style={{ viewTransitionName: `case-number-${scenario.slug}` } as CSSProperties}>
-        <i aria-hidden="true" />
-        <span className="work-number">{scenario.number}</span>
+      <span className="case-entry-cover" aria-hidden="true">
+        <CaseCover slug={scenario.slug} />
       </span>
-      <span className="work-main">
-        <span className="work-area">{detail.area}</span>
-        <strong style={{ viewTransitionName: `case-title-${scenario.slug}` } as CSSProperties}>{scenario.shortTitle}</strong>
-        <span className="work-summary">{scenario.consequence}</span>
-      </span>
-      <span className="work-side">
-        <span>{detail.technology}</span>
-        <span className="work-result">{detail.result}</span>
-        <span className={`work-preview preview-${scenario.slug}`} aria-hidden="true">
-          {scenario.slug === "payflow" ? <><i /><i /><b /></> : null}
-          {scenario.slug === "iyup" ? <><i /><i /><b /></> : null}
-          {scenario.slug === "trustgate" ? <><i /><b>ALLOW</b><b>CONFIRM</b></> : null}
+      <span className="case-entry-body">
+        <span className="case-entry-meta">
+          <span className="case-entry-number" style={{ viewTransitionName: `case-number-${scenario.slug}` } as CSSProperties}>{scenario.number}</span>
+          <span>{detail.area}</span>
         </span>
+        <strong style={{ viewTransitionName: `case-title-${scenario.slug}` } as CSSProperties}>{scenario.shortTitle}</strong>
+        <span className="case-entry-summary">{scenario.consequence}</span>
+        <span className="case-entry-facts">
+          <span>{detail.technology}</span>
+          <span className="case-entry-result">{detail.result}</span>
+        </span>
+        <span className="case-entry-open" aria-hidden="true">Open case <ChevronIcon direction="right" /></span>
       </span>
-      <span className="work-arrow" aria-hidden="true"><ArrowIcon /></span>
     </a>
   );
 }
 
-const desktopItems = [
-  {
-    className: "surface-work",
-    href: "/",
-    label: "Projects",
-    app: "work",
-    type: "folder",
-  },
-  {
-    className: "surface-experience",
-    href: "/brief",
-    label: "Experience",
-    app: "experience",
-    type: "folder",
-  },
-  {
-    className: "surface-contact",
-    href: "#contact",
-    label: "Contact",
-    app: "contact",
-    type: "folder",
-  },
-  {
-    className: "surface-products",
-    href: "/products",
-    label: "Product Links",
-    app: "products",
-    type: "folder",
-  },
-  {
-    className: "surface-shot-payflow",
-    href: "/case/payflow",
-    label: "Payment case",
-    type: "image",
-    src: "/projects/payflow/audit-trail.png",
-  },
-  {
-    className: "surface-shot-iyup",
-    href: "/case/iyup",
-    label: "Service case",
-    type: "image",
-    src: "/projects/iyup/grafana-dashboard.png",
-  },
-  {
-    className: "surface-shot-trustgate",
-    href: "/case/trustgate",
-    label: "Device case",
-    type: "image",
-    src: "/projects/trustgate/security-event-log.png",
-  },
-] as const;
-
-type DesktopOffset = { x: number; y: number; z: number };
-type DesktopOffsets = Record<string, DesktopOffset>;
-
-const desktopOffsetsSessionKey = "fattah.desktop.shortcuts.v1";
-const desktopGrabHintDelay = 1_200;
-
-function readDesktopOffsets(): DesktopOffsets {
-  try {
-    const parsed = JSON.parse(window.sessionStorage.getItem(desktopOffsetsSessionKey) ?? "{}") as Record<string, unknown>;
-    return Object.fromEntries(Object.entries(parsed).flatMap(([key, value]) => {
-      if (!value || typeof value !== "object") return [];
-      const offset = value as Partial<DesktopOffset>;
-      return Number.isFinite(offset.x) && Number.isFinite(offset.y)
-        ? [[key, { x: Number(offset.x), y: Number(offset.y), z: Number.isFinite(offset.z) ? Number(offset.z) : 0 }]]
-        : [];
-    }));
-  } catch {
-    return {};
-  }
-}
-
-function storeDesktopOffsets(offsets: DesktopOffsets) {
-  try {
-    window.sessionStorage.setItem(desktopOffsetsSessionKey, JSON.stringify(offsets));
-  } catch {
-    // Session storage is an enhancement; shortcut dragging still works without it.
-  }
-}
-
-function DesktopSurface({
-  onOpenCase,
-  onOpenWindow,
-}: {
-  onOpenCase: (slug: ScenarioSlug) => void;
-  onOpenWindow: (windowName: WorkspaceWindow, target?: "selected-work") => void;
-}) {
-  const boardRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{
-    baseLeft: number;
-    baseTop: number;
-    height: number;
-    key: string;
-    latest: DesktopOffset;
-    moved: boolean;
-    origin: DesktopOffset;
-    pointerId: number;
-    startX: number;
-    startY: number;
-    topZ: number;
-    width: number;
-  } | null>(null);
-  const suppressClickRef = useRef<string | null>(null);
-  const grabHintTimerRef = useRef<number | null>(null);
-  const [desktopOffsets, setDesktopOffsets] = useState<DesktopOffsets>({});
-  const [draggingDesktopItem, setDraggingDesktopItem] = useState<string | null>(null);
-  const [grabReadyDesktopItem, setGrabReadyDesktopItem] = useState<string | null>(null);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setDesktopOffsets(readDesktopOffsets()));
-    return () => {
-      window.cancelAnimationFrame(frame);
-      if (grabHintTimerRef.current) window.clearTimeout(grabHintTimerRef.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    function clampShortcutsToBoard() {
-      const board = boardRef.current;
-      if (!board) return;
-      const boardRect = board.getBoundingClientRect();
-
-      setDesktopOffsets((current) => {
-        let changed = false;
-        const next = { ...current };
-        for (const [key, offset] of Object.entries(current)) {
-          const shortcut = board.querySelector<HTMLElement>(`.${key}`);
-          if (!shortcut) continue;
-          const rect = shortcut.getBoundingClientRect();
-          const x = offset.x + Math.max(0, boardRect.left - rect.left) - Math.max(0, rect.right - boardRect.right);
-          const y = offset.y + Math.max(0, boardRect.top - rect.top) - Math.max(0, rect.bottom - boardRect.bottom);
-          if (x !== offset.x || y !== offset.y) {
-            next[key] = { ...offset, x, y };
-            changed = true;
-          }
-        }
-        if (changed) storeDesktopOffsets(next);
-        return changed ? next : current;
-      });
-    }
-
-    window.addEventListener("resize", clampShortcutsToBoard);
-    const frame = window.requestAnimationFrame(clampShortcutsToBoard);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener("resize", clampShortcutsToBoard);
-    };
-  }, []);
-
-  function beginDesktopDrag(event: ReactPointerEvent<HTMLAnchorElement>, key: string) {
-    if (event.button !== 0 || document.documentElement.dataset.systemMode !== "computer") return;
-    const board = boardRef.current;
-    if (!board) return;
-    const boardRect = board.getBoundingClientRect();
-    const shortcutRect = event.currentTarget.getBoundingClientRect();
-    const origin = desktopOffsets[key] ?? { x: 0, y: 0, z: 0 };
-    if (grabHintTimerRef.current) window.clearTimeout(grabHintTimerRef.current);
-    event.currentTarget.setPointerCapture(event.pointerId);
-    dragRef.current = {
-      baseLeft: shortcutRect.left - boardRect.left - origin.x,
-      baseTop: shortcutRect.top - boardRect.top - origin.y,
-      height: shortcutRect.height,
-      key,
-      latest: origin,
-      moved: false,
-      origin,
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      topZ: Math.max(0, ...Object.values(desktopOffsets).map((offset) => offset.z)) + 1,
-      width: shortcutRect.width,
-    };
-  }
-
-  function moveDesktopShortcut(event: ReactPointerEvent<HTMLAnchorElement>) {
-    const drag = dragRef.current;
-    const board = boardRef.current;
-    if (!drag || drag.pointerId !== event.pointerId || !board) return;
-    const deltaX = event.clientX - drag.startX;
-    const deltaY = event.clientY - drag.startY;
-    if (!drag.moved && Math.hypot(deltaX, deltaY) < 5) return;
-    event.preventDefault();
-    if (!drag.moved) {
-      drag.moved = true;
-      drag.latest = { ...drag.latest, z: drag.topZ };
-    }
-    const boardRect = board.getBoundingClientRect();
-    const next = {
-      x: Math.min(boardRect.width - drag.baseLeft - drag.width, Math.max(-drag.baseLeft, drag.origin.x + deltaX)),
-      y: Math.min(boardRect.height - drag.baseTop - drag.height, Math.max(-drag.baseTop, drag.origin.y + deltaY)),
-      z: drag.latest.z,
-    };
-    drag.latest = next;
-    setDraggingDesktopItem(drag.key);
-    setDesktopOffsets((current) => {
-      const updated = { ...current, [drag.key]: next };
-      storeDesktopOffsets(updated);
-      return updated;
-    });
-  }
-
-  function clearDesktopGrabHint() {
-    if (grabHintTimerRef.current) window.clearTimeout(grabHintTimerRef.current);
-    grabHintTimerRef.current = null;
-    setGrabReadyDesktopItem(null);
-  }
-
-  function scheduleDesktopGrabHint(key: string) {
-    if (document.documentElement.dataset.systemMode !== "computer" || dragRef.current) return;
-    if (grabHintTimerRef.current) window.clearTimeout(grabHintTimerRef.current);
-    setGrabReadyDesktopItem(null);
-    grabHintTimerRef.current = window.setTimeout(() => {
-      grabHintTimerRef.current = null;
-      if (!dragRef.current) setGrabReadyDesktopItem(key);
-    }, desktopGrabHintDelay);
-  }
-
-  function moveOrPrimeDesktopShortcut(event: ReactPointerEvent<HTMLAnchorElement>, key: string) {
-    if (dragRef.current) {
-      moveDesktopShortcut(event);
-      return;
-    }
-    if (event.pointerType !== "touch") scheduleDesktopGrabHint(key);
-  }
-
-  function endDesktopDrag(event: ReactPointerEvent<HTMLAnchorElement>) {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    if (drag.moved) {
-      suppressClickRef.current = drag.key;
-      setDesktopOffsets((current) => {
-        const next = { ...current, [drag.key]: drag.latest };
-        storeDesktopOffsets(next);
-        return next;
-      });
-      window.setTimeout(() => {
-        if (suppressClickRef.current === drag.key) suppressClickRef.current = null;
-      }, 0);
-    }
-    setDraggingDesktopItem(null);
-    clearDesktopGrabHint();
-    dragRef.current = null;
-  }
-
-  function draggedClick(event: MouseEvent<HTMLAnchorElement>, key: string) {
-    if (suppressClickRef.current !== key) return false;
-    event.preventDefault();
-    suppressClickRef.current = null;
-    return true;
-  }
-
-  function openContact(event: MouseEvent<HTMLAnchorElement>) {
-    event.preventDefault();
-    window.dispatchEvent(new Event("portfolio-contact-open"));
-  }
-
-  function openDesktopWindow(windowName: WorkspaceWindow, target?: "selected-work") {
-    return (event: MouseEvent<HTMLAnchorElement>) => {
-      event.preventDefault();
-      onOpenWindow(windowName, target);
-    };
-  }
-
-  return (
-    <section className="desktop-surface" aria-labelledby="desktop-surface-title">
-      <div className="desktop-wallpaper" aria-hidden="true">
-        <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" focusable="false">
-          <defs>
-            <pattern id="desktop-weave" width="48" height="48" patternUnits="userSpaceOnUse">
-              <path className="desktop-wallpaper-thread" d="M0 12h12V0M36 48V36h12" />
-            </pattern>
-          </defs>
-          <path className="desktop-wallpaper-field-warm" d="M1060 0h540v900H880V780h120V660h120V540h120V420h120V300h120V180h100V0Z" />
-          <path className="desktop-wallpaper-field-cool" d="M1290 0h310v900h-166V768h-96V636h-96V504h-96V372h-96V240h240V0Z" />
-          <rect className="desktop-wallpaper-weave" x="720" y="0" width="880" height="900" fill="url(#desktop-weave)" />
-          <g className="desktop-wallpaper-ribbons">
-            <path d="M760 842h120V722h120V602h120V482h120V362h120V242h120V122h140" />
-            <path d="M920 900V804h120v-96h120v-96h120v-96h120v-96h120V324h100" />
-          </g>
-          <g className="desktop-wallpaper-pixels">
-            <path d="M1116 92h20v20h-20zM1164 92h20v20h-20zM1212 92h20v20h-20zM1260 92h20v20h-20z" />
-            <path d="M1140 116h20v20h-20zM1188 116h20v20h-20zM1236 116h20v20h-20z" />
-            <path d="M1476 596h28v28h-28zM1516 596h28v28h-28zM1556 596h28v28h-28z" />
-          </g>
-          <g className="desktop-wallpaper-perforations">
-            <path d="M756 520h12v12h-12zM788 520h12v12h-12zM820 520h12v12h-12zM852 520h12v12h-12z" />
-            <path d="M924 836h12v12h-12zM956 836h12v12h-12zM988 836h12v12h-12zM1020 836h12v12h-12z" />
-          </g>
-        </svg>
-      </div>
-      <h2 className="sr-only" id="desktop-surface-title">Engineering workspace</h2>
-      <p className="sr-only" id="desktop-shortcut-instructions">Desktop shortcuts can be dragged to rearrange them.</p>
-      <div className="desktop-board" aria-label="Portfolio desktop shortcuts" ref={boardRef}>
-        {desktopItems.map((item) => (
-          <Link
-            className={`desktop-object ${item.type === "folder" ? "desktop-folder" : "desktop-evidence"} ${item.className}`}
-            aria-describedby="desktop-shortcut-instructions"
-            data-dragging={draggingDesktopItem === item.className ? "true" : undefined}
-            data-grab-ready={grabReadyDesktopItem === item.className ? "true" : undefined}
-            href={item.href}
-            key={item.label}
-            onDragStart={(event) => event.preventDefault()}
-            onClick={
-              item.label === "Contact"
-                ? (event) => { if (!draggedClick(event, item.className)) openContact(event); }
-                : item.label === "Projects"
-                  ? (event) => { if (!draggedClick(event, item.className)) openDesktopWindow("work")(event); }
-                  : item.label === "Experience"
-                      ? (event) => { if (!draggedClick(event, item.className)) openDesktopWindow("experience")(event); }
-                      : item.label === "Product Links"
-                        ? (event) => { if (!draggedClick(event, item.className)) openDesktopWindow("products")(event); }
-                      : item.type === "image"
-                        ? (event) => {
-                          if (draggedClick(event, item.className)) return;
-                          event.preventDefault();
-                          onOpenCase(item.href.replace("/case/", "") as ScenarioSlug);
-                        }
-                      : undefined
-            }
-            onPointerCancel={(event) => {
-              if (dragRef.current) {
-                endDesktopDrag(event);
-                return;
-              }
-
-              clearDesktopGrabHint();
-            }}
-            onPointerDown={(event) => beginDesktopDrag(event, item.className)}
-            onPointerEnter={(event) => {
-              if (event.pointerType !== "touch") scheduleDesktopGrabHint(item.className);
-            }}
-            onPointerLeave={() => {
-              if (!dragRef.current) clearDesktopGrabHint();
-            }}
-            onPointerMove={(event) => moveOrPrimeDesktopShortcut(event, item.className)}
-            onPointerUp={endDesktopDrag}
-            style={{
-              "--desktop-offset-x": `${desktopOffsets[item.className]?.x ?? 0}px`,
-              "--desktop-offset-y": `${desktopOffsets[item.className]?.y ?? 0}px`,
-              zIndex: desktopOffsets[item.className]?.z || undefined,
-            } as CSSProperties}
-          >
-            {item.type === "folder" ? (
-              <span className="desktop-app-glyph" aria-hidden="true"><AppMark app={item.app} /></span>
-            ) : (
-              <span className="evidence-polaroid" aria-hidden="true">
-                <Image src={item.src} alt="" fill sizes="(max-width: 760px) 88vw, 260px" />
-              </span>
-            )}
-            <span className="desktop-object-copy">
-              <strong>{item.label}</strong>
-            </span>
-          </Link>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function SelectedCaseWindowContent({
-  onOpenFullCase,
-  onSelectCase,
-  scenario,
-}: {
-  onOpenFullCase: (slug: ScenarioSlug) => void;
-  onSelectCase: (slug: ScenarioSlug) => void;
-  scenario: (typeof scenarios)[number];
-}) {
-  const detail = caseDetails[scenario.slug];
-  const scenarioIndex = scenarios.findIndex((item) => item.slug === scenario.slug);
-  const previousScenario = scenarios[(scenarioIndex - 1 + scenarios.length) % scenarios.length];
-  const nextScenario = scenarios[(scenarioIndex + 1) % scenarios.length];
-  return (
-    <div className="selected-case-window-content" data-case={scenario.slug}>
-      <section className="selected-case-window-hero" aria-live="polite">
-        <h2>{scenario.shortTitle}</h2>
-        <p>{scenario.consequence}</p>
-      </section>
-      <section className="selected-case-window-proof">
-        <div>
-          <span>{detail.area}</span>
-          <strong>{detail.technology}</strong>
-          <p>{scenario.decision}</p>
-        </div>
-        <CaseEntryInstrument scenario={scenario} />
-        <div
-          className="selected-case-window-image"
-          data-evidence-id={`evidence-${scenario.slug}-01`}
-          id={`evidence-${scenario.slug}-01`}
-        >
-          <Image src={scenario.evidence[0].src} alt={scenario.evidence[0].alt} fill loading="eager" sizes="(max-width: 760px) 80vw, 520px" />
-        </div>
-      </section>
-      <div className="selected-case-window-actions">
-        <button className="primary-action" onClick={() => onOpenFullCase(scenario.slug)} type="button">
-          Open full case <ArrowIcon />
-        </button>
-        <a className="inline-link" href={scenario.repo} target="_blank" rel="noopener noreferrer">Source code <ArrowIcon /></a>
-      </div>
-      <nav className="selected-case-switcher" aria-label="Move between project previews">
-        <button onClick={() => onSelectCase(previousScenario.slug)} type="button">← Previous</button>
-        <span>{scenario.number} / {String(scenarios.length).padStart(2, "0")}</span>
-        <button onClick={() => onSelectCase(nextScenario.slug)} type="button">Next →</button>
-      </nav>
-    </div>
-  );
-}
-
-function CaseEntryInstrument({ scenario }: { scenario: (typeof scenarios)[number] }) {
-  if (scenario.slug === "payflow") {
-    return <div className="case-entry-instrument payment-ledger" aria-label="Two callback deliveries result in one payment state change">
-      <span>Callback journal</span>
-      <div><b>01</b><i>APPLIED</i></div>
-      <div><b>02</b><i>RECORDED</i></div>
-      <p><strong>2</strong> deliveries <em>→</em> <strong>1</strong> state change</p>
-    </div>;
-  }
-
-  if (scenario.slug === "iyup") {
-    return <div className="case-entry-instrument service-monitor" aria-label="Health passes while latency is degraded and an alert is present">
-      <span>Operating signals</span>
-      <div><b>HEALTH</b><i>PASS</i></div>
-      <div className="monitor-trace" aria-hidden="true"><i /><i /><i /><i /><i /></div>
-      <div><b>LATENCY</b><i>DEGRADED</i></div>
-      <div><b>ALERT</b><i>PRESENT</i></div>
-    </div>;
-  }
-
-  return <div className="case-entry-instrument device-policy" aria-label="A suspected root signal and valid signature require confirmation for a high sensitivity action">
-    <span>Policy record</span>
-    <dl>
-      <div><dt>Root</dt><dd>SUSPECTED</dd></div>
-      <div><dt>Signature</dt><dd>VALID</dd></div>
-      <div><dt>Action</dt><dd>HIGH</dd></div>
-    </dl>
-    <p>REQUIRE <strong>CONFIRMATION</strong></p>
-  </div>;
-}
 
 export function CounterfactualHome({
-  githubProjects = [],
-  githubProjectsSource = "fallback",
+  githubProjects: initialGithubProjects = [],
+  githubProjectsSource: initialGithubProjectsSource = "fallback",
   initialCaseConditions,
   initialCaseSlug,
   initialExperienceOpen,
+  initialProductsOpen,
   initialGithubProjectId,
 }: {
   githubProjects?: GithubProject[];
@@ -536,23 +85,26 @@ export function CounterfactualHome({
   initialCaseConditions?: Conditions;
   initialCaseSlug?: ScenarioSlug;
   initialExperienceOpen?: boolean;
+  initialProductsOpen?: boolean;
   initialGithubProjectId?: string;
 } = {}) {
   const workspace = useWorkspaceManager();
-  const [selectedCaseSlug, setSelectedCaseSlug] = useState<ScenarioSlug>(initialCaseSlug ?? "payflow");
-  const [selectedGithubProjectId, setSelectedGithubProjectId] = useState(initialGithubProjectId ?? githubProjects[0]?.id ?? "");
-  const [workView, setWorkView] = useState<WorkView>(initialGithubProjectId ? "github-project" : initialCaseSlug ? "full-case" : "index");
+  const [githubProjects, setGithubProjects] = useState(initialGithubProjects);
+  const [githubProjectsSource, setGithubProjectsSource] = useState(initialGithubProjectsSource);
+  const [githubLoading, setGithubLoading] = useState(false);
+  const githubRequested = useRef(initialGithubProjects.length > 0);
+  const [selectedCaseSlug, setSelectedCaseSlug] = useState<ScenarioSlug>(() => initialCaseSlug ?? (workspace.readDocumentState("work", "session")?.data?.slug as ScenarioSlug) ?? "payflow");
+  const [selectedGithubProjectId, setSelectedGithubProjectId] = useState(() => initialGithubProjectId ?? (workspace.readDocumentState("work", "session")?.data?.repository as string) ?? githubProjects[0]?.id ?? "");
+  const [workView, setWorkView] = useState<WorkView>(() => initialGithubProjectId ? "github-project" : initialCaseSlug ? "full-case" : (workspace.readDocumentState("work", "session")?.data?.view as WorkView) ?? "index");
   const [closingWindows, setClosingWindows] = useState<WorkspaceWindow[]>([]);
   const closeTimers = useRef<number[]>([]);
-  const caseSummaryScrollRef = useRef<Record<ScenarioSlug, number>>({ payflow: 0, iyup: 0, trustgate: 0 });
-  const workIndexScrollRef = useRef(0);
   const experienceCloseRef = useRef<HTMLButtonElement>(null);
-  const heroRef = useRef<HTMLElement>(null);
   const workContentRef = useRef<HTMLDivElement>(null);
+  const initialConditionsConsumed = useRef(false);
+  const openedApps = useRef(new Set<PortfolioAppId>());
   const workCloseRef = useRef<HTMLButtonElement>(null);
   const productsCloseRef = useRef<HTMLButtonElement>(null);
   const pendingWorkScroll = useRef<"selected-work" | null>(null);
-  const pendingSummaryReset = useRef(false);
   const {
     dragging: workDragging,
     frameRef: workFrameRef,
@@ -566,7 +118,7 @@ export function CounterfactualHome({
     style: workWindowStyle,
     titlebarProps: workTitlebarProps,
     toggleMaximize: toggleWorkMaximize,
-  } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 420, minWidth: 680 });
+  } = useWindowFrame({ appId: "work", enabled: workspace.isAppOpen("work"), defaultHeight: 780, defaultWidth: 1180, minHeight: 420, minWidth: 420 });
   const {
     dragging: productsDragging,
     frameRef: productsFrameRef,
@@ -580,7 +132,7 @@ export function CounterfactualHome({
     style: productsWindowStyle,
     titlebarProps: productsTitlebarProps,
     toggleMaximize: toggleProductsMaximize,
-  } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1220, minHeight: 420, minWidth: 620 });
+  } = useWindowFrame({ appId: "products", enabled: workspace.isAppOpen("products"), defaultHeight: 660, defaultWidth: 820, minHeight: 420, minWidth: 420 });
   const {
     dragging: experienceDragging,
     frameRef: experienceFrameRef,
@@ -594,13 +146,26 @@ export function CounterfactualHome({
     style: experienceWindowStyle,
     titlebarProps: experienceTitlebarProps,
     toggleMaximize: toggleExperienceMaximize,
-  } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 420, minWidth: 680 });
+  } = useWindowFrame({ appId: "experience", enabled: workspace.isAppOpen("experience"), defaultHeight: 760, defaultWidth: 980, minHeight: 420, minWidth: 460 });
   const openWindows = workspace.openWindows.filter((item): item is WorkspaceWindow => mainWindowIds.includes(item as WorkspaceWindow));
-  const isWorkOpen = workspace.isOpen("work");
-  const isExperienceOpen = workspace.isOpen("experience");
-  const isProductsOpen = workspace.isOpen("products");
-  const hasOpenWindows = openWindows.length > 0;
+  const isWorkOpen = workspace.isOpen("work") || (!workspace.modeReady && Boolean(initialCaseSlug || initialGithubProjectId));
+  const isExperienceOpen = workspace.isOpen("experience") || (!workspace.modeReady && Boolean(initialExperienceOpen));
+  const isProductsOpen = workspace.isOpen("products") || (!workspace.modeReady && Boolean(initialProductsOpen));
+  useEffect(() => {
+    if (!isWorkOpen || githubRequested.current) return;
+    githubRequested.current = true;
+    setGithubLoading(true);
+    void loadGithubProjects().then((payload) => {
+      setGithubProjects(payload.projects);
+      setGithubProjectsSource(payload.source);
+    }).catch(() => { /* The compact empty state retains the public GitHub link. */ })
+      .finally(() => setGithubLoading(false));
+  }, [isWorkOpen]);
+  const hasOpenWindows = openWindows.length > 0 || isWorkOpen || isExperienceOpen || isProductsOpen;
   const activeWindow = workspace.activeWindow;
+  useEffect(() => {
+    if (workspace.isAppOpen("work")) workspace.writeDocumentState("work", "session", { data: { view: workView, slug: selectedCaseSlug, repository: selectedGithubProjectId } });
+  }, [selectedCaseSlug, selectedGithubProjectId, workView, workspace]);
   const activeSnapCandidate = activeWindow === "work"
     ? workSnapCandidate
     : activeWindow === "experience"
@@ -626,7 +191,7 @@ export function CounterfactualHome({
     setWorkView("github-project");
     workspace.openWindow("work");
     workspace.focusWindow("work");
-    window.requestAnimationFrame(() => workFrameRef.current?.scrollTo({ behavior: "auto", top: 0 }));
+    window.requestAnimationFrame(() => workScrollFrame()?.scrollTo({ behavior: "auto", top: 0 }));
   // This restores the GitHub project document once for its direct route.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialGithubProjectId]);
@@ -641,24 +206,34 @@ export function CounterfactualHome({
   }, [initialExperienceOpen]);
 
   useEffect(() => {
-    if (initialCaseSlug || initialGithubProjectId || window.location.pathname !== "/" || !window.location.hash) return;
-    window.history.replaceState(null, "", "/");
-  }, [initialCaseSlug, initialGithubProjectId]);
+    if (!initialProductsOpen) return;
+    workspace.openWindow("products");
+    workspace.focusWindow("products");
+  // Restore the addressed app once; subsequent navigation belongs to the workspace.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialProductsOpen]);
 
   useEffect(() => {
-    if (!isWorkOpen) return;
-    const hero = heroRef.current;
-    const header = document.querySelector<HTMLElement>(".portfolio-header");
-    if (!hero || !header || !('IntersectionObserver' in window)) return;
-    const observer = new IntersectionObserver(([entry]) => {
-      header.dataset.heroPast = String(!entry.isIntersecting);
-    }, { threshold: 0.08 });
-    observer.observe(hero);
-    return () => {
-      observer.disconnect();
-      delete header.dataset.heroPast;
-    };
-  }, [isWorkOpen]);
+    if (initialCaseSlug || initialGithubProjectId || window.location.pathname !== "/") return;
+    if (window.location.hash === "#selected-work") {
+      workspace.openWindow("work");
+      workspace.focusWindow("work");
+    }
+    if (window.location.hash === "#contact") workspace.openWindow("contact");
+  // Restore only an explicit legacy deep link, never open an app on plain /.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCaseSlug, initialGithubProjectId]);
+
+  // The phone's history mirrors what is visible: Home, the foreground app's root, its document,
+  // and attached evidence. Recents sits over the foreground app without becoming a level.
+  // Declared after the route-restoring effects above so they read the address before the stack
+  // rewrites it (a client-side navigation can mount this host with the device mode known).
+  useEffect(() => {
+    if (workspace.mode !== "phone" || !workspace.modeReady) return;
+    syncWorkspaceStack(phoneStack());
+  // phoneStack reads the visible Work document and the saved conditions behind its address.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeWindow, githubProjects, selectedCaseSlug, selectedGithubProjectId, workView, workspace.mode, workspace.modeReady, workspace.surface]);
 
   useEffect(() => {
     if (!isWorkOpen || pendingWorkScroll.current !== "selected-work") return;
@@ -668,27 +243,60 @@ export function CounterfactualHome({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isWorkOpen, openWindows]);
 
-  useLayoutEffect(() => {
-    if (workView !== "summary" || !pendingSummaryReset.current) return;
-    pendingSummaryReset.current = false;
-
-    const frame = workFrameRef.current;
-    const resetScroll = () => frame?.scrollTo({ behavior: "auto", top: 0 });
-    resetScroll();
-
-    let settleFrame = 0;
-    const paintFrame = window.requestAnimationFrame(() => {
-      resetScroll();
-      settleFrame = window.requestAnimationFrame(resetScroll);
-    });
-    return () => {
-      window.cancelAnimationFrame(paintFrame);
-      window.cancelAnimationFrame(settleFrame);
-    };
-  }, [selectedCaseSlug, workView, workFrameRef]);
-
   function focusWindow(windowName: WorkspaceWindow) {
     workspace.focusWindow(windowName);
+    syncRouteToWindow(windowName);
+  }
+
+  /** The visible Work document's own address, including any restored non-default conditions. */
+  function workDocumentRoute() {
+    if (workView === "full-case") {
+      const saved = workspace.readDocumentState("work", `case:${selectedCaseSlug}`)?.data?.conditions as Conditions | undefined;
+      const params = new URLSearchParams();
+      for (const control of selectedScenarioFor(selectedCaseSlug).controls) {
+        const value = saved?.[control.key];
+        if (value && value !== selectedScenarioFor(selectedCaseSlug).defaults[control.key]) params.set(control.key, value);
+      }
+      return { pathname: `/case/${selectedCaseSlug}`, search: params.toString(), title: portfolioTitle.for(caseDetails[selectedCaseSlug].area) };
+    }
+    if (workView === "github-project" && selectedGithubProjectId) {
+      return { pathname: `/projects/${encodeURIComponent(selectedGithubProjectId)}`, title: portfolioTitle.for(githubProjects.find((project) => project.id === selectedGithubProjectId)?.displayName) };
+    }
+    return { pathname: "/", hash: "#selected-work", title: portfolioTitle.default };
+  }
+
+  function stackNode(href: string, title: string): StackNode {
+    return { key: documentKey(href), href, title };
+  }
+
+  /** The visible phone hierarchy, from the foreground app's root down to its child surface. */
+  function phoneStack(): StackNode[] {
+    if (workspace.surface === "home" || !activeWindow) return [];
+    const app = workspace.activeApp;
+    if (app === "contact") return [stackNode("/#contact", portfolioTitle.for(portfolioApp("contact").label))];
+    if (app !== "work") return app ? [stackNode(portfolioApp(app).href, portfolioTitle.for(portfolioApp(app).documentTitle))] : [];
+    const nodes = [stackNode("/#selected-work", portfolioTitle.default)];
+    if (workView === "index") return nodes;
+    const route = workDocumentRoute();
+    const documentNode = stackNode(encodeWorkspaceRoute(route), route.title);
+    if (documentNode.key === nodes[0].key) return nodes;
+    nodes.push(documentNode);
+    if (workView === "full-case" && activeWindow.startsWith(`evidence-${selectedCaseSlug}-`)) nodes.push(overlayNode(documentNode, activeWindow));
+    return nodes;
+  }
+
+  /**
+   * Focus and switching never add history entries, but the address must name the
+   * visible application document, so the current entry is rewritten in place.
+   */
+  function syncRouteToWindow(windowName: WorkspaceWindow) {
+    const route = windowName === "work"
+      ? workDocumentRoute()
+      : { pathname: portfolioApp(windowName).href, title: portfolioTitle.for(portfolioApp(windowName).documentTitle) };
+    const href = encodeWorkspaceRoute(route);
+    // The document's own chapter (a hash the route does not name) survives focus.
+    const current = `${window.location.pathname}${window.location.search}${"hash" in route && route.hash ? window.location.hash : ""}`;
+    if (href !== current) workspaceHistory.replaceState(null, route.title, href);
   }
 
   function frameFor(windowName: WorkspaceWindow) {
@@ -696,6 +304,20 @@ export function CounterfactualHome({
     if (windowName === "experience") return experienceFrameRef.current;
     if (windowName === "products") return productsFrameRef.current;
     return null;
+  }
+
+  function workScrollFrame() {
+    return findScrollOwner(workFrameRef.current);
+  }
+
+  /** Hand the index position to the frame record before another document replaces it. */
+  function rememberIndexScroll() {
+    if (workView === "index") workspace.writeDocumentState("work", "index", { scroll: workScrollFrame()?.scrollTop ?? 0 });
+  }
+
+  /** A freshly opened document starts at the top; the frame restores this record on mount. */
+  function openDocumentAtTop(documentId: string) {
+    workspace.writeDocumentState("work", documentId, { scroll: 0 });
   }
 
   function focusWindowControl(windowName: WorkspaceWindow) {
@@ -719,7 +341,7 @@ export function CounterfactualHome({
   }
 
   function scrollWorkToSelected(behavior: ScrollBehavior = "smooth") {
-    const container = workFrameRef.current;
+    const container = workScrollFrame();
     const target = workContentRef.current?.querySelector<HTMLElement>("#selected-work");
     if (!container || !target) return;
 
@@ -737,20 +359,21 @@ export function CounterfactualHome({
       setWorkView("index");
       pendingWorkScroll.current = target;
       if (window.location.pathname !== "/" || window.location.hash !== "#selected-work") {
-        window.history.replaceState(null, "", "/#selected-work");
+        workspaceHistory.replaceState(null, "", "/#selected-work");
       }
     }
 
     if (workspace.mode !== "computer") {
-      workspace.openWindow(windowName);
+      if (alreadyOpen && !(windowName === "work" && target)) workspace.focusApp(windowName);
+      else workspace.openWindow(windowName);
       if (windowName === "work" && target && openWindows.includes("work")) {
         window.requestAnimationFrame(() => window.requestAnimationFrame(() => scrollWorkToSelected(preferredScrollBehavior())));
       }
       if (window.location.pathname === "/" && window.location.search) {
-        window.history.pushState(null, "", "/");
+        workspaceHistory.pushState(null, "", "/");
       }
-      window.dispatchEvent(new Event("portfolio-window-state"));
-      window.dispatchEvent(new Event("portfolio-window-open"));
+      // The index target already rewrote the address above; other windows name their own document.
+      if (!(windowName === "work" && target)) syncRouteToWindow(windowName);
       focusWindowControl(windowName);
       return;
     }
@@ -763,12 +386,12 @@ export function CounterfactualHome({
       }
     }
     if (alreadyOpen) {
-      focusWindow(windowName);
+      // Re-launching a running app restores its most recent window (an evidence child included).
+      if (windowName === "work" && target) workspace.focusWindow("work");
+      else { workspace.focusApp(windowName); syncRouteToWindow(windowName); }
       if (window.location.pathname === "/" && window.location.search) {
-        window.history.pushState(null, "", "/");
+        workspaceHistory.pushState(null, "", "/");
       }
-      window.dispatchEvent(new Event("portfolio-window-state"));
-      window.dispatchEvent(new Event("portfolio-window-open"));
       focusWindowControl(windowName);
       return;
     }
@@ -788,10 +411,9 @@ export function CounterfactualHome({
     }
     workspace.openWindow(windowName);
     if (window.location.pathname === "/" && window.location.search) {
-      window.history.pushState(null, "", "/");
+      workspaceHistory.pushState(null, "", "/");
     }
-    window.dispatchEvent(new Event("portfolio-window-state"));
-    window.dispatchEvent(new Event("portfolio-window-open"));
+    if (!(windowName === "work" && target)) syncRouteToWindow(windowName);
     focusWindowControl(windowName);
   }
 
@@ -822,7 +444,6 @@ export function CounterfactualHome({
         });
       }
       setClosingWindows((current) => current.filter((item) => item !== windowName));
-      window.dispatchEvent(new Event("portfolio-window-state"));
     }, 320));
   }
 
@@ -837,15 +458,6 @@ export function CounterfactualHome({
     setClosingWindows((current) => [...current, visualWindow]);
     closeTimers.current.push(window.setTimeout(() => {
       workspace.closeApp(app);
-      if (app === "work") {
-        setWorkView("index");
-        if (window.location.pathname.startsWith("/case/") || window.location.pathname.startsWith("/projects/")) {
-          window.history.replaceState(null, "", "/");
-        }
-      }
-      if (app === "experience") {
-        if (window.location.pathname === "/brief") window.history.replaceState(null, "", "/");
-      }
       if (workspace.mode === "computer" && remainingWindows.length === 1) {
         const remaining = remainingWindows[0];
         window.requestAnimationFrame(() => {
@@ -855,115 +467,89 @@ export function CounterfactualHome({
         });
       }
       setClosingWindows((current) => current.filter((item) => item !== visualWindow));
-      window.dispatchEvent(new Event("portfolio-window-state"));
     }, 320));
   }
 
   function openCaseWindow(slug: ScenarioSlug) {
-    workIndexScrollRef.current = workFrameRef.current?.scrollTop ?? workIndexScrollRef.current;
-    pendingSummaryReset.current = true;
-    setSelectedCaseSlug(slug);
-    setWorkView("summary");
-    workspace.openWindow("work");
-    workspace.focusWindow("work");
-    window.history.pushState({ portfolioView: "selected-work", slug }, "", "/#selected-work");
-  }
-
-  function selectCaseSummary(slug: ScenarioSlug) {
-    pendingSummaryReset.current = true;
-    setSelectedCaseSlug(slug);
-    setWorkView("summary");
-    workspace.focusWindow("work");
-    window.history.replaceState({ portfolioView: "selected-work", slug }, "", "/#selected-work");
-  }
-
-  function openDetailedCaseWindow(slug: ScenarioSlug) {
-    caseSummaryScrollRef.current[slug] = workFrameRef.current?.scrollTop ?? 0;
+    rememberIndexScroll();
+    openDocumentAtTop(`case:${slug}`);
     setSelectedCaseSlug(slug);
     setWorkView("full-case");
     workspace.openWindow("work");
     workspace.focusWindow("work");
-    window.history.pushState({ portfolioView: "full-case", slug }, "", `/case/${slug}`);
-    window.requestAnimationFrame(() => workFrameRef.current?.scrollTo({ behavior: "auto", top: 0 }));
+    workspaceHistory.pushState(null, portfolioTitle.for(caseDetails[slug].area), `/case/${slug}`);
   }
 
   function closeDetailedCaseWindow(slug: ScenarioSlug) {
     setSelectedCaseSlug(slug);
-    setWorkView("summary");
-    workspace.focusWindow("work");
-    window.history.replaceState({ portfolioView: "selected-work", slug }, "", "/#selected-work");
-    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
-      workFrameRef.current?.scrollTo({ behavior: "auto", top: caseSummaryScrollRef.current[slug] });
-      workFrameRef.current?.focus({ preventScroll: true });
-    }));
+    returnToProjectIndex();
   }
 
-  function closeCaseSummary() {
+  /** Index → case → index: the frame restores the recorded index position on desktop. */
+  function returnToProjectIndex() {
     setWorkView("index");
-    window.history.replaceState(null, "", "/#selected-work");
+    workspaceHistory.replaceState(null, portfolioTitle.default, "/#selected-work");
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
-      if (workspace.mode === "computer") {
-        workFrameRef.current?.scrollTo({ behavior: "auto", top: workIndexScrollRef.current });
-      } else {
-        scrollWorkToSelected("auto");
-      }
+      if (workspace.mode !== "computer") scrollWorkToSelected("auto");
       workFrameRef.current?.focus({ preventScroll: true });
     }));
   }
 
   function openGithubProject(projectId: string) {
     if (!githubProjects.some((project) => project.id === projectId)) return;
-    workIndexScrollRef.current = workFrameRef.current?.scrollTop ?? workIndexScrollRef.current;
+    rememberIndexScroll();
+    openDocumentAtTop(`project:${projectId}`);
     setSelectedGithubProjectId(projectId);
     setWorkView("github-project");
     workspace.openWindow("work");
     workspace.focusWindow("work");
-    window.history.pushState({ portfolioView: "github-project", repository: projectId }, "", `/projects/${encodeURIComponent(projectId)}`);
-    window.requestAnimationFrame(() => workFrameRef.current?.scrollTo({ behavior: "auto", top: 0 }));
+    workspaceHistory.pushState(null, portfolioTitle.for(githubProjects.find((project) => project.id === projectId)?.displayName), `/projects/${encodeURIComponent(projectId)}`);
   }
 
   function selectGithubProject(projectId: string) {
     if (!githubProjects.some((project) => project.id === projectId)) return;
+    openDocumentAtTop(`project:${projectId}`);
     setSelectedGithubProjectId(projectId);
     setWorkView("github-project");
     workspace.focusWindow("work");
-    window.history.replaceState({ portfolioView: "github-project", repository: projectId }, "", `/projects/${encodeURIComponent(projectId)}`);
-    window.requestAnimationFrame(() => workFrameRef.current?.scrollTo({ behavior: "auto", top: 0 }));
-  }
-
-  function closeGithubProject() {
-    setWorkView("index");
-    window.history.replaceState(null, "", "/#selected-work");
-    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
-      workFrameRef.current?.scrollTo({ behavior: "auto", top: workIndexScrollRef.current });
-      workFrameRef.current?.focus({ preventScroll: true });
-    }));
+    workspaceHistory.replaceState(null, portfolioTitle.for(githubProjects.find((project) => project.id === projectId)?.displayName), `/projects/${encodeURIComponent(projectId)}`);
   }
 
   function switchDetailedCase(slug: ScenarioSlug) {
+    openDocumentAtTop(`case:${slug}`);
     setSelectedCaseSlug(slug);
     setWorkView("full-case");
     workspace.focusWindow("work");
-    window.history.pushState({ portfolioView: "full-case", slug }, "", `/case/${slug}`);
-    window.requestAnimationFrame(() => workFrameRef.current?.scrollTo({ behavior: "auto", top: 0 }));
+    workspaceHistory.pushState(null, portfolioTitle.for(caseDetails[slug].area), `/case/${slug}`);
   }
 
   useEffect(() => {
     const syncWorkHistory = (event: PopStateEvent) => {
-      const routeMatch = window.location.pathname.match(/^\/case\/(payflow|iyup|trustgate)$/);
-      if (routeMatch) {
-        const slug = routeMatch[1] as ScenarioSlug;
+      // The phone stack walking back to a parent it already shows needs no restoration.
+      if (isWorkspaceTraversal(event)) return;
+      const route = decodeWorkspaceRoute(window.location.href);
+      // Traversal restores the entry's document; the tab title follows the same route ownership.
+      if (route.app === "experience" || route.app === "products" || route.app === "contact") {
+        document.title = portfolioTitle.for(portfolioApp(route.app).documentTitle);
+        workspace.openWindow(route.app);
+        workspace.focusWindow(route.app);
+        return;
+      }
+      const routeSlug = route.documentId.startsWith("case:") ? route.documentId.slice(5) : null;
+      if (routeSlug && scenarios.some((scenario) => scenario.slug === routeSlug)) {
+        const slug = routeSlug as ScenarioSlug;
+        document.title = portfolioTitle.for(caseDetails[slug].area);
         setSelectedCaseSlug(slug);
         setWorkView("full-case");
         workspace.openWindow("work");
         workspace.focusWindow("work");
         return;
       }
-      const githubRouteMatch = window.location.pathname.match(/^\/projects\/([^/]+)$/);
-      if (githubRouteMatch) {
-        const repository = decodeURIComponent(githubRouteMatch[1]);
+      if (route.documentId.startsWith("project:")) {
+        const repository = route.documentId.slice("project:".length);
         const project = githubProjects.find((item) => item.id.toLocaleLowerCase() === repository.toLocaleLowerCase());
         if (project) {
+          document.title = portfolioTitle.for(project.displayName);
           setSelectedGithubProjectId(project.id);
           setWorkView("github-project");
           workspace.openWindow("work");
@@ -972,20 +558,14 @@ export function CounterfactualHome({
         return;
       }
       if (window.location.pathname !== "/") return;
-      if (window.location.hash === "#selected-work" && event.state?.portfolioView === "selected-work") {
-        const slug = scenarios.some((scenario) => scenario.slug === event.state.slug)
-          ? event.state.slug as ScenarioSlug
-          : selectedCaseSlug;
-        setSelectedCaseSlug(slug);
-        setWorkView("summary");
-        workspace.openWindow("work");
-        workspace.focusWindow("work");
-        return;
-      }
+      document.title = portfolioTitle.default;
+      if (!window.location.hash) { workspace.goHome(); return; }
+      const wasOpen = workspace.isAppOpen("work");
       setWorkView("index");
       workspace.openWindow("work");
       workspace.focusWindow("work");
-      if (window.location.hash === "#selected-work") {
+      // Traversal back to a running index keeps its recorded position; a fresh open reveals the list.
+      if (window.location.hash === "#selected-work" && !wasOpen) {
         pendingWorkScroll.current = "selected-work";
         window.requestAnimationFrame(() => scrollWorkToSelected("auto"));
       }
@@ -994,7 +574,7 @@ export function CounterfactualHome({
     return () => window.removeEventListener("popstate", syncWorkHistory);
   // The history handler reads the current Work frame when the browser dispatches popstate.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCaseSlug, workspace]);
+  }, [githubProjects, workspace]);
 
   useEffect(() => {
     if (workspace.activeApp !== "work") return;
@@ -1002,11 +582,7 @@ export function CounterfactualHome({
       if (workspace.activeWindow !== "work") return false;
       if (workView === "full-case") return false;
       if (workView === "github-project") {
-        closeGithubProject();
-        return true;
-      }
-      if (workView === "summary") {
-        closeCaseSummary();
+        returnToProjectIndex();
         return true;
       }
       if (workspace.mode !== "computer" && isWorkOpen) {
@@ -1022,17 +598,27 @@ export function CounterfactualHome({
   useEffect(() => () => closeTimers.current.forEach(window.clearTimeout), []);
 
   useEffect(() => {
-    if (workspace.isAppOpen("work") || initialCaseSlug || initialGithubProjectId) return;
-    setWorkView("index");
-    if (window.location.pathname.startsWith("/case/") || window.location.pathname.startsWith("/projects/")) {
-      window.history.replaceState(null, "", "/");
+    for (const app of mainWindowIds) {
+      if (workspace.isAppOpen(app)) { openedApps.current.add(app); continue; }
+      if (!openedApps.current.has(app)) continue;
+      openedApps.current.delete(app);
+      if (app === "work") setWorkView("index");
+      // A closed application must not keep addressing its document, or a refresh would reopen it.
+      if (decodeWorkspaceRoute(window.location.href).app === app) workspaceHistory.replaceState(null, portfolioTitle.default, "/");
     }
-  }, [initialCaseSlug, initialGithubProjectId, workspace.openWindows, workspace]);
+  }, [workspace]);
+
+  useEffect(() => {
+    // The route's query conditions seed the first case only; later opens start from defaults.
+    if (workView === "full-case" && workspace.isAppOpen("work")) initialConditionsConsumed.current = true;
+  }, [workView, workspace]);
 
   useEffect(() => {
     if (!activeWindow || !mainWindowIds.includes(activeWindow as WorkspaceWindow) || (activeWindow === "work" && workView === "full-case")) return;
     const closeActiveWithEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      // A child (search field, evidence, repository preview) answers Escape before its application.
+      if (event.key !== "Escape" || event.defaultPrevented || workspace.surface !== "application") return;
+      if (activeWindow === "work" && workView === "github-project") { returnToProjectIndex(); return; }
       closeWindow(activeWindow as WorkspaceWindow);
     };
     window.addEventListener("keydown", closeActiveWithEscape);
@@ -1042,24 +628,25 @@ export function CounterfactualHome({
   }, [activeWindow, closingWindows, workView]);
 
   useEffect(() => {
-    const openWorkFromHeader = () => openWindow("work", "selected-work");
-    const openExperienceFromHeader = () => openWindow("experience");
-    const openProductsFromHeader = () => openWindow("products");
-    window.addEventListener("portfolio-open-work", openWorkFromHeader);
-    window.addEventListener("portfolio-open-experience", openExperienceFromHeader);
-    window.addEventListener("portfolio-open-products", openProductsFromHeader);
-    return () => {
-      window.removeEventListener("portfolio-open-work", openWorkFromHeader);
-      window.removeEventListener("portfolio-open-experience", openExperienceFromHeader);
-      window.removeEventListener("portfolio-open-products", openProductsFromHeader);
-    };
+    const unregister = [
+      workspace.registerAppLauncher("work", (documentId) => {
+        const slug = documentId?.startsWith("case:") ? documentId.slice(5) : null;
+        if (slug && scenarios.some((scenario) => scenario.slug === slug)) { openCaseWindow(slug as ScenarioSlug); return; }
+        const repository = documentId?.startsWith("project:") ? documentId.slice(8) : null;
+        if (repository) { openGithubProject(repository); return; }
+        openWindow("work", workspace.isAppOpen("work") ? undefined : "selected-work");
+      }),
+      workspace.registerAppLauncher("experience", () => openWindow("experience")),
+      workspace.registerAppLauncher("products", () => openWindow("products")),
+    ];
+    return () => unregister.forEach((remove) => remove());
   // The handlers should read the latest open/focus state without forcing stable callbacks through the window model.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openWindows, workspace]);
 
   function openContactWindow(event: MouseEvent<HTMLAnchorElement>) {
     event.preventDefault();
-    window.dispatchEvent(new Event("portfolio-contact-open"));
+    workspace.launchApp("contact");
   }
 
   function openWorkFromExperience(event: MouseEvent<HTMLAnchorElement>) {
@@ -1068,6 +655,7 @@ export function CounterfactualHome({
   }
 
   function windowState(windowName: WorkspaceWindow) {
+    if (!workspace.modeReady && ((windowName === "work" && (initialCaseSlug || initialGithubProjectId)) || (windowName === "experience" && initialExperienceOpen) || (windowName === "products" && initialProductsOpen))) return "active";
     return workspace.stateFor(windowName);
   }
 
@@ -1078,15 +666,19 @@ export function CounterfactualHome({
     } as CSSProperties;
   }
 
-  const selectedScenario = scenarios.find((scenario) => scenario.slug === selectedCaseSlug)!;
+  function selectedScenarioFor(slug: ScenarioSlug) {
+    return scenarios.find((scenario) => scenario.slug === slug)!;
+  }
+
+  const selectedScenario = selectedScenarioFor(selectedCaseSlug);
   const selectedGithubProject = githubProjects.find((project) => project.id === selectedGithubProjectId) ?? githubProjects[0];
-  const selectedCaseTitle = `${selectedScenario.number} / ${String(scenarios.length).padStart(2, "0")} · ${caseDetails[selectedCaseSlug].area}`;
 
   return (
     <>
       <main
         className={`home-page editorial-home ${hasOpenWindows ? "has-work-window" : "is-desktop"}`}
         data-system-mode={workspace.mode}
+        data-workspace-paired={workspace.paired && (workspace.activeApp === "work" || workspace.activeApp === "experience") && isWorkOpen && isExperienceOpen && workspace.surface === "application"}
         id="main-content"
         tabIndex={-1}
       >
@@ -1094,8 +686,8 @@ export function CounterfactualHome({
         <WindowSnapPreview edge={activeSnapCandidate} />
         {hasOpenWindows ? (
           <>
-          {isWorkOpen ? <section
-            className={`portfolio-window home-window workspace-work-window ${workView === "summary" || workView === "full-case" ? "workspace-case-window" : ""} ${workView === "github-project" ? "workspace-github-project-window" : ""}`.trim()}
+          {isWorkOpen ? <ApplicationFrame windowId="work" documentId={workView === "full-case" ? `case:${selectedCaseSlug}` : workView === "github-project" ? `project:${selectedGithubProjectId}` : workView} resizeHandleProps={workResizeHandleProps}
+            className={`portfolio-window home-window workspace-work-window ${workView === "full-case" ? "workspace-case-window" : ""} ${workView === "github-project" ? "workspace-github-project-window" : ""}`.trim()}
             aria-label="Projects window"
             data-active-window={activeWindow === "work"}
             data-app-id="work"
@@ -1114,65 +706,60 @@ export function CounterfactualHome({
               if ((event.target as Element).closest(".evidence-dialog")) return;
               focusWindow("work");
             }}
-            ref={workFrameRef}
+            frameRef={workFrameRef}
             style={frameStyle(workWindowStyle, "work")}
             suppressHydrationWarning
             tabIndex={-1}
           >
             <WindowChrome
-              actions={workView === "summary" ? <div className="case-workspace-actions case-preview-titlebar-actions">
-                <button className="case-back-action" onClick={closeCaseSummary} type="button">← All projects</button>
-              </div> : workView === "github-project" ? <div className="case-workspace-actions case-preview-titlebar-actions">
-                <button className="case-back-action" onClick={closeGithubProject} type="button">← All projects</button>
+              actions={workView === "github-project" ? <div className="case-workspace-actions case-preview-titlebar-actions">
+                <button className="case-back-action" onClick={returnToProjectIndex} type="button"><ChevronIcon /><span className="case-back-label">All projects</span></button>
               </div> : workView === "full-case" ? <div className="case-workspace-actions case-preview-titlebar-actions">
-                <button className="case-back-action" onClick={() => closeDetailedCaseWindow(selectedCaseSlug)} type="button">← Back to preview</button>
+                <button className="case-back-action" onClick={() => closeDetailedCaseWindow(selectedCaseSlug)} type="button"><ChevronIcon /><span className="case-back-label">All projects</span></button>
               </div> : null}
+              app="work"
               className="portfolio-window-chrome"
               closeLabel="Close Projects window"
               closeRef={workCloseRef}
-              compactBackLabel={workView === "index" ? "Return to Home" : workView === "summary" || workView === "github-project" ? "Return to project list" : "Return to project preview"}
+              compactBackLabel="Return to project list"
+              compactBackText="Projects"
               label="Projects"
               maximized={workMaximized}
               onClose={() => closeApplication("work", "work")}
-              onCompactBack={workspace.mode === "phone" ? workspace.requestBack : undefined}
+              onCompactBack={workspace.mode !== "computer" && workView !== "index" ? workspace.requestBack : undefined}
               onMinimize={() => workspace.minimizeWindow("work")}
               onToggleMaximize={toggleWorkMaximize}
-              subtitle={workView === "index" ? undefined : workView === "github-project" ? selectedGithubProject?.language ?? "Public repository" : selectedScenario.shortTitle}
-              title={workView === "index" ? undefined : workView === "github-project" ? `Repository · ${selectedGithubProject?.displayName ?? "GitHub project"}` : `Project · ${selectedCaseTitle}`}
+              title={workView === "index" ? undefined : workView === "github-project" ? selectedGithubProject?.displayName : caseDetails[selectedCaseSlug].area}
               {...workTitlebarProps}
             />
-            {windowResizeEdges.map((edge) => <span key={edge} {...workResizeHandleProps(edge)} />)}
             {workView === "index" ? <div className="portfolio-window-content" ref={workContentRef}>
-              <section className="editorial-work projects-index" id="selected-work" ref={heroRef} aria-labelledby="work-title">
+              <section className="editorial-work projects-index" id="selected-work" aria-labelledby="work-title">
                 <div className="work-intro">
                   <div className="projects-index-heading">
-                    <p>Android POS · payments · reliability</p>
-                    <h1 id="work-title">Engineering cases.</h1>
+                    <h1 id="work-title">Engineering cases</h1>
                   </div>
-                  <p>Three production problems, with decisions, replays, and evidence.</p>
+                  <p>Three small public projects, each built around one failure in payments, monitoring, or Android security.<span className="work-intro-how"> Open one to read what went wrong and the decision that handles it, then run it yourself.</span></p>
                 </div>
                 <div className="editorial-work-list">
                   {scenarios.map((scenario) => <WorkRow scenario={scenario} key={scenario.slug} onOpenCase={openCaseWindow} />)}
                 </div>
               </section>
 
-              <GithubProjectsIndex onOpenProject={openGithubProject} projects={githubProjects} source={githubProjectsSource} />
+              {githubLoading ? <section className="github-project-index" aria-label="Side projects" aria-busy="true"><p>Loading side projects…</p></section> : <GithubProjectsIndex onOpenProject={openGithubProject} projects={githubProjects} source={githubProjectsSource} />}
 
-              <section className="editorial-footer">
-                <p>Role history and operating scope are kept in Experience.</p>
+              <p className="editorial-footer">
+                Role history, scope, and the CV are in{" "}
                 <a href="/brief" onClick={(event) => {
                   event.preventDefault();
                   openWindow("experience");
-                }}>Open Experience <ArrowIcon /></a>
-              </section>
-            </div> : workView === "summary" ? (
-              <SelectedCaseWindowContent key={selectedCaseSlug} onOpenFullCase={openDetailedCaseWindow} onSelectCase={selectCaseSummary} scenario={selectedScenario} />
-            ) : workView === "github-project" && selectedGithubProject ? (
+                }}>Experience <ChevronIcon direction="right" /></a>
+              </p>
+            </div> : workView === "github-project" && selectedGithubProject ? (
               <GithubProjectPreview key={selectedGithubProject.id} onSelectProject={selectGithubProject} project={selectedGithubProject} projects={githubProjects} />
             ) : (
               <DebuggerWorkspace
                 embedded
-                initialConditions={initialCaseSlug === selectedCaseSlug && initialCaseConditions ? initialCaseConditions : { ...selectedScenario.defaults }}
+                initialConditions={!initialConditionsConsumed.current && initialCaseSlug === selectedCaseSlug && initialCaseConditions ? initialCaseConditions : { ...selectedScenario.defaults }}
                 onClose={() => closeDetailedCaseWindow(selectedCaseSlug)}
                 onSelectScenario={switchDetailedCase}
                 scenario={selectedScenario}
@@ -1180,8 +767,8 @@ export function CounterfactualHome({
                 workspaceWindowId="work"
               />
             )}
-          </section> : null}
-          {isExperienceOpen ? <section
+          </ApplicationFrame> : null}
+          {isExperienceOpen ? <ApplicationFrame windowId="experience" resizeHandleProps={experienceResizeHandleProps}
             className="portfolio-window home-window workspace-experience-window"
             aria-label="Experience window"
             data-active-window={activeWindow === "experience"}
@@ -1195,30 +782,26 @@ export function CounterfactualHome({
             data-window-state={windowState("experience")}
             onFocusCapture={() => focusWindow("experience")}
             onPointerDown={() => focusWindow("experience")}
-            ref={experienceFrameRef}
+            frameRef={experienceFrameRef}
             style={frameStyle(experienceWindowStyle, "experience")}
             suppressHydrationWarning
             tabIndex={-1}
           >
             <WindowChrome
+              app="experience"
               className="portfolio-window-chrome"
               closeLabel="Close experience window"
               closeRef={experienceCloseRef}
-              compactBackLabel="Return from Experience"
               label="Experience"
               maximized={experienceMaximized}
               onClose={() => closeApplication("experience", "experience")}
-              onCompactBack={workspace.mode === "phone" ? workspace.requestBack : undefined}
               onMinimize={() => workspace.minimizeWindow("experience")}
               onToggleMaximize={toggleExperienceMaximize}
-              subtitle="Role history, system scope, and operating principles"
-              title="Engineering brief"
               {...experienceTitlebarProps}
             />
-            {windowResizeEdges.map((edge) => <span key={edge} {...experienceResizeHandleProps(edge)} />)}
             <ExperienceBriefContent onOpenContact={openContactWindow} onOpenWork={openWorkFromExperience} />
-          </section> : null}
-          {isProductsOpen ? <section
+          </ApplicationFrame> : null}
+          {isProductsOpen ? <ApplicationFrame windowId="products" resizeHandleProps={productsResizeHandleProps}
             className="portfolio-window home-window product-links-window"
             aria-label="Product Links window"
             data-active-window={activeWindow === "products"}
@@ -1231,27 +814,25 @@ export function CounterfactualHome({
             data-window-state={windowState("products")}
             onFocusCapture={() => focusWindow("products")}
             onPointerDown={() => focusWindow("products")}
-            ref={productsFrameRef}
+            frameRef={productsFrameRef}
             style={frameStyle(productsWindowStyle, "products")}
             suppressHydrationWarning
             tabIndex={-1}
           >
             <WindowChrome
+              app="products"
               className="portfolio-window-chrome product-links-window-chrome"
               closeLabel="Close product links"
               closeRef={productsCloseRef}
               label="Product Links"
               maximized={productsMaximized}
               onClose={() => closeApplication("products", "products")}
-              onCompactBack={workspace.mode === "phone" ? workspace.requestBack : undefined}
               onMinimize={() => workspace.minimizeWindow("products")}
               onToggleMaximize={toggleProductsMaximize}
-              subtitle="Searchable tools and products directory"
               {...productsTitlebarProps}
             />
-            {windowResizeEdges.map((edge) => <span key={edge} {...productsResizeHandleProps(edge)} />)}
             <ProductLinksAppContent />
-          </section> : null}
+          </ApplicationFrame> : null}
           </>
         ) : null}
       </main>

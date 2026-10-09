@@ -6,33 +6,33 @@
   --font-mono: "IBM Plex Mono";
 
   /* Surfaces and ink */
-  --paper: #eef1f0;
-  --paper-raised: #fefefd;
-  --paper-recessed: #e4e8e6;
-  --paper-cool: #e8edec;
-  --paper-warm: #f2eee6;
+  --paper: #f1f3f5;
+  --paper-raised: #f7f8f9;
+  --paper-recessed: #d3d9e1;
+  --paper-cool: #e3e7ec;
+  --paper-warm: #e3e7ec;
   --surface: var(--paper-raised);
-  --ink: #101416;
-  --ink-secondary: #566168;
-  --ink-tertiary: #626d72;
-  --rule: #cbd1cf;
-  --rule-strong: #8d9896;
-  --baseline: #62696d;
-  --baseline-wash: #e4e7e8;
+  --ink: #252b34;
+  --ink-secondary: #59616d;
+  --ink-tertiary: #5f6773;
+  --rule: #c4ccd6;
+  --rule-strong: #8d98a7;
+  --baseline: #59616d;
+  --baseline-wash: #e3e7ec;
 
   /* Causal and semantic state */
-  --designed: #155b8f;
-  --designed-bright: #1e78b4;
-  --designed-wash: #dceaf1;
-  --confirmed: #237368;
-  --confirmed-wash: #d9e8e3;
-  --uncertain: #8a5514;
-  --uncertain-wash: #f0dfc5;
-  --adverse: #d44834;
-  --adverse-ink: #c23a2a;
-  --adverse-wash: #f1d9d4;
-  --focus: #155b8f;
-  --selection: #d9e6eb;
+  --designed: #3a5f9f;
+  --designed-bright: #536fa3;
+  --designed-wash: #dbe4f3;
+  --confirmed: #3a7a6c;
+  --confirmed-wash: #d6e9e4;
+  --uncertain: #85621f;
+  --uncertain-wash: #efe6d3;
+  --adverse: #b84f55;
+  --adverse-ink: #a3434a;
+  --adverse-wash: #f2dcdd;
+  --focus: #536fa3;
+  --selection: #c8d8f0;
 
   /* Spacing */
   --space-1: 0.25rem;
@@ -65,17 +65,17 @@
   --radius-window: 0;
 
   /* Depth */
-  --window-shadow: 0 24px 70px rgb(16 20 22 / 12%), 0 2px 7px rgb(16 20 22 / 6%);
-  --window-shadow-active: 0 32px 95px rgb(16 20 22 / 18%), 0 2px 9px rgb(16 20 22 / 8%);
-  --control-shadow-raised: 3px 3px 0 var(--rule-strong);
-  --control-shadow-pressed: inset 2px 2px 0 var(--rule);
-  --icon-shadow: 2px 2px 0 var(--ink);
+  --window-shadow: 3px 3px 0 rgb(37 43 52 / 18%);
+  --window-shadow-active: 4px 4px 0 rgb(37 43 52 / 28%);
+  --control-shadow-raised: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #8d98a7;
+  --control-shadow-pressed: inset 1px 1px 0 #8d98a7, inset -1px -1px 0 #ffffff;
+  --icon-shadow: none;
 
   /* Motion */
   --duration-micro: 140ms;
   --duration-focus: 180ms;
-  --duration-window: 240ms;
-  --duration-navigation: 260ms;
+  --duration-window: 160ms;
+  --duration-navigation: 180ms;
   --duration-causal: 380ms;
   --duration-boot: 720ms;
   --ease-event: cubic-bezier(0.32, 0.72, 0, 1);

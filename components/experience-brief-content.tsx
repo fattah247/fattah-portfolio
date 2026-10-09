@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import type { MouseEvent } from "react";
-import { ArrowIcon } from "./icons";
+import { ChevronIcon, DownloadIcon } from "./icons";
+import { OwnerMark } from "./app-icons";
 import { experience, principles, systemScope } from "../lib/content";
-
-const cvHref = "/cv/muhammad-abdul-fattah-general-software-engineer-cv.pdf";
+import { portfolioIdentity } from "../lib/portfolio-identity";
 
 export function ExperienceBriefContent({
   onOpenWork,
@@ -17,15 +17,11 @@ export function ExperienceBriefContent({
   return (
     <article className="brief-page experience-brief-content">
       <header className="experience-brief-utility">
-        <div className="experience-brief-identity">
-          <span>Software Engineer</span>
-          <strong>Muhammad A. Fattah</strong>
-        </div>
         <nav className="experience-brief-actions" aria-label="Experience actions">
-          <a className="experience-brief-action is-primary" href={cvHref} download>
-            Download CV <ArrowIcon />
+          <a className="experience-brief-action is-primary" href={portfolioIdentity.cv} download>
+            Download CV <DownloadIcon />
           </a>
-          <a className="experience-brief-action" href="https://github.com/fattah247" target="_blank" rel="noopener noreferrer">
+          <a className="experience-brief-action" href={portfolioIdentity.github} target="_blank" rel="noopener noreferrer">
             GitHub <span className="sr-only">opens in a new tab</span>
           </a>
           <a className="experience-brief-action" href="#contact" onClick={onOpenContact}>Contact</a>
@@ -34,17 +30,16 @@ export function ExperienceBriefContent({
 
       <section className="experience-brief-intro" aria-labelledby="experience-brief-title">
         <div className="experience-brief-heading">
-          <p>Experience record</p>
-          <h1 id="experience-brief-title">Roles, scope, and responsibility.</h1>
+          <OwnerMark className="experience-brief-mark" />
+          <div>
+            <h1 id="experience-brief-title">{portfolioIdentity.name}</h1>
+          </div>
         </div>
         <div className="experience-brief-summary">
-          <p>
-            A chronological view of where I worked, what I was responsible for, and the systems around that work.
-          </p>
           <dl className="experience-brief-facts">
-            <div><dt>Current</dt><dd>Bank Central Asia</dd></div>
-            <div><dt>Focus</dt><dd>Android POS · Payment reliability</dd></div>
-            <div><dt>Location</dt><dd>Indonesia · UTC+7</dd></div>
+            <div><dt>Role</dt><dd>{portfolioIdentity.role}</dd></div>
+            <div><dt>Focus</dt><dd>{portfolioIdentity.focus}</dd></div>
+            <div><dt>Based in</dt><dd>{portfolioIdentity.location} · UTC+7</dd></div>
           </dl>
         </div>
       </section>
@@ -54,8 +49,8 @@ export function ExperienceBriefContent({
           <h2 id="experience-heading">Role history</h2>
         </header>
         <div className="experience-list">
-          {experience.map((item) => (
-            <article className="experience-entry" key={item.company}>
+          {experience.map((item, index) => (
+            <article className="experience-entry" data-current={index === 0 ? "true" : undefined} key={item.company}>
               <div className="experience-entry-meta">
                 <p className="experience-period">{item.period}</p>
                 <p className="experience-company">{item.company}</p>
@@ -80,7 +75,8 @@ export function ExperienceBriefContent({
         <div className="scope-map">
           {systemScope.map((item) => (
             <div className="scope-row" key={item.label}>
-              <strong>{item.label}</strong><p>{item.value}</p>
+              <strong>{item.label}</strong>
+              <p>{item.value}</p>
             </div>
           ))}
         </div>
@@ -89,7 +85,6 @@ export function ExperienceBriefContent({
       <section className="experience-brief-section principles-section" aria-labelledby="principles-heading">
         <header className="experience-brief-section-heading">
           <h2 id="principles-heading">Operating principles</h2>
-          <p>The constraints used to reason about failure, state, and evidence.</p>
         </header>
         <ol className="principles-list">
           {principles.map((principle, index) => (
@@ -98,15 +93,10 @@ export function ExperienceBriefContent({
         </ol>
       </section>
 
-      <section className="experience-work-handoff" aria-labelledby="experience-work-handoff-heading">
-        <div>
-          <h2 id="experience-work-handoff-heading">Cases and evidence are in Projects.</h2>
-          <p>The failure cases, decisions, replays, and attached evidence are kept there.</p>
-        </div>
-        <Link className="experience-brief-action is-primary" href="/#selected-work" onClick={onOpenWork}>
-          Open Projects <ArrowIcon />
-        </Link>
-      </section>
+      <p className="experience-work-handoff">
+        The three public labs and their evidence are in{" "}
+        <Link href="/#selected-work" onClick={onOpenWork}>Projects <ChevronIcon direction="right" /></Link>
+      </p>
     </article>
   );
 }
