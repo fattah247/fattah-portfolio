@@ -32,7 +32,7 @@ The portfolio is designed to run without a paid service:
 
 - GitHub data uses the public REST API. `GITHUB_TOKEN` is optional and does not unlock a paid feature.
 - Repository data is cached for six hours and limited to eight portfolio repositories, bounding a refresh to at most nine GitHub requests.
-- README requests run sequentially to avoid bursts and secondary rate limits.
+- README requests run at most three at a time under one eight-second budget to avoid bursts and secondary rate limits.
 - A bundled repository index keeps Projects usable when GitHub is unavailable or rate-limited.
 - Repository previews use ordinary remote images, not metered image optimization.
 - There is no database, paid storage, cron job, or paid GitHub application.

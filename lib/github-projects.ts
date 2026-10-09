@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { scenarios } from "./scenarios";
 
 const githubOwner = "fattah247";
@@ -166,12 +167,12 @@ function safeHomepage(url: string | null) {
   }
 }
 
-async function readmeExcerpt(repository: GithubRepositoryResponse) {
+async function readmeExcerpt(repository: GithubRepositoryResponse, signal: AbortSignal) {
   try {
     const response = await fetch(`https://api.github.com/repos/${repository.full_name}/readme`, {
       headers: githubHeaders("application/vnd.github.raw+json"),
       next: { revalidate: refreshSeconds },
-      signal: AbortSignal.timeout(7_000),
+      signal,
     });
     if (!response.ok) return repository.description ?? "Public repository on GitHub.";
     return cleanReadme(await response.text(), repository.description ?? "Public repository on GitHub.");
@@ -191,37 +192,44 @@ function isPortfolioRepository(repository: GithubRepositoryResponse) {
     && repository.topics?.includes(portfolioTopic);
 }
 
-export async function getGithubProjects(): Promise<GithubProjectsPayload> {
+export const getGithubProjects = cache(async function getGithubProjects(): Promise<GithubProjectsPayload> {
+  const budget = AbortSignal.timeout(8_000);
   try {
     const response = await fetch(`https://api.github.com/users/${githubOwner}/repos?type=owner&sort=updated&direction=desc&per_page=100`, {
       headers: githubHeaders(),
       next: { revalidate: refreshSeconds },
-      signal: AbortSignal.timeout(7_000),
+      signal: budget,
     });
     if (!response.ok) throw new Error(`GitHub returned ${response.status}`);
     const repositories = (await response.json() as GithubRepositoryResponse[])
       .filter(isPortfolioRepository)
       .sort((left, right) => Date.parse(right.pushed_at ?? right.updated_at) - Date.parse(left.pushed_at ?? left.updated_at))
       .slice(0, maxLiveProjects);
-    const projects: GithubProject[] = [];
-    for (const repository of repositories) {
+    const projects: GithubProject[] = new Array(repositories.length);
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < repositories.length) {
+      const index = cursor++;
+      const repository = repositories[index];
       const activityDate = repository.pushed_at ?? repository.updated_at;
-      projects.push({
+      projects[index] = {
         description: repository.description ?? "Public repository on GitHub.",
         displayName: displayName(repository.name),
         homepageUrl: safeHomepage(repository.homepage),
         id: repository.name,
         language: repository.language,
         previewImageUrl: `https://opengraph.githubassets.com/portfolio/${repository.full_name}`,
-        readmeExcerpt: await readmeExcerpt(repository),
+        readmeExcerpt: await readmeExcerpt(repository, budget),
         repositoryUrl: repository.html_url,
         topics: (repository.topics ?? []).filter((topic) => topic !== portfolioTopic).slice(0, 4),
         updatedAt: activityDate,
         updatedLabel: updatedLabel(activityDate),
-      });
-    }
+      };
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(3, repositories.length) }, worker));
     return { projects: projects.filter(isSideProject), source: "github" };
   } catch {
     return { projects: fallbackProjects.filter(isSideProject).map((project) => ({ ...project, topics: [...project.topics] })), source: "fallback" };
   }
-}
+});
