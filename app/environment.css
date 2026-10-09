@@ -4346,3 +4346,14 @@ html[data-system-mode="phone"] .product-links-search input { min-height: 44px; }
     height: calc(100dvh - var(--os-phone-nav) - var(--os-topbar) - 140px) !important;
   }
 }
+
+/* Not found: an unknown address is still inside the environment, as one small window with a
+ * way back to the work. */
+.not-found-screen { background: var(--shell-ground); box-sizing: border-box; display: grid; min-block-size: 100dvh; padding: 24px 16px; place-items: center; }
+.not-found-panel { background: var(--raised); border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); inline-size: 100%; max-inline-size: 30rem; }
+.not-found-bar { background: var(--title-active); border-bottom: 1px solid var(--line-ink); color: var(--title-active-ink); font: var(--type-system); margin: 0; padding: 8px 12px; }
+.not-found-body { display: grid; gap: 12px; padding: 20px 16px; }
+.not-found-body h1 { color: var(--ink); font: 650 1.35rem/1.2 var(--font-body), sans-serif; margin: 0; }
+.not-found-body p { color: var(--ink-secondary); font: var(--type-body); margin: 0; }
+.not-found-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.not-found-actions a { min-block-size: 44px !important; }
