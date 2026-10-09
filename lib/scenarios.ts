@@ -26,6 +26,10 @@ export type Evidence = {
 };
 
 export type Scenario = {
+  category: string;
+  shortcutLabel: string;
+  indexTechnology: string;
+  indexResult: string;
   slug: ScenarioSlug;
   number: string;
   shortTitle: string;
@@ -49,9 +53,13 @@ export type Scenario = {
 export const scenarios: Scenario[] = [
   {
     slug: "payflow",
+    category: "Payment reliability",
+    shortcutLabel: "Payment case",
+    indexTechnology: "Spring Boot · PostgreSQL",
+    indexResult: "2 deliveries / 1 payment change",
     number: "01",
     shortTitle: "A payment callback arrived twice",
-    title: "The same payment callback arrived twice.",
+    title: "The same payment callback arrived twice",
     consequence: "The second delivery must not advance the payment again.",
     premise:
       "The first delivery completes the payment. The second should be recorded without repeating the state change.",
@@ -104,7 +112,7 @@ export const scenarios: Scenario[] = [
         src: "/projects/payflow/audit-trail.png",
         alt: "PayFlow audit trail showing transaction state changes",
         caption: "The audit trail keeps previous and resulting transaction state readable.",
-        focus: "Previous state → resulting state",
+        focus: "Previous and resulting state",
       },
       {
         src: "/projects/payflow/duplicate-webhook.png",
@@ -118,9 +126,13 @@ export const scenarios: Scenario[] = [
   },
   {
     slug: "iyup",
+    category: "Service observability",
+    shortcutLabel: "Service case",
+    indexTechnology: "Prometheus · Grafana",
+    indexResult: "Latency alert while health still passed",
     number: "02",
     shortTitle: "The service was up, but getting slower",
-    title: "The service was responding, but getting slower.",
+    title: "The service was responding, but getting slower",
     consequence: "Operators needed a warning before it became an outage.",
     premise:
       "The health check still said “up.” Latency showed that users were already experiencing degradation.",
@@ -197,9 +209,13 @@ export const scenarios: Scenario[] = [
   },
   {
     slug: "trustgate",
+    category: "Android device trust",
+    shortcutLabel: "Device case",
+    indexTechnology: "Kotlin · Jetpack Compose",
+    indexResult: "Suspicion became confirmation, not an automatic block",
     number: "03",
     shortTitle: "One device signal looked suspicious",
-    title: "One device signal looked suspicious, but it was not a verdict.",
+    title: "One device signal looked suspicious, but it was not a verdict",
     consequence: "The action still needed context before allow, confirm, or block.",
     premise:
       "A root signal changes confidence. The final decision also depends on other signals and the risk of the requested action.",
@@ -486,7 +502,7 @@ export function explainScenario(
     {
       label: "Condition",
       text: scenario.controls
-        .map((control) => `${control.label}: ${conditions[control.key]}`)
+        .map((control) => `${control.label}: ${control.options.find((option) => option.value === conditions[control.key])?.label ?? conditions[control.key]}`)
         .join(" · "),
     },
     {
@@ -497,8 +513,7 @@ export function explainScenario(
     },
     {
       label: "Outcome",
-      text: `Variant A: ${finalBaseline?.value.toLowerCase()}. Variant B: ${finalDesigned?.value.toLowerCase()}.`,
+      text: `${scenario.baselineLabel}: ${finalBaseline?.value.toLowerCase()}. ${scenario.designedLabel}: ${finalDesigned?.value.toLowerCase()}.`,
     },
-    { label: "Boundary", text: scenario.limitation },
   ];
 }
