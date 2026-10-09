@@ -5,11 +5,17 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
+import { capabilitiesForWindow, capabilitiesForViewport, initialDeviceCapabilities, type DeviceCapabilities } from "../lib/device-capabilities";
+import type { FrameRect } from "./use-window-frame";
+import { setWorkspaceStackManaged } from "../lib/workspace-navigation";
+import { portfolioTitle } from "../lib/portfolio-identity";
 
 export type DeviceMode = "computer" | "tablet" | "phone";
 export type PortfolioAppId = "work" | "experience" | "contact" | "products";
@@ -42,6 +48,7 @@ export type WorkspaceState = {
   open: WorkspaceWindowId[];
   recents: PortfolioAppId[];
   surface: SystemSurface;
+  paired?: boolean;
 };
 
 export type WorkspaceAction =
@@ -52,7 +59,6 @@ export type WorkspaceAction =
   | { type: "focus-app"; app: PortfolioAppId }
   | { type: "minimize-app"; app: PortfolioAppId }
   | { type: "minimize-window"; id: WorkspaceWindowId }
-  | { type: "show-only"; id: WorkspaceWindowId }
   | { type: "surface"; surface: SystemSurface }
   | { type: "sync-mode"; mode: DeviceMode };
 
@@ -173,20 +179,6 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
     };
   }
 
-  if (action.type === "show-only") {
-    // Kept for legacy callers, but compact switching must preserve sessions.
-    const app = appForWindow(action.id);
-    const open = state.open.includes(action.id) ? state.open : [...state.open, action.id];
-    return {
-      ...state,
-      open,
-      focus: promote(state.focus.filter((item) => open.includes(item)), action.id),
-      minimized: state.minimized.filter((item) => item !== action.id),
-      recents: promote(state.recents, app),
-      surface: "application",
-    };
-  }
-
   if (action.type === "close-app") {
     const remainingOpen = state.open.filter((id) => appForWindow(id) !== action.app);
     const remainingFocus = state.focus.filter((id) => remainingOpen.includes(id));
@@ -196,7 +188,10 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       focus: remainingFocus,
       minimized: state.minimized.filter((id) => appForWindow(id) !== action.app),
       recents: state.recents.filter((item) => item !== action.app),
-      surface: remainingFocus.length ? "application" : "home",
+      // Closing a card in the phone's Recents leaves Recents open on the remaining cards.
+      surface: state.mode === "phone" && state.surface === "recents"
+        ? "recents"
+        : remainingFocus.length ? "application" : "home",
     };
   }
 
@@ -225,7 +220,9 @@ export function workspaceWindowState(state: WorkspaceState, id: WorkspaceWindowI
   const activeApp = active ? appForWindow(active) : null;
   if (state.mode === "phone") return "background";
   if (state.mode === "tablet") {
-    return new Set(orderedOpen.slice(-2)).has(id) ? "clear" : "background";
+    // Pairing is the explicit Projects + Experience stage; any other combination stays single-pane.
+    const stage = new Set(orderedOpen.slice(-2));
+    return state.paired && stage.has("work") && stage.has("experience") && stage.has(id) ? "clear" : "background";
   }
   if (activeApp && app !== activeApp) {
     const recentApps = [...orderedOpen]
@@ -243,8 +240,15 @@ export function workspaceWindowState(state: WorkspaceState, id: WorkspaceWindowI
 }
 
 type BackHandler = () => boolean;
+export type AppDocumentState = { documentId: string; scroll?: number; geometry?: FrameRect; data?: Record<string, unknown> };
 
 type WorkspaceManagerValue = {
+  capabilities: DeviceCapabilities;
+  modeReady: boolean;
+  paired: boolean;
+  setPaired: (paired: boolean) => void;
+  readDocumentState: (app: PortfolioAppId, documentId: string) => AppDocumentState | undefined;
+  writeDocumentState: (app: PortfolioAppId, documentId: string, update: Partial<AppDocumentState>) => void;
   activeApp: PortfolioAppId | null;
   activeWindow: WorkspaceWindowId | null;
   closeApp: (app: PortfolioAppId) => void;
@@ -264,25 +268,44 @@ type WorkspaceManagerValue = {
   openWindows: WorkspaceWindowId[];
   recentApps: PortfolioAppId[];
   registerBackHandler: (key: string, handler: BackHandler) => () => void;
+  /** A launcher opens or focuses its app; `documentId` (e.g. "case:payflow") opens that document inside it. */
+  registerAppLauncher: (app: PortfolioAppId, launch: (documentId?: string) => void) => () => void;
+  launchApp: (app: PortfolioAppId, documentId?: string) => boolean;
   requestBack: () => void;
-  showOnlyWindow: (id: WorkspaceWindowId) => void;
   stateFor: (id: WorkspaceWindowId) => WorkspaceWindowState;
   surface: SystemSurface;
-  toggleApp: (app: PortfolioAppId) => void;
   zIndexFor: (id: WorkspaceWindowId) => number;
 };
 
 const WorkspaceManagerContext = createContext<WorkspaceManagerValue | null>(null);
 
-export function modeForViewport(width: number, height: number, coarsePointer = false): DeviceMode {
-  if (Math.min(width, height) <= 500) return "phone";
-  if (coarsePointer || width <= 1100) return "tablet";
-  return "computer";
+export function modeForViewport(width: number, height: number, coarsePointer = false, hover = !coarsePointer): DeviceMode {
+  return capabilitiesForViewport({ width, height, coarsePointer, hover }).mode;
 }
 
 export function WorkspaceManagerProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(workspaceReducer, initialWorkspaceState);
+  const [capabilities, setCapabilities] = useState(initialDeviceCapabilities);
+  const [pairRequested, setPaired] = useState(false);
+  const documents = useRef(new Map<string, AppDocumentState>());
+  const paired = pairRequested && capabilities.pairingEligible;
+  const readDocumentState = useCallback((app: PortfolioAppId, documentId: string) => documents.current.get(`${app}/${documentId}`), []);
+  const writeDocumentState = useCallback((app: PortfolioAppId, documentId: string, update: Partial<AppDocumentState>) => {
+    const key = `${app}/${documentId}`;
+    documents.current.set(key, { ...documents.current.get(key), ...update, documentId });
+  }, []);
   const backHandlers = useRef<Array<{ handler: BackHandler; key: string }>>([]);
+  const appLaunchers = useRef(new Map<PortfolioAppId, (documentId?: string) => void>());
+  const registerAppLauncher = useCallback((app: PortfolioAppId, launch: (documentId?: string) => void) => {
+    appLaunchers.current.set(app, launch);
+    return () => { if (appLaunchers.current.get(app) === launch) appLaunchers.current.delete(app); };
+  }, []);
+  const launchApp = useCallback((app: PortfolioAppId, documentId?: string) => {
+    const launch = appLaunchers.current.get(app);
+    if (!launch) return false;
+    launch(documentId);
+    return true;
+  }, []);
   const orderedOpen = useMemo(() => state.focus.filter((item) => state.open.includes(item)), [state.focus, state.open]);
   const activeWindow = orderedOpen.at(-1) ?? null;
   const activeApp = activeWindow ? appForWindow(activeWindow) : null;
@@ -291,40 +314,59 @@ export function WorkspaceManagerProvider({ children }: { children: ReactNode }) 
     const coarsePointer = typeof window.matchMedia === "function"
       ? window.matchMedia("(pointer: coarse)")
       : null;
-    const sync = () => dispatch({
-      type: "sync-mode",
-      mode: modeForViewport(
-        window.innerWidth,
-        window.innerHeight,
-        coarsePointer?.matches ?? false,
-      ),
-    });
+    const hover = typeof window.matchMedia === "function" ? window.matchMedia("(hover: hover)") : null;
+    const sync = () => {
+      const next = capabilitiesForWindow();
+      // Resize streams must not re-render every consumer when nothing material changed.
+      setCapabilities((current) => (
+        current.mode === next.mode && current.width === next.width && current.height === next.height
+          && current.coarsePointer === next.coarsePointer && current.hover === next.hover
+          && current.pairingEligible === next.pairingEligible
+          ? current
+          : next
+      ));
+      dispatch({ type: "sync-mode", mode: next.mode });
+    };
     sync();
     window.addEventListener("resize", sync);
     coarsePointer?.addEventListener("change", sync);
+    hover?.addEventListener("change", sync);
     return () => {
       window.removeEventListener("resize", sync);
       coarsePointer?.removeEventListener("change", sync);
+      hover?.removeEventListener("change", sync);
     };
   }, []);
 
-  useEffect(() => {
+  // Layout timing publishes the mode before child passive effects measure mode-dependent CSS.
+  // Values are overwritten in place: removing them between commits would let child layout
+  // effects (window geometry, minimize vectors) measure against unstyled system chrome.
+  useLayoutEffect(() => {
     document.documentElement.dataset.systemMode = state.mode;
     document.documentElement.dataset.systemSurface = state.surface;
     document.documentElement.dataset.systemApp = activeApp ?? "none";
-    return () => {
-      delete document.documentElement.dataset.systemMode;
-      delete document.documentElement.dataset.systemSurface;
-      delete document.documentElement.dataset.systemApp;
-    };
-  }, [activeApp, state.mode, state.surface]);
+    document.documentElement.dataset.workspacePaired = String(paired);
+  }, [activeApp, paired, state.mode, state.surface]);
+  // A phone keeps one history entry per visible level, so the page's Back and the system back
+  // gesture agree. Layout timing hands history over before any document syncs its stack.
+  useLayoutEffect(() => {
+    setWorkspaceStackManaged(state.modeReady && state.mode === "phone", portfolioTitle.default);
+  }, [state.mode, state.modeReady]);
+  useLayoutEffect(() => () => {
+    delete document.documentElement.dataset.systemMode;
+    delete document.documentElement.dataset.systemSurface;
+    delete document.documentElement.dataset.systemApp;
+    delete document.documentElement.dataset.workspacePaired;
+  }, []);
 
   const openWindow = useCallback((id: WorkspaceWindowId) => dispatch({ type: "open", id }), []);
   const closeWindow = useCallback((id: WorkspaceWindowId) => dispatch({ type: "close", id }), []);
   const focusWindow = useCallback((id: WorkspaceWindowId) => dispatch({ type: "focus", id }), []);
-  const showOnlyWindow = useCallback((id: WorkspaceWindowId) => dispatch({ type: "show-only", id }), []);
   const focusApp = useCallback((app: PortfolioAppId) => dispatch({ type: "focus-app", app }), []);
-  const closeApp = useCallback((app: PortfolioAppId) => dispatch({ type: "close-app", app }), []);
+  const closeApp = useCallback((app: PortfolioAppId) => {
+    for (const key of documents.current.keys()) if (key.startsWith(`${app}/`)) documents.current.delete(key);
+    dispatch({ type: "close-app", app });
+  }, []);
   const minimizeApp = useCallback((app: PortfolioAppId) => dispatch({ type: "minimize-app", app }), []);
   const minimizeWindow = useCallback((id: WorkspaceWindowId) => dispatch({ type: "minimize-window", id }), []);
   const goHome = useCallback(() => dispatch({ type: "surface", surface: "home" }), []);
@@ -336,18 +378,11 @@ export function WorkspaceManagerProvider({ children }: { children: ReactNode }) 
     const windows = state.open.filter((id) => appForWindow(id) === app);
     return windows.length > 0 && windows.every((id) => state.minimized.includes(id));
   }, [state.minimized, state.open]);
-  const stateFor = useCallback((id: WorkspaceWindowId) => workspaceWindowState(state, id), [state]);
+  const stateFor = useCallback((id: WorkspaceWindowId) => workspaceWindowState({ ...state, paired }, id), [paired, state]);
   const zIndexFor = useCallback((id: WorkspaceWindowId) => {
     const index = orderedOpen.indexOf(id);
     return index < 0 ? 0 : 24 + index * 8;
   }, [orderedOpen]);
-  const toggleApp = useCallback((app: PortfolioAppId) => {
-    if (state.surface === "application" && activeApp === app && activeWindow && !state.minimized.includes(activeWindow)) {
-      dispatch({ type: "minimize-app", app });
-      return;
-    }
-    dispatch({ type: "focus-app", app });
-  }, [activeApp, activeWindow, state.minimized, state.surface]);
   const registerBackHandler = useCallback((key: string, handler: BackHandler) => {
     backHandlers.current = [...backHandlers.current.filter((item) => item.key !== key), { key, handler }];
     return () => {
@@ -366,6 +401,12 @@ export function WorkspaceManagerProvider({ children }: { children: ReactNode }) 
   }, [activeWindow, state.surface]);
 
   const value = useMemo<WorkspaceManagerValue>(() => ({
+    capabilities,
+    modeReady: state.modeReady,
+    paired,
+    setPaired,
+    readDocumentState,
+    writeDocumentState,
     activeApp,
     activeWindow,
     closeApp,
@@ -385,13 +426,13 @@ export function WorkspaceManagerProvider({ children }: { children: ReactNode }) 
     openWindows: state.open,
     recentApps: state.recents,
     registerBackHandler,
+    registerAppLauncher,
+    launchApp,
     requestBack,
-    showOnlyWindow,
     stateFor,
     surface: state.surface,
-    toggleApp,
     zIndexFor,
-  }), [activeApp, activeWindow, closeApp, closeWindow, dismissRecents, focusApp, focusWindow, goHome, isAppOpen, isMinimized, isOpen, minimizeApp, minimizeWindow, openRecents, openWindow, registerBackHandler, requestBack, showOnlyWindow, state.mode, state.open, state.recents, state.surface, stateFor, toggleApp, zIndexFor]);
+  }), [launchApp, registerAppLauncher, capabilities, paired, readDocumentState, writeDocumentState, activeApp, activeWindow, closeApp, closeWindow, dismissRecents, focusApp, focusWindow, goHome, isAppOpen, isMinimized, isOpen, minimizeApp, minimizeWindow, openRecents, openWindow, registerBackHandler, requestBack, state.mode, state.modeReady, state.open, state.recents, state.surface, stateFor, zIndexFor]);
 
   return <WorkspaceManagerContext.Provider value={value}>{children}</WorkspaceManagerContext.Provider>;
 }
@@ -400,4 +441,8 @@ export function useWorkspaceManager() {
   const context = useContext(WorkspaceManagerContext);
   if (!context) throw new Error("useWorkspaceManager must be used inside WorkspaceManagerProvider");
   return context;
+}
+
+export function useOptionalWorkspaceManager() {
+  return useContext(WorkspaceManagerContext);
 }

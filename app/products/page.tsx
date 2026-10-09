@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import { PortfolioWorkspace } from "@/components/portfolio-workspace";
 import { PortfolioHeader } from "@/components/portfolio-header";
-import { ProductLinksRouteWindow } from "@/components/product-links-app";
 
 export const metadata: Metadata = {
   title: "Product links",
@@ -8,10 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function ProductLinksPage() {
-  return (
-    <>
-      <PortfolioHeader />
-      <ProductLinksRouteWindow />
-    </>
-  );
+  return <><PortfolioHeader /><PortfolioWorkspace initialProductsOpen /></>;
 }

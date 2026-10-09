@@ -11,6 +11,7 @@ import "@fontsource/ibm-plex-mono/latin-600.css";
 import "./globals.css";
 import "./design-tokens.css";
 import "./window-system.css";
+import "./environment.css";
 
 export const metadata: Metadata = {
   title: {

@@ -5,204 +5,41 @@ import Link from "next/link";
 import type { CSSProperties, MouseEvent, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowIcon, RewindIcon } from "./icons";
+import { ArrowIcon, ChevronIcon } from "./icons";
+import { CaseCover } from "./case-cover";
+import { CaseInstrument } from "./case-instrument";
+import { readableOutcome } from "../lib/instruments";
+import { findScrollOwner } from "./application-frame";
 import { useWindowFrame, windowResizeEdges } from "./use-window-frame";
 import { WindowChrome } from "./window-chrome";
+import { isWorkspaceTraversal, workspaceHistory, workspaceStackOf } from "../lib/workspace-navigation";
 import { useWorkspaceManager, type WorkspaceWindowId } from "./workspace-manager";
 import {
-  explainScenario,
   projectScenario,
+  resolveScenarioConditions,
   scenarios,
   type Conditions,
   type Evidence,
-  type ProjectionNode,
+  type ProjectionMode,
   type Scenario,
 } from "../lib/scenarios";
 
 type MotionPhase = "rest" | "rewind" | "reconstruct";
 type CaseSectionId = "context" | "replay" | "decision" | "evidence";
 
-export const caseSections: Array<{ id: CaseSectionId; index: string; label: string; note: string }> = [
-  { id: "context", index: "01", label: "Context", note: "Problem and consequence" },
-  { id: "replay", index: "02", label: "Replay", note: "Change one condition" },
-  { id: "decision", index: "03", label: "Decision", note: "Compare resulting state" },
-  { id: "evidence", index: "04", label: "Evidence", note: "Open proof and source" },
+/**
+ * The case reads as a complete account before it asks for interaction: the story (failure and
+ * decision), its result, then the simulator to try other conditions, then the evidence. The DOM
+ * follows this order on every device; no stylesheet reorders it.
+ */
+export const caseSections: Array<{ id: CaseSectionId; index: string; label: string }> = [
+  { id: "context", index: "01", label: "Story" },
+  { id: "decision", index: "02", label: "Result" },
+  { id: "replay", index: "03", label: "Try it" },
+  { id: "evidence", index: "04", label: "Evidence" },
 ];
 
-function readableOutcome(slug: Scenario["slug"], value: string) {
-  const labels: Record<string, string> = {
-    "payflow:REAPPLIED": "Payment updated again",
-    "payflow:UNCHANGED": "Payment stayed completed",
-    "payflow:PAID": "Payment completed",
-    "payflow:REVIEW REQUIRED": "Manual review needed",
-    "iyup:DEGRADING": "Degradation detected",
-    "iyup:HEALTHY": "Service operating normally",
-    "iyup:OUTAGE": "Outage detected",
-    "iyup:UNKNOWN": "Not enough telemetry",
-    "iyup:INCOMPLETE": "Health check misses degradation",
-    "iyup:ACTIONABLE": "Degradation visible before outage",
-    "iyup:INVESTIGATE COLLECTION": "Telemetry collection needs investigation",
-    "iyup:QUIET": "No warning raised",
-    "trustgate:ALLOW": "Allow action",
-    "trustgate:BLOCK": "Block action",
-    "trustgate:REQUIRE CONFIRMATION": "Ask for confirmation",
-  };
-  return labels[`${slug}:${value}`] ?? value.toLowerCase().replaceAll("_", " ");
-}
 
-function ScenarioSignature({
-  scenario,
-  conditions,
-  outcome,
-  activeKeys,
-}: {
-  scenario: Scenario;
-  conditions: Conditions;
-  outcome: string;
-  activeKeys: string[];
-}) {
-  const signatureGridStyle = {
-    gridTemplateColumns: "var(--causal-label-column) minmax(0, 1fr)",
-  } as CSSProperties;
-
-  if (scenario.slug === "payflow") {
-    const duplicate = conditions.delivery !== "once";
-    const order = conditions.delivery === "out-of-order" ? ["02", "01"] : ["01", "02"];
-    return (
-      <section className="scenario-signature signature-payflow" data-active-keys={activeKeys.join(" ")} aria-label="Callback identity comparison diagram" style={signatureGridStyle}>
-        <div className="signature-title"><span>Same input, different handling</span><p>Both lanes receive the same deliveries. The identity check changes only the second result.</p></div>
-        <div className="callback-comparison">
-          <div className="callback-head" aria-hidden="true"><span /><span>First delivery</span><span>Repeat</span><span>Boundary</span><span>Result</span></div>
-          <div className="callback-lane lane-unchecked">
-            <span className="lane-label">Without check</span><i className="callback-event">{order[0]}</i>{duplicate ? <i className="callback-event repeated">{order[1]}</i> : <i className="callback-event event-empty">—</i>}<em>No ID check</em><b>Payment updated again<small>State changed twice</small></b>
-          </div>
-          <div className="callback-lane lane-checked">
-            <span className="lane-label">With check</span><i className="callback-event">{order[0]}</i>{duplicate ? <i className="callback-event repeated">{order[1]}</i> : <i className="callback-event event-empty">—</i>}<em>Check callback ID</em><b>{readableOutcome("payflow", outcome)}<small>Delivery recorded; state changed once</small></b>
-          </div>
-        </div>
-        <div className="transaction-flags">
-          <span className="settlement-flag">Settlement <b>{conditions.settlement}</b></span>
-          <span className="persistence-flag">Audit <b>{conditions.persistence}</b></span>
-        </div>
-      </section>
-    );
-  }
-
-  if (scenario.slug === "iyup") {
-    const missing = conditions.scrape === "missing";
-    const latencyMap = {
-      normal: { value: 180, intervals: 0, action: "No action", state: "Normal", path: "M0 82 L25 78 L50 80 L75 76 L100 79" },
-      degraded: { value: 620, intervals: 1, action: "Investigate", state: "Degraded", path: "M0 82 L25 75 L50 78 L75 44 L100 38" },
-      severe: { value: 940, intervals: 3, action: "Escalate", state: "Severe", path: "M0 82 L25 69 L50 43 L75 24 L100 12" },
-    } as const;
-    const metric = latencyMap[conditions.latency as keyof typeof latencyMap] ?? latencyMap.normal;
-    const degraded = conditions.latency !== "normal";
-    return (
-      <section className={`scenario-signature signature-iyup health-${conditions.health} latency-${conditions.latency} alert-${conditions.alert} ${missing ? "has-gap" : ""} ${degraded ? "is-degraded" : ""}`} data-active-keys={activeKeys.join(" ")} aria-label="Service health and latency comparison diagram" style={signatureGridStyle}>
-        <div className="signature-title"><span>One timeline, three signals</span><p>Read the latency value against the 500 ms line, then check how long it stayed above it.</p></div>
-        <div className="latency-summary">
-          <span><small>State</small><b>{missing ? "Unknown" : metric.state}</b></span>
-          <span><small>Current P95</small><b>{missing ? "—" : `${metric.value} ms`}</b></span>
-          <span><small>Above threshold</small><b>{missing ? "Unknown" : `${metric.intervals} interval${metric.intervals === 1 ? "" : "s"}`}</b></span>
-          <span><small>Next action</small><b>{missing ? "Check collection" : metric.action}</b></span>
-        </div>
-        <div className="signal-plot">
-          <div className="latency-axis" aria-hidden="true"><span>1000</span><span>500</span><span>0 ms</span></div>
-          <svg className="latency-chart" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label={`${metric.value} milliseconds; ${metric.intervals} intervals above threshold`}>
-            <line x1="0" x2="100" y1="50" y2="50" className="threshold-line" />
-            {!missing ? <path d={metric.path} className="latency-trace" vectorEffect="non-scaling-stroke" /> : null}
-          </svg>
-          <span className="threshold-label">500 ms threshold</span>
-          <div className="signal-row health-row"><span>Health check</span><i /><b>{conditions.health}</b></div>
-          <div className="signal-row alert-row"><span>Alert</span><i /><b>{conditions.alert}</b></div>
-          <div className="timeline-labels" aria-hidden="true"><span>10:40</span><span>10:41</span><span>10:42</span><span>10:43</span></div>
-        </div>
-      </section>
-    );
-  }
-
-  const signals = [
-    ["Root", conditions.root],
-    ["Emulator", conditions.emulator],
-    ["Signature", conditions.signature],
-  ];
-  const suspicious = conditions.root !== "clear" || conditions.emulator === "detected";
-  const reason = outcome === "ALLOW"
-    ? suspicious
-      ? "The signal remains visible, but this action can continue at the current sensitivity."
-      : "No suspicious device signal was found."
-    : outcome === "BLOCK"
-      ? "The signal combination requires this action to be blocked."
-      : "A suspicious signal is present and this action is sensitive.";
-  const tryNext = conditions.root === "clear" ? "Try Root: Possible root signal" : "Compare with Root: No root signal";
-  return (
-    <section className="scenario-signature signature-trustgate" data-active-keys={activeKeys.join(" ")} aria-label="Device signal policy diagram" style={signatureGridStyle}>
-      <div className="signature-title"><span>Change evidence → watch the decision</span><p>{tryNext}. The explanation on the right updates with it.</p></div>
-      <div className="policy-flow">
-        <div className="policy-stage policy-evidence"><span className="stage-label">1 · Device evidence</span>{signals.map(([label, value]) => <div className={`signal-state-${value}`} key={label}><span>{label}</span><b>{value}</b></div>)}</div>
-        <i className="policy-connector" aria-hidden="true" />
-        <div className="policy-stage policy-context"><span className="stage-label">2 · Action context</span><div><span>Sensitivity</span><b>{conditions.sensitivity}</b></div></div>
-        <i className="policy-connector" aria-hidden="true" />
-        <div className={`policy-boundary outcome-${outcome.toLowerCase().replaceAll(" ", "-")}`}><span className="stage-label">3 · Policy decision</span><strong>{readableOutcome("trustgate", outcome)}</strong><p>{reason}</p></div>
-      </div>
-    </section>
-  );
-}
-
-function Projection({
-  label,
-  variantLabel,
-  nodes,
-  affectedIds,
-  phase,
-  outcomeNodeId,
-  evidence,
-  onOpenEvidence,
-}: {
-  label: "Baseline" | "Designed";
-  variantLabel: string;
-  nodes: ProjectionNode[];
-  affectedIds: string[];
-  phase: MotionPhase;
-  outcomeNodeId: string;
-  evidence?: Evidence;
-  onOpenEvidence?: (evidence: Evidence, trigger: HTMLElement) => void;
-}) {
-  return (
-    <section className={`projection projection-${label.toLowerCase()}`} aria-label={`${label} system projection`}>
-      <div className="projection-heading">
-        <p>{variantLabel}</p>
-        <span>{label === "Baseline" ? "Without the safeguard" : "With the safeguard"}</span>
-      </div>
-
-      <ol className="causal-list">
-        {nodes.map((item) => {
-          const distance = affectedIds.indexOf(item.id);
-          return (
-          <li
-            className={`causal-node tone-${item.tone} ${distance >= 0 ? "is-affected" : "is-stable"}`}
-            data-phase={phase}
-            key={item.id}
-            style={{ "--distance": Math.max(0, distance) } as CSSProperties}
-          >
-            <span className="causal-marker" aria-hidden="true" />
-            <div className="causal-copy">
-              <p className="causal-label">{item.label}</p>
-              <p className="causal-value">{item.value}</p>
-              <p className="causal-detail">{item.detail}</p>
-              {item.id === outcomeNodeId && evidence && onOpenEvidence ? (
-                <button className="node-evidence-link" onClick={(event) => onOpenEvidence(evidence, event.currentTarget)} type="button">
-                  View supporting evidence
-                </button>
-              ) : null}
-            </div>
-          </li>
-          );
-        })}
-      </ol>
-    </section>
-  );
-}
 
 function EvidenceDialog({
   evidence,
@@ -233,6 +70,9 @@ function EvidenceDialog({
   const closeTimerRef = useRef<number | null>(null);
   const closingRef = useRef(false);
   const [isClosing, setIsClosing] = useState(false);
+  // Screenshots are often wider than a phone; "Actual size" shows real pixels and pans.
+  const [zoomed, setZoomed] = useState(false);
+  const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
   const {
     dragging,
     frameRef,
@@ -256,25 +96,51 @@ function EvidenceDialog({
   }, [onClose]);
 
   useEffect(() => {
+    if (surface !== "application" || activeWindow !== evidenceWindowId) return;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     if (workspace.mode === "computer") {
       document.body.style.overflow = "hidden";
     }
     frameRef.current?.focus({ preventScroll: true });
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") requestClose();
+    const modal = workspace.mode !== "computer";
+    const sheet = frameRef.current;
+    const inertSiblings: Array<{ node: HTMLElement; inert: boolean }> = [];
+    if (modal && sheet) {
+      for (const child of Array.from(document.body.children)) {
+        // Shell visibility is React-owned; restoring its previous inert value would
+        // disable Home/Recents after the user navigates away from this viewer.
+        if (!(child instanceof HTMLElement) || child.contains(sheet) || child.matches(".phone-system-navigation, .tablet-shelf, .system-home-screen, .system-recents")) continue;
+        inertSiblings.push({ node: child, inert: child.inert });
+        child.inert = true;
+      }
+    }
+    const containFocus = (event: FocusEvent) => {
+      if (modal && sheet && event.target instanceof Node && !sheet.contains(event.target)) sheet.focus({ preventScroll: true });
     };
-    document.addEventListener("keydown", handleKey);
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); requestClose(); }
+      if (!modal || !sheet || event.key !== "Tab") return;
+      const targets = Array.from(sheet.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), select, textarea, summary, [tabindex="0"]')).filter((node) => window.getComputedStyle(node).display !== "none" && !node.closest("[inert]"));
+      const first = targets[0];
+      const last = targets.at(-1);
+      if (!first) { event.preventDefault(); sheet.focus(); return; }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === sheet)) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || document.activeElement === sheet)) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", handleKey, true);
+    document.addEventListener("focusin", containFocus);
     return () => {
-      document.removeEventListener("keydown", handleKey);
+      document.removeEventListener("keydown", handleKey, true);
+      document.removeEventListener("focusin", containFocus);
+      for (const { node, inert } of inertSiblings) node.inert = inert;
       document.body.style.overflow = previousOverflow;
       window.setTimeout(() => {
         const focusTarget = returnFocus?.isConnected ? returnFocus : previousFocus;
         focusTarget?.focus({ preventScroll: true });
       }, 0);
     };
-  }, [frameRef, requestClose, returnFocus, workspace.mode]);
+  }, [activeWindow, evidenceWindowId, frameRef, requestClose, returnFocus, surface, workspace.mode]);
 
   useEffect(() => registerBackHandler(`work-${evidenceWindowId}`, () => {
     if (activeWindow !== evidenceWindowId || surface !== "application") return false;
@@ -300,6 +166,8 @@ function EvidenceDialog({
     <div
       aria-labelledby={titleId}
       aria-modal={workspace.mode !== "computer"}
+      aria-hidden={workspace.stateFor(evidenceWindowId) === "background" || workspace.stateFor(evidenceWindowId) === "minimized" || undefined}
+      inert={workspace.stateFor(evidenceWindowId) === "background" || workspace.stateFor(evidenceWindowId) === "minimized"}
       className="evidence-dialog"
       data-app-id="work"
       data-closing={isClosing}
@@ -332,6 +200,7 @@ function EvidenceDialog({
         tabIndex={-1}
       >
         <WindowChrome
+          app="work"
           className="evidence-sheet-head"
           closeClassName="evidence-close-action"
           closeLabel="Close attached evidence"
@@ -339,6 +208,7 @@ function EvidenceDialog({
           label="Attached evidence"
           maximized={maximized}
           onClose={requestClose}
+          onCompactBack={workspace.mode === "phone" ? requestClose : undefined}
           onMinimize={() => minimizeWindow(evidenceWindowId)}
           onToggleMaximize={toggleMaximize}
           title={exhibitLabel}
@@ -357,22 +227,33 @@ function EvidenceDialog({
                 <dt>Source</dt>
                 <dd>Public project screenshot</dd>
               </div>
-              <div>
-                <dt>Interaction</dt>
-                <dd>{workspace.mode === "computer" ? "Esc or × returns to the case" : "System Back returns to the case"}</dd>
-              </div>
             </dl>
             <a className="evidence-original" href={evidence.src} target="_blank" rel="noopener noreferrer">
               Open original image <span className="sr-only">in a new tab</span> <ArrowIcon />
             </a>
           </aside>
-          <div className="evidence-stage">
-            <div className="evidence-stage-label" aria-hidden="true">
-              <span>Inspect</span>
-              <span>{evidence.focus}</span>
+          <div className="evidence-stage" data-zoomed={zoomed || undefined}>
+            <div className="evidence-stage-tools">
+              <button aria-pressed={zoomed} className="evidence-zoom" disabled={!natural} onClick={() => setZoomed((value) => !value)} type="button">
+                {zoomed ? "Fit to screen" : "Actual size"}
+              </button>
             </div>
-            <div className="evidence-image-wrap">
-              <Image src={evidence.src} alt={evidence.alt} className="evidence-image" fill loading="eager" sizes="(max-width: 760px) 100vw, 70vw" unoptimized />
+            <div
+              className="evidence-image-wrap"
+              onDoubleClick={() => { if (natural) setZoomed((value) => !value); }}
+              // The phone sizes the frame to the screenshot's own proportions instead of a fixed box.
+              style={zoomed && natural ? { aspectRatio: `${natural.width} / ${natural.height}`, inlineSize: `${natural.width}px` } as CSSProperties : natural ? { "--evidence-ratio": `${natural.width} / ${natural.height}` } as CSSProperties : undefined}
+            >
+              <Image
+                src={evidence.src}
+                alt={evidence.alt}
+                className="evidence-image"
+                fill
+                loading="eager"
+                onLoad={(event) => setNatural({ height: event.currentTarget.naturalHeight, width: event.currentTarget.naturalWidth })}
+                sizes="(max-width: 760px) 100vw, 70vw"
+                unoptimized
+              />
             </div>
           </div>
         </div>
@@ -412,21 +293,25 @@ export function DebuggerWorkspace({
     requestBack,
     surface,
   } = workspace;
-  const [conditions, setConditions] = useState<Conditions>(initialConditions);
-  const [selectedConditions, setSelectedConditions] = useState<Conditions>(initialConditions);
+  const [conditions, setConditions] = useState<Conditions>(() => resolveScenarioConditions(scenario, (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.conditions as Conditions) ?? initialConditions));
+  const [selectedConditions, setSelectedConditions] = useState<Conditions>(() => resolveScenarioConditions(scenario, (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.conditions as Conditions) ?? initialConditions));
   const [phase, setPhase] = useState<MotionPhase>("rest");
-  const [affectedIds, setAffectedIds] = useState<{ baseline: string[]; designed: string[] }>({ baseline: [], designed: [] });
-  const [activeKeys, setActiveKeys] = useState<string[]>([]);
   const [statusMessage, setStatusMessage] = useState("Replay ready.");
+  const [approach, setApproach] = useState<ProjectionMode>(() => (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.approach as ProjectionMode) === "baseline" ? "baseline" : "designed");
   const [evidence, setEvidence] = useState<Evidence | null>(null);
   const [activeSection, setActiveSection] = useState<CaseSectionId>("context");
   const [isClosing, setIsClosing] = useState(false);
+  const [pageVisible, setPageVisible] = useState(true);
+  const resolvedConditions = useMemo(() => resolveScenarioConditions(scenario, conditions), [conditions, scenario]);
+  const resolvedSelectedConditions = useMemo(() => resolveScenarioConditions(scenario, selectedConditions), [scenario, selectedConditions]);
   const timers = useRef<number[]>([]);
   const caseScrollFrame = useRef<number | null>(null);
   const closeTimerRef = useRef<number | null>(null);
+  const embeddedFrameRef = useRef<HTMLDivElement>(null);
   const evidenceTriggerRef = useRef<HTMLElement | null>(null);
+  const previousScenarioSlugRef = useRef(scenario.slug);
   const workspaceClosingRef = useRef(false);
-  const targetConditions = useRef<Conditions>(initialConditions);
+  const targetConditions = useRef<Conditions>(resolveScenarioConditions(scenario, (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.conditions as Conditions) ?? initialConditions));
   const workspaceTitleRef = useRef<HTMLHeadingElement>(null);
   const {
     dragging,
@@ -438,7 +323,7 @@ export function DebuggerWorkspace({
     style,
     titlebarProps,
     toggleMaximize,
-  } = useWindowFrame({ defaultHeight: 820, defaultWidth: 1360, minHeight: 460, minWidth: 700 });
+  } = useWindowFrame({ enabled: !embedded, defaultHeight: 820, defaultWidth: 1360, minHeight: 460, minWidth: 420 });
   const hostWindowId: WorkspaceWindowId = workspaceWindowId ?? (embedded ? "case" : "detail");
 
   const openEvidence = useCallback((item: Evidence, trigger: HTMLElement) => {
@@ -452,16 +337,98 @@ export function DebuggerWorkspace({
     window.setTimeout(() => trigger?.focus({ preventScroll: true }), 80);
   }, []);
 
-  const scrollFrame = useCallback(
-    () => embedded ? scrollContainerRef?.current ?? null : frameRef.current,
-    [embedded, frameRef, scrollContainerRef],
-  );
+  // On a phone, attached evidence is its own history level: the browser's Back (or the system
+  // back gesture) closes it onto its case, and Forward opens it again.
+  useEffect(() => {
+    if (workspace.mode !== "phone") return;
+    const syncEvidence = (event: PopStateEvent) => {
+      if (isWorkspaceTraversal(event)) return;
+      const overlay = workspaceStackOf(event.state)?.at(-1)?.key.split(">")[1];
+      const index = overlay?.startsWith(`evidence-${scenario.slug}-`) ? Number(overlay.slice(-2)) - 1 : -1;
+      const item = scenario.evidence[index];
+      if (item && item.src !== evidence?.src) {
+        evidenceTriggerRef.current = null;
+        setEvidence(item);
+      } else if (!item && evidence) setEvidence(null);
+    };
+    window.addEventListener("popstate", syncEvidence);
+    return () => window.removeEventListener("popstate", syncEvidence);
+  }, [evidence, scenario, workspace.mode]);
+
+  const scrollFrame = useCallback(() => {
+    // Embedded documents share the host frame's scroll owner lookup.
+    if (embedded) return findScrollOwner(scrollContainerRef?.current ?? embeddedFrameRef.current);
+
+    const frame = frameRef.current;
+    if (!frame) return null;
+
+    const overflowY = window.getComputedStyle(frame).overflowY;
+    const ownsScrolling = /auto|scroll|overlay/.test(overflowY) && frame.scrollHeight > frame.clientHeight;
+    return ownsScrolling ? frame : (document.scrollingElement as HTMLElement | null) ?? frame;
+  }, [embedded, frameRef, scrollContainerRef]);
+
+  useEffect(() => {
+    const sync = () => setPageVisible(document.visibilityState !== "hidden");
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => document.removeEventListener("visibilitychange", sync);
+  }, []);
+  const hostState = workspace.stateFor(hostWindowId);
+  const onScreen = pageVisible && (hostState === "active" || hostState === "clear");
+
+  const { readDocumentState, writeDocumentState } = workspace;
+  useEffect(() => {
+    if (previousScenarioSlugRef.current !== scenario.slug) return;
+    writeDocumentState("work", `case:${scenario.slug}`, { data: { approach, conditions: resolvedSelectedConditions } });
+    // A restored non-default selection must be addressable: keep the query in step so a refresh reconstructs it.
+    if (window.location.pathname === `/case/${scenario.slug}`) {
+      const params = new URLSearchParams();
+      for (const control of scenario.controls) {
+        if (resolvedSelectedConditions[control.key] !== scenario.defaults[control.key]) params.set(control.key, resolvedSelectedConditions[control.key]);
+      }
+      const query = params.toString();
+      const next = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
+      if (next !== `${window.location.pathname}${window.location.search}${window.location.hash}`) workspaceHistory.replaceState(null, "", next);
+    }
+  }, [approach, resolvedSelectedConditions, scenario, writeDocumentState]);
+
+  useEffect(() => {
+    // The host ApplicationFrame owns scroll records for embedded cases; only the
+    // self-hosted workspace keeps its own.
+    if (embedded) return;
+    const container = scrollFrame();
+    const saved = readDocumentState("work", `case:${scenario.slug}`)?.scroll;
+    if (container && saved && !window.location.hash) container.scrollTo({ top: saved, behavior: "auto" });
+    const remember = () => writeDocumentState("work", `case:${scenario.slug}`, { scroll: container?.scrollTop ?? 0 });
+    container?.addEventListener("scroll", remember, { passive: true });
+    return () => container?.removeEventListener("scroll", remember);
+  }, [embedded, scenario.slug, scrollFrame, workspace.mode, readDocumentState, writeDocumentState]);
 
   useEffect(() => () => {
     timers.current.forEach(window.clearTimeout);
     if (caseScrollFrame.current) window.cancelAnimationFrame(caseScrollFrame.current);
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    if (previousScenarioSlugRef.current === scenario.slug) return;
+    const nextConditions = resolveScenarioConditions(scenario, (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.conditions as Conditions) ?? initialConditions);
+    const resetTimer = window.setTimeout(() => {
+      previousScenarioSlugRef.current = scenario.slug;
+      timers.current.forEach(window.clearTimeout);
+      timers.current = [];
+      targetConditions.current = nextConditions;
+      setConditions(nextConditions);
+      setSelectedConditions(nextConditions);
+      setPhase("rest");
+      setEvidence(null);
+      setActiveSection("context");
+      setStatusMessage("Replay ready.");
+    }, 0);
+    return () => window.clearTimeout(resetTimer);
+  // `initialConditions` is an initial snapshot; project identity owns the reset boundary.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scenario.slug]);
 
   const requestWorkspaceClose = useCallback(() => {
     if (!onClose || workspaceClosingRef.current) return;
@@ -499,12 +466,16 @@ export function DebuggerWorkspace({
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || evidence) return;
+      // Only the foreground Projects case answers; other applications own their own Escape.
+      if (event.key !== "Escape" || event.defaultPrevented || surface !== "application") return;
+      if (activeWindow !== hostWindowId && !activeWindow?.startsWith("evidence-")) return;
+      // The focused evidence sheet handles Escape itself; a de-focused sheet still closes before the case.
+      if (evidence) { closeEvidence(); return; }
       requestBack();
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [evidence, requestBack]);
+  }, [activeWindow, closeEvidence, evidence, hostWindowId, requestBack, surface]);
 
   useEffect(() => {
     let ticking = false;
@@ -513,14 +484,19 @@ export function DebuggerWorkspace({
       const container = scrollFrame();
       const chromeHeight = container?.querySelector<HTMLElement>(embedded ? ".portfolio-window-chrome" : ".case-workspace-chrome")?.getBoundingClientRect().height ?? 0;
       const progressHeight = container?.querySelector<HTMLElement>(".case-progress")?.getBoundingClientRect().height ?? 0;
-      const readLine = chromeHeight + progressHeight + 36;
+      // A chapter is current once its top passes a line 30% down the readable area, so a section
+      // that fills most of the view is the one named; at the end of the document the last
+      // chapter whose top is on screen wins, even when it is too short to reach the line.
+      const readable = (container?.clientHeight ?? 0) - chromeHeight - progressHeight;
+      const readLine = chromeHeight + progressHeight + Math.max(36, readable * .3);
+      const atEnd = container ? container.scrollHeight > container.clientHeight && container.scrollTop + container.clientHeight >= container.scrollHeight - 2 : false;
       let nextActive = caseSections[0].id;
 
       for (const section of caseSections) {
         const node = container?.querySelector<HTMLElement>(`#${section.id}`);
         if (!node) continue;
         const top = node.getBoundingClientRect().top - (container?.getBoundingClientRect().top ?? 0);
-        if (top <= readLine) {
+        if (top <= readLine || (atEnd && top < (container?.clientHeight ?? 0))) {
           nextActive = section.id;
         }
       }
@@ -541,33 +517,31 @@ export function DebuggerWorkspace({
       containerNode?.removeEventListener("scroll", requestRead);
       window.removeEventListener("resize", requestRead);
     };
-  }, [embedded, scrollFrame]);
+  }, [embedded, scrollFrame, workspace.mode]);
 
   useEffect(() => {
     const requestedSection = window.location.hash.slice(1) as CaseSectionId;
     if (!caseSections.some((section) => section.id === requestedSection)) return;
     const routeBase = `${window.location.pathname}${window.location.search}`;
-    window.history.replaceState(null, "", routeBase);
     let cancelled = false;
-    const settleTimers: number[] = [];
+    let observer: ResizeObserver | undefined;
     const cancelSettling = () => {
       cancelled = true;
-      settleTimers.forEach((timer) => window.clearTimeout(timer));
+      observer?.disconnect();
     };
     const activeFrame = scrollFrame();
     const alignRequestedSection = () => {
       if (cancelled) return;
       scrollContainerToSection(requestedSection, "auto");
       setActiveSection(requestedSection);
-      window.history.replaceState(null, "", `${routeBase}#${requestedSection}`);
+      workspaceHistory.replaceState(null, "", `${routeBase}#${requestedSection}`);
     };
     const firstFrame = window.requestAnimationFrame(() => {
       alignRequestedSection();
-      settleTimers.push(
-        window.setTimeout(alignRequestedSection, 180),
-        window.setTimeout(alignRequestedSection, 720),
-        window.setTimeout(alignRequestedSection, 1000),
-      );
+      if (typeof ResizeObserver !== "undefined" && activeFrame) {
+        observer = new ResizeObserver(alignRequestedSection);
+        observer.observe(activeFrame);
+      }
       void document.fonts?.ready.then(alignRequestedSection);
     });
     activeFrame?.addEventListener("pointerdown", cancelSettling, { once: true });
@@ -576,7 +550,7 @@ export function DebuggerWorkspace({
     return () => {
       cancelled = true;
       window.cancelAnimationFrame(firstFrame);
-      settleTimers.forEach((timer) => window.clearTimeout(timer));
+      observer?.disconnect();
       activeFrame?.removeEventListener("pointerdown", cancelSettling);
       activeFrame?.removeEventListener("touchstart", cancelSettling);
       activeFrame?.removeEventListener("wheel", cancelSettling);
@@ -585,40 +559,19 @@ export function DebuggerWorkspace({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenario.slug, workspace.mode]);
 
-  const baseline = useMemo(
-    () => projectScenario(scenario.slug, conditions, "baseline"),
-    [scenario.slug, conditions],
-  );
-  const designed = useMemo(
-    () => projectScenario(scenario.slug, conditions, "designed"),
-    [scenario.slug, conditions],
-  );
-  const audit = useMemo(
-    () => explainScenario(scenario, conditions, baseline, designed),
-    [scenario, conditions, baseline, designed],
-  );
-  const baselineOutcome = baseline.find((item) => item.id === scenario.outcomeNodeId)?.value ?? "Unknown";
-  const designedOutcome = designed.find((item) => item.id === scenario.outcomeNodeId)?.value ?? "Unknown";
-  const baselineOutcomeLabel = readableOutcome(scenario.slug, baselineOutcome);
-  const designedOutcomeLabel = readableOutcome(scenario.slug, designedOutcome);
-  const primaryKey = scenario.slug === "payflow" ? "delivery" : scenario.slug === "iyup" ? "latency" : "root";
-  const primaryControl = scenario.controls.find((control) => control.key === primaryKey) ?? scenario.controls[0];
-  const advancedControls = scenario.controls.filter((control) => control.key !== primaryControl.key);
-  const explorableControls = scenario.slug === "payflow" ? scenario.controls : advancedControls;
-  const isDefault = scenario.controls.every((control) => selectedConditions[control.key] === scenario.defaults[control.key]);
-  const caseCategory = scenario.slug === "payflow" ? "Payment reliability" : scenario.slug === "iyup" ? "Service observability" : "Android device trust";
+  // The Result chapter reports the story's own conditions; the simulator below it reports
+  // whatever the visitor sets, so the two never contradict each other.
+  const storyOutcome = useMemo(() => {
+    const read = (mode: "baseline" | "designed") => readableOutcome(scenario.slug, projectScenario(scenario.slug, scenario.defaults, mode).find((item) => item.id === scenario.outcomeNodeId)?.value ?? "Unknown");
+    return { baseline: read("baseline"), designed: read("designed") };
+  }, [scenario]);
+  const baselineOutcomeLabel = storyOutcome.baseline;
+  const designedOutcomeLabel = storyOutcome.designed;
+  const isDefault = scenario.controls.every((control) => resolvedSelectedConditions[control.key] === scenario.defaults[control.key]);
+  const caseCategory = scenario.category;
   const scenarioIndex = Math.max(0, scenarios.findIndex((item) => item.slug === scenario.slug));
   const previousScenario = scenarios[(scenarioIndex - 1 + scenarios.length) % scenarios.length];
   const nextScenario = scenarios[(scenarioIndex + 1) % scenarios.length];
-
-  function changedNodeIds(previous: ProjectionNode[], next: ProjectionNode[]) {
-    return next
-      .filter((item, index) => {
-        const before = previous[index];
-        return !before || before.value !== item.value || before.detail !== item.detail || before.tone !== item.tone;
-      })
-      .map((item) => item.id);
-  }
 
   function updateUrl(next: Conditions) {
     const params = new URLSearchParams();
@@ -629,95 +582,59 @@ export function DebuggerWorkspace({
     }
     const query = params.toString();
     const hash = window.location.hash;
-    window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${hash}`);
+    workspaceHistory.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${hash}`);
   }
 
-  function changeCondition(key: string, value: string, force = false) {
-    if (targetConditions.current[key] === value && !force) return;
-    const next = { ...targetConditions.current, [key]: value };
-    targetConditions.current = next;
-    setSelectedConditions(next);
-    const changedKeys = force
-      ? [key]
-      : scenario.controls.map((control) => control.key).filter((controlKey) => conditions[controlKey] !== next[controlKey]);
-    const nextBaseline = projectScenario(scenario.slug, next, "baseline");
-    const nextDesigned = projectScenario(scenario.slug, next, "designed");
-    const nextOutcome = nextDesigned.find((item) => item.id === scenario.outcomeNodeId)?.value ?? "Unknown";
-    const forcedAffected = scenario.dependencies[key] ?? [];
-    const nextAffected = force
-      ? { baseline: forcedAffected, designed: forcedAffected }
-      : { baseline: changedNodeIds(baseline, nextBaseline), designed: changedNodeIds(designed, nextDesigned) };
+  function resultFor(next: Conditions, mode: ProjectionMode) {
+    const value = projectScenario(scenario.slug, next, mode).find((item) => item.id === scenario.outcomeNodeId)?.value ?? "Unknown";
+    return readableOutcome(scenario.slug, value);
+  }
+
+  /** Applies new conditions with a short settle so the change reads as cause, then effect. */
+  function settle(next: Conditions, message: string) {
     timers.current.forEach(window.clearTimeout);
     timers.current = [];
-    setAffectedIds(nextAffected);
-    setActiveKeys(changedKeys);
-
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setConditions(next);
       updateUrl(next);
       setPhase("rest");
-      setAffectedIds({ baseline: [], designed: [] });
-      setActiveKeys([]);
-      setStatusMessage(`${scenario.controls.find((control) => control.key === key)?.label} changed. Result: ${readableOutcome(scenario.slug, nextOutcome)}.`);
+      setStatusMessage(message);
       return;
     }
-
     setPhase("rewind");
     timers.current.push(
       window.setTimeout(() => {
         setConditions(next);
         updateUrl(next);
         setPhase("reconstruct");
-      }, 200),
+      }, 120),
       window.setTimeout(() => {
         setPhase("rest");
-        setAffectedIds({ baseline: [], designed: [] });
-        setActiveKeys([]);
-        setStatusMessage(`${scenario.controls.find((control) => control.key === key)?.label} changed. Result: ${readableOutcome(scenario.slug, nextOutcome)}.`);
-      }, 880),
+        setStatusMessage(message);
+      }, 420),
     );
   }
 
+  function changeCondition(key: string, value: string) {
+    if (targetConditions.current[key] === value) return;
+    const next = { ...targetConditions.current, [key]: value };
+    targetConditions.current = next;
+    setSelectedConditions(next);
+    const label = scenario.controls.find((control) => control.key === key)?.label ?? "Condition";
+    settle(next, `${label} changed. Result: ${resultFor(next, approach)}.`);
+  }
+
+  function changeApproach(mode: ProjectionMode) {
+    if (mode === approach) return;
+    setApproach(mode);
+    setStatusMessage(`${mode === "designed" ? scenario.designedLabel : scenario.baselineLabel}. Result: ${resultFor(targetConditions.current, mode)}.`);
+  }
+
   function reset() {
-    const changedKeys = scenario.controls
-      .map((control) => control.key)
-      .filter((key) => targetConditions.current[key] !== scenario.defaults[key]);
-    if (changedKeys.length === 0) return;
-    const resetBaseline = projectScenario(scenario.slug, scenario.defaults, "baseline");
-    const resetDesigned = projectScenario(scenario.slug, scenario.defaults, "designed");
-    const resetAffected = {
-      baseline: changedNodeIds(baseline, resetBaseline),
-      designed: changedNodeIds(designed, resetDesigned),
-    };
-    timers.current.forEach(window.clearTimeout);
-    timers.current = [];
+    if (scenario.controls.every((control) => targetConditions.current[control.key] === scenario.defaults[control.key])) return;
     targetConditions.current = scenario.defaults;
     setSelectedConditions(scenario.defaults);
-    setAffectedIds(resetAffected);
-    setActiveKeys(changedKeys);
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setConditions(scenario.defaults);
-      updateUrl(scenario.defaults);
-      setPhase("rest");
-      setAffectedIds({ baseline: [], designed: [] });
-      setActiveKeys([]);
-      setStatusMessage("Scenario reset.");
-      return;
-    }
-    setPhase("rewind");
-    timers.current.push(
-      window.setTimeout(() => {
-        setConditions(scenario.defaults);
-        updateUrl(scenario.defaults);
-        setPhase("reconstruct");
-      }, 200),
-      window.setTimeout(() => {
-        setPhase("rest");
-        setAffectedIds({ baseline: [], designed: [] });
-        setActiveKeys([]);
-        setStatusMessage("Scenario reset.");
-      }, 880),
-    );
+    settle(scenario.defaults, `Conditions reset. Result: ${resultFor(scenario.defaults, approach)}.`);
   }
 
   function scrollContainerToSection(sectionId: CaseSectionId, behavior: ScrollBehavior) {
@@ -753,7 +670,7 @@ export function DebuggerWorkspace({
     event.preventDefault();
     setActiveSection(sectionId);
     scrollContainerToSection(sectionId, "smooth");
-    window.history.replaceState(null, "", `#${sectionId}`);
+    workspaceHistory.replaceState(null, "", `#${sectionId}`);
   }
 
   const WorkspaceElement = embedded ? "div" : "main";
@@ -775,8 +692,9 @@ export function DebuggerWorkspace({
           if ((event.target as Element).closest(".evidence-dialog")) return;
           if (activeWindow !== hostWindowId) focusWindow(hostWindowId);
         }}
-        ref={embedded ? undefined : (node) => {
-          frameRef.current = node;
+        ref={(node) => {
+          if (embedded) embeddedFrameRef.current = node as HTMLDivElement | null;
+          else frameRef.current = node;
         }}
         style={embedded ? undefined : { ...style, "--window-z": workspace.zIndexFor("detail") } as CSSProperties}
         suppressHydrationWarning
@@ -787,19 +705,19 @@ export function DebuggerWorkspace({
             {onSelectScenario ? <button onClick={() => onSelectScenario(previousScenario.slug)} type="button">Previous</button> : <Link href={`/case/${previousScenario.slug}`}>Previous</Link>}
             {onSelectScenario ? <button onClick={() => onSelectScenario(nextScenario.slug)} type="button">Next</button> : <Link href={`/case/${nextScenario.slug}`}>Next</Link>}
           </div>}
+          app="work"
           aria-label="Project workspace"
           className="case-workspace-chrome"
           closeClassName="case-close-action"
           closeHref={onClose ? undefined : "/#selected-work"}
           closeLabel={onClose ? "Close project detail" : "Close project and return to the project list"}
-          label="Project"
+          label="Projects"
           locationClassName="case-location"
           maximized={maximized}
           onClose={onClose ? requestWorkspaceClose : undefined}
           onMinimize={() => minimizeWindow(hostWindowId)}
           onToggleMaximize={toggleMaximize}
-          subtitle={scenario.shortTitle}
-          title={`${scenario.number} / ${String(scenarios.length).padStart(2, "0")} · ${caseCategory}`}
+          title={caseCategory}
           {...titlebarProps}
         /> : null}
         {!embedded ? windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />) : null}
@@ -811,128 +729,51 @@ export function DebuggerWorkspace({
               key={section.id}
               onClick={(event) => scrollToCaseSection(event, section.id)}
             >
-              <span>{section.index}</span>
               <b>{section.label}</b>
-              <small>{section.note}</small>
             </a>
           ))}
         </nav>
-        <section className="case-intro" id="context">
-          <div className="case-index-block">
-            <p className="case-short-title" style={{ viewTransitionName: `case-number-${scenario.slug}` } as CSSProperties}>{caseCategory}</p>
-          </div>
-          <div className="case-thesis">
+        <section className="case-intro" data-case={scenario.slug} id="context">
+          <header className="case-thesis">
+            <p className="case-position">Case {scenarios.findIndex((item) => item.slug === scenario.slug) + 1} of {scenarios.length}</p>
             <h1 ref={workspaceTitleRef} tabIndex={-1} style={{ viewTransitionName: `case-title-${scenario.slug}` } as CSSProperties}>{scenario.title}</h1>
             <p className="case-consequence">{scenario.consequence}</p>
+          </header>
+          <div className="case-narrative">
+            <p className="case-situation">{scenario.premise}</p>
+            <p className="case-decision-line"><span>Decision</span>{scenario.decision}</p>
           </div>
-          <p className="case-premise">{scenario.premise}</p>
+          <figure className="case-figure">
+            <CaseCover slug={scenario.slug} />
+            <figcaption>Schematic, not measured data.</figcaption>
+          </figure>
         </section>
 
-        <section className="case-facts" aria-label="Case summary">
-          <div><span>Outcome</span><p>{scenario.outcome}</p></div>
-          <div><span>Decision</span><p>{scenario.decision}</p></div>
-          <div><span>Built with</span><p>{scenario.technology}</p></div>
-          <a href={scenario.repo} target="_blank" rel="noopener noreferrer">
-            Source code <span className="sr-only">opens in a new tab</span> <ArrowIcon />
-          </a>
-        </section>
-
-        <div className="case-interaction" id="replay">
-        <section className="assumption-panel" aria-label="Replay conditions">
-          <div className="assumption-heading">
-            <div>
-              <h2 className="interaction-title">Replay the behavior</h2>
-              <p>Change one condition and watch the affected state.</p>
-            </div>
-            {!isDefault ? <button className="text-button reset-button" onClick={reset} type="button">
-              <RewindIcon /> Reset
-            </button> : null}
-          </div>
-
-          {scenario.slug === "payflow" ? (
-            <div className="guided-case-action">
-              <button className="primary-action case-replay-action" onClick={() => changeCondition("delivery", "duplicate", true)} type="button">
-                Replay duplicate callback <ArrowIcon />
-              </button>
-              <p>Watch the repeated delivery stop before payment state changes again.</p>
-            </div>
-          ) : <fieldset className="condition-control primary-condition">
-            <legend>{primaryControl.label}</legend>
-            <div className="condition-options">
-              {primaryControl.options.map((option) => (
-                <button aria-pressed={selectedConditions[primaryControl.key] === option.value} className="condition-option" key={option.value} onClick={() => changeCondition(primaryControl.key, option.value)} type="button">
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </fieldset>}
-
-          {scenario.slug === "trustgate" ? <p className="interaction-guidance">Change one device signal. Watch how the policy decision and its explanation update.</p> : null}
-
-          <details className="advanced-conditions">
-            <summary>{scenario.slug === "payflow" ? "Try another delivery order" : "Explore other conditions"}</summary>
-            <div className="control-grid">
-              {explorableControls.map((control) => (
-                <fieldset className="condition-control" key={control.key}>
-                  <legend>{control.label}</legend>
-                  <div className="condition-options">
-                    {control.options.map((option) => (
-                      <button aria-pressed={selectedConditions[control.key] === option.value} className="condition-option" key={option.value} onClick={() => changeCondition(control.key, option.value)} type="button">
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-              ))}
-            </div>
-          </details>
-        </section>
-
-        <div className="signature-stage" aria-busy={phase !== "rest"}>
-          <ScenarioSignature scenario={scenario} conditions={conditions} outcome={designedOutcome} activeKeys={activeKeys} />
+        <div className="mobile-outcome-strip case-result" id="decision" role="group" aria-label="Outcome comparison">
+          <p className="case-result-note">{scenario.outcome}</p>
+          <div data-path="baseline"><span>{scenario.baselineLabel}</span><strong>{baselineOutcomeLabel}</strong></div>
+          <div data-path="designed"><span>{scenario.designedLabel}</span><strong>{designedOutcomeLabel}</strong></div>
+          <p className="case-limits"><span>Limits</span>{scenario.limitation}</p>
         </div>
-        </div>
+
+        <CaseInstrument
+          approach={approach}
+          conditions={resolvedConditions}
+          foreground={onScreen}
+          isDefault={isDefault}
+          onApproachChange={changeApproach}
+          onChange={changeCondition}
+          onReset={reset}
+          phase={phase}
+          scenario={scenario}
+          selectedConditions={resolvedSelectedConditions}
+        />
 
         <p className="sr-only" role="status" aria-live="polite">{statusMessage}</p>
-        <div className="mobile-outcome-strip" id="decision" aria-label="Outcome comparison">
-          <div><span>Without safeguard</span><strong>{baselineOutcomeLabel}</strong></div>
-          <div><span>With safeguard</span><strong>{designedOutcomeLabel}</strong></div>
-        </div>
-        <details className="debugger-details">
-          <summary><span>Open state trace</span><small>Compare baseline, designed path, and audit tape</small></summary>
-        <section className="debugger-shell">
-          <div className="debugger-projections">
-            <Projection label="Baseline" variantLabel={scenario.baselineLabel} nodes={baseline} affectedIds={affectedIds.baseline} phase={phase} outcomeNodeId={scenario.outcomeNodeId} />
-            <div className="divergence-seam" aria-hidden="true">
-              <span>decision point</span>
-            </div>
-            <Projection label="Designed" variantLabel={scenario.designedLabel} nodes={designed} affectedIds={affectedIds.designed} phase={phase} outcomeNodeId={scenario.outcomeNodeId} evidence={scenario.evidence[0]} onOpenEvidence={openEvidence} />
-          </div>
-
-          <aside className="audit-tape" aria-label="Audit explanation">
-            <div className="audit-heading">
-              <p className="micro-label">Why the result changed</p>
-              <span>{phase === "rest" ? "Ready" : phase === "rewind" ? "Revising" : "Updating"}</span>
-            </div>
-            <ol>
-              {audit.map((entry, index) => (
-                <li key={entry.label}>
-                  <span>{String(index + 1).padStart(2, "0")}</span>
-                  <div>
-                    <p>{entry.label}</p>
-                    <p>{entry.text}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </aside>
-        </section>
-        </details>
 
         <section className="case-evidence" id="evidence">
           <div className="evidence-intro">
-            <p className="micro-label">Code and evidence</p>
-            <h2>Check the implementation behind the result.</h2>
+            <h2>Source and evidence</h2>
             <p>{scenario.technology}</p>
             <a className="inline-link" href={scenario.repo} target="_blank" rel="noopener noreferrer">
               Open repository <span className="sr-only">in a new tab</span> <ArrowIcon />
@@ -947,30 +788,26 @@ export function DebuggerWorkspace({
                   <Image src={item.src} alt="" className="evidence-thumb-image" fill loading={index === 0 ? "eager" : "lazy"} sizes="(max-width: 800px) 90vw, 30vw" />
                 </span>
                 <span className="evidence-caption">{item.caption}</span>
-                <span className="evidence-view">Open evidence <ArrowIcon /></span>
+                <span className="evidence-view">Open evidence <ChevronIcon direction="right" /></span>
               </button>
             ))}
           </div>
         </section>
 
         <section className="case-handoff">
-          <div>
-            <p className="micro-label">Scope of this example</p>
-            <p>{scenario.limitation}</p>
-          </div>
           {onSelectScenario ? (
             scenario.slug === "trustgate" ? (
-              <button className="solid-link" onClick={() => focusApp("experience")} type="button">
-                Read the work summary <ArrowIcon />
+              <button className="solid-link" onClick={() => { if (!workspace.launchApp("experience")) focusApp("experience"); }} type="button">
+                Open Experience <ChevronIcon direction="right" />
               </button>
             ) : (
               <button className="solid-link" onClick={() => onSelectScenario(nextScenario.slug)} type="button">
-                {scenario.slug === "payflow" ? "Next: Detect degradation" : "Next: Evaluate device trust"} <ArrowIcon />
+                {scenario.slug === "payflow" ? "Next: Detect degradation" : "Next: Evaluate device trust"} <ChevronIcon direction="right" />
               </button>
             )
           ) : (
             <Link className="solid-link" href={scenario.slug === "payflow" ? "/case/iyup" : scenario.slug === "iyup" ? "/case/trustgate" : "/brief"}>
-              {scenario.slug === "payflow" ? "Next: Detect degradation" : scenario.slug === "iyup" ? "Next: Evaluate device trust" : "Read the work summary"} <ArrowIcon />
+              {scenario.slug === "payflow" ? "Next: Detect degradation" : scenario.slug === "iyup" ? "Next: Evaluate device trust" : "Open Experience"} <ChevronIcon direction="right" />
             </Link>
           )}
         </section>

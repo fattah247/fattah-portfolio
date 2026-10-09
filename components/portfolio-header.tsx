@@ -1,19 +1,23 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { usePathname } from "next/navigation";
 import { ArrowIcon } from "@/components/icons";
 import { CopyEmailButton } from "@/components/copy-email-button";
 import { SystemShell } from "@/components/system-shell";
-import { useWindowFrame, windowResizeEdges } from "@/components/use-window-frame";
+import { useWindowFrame } from "@/components/use-window-frame";
+import { ApplicationFrame } from "./application-frame";
+import { displayHandle, portfolioIdentity } from "../lib/portfolio-identity";
 import { WindowChrome } from "@/components/window-chrome";
 import { useWorkspaceManager } from "@/components/workspace-manager";
+import { OwnerMark } from "@/components/app-icons";
 
 function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }) {
   const workspace = useWorkspaceManager();
   const closeRef = useRef<HTMLButtonElement>(null);
   const closeTimerRef = useRef<number | null>(null);
   const closingRef = useRef(false);
+  const foregroundRef = useRef(false);
+  foregroundRef.current = workspace.activeWindow === "contact" && workspace.surface === "application";
   const [isClosing, setIsClosing] = useState(false);
   const {
     dragging,
@@ -25,14 +29,15 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
     style,
     titlebarProps,
     toggleMaximize,
-  } = useWindowFrame({ defaultHeight: 500, defaultWidth: 520, minHeight: 320, minWidth: 360 });
+  } = useWindowFrame({ appId: "contact", enabled: open, defaultHeight: 500, defaultWidth: 520, minHeight: 320, minWidth: 360 });
 
   useEffect(() => {
     if (!open) return;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     frameRef.current?.focus({ preventScroll: true });
     const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") requestClose();
+      // A background Contact window leaves Escape to the foreground application.
+      if (event.key === "Escape" && !event.defaultPrevented && foregroundRef.current) requestClose();
     };
     window.addEventListener("keydown", handleKey);
     return () => {
@@ -46,6 +51,8 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
   useEffect(() => {
     if (!open || workspace.mode === "computer") return;
     return workspace.registerBackHandler("contact-root", () => {
+      // Only the foreground Contact window answers Back; registration order must not decide.
+      if (workspace.activeWindow !== "contact" || workspace.surface !== "application") return false;
       workspace.goHome();
       return true;
     });
@@ -77,7 +84,7 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
       style={{ "--window-layer-z": workspace.zIndexFor("contact") } as CSSProperties}
     >
       <div className="contact-window-scrim" aria-hidden="true" />
-      <section
+      <ApplicationFrame windowId="contact" resizeHandleProps={resizeHandleProps}
         className="contact-window"
         data-active-window={workspace.activeWindow === "contact"}
         data-app-id="contact"
@@ -87,7 +94,7 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
         data-snap={snap ?? undefined}
         data-window-state={workspace.stateFor("contact")}
         onPointerDown={() => workspace.focusWindow("contact")}
-        ref={frameRef}
+        frameRef={frameRef}
         role="dialog"
         aria-modal="false"
         aria-label="Contact"
@@ -96,78 +103,80 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
         tabIndex={-1}
       >
         <WindowChrome
+          app="contact"
           className="window-titlebar contact-titlebar"
           closeRef={closeRef}
           closeLabel="Close contact window"
           label="Contact"
           maximized={maximized}
           onClose={requestClose}
-          onCompactBack={workspace.mode === "phone" ? workspace.requestBack : undefined}
           onMinimize={() => workspace.minimizeWindow("contact")}
           onToggleMaximize={toggleMaximize}
           {...titlebarProps}
         />
-        {windowResizeEdges.map((edge) => <span key={edge} {...resizeHandleProps(edge)} />)}
         <div className="contact-window-body">
-          <h2>Where to find me.</h2>
+          <header className="contact-card-head">
+            <OwnerMark className="contact-card-mark" />
+            <div>
+              <h2>{portfolioIdentity.name}</h2>
+              <p>{portfolioIdentity.location} · UTC+7</p>
+            </div>
+          </header>
           <ul className="contact-directory">
-            <li>
+            <li className="contact-primary" data-channel="email">
               <div className="contact-channel">
                 <span>Email</span>
-                <a href="mailto:fattahmuhammad17@gmail.com">fattahmuhammad17@gmail.com</a>
+                <a href={`mailto:${portfolioIdentity.email}`}>{portfolioIdentity.email}</a>
               </div>
-              <CopyEmailButton email="fattahmuhammad17@gmail.com" label="Copy" copiedLabel="Copied" className="contact-directory-action" />
+              <div className="contact-primary-actions">
+                <a className="contact-directory-action is-primary" href={`mailto:${portfolioIdentity.email}`}>Write email</a>
+                <CopyEmailButton email={portfolioIdentity.email} label="Copy email" copiedLabel="Email copied" className="contact-directory-action" />
+              </div>
             </li>
-            <li>
+            <li data-channel="linkedin">
               <div className="contact-channel">
                 <span>LinkedIn</span>
-                <a href="https://www.linkedin.com/in/muhammad24fattah/" target="_blank" rel="noopener noreferrer">linkedin.com/in/muhammad24fattah</a>
+                <span>{displayHandle(portfolioIdentity.linkedin)}</span>
               </div>
-              <a className="contact-directory-action" href="https://www.linkedin.com/in/muhammad24fattah/" target="_blank" rel="noopener noreferrer" aria-label="Open LinkedIn profile">
-                Open <ArrowIcon />
+              <a className="contact-directory-action" href={portfolioIdentity.linkedin} target="_blank" rel="noopener noreferrer" aria-label="Open LinkedIn profile">
+                <span className="contact-action-label">Open</span> <ArrowIcon />
               </a>
             </li>
-            <li>
+            <li data-channel="whatsapp">
               <div className="contact-channel">
                 <span>WhatsApp</span>
-                <a href="https://wa.me/6281944242422" target="_blank" rel="noopener noreferrer">0819 4424 2422</a>
+                <span>{portfolioIdentity.whatsappDisplay}</span>
               </div>
-              <a className="contact-directory-action" href="https://wa.me/6281944242422" target="_blank" rel="noopener noreferrer" aria-label="Open WhatsApp conversation">
-                Open <ArrowIcon />
+              <a className="contact-directory-action" href={portfolioIdentity.whatsapp} target="_blank" rel="noopener noreferrer" aria-label="Open WhatsApp conversation">
+                <span className="contact-action-label">Open</span> <ArrowIcon />
               </a>
             </li>
-            <li>
+            <li data-channel="github">
               <div className="contact-channel">
                 <span>GitHub</span>
-                <a href="https://github.com/fattah247" target="_blank" rel="noopener noreferrer">github.com/fattah247</a>
+                <span>{displayHandle(portfolioIdentity.github)}</span>
               </div>
-              <a className="contact-directory-action" href="https://github.com/fattah247" target="_blank" rel="noopener noreferrer" aria-label="Open GitHub profile">
-                Open <ArrowIcon />
+              <a className="contact-directory-action" href={portfolioIdentity.github} target="_blank" rel="noopener noreferrer" aria-label="Open GitHub profile">
+                <span className="contact-action-label">Open</span> <ArrowIcon />
               </a>
             </li>
           </ul>
         </div>
-      </section>
+      </ApplicationFrame>
     </div>
   );
 }
 
 export function PortfolioHeader() {
-  const pathname = usePathname();
   const workspace = useWorkspaceManager();
   const contactOpen = workspace.isOpen("contact");
-  const standalonePage = pathname.startsWith("/products");
 
-  useEffect(() => {
-    const openContact = () => workspace.openWindow("contact");
-    window.addEventListener("portfolio-contact-open", openContact);
-    return () => window.removeEventListener("portfolio-contact-open", openContact);
-  }, [workspace]);
+  useEffect(() => workspace.registerAppLauncher("contact", () => workspace.openWindow("contact")), [workspace]);
 
   return (
     <>
       <SystemShell />
-      <ContactWindow open={contactOpen && !standalonePage} onClose={() => workspace.closeApp("contact")} />
+      <ContactWindow open={contactOpen} onClose={() => workspace.closeApp("contact")} />
     </>
   );
 }

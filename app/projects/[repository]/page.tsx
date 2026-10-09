@@ -16,7 +16,7 @@ export default async function GithubProjectPage({ params }: GithubProjectPagePro
   return (
     <>
       <PortfolioHeader />
-      <PortfolioWorkspace initialGithubProjectId={project.id} />
+      <PortfolioWorkspace github={github} initialGithubProjectId={project.id} />
     </>
   );
 }
