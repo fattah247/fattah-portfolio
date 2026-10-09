@@ -115,9 +115,11 @@ body {
 
 /* ------------------------------------------------------------------ Wallpaper */
 
-/* A static pattern: solid ground, three stepped terraces with opaque two-pixel edges, a few
- * block clouds. No parallax, pulse, grain, or scroll linkage. The art is anchored to the
- * bottom of the screen, so a tall phone crops sky and a wide monitor crops nothing important. */
+/* A static pixel landscape: a slate volcano behind two sage terraced hills, cloud strata, and a
+ * far ridge, every fill solid. No parallax, pulse, grain, or scroll linkage. The art is anchored
+ * to the bottom of the screen, so a tall phone crops sky and a wide monitor crops nothing
+ * important. The darkest land keeps ink labels above 4.5:1, so a shortcut stays readable
+ * wherever it is dropped. */
 .environment-wallpaper {
   background: var(--shell-ground);
   inset: 0;
@@ -136,16 +138,19 @@ body {
 }
 
 .wallpaper-sky { fill: var(--shell-ground); }
-.wallpaper-clouds path { fill: #f7f8f9; }
-.terrace-far { fill: #cdd6e2; }
-.terrace-mid { fill: #c4dbd5; }
-.terrace-near { fill: #bccadf; }
-
-.terrace-edge {
-  fill: none;
-  stroke: #f7f8f9;
-  stroke-width: 2;
-}
+.wallpaper-cloud { fill: #eef2f6; }
+.wallpaper-cloud-shade { fill: #d3dbe4; }
+.wallpaper-range { fill: #cfd7e1; }
+.wallpaper-far-volcano { fill: #c2ccd9; }
+.wallpaper-far-volcano-lit { fill: #ccd5e0; }
+.wallpaper-volcano { fill: #a5b3c6; }
+.wallpaper-volcano-lit { fill: #bfcad8; }
+.terrace-back { fill: #b1c8bd; }
+.terrace-bund-back { fill: #c7d8cf; }
+.terrace-front { fill: #9cb7aa; }
+.terrace-bund-front { fill: #b6cbc1; }
+.wallpaper-bank-edge { fill: #a8bdb4; }
+.wallpaper-bank { fill: #91a99f; }
 
 /* ---------------------------------------------------------------- Status bar */
 
