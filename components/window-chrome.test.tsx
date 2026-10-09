@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WindowChrome } from "./window-chrome";
 
@@ -71,5 +71,49 @@ describe("WindowChrome", () => {
     fireEvent.click(screen.getByRole("button", { name: "Return to Home" }));
     expect(onBack).toHaveBeenCalledOnce();
     expect(screen.getByRole("button", { name: "Close work window" })).toBeTruthy();
+  });
+
+  it("reads left to right: the app's window menu, the title, then minimize, maximize, and close", () => {
+    const management = { begin: vi.fn(), cancel: vi.fn(), commit: vi.fn(), move: vi.fn(), reset: vi.fn(), resize: vi.fn(), snap: vi.fn() };
+    const { container } = render(
+      <WindowChrome
+        app="work"
+        closeLabel="Close Projects window"
+        label="Projects"
+        onClose={vi.fn()}
+        onMinimize={vi.fn()}
+        onToggleMaximize={vi.fn()}
+        title="Payment reliability"
+        windowManagement={management}
+      />,
+    );
+
+    const order = Array.from(container.querySelectorAll(".window-chrome > *")).map((node) => node.className);
+    expect(order.indexOf("window-management-menu")).toBeLessThan(order.indexOf("window-location"));
+    expect(order.indexOf("window-location")).toBeLessThan(order.indexOf("window-control-cluster"));
+    const cluster = container.querySelector(".window-control-cluster")!;
+    expect(Array.from(cluster.querySelectorAll("button")).map((button) => button.getAttribute("aria-label"))).toEqual(["Minimize Projects", "Maximize Projects", "Close Projects window"]);
+    expect(container.querySelector('.window-management-menu > summary .app-icon[data-app="work"][data-variant="small"]')).toBeTruthy();
+  });
+
+  it("offers every window action from the window menu and closes the menu after one", () => {
+    const onMinimize = vi.fn();
+    const management = { begin: vi.fn(), cancel: vi.fn(), commit: vi.fn(), move: vi.fn(), reset: vi.fn(), resize: vi.fn(), snap: vi.fn() };
+    const { container } = render(
+      <WindowChrome app="experience" closeLabel="Close experience window" label="Experience" onClose={vi.fn()} onMinimize={onMinimize} onToggleMaximize={vi.fn()} windowManagement={management} />,
+    );
+
+    const menu = container.querySelector<HTMLDetailsElement>(".window-management-menu")!;
+    fireEvent.click(screen.getByLabelText("Experience window menu"));
+    menu.open = true;
+    const options = within(screen.getByRole("group", { name: "Experience window" }));
+    expect(options.getAllByRole("button").map((button) => button.textContent)).toEqual(["Move with arrow keys", "Resize with arrow keys", "Snap left", "Snap right", "Reset position", "Minimize", "Maximize", "Close"]);
+    fireEvent.click(options.getByRole("button", { name: "Snap left" }));
+    expect(management.snap).toHaveBeenCalledWith("left");
+    expect(menu.open).toBe(false);
+    menu.open = true;
+    fireEvent.click(options.getByRole("button", { name: "Minimize" }));
+    expect(onMinimize).toHaveBeenCalledOnce();
+    expect(menu.open).toBe(false);
   });
 });

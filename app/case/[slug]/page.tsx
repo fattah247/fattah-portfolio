@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { PortfolioHeader } from "@/components/portfolio-header";
 import { PortfolioWorkspace } from "@/components/portfolio-workspace";
 import { getScenario, scenarios } from "@/lib/scenarios";
+import type { Metadata } from "next";
 
 export function generateStaticParams() {
   return scenarios.map((scenario) => ({ slug: scenario.slug }));
@@ -11,6 +12,11 @@ type CasePageProps = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export async function generateMetadata({ params }: CasePageProps): Promise<Metadata> {
+  const scenario = getScenario((await params).slug);
+  return scenario ? { title: scenario.category, description: `${scenario.title} ${scenario.consequence}` } : { title: "Project not found" };
+}
 
 export default async function CasePage({ params, searchParams }: CasePageProps) {
   const { slug } = await params;

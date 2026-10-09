@@ -26,6 +26,10 @@ export type Evidence = {
 };
 
 export type Scenario = {
+  category: string;
+  shortcutLabel: string;
+  indexTechnology: string;
+  indexResult: string;
   slug: ScenarioSlug;
   number: string;
   shortTitle: string;
@@ -49,9 +53,13 @@ export type Scenario = {
 export const scenarios: Scenario[] = [
   {
     slug: "payflow",
+    category: "Payment reliability",
+    shortcutLabel: "Payment case",
+    indexTechnology: "Spring Boot · PostgreSQL",
+    indexResult: "2 deliveries / 1 payment change",
     number: "01",
     shortTitle: "A payment callback arrived twice",
-    title: "The same payment callback arrived twice.",
+    title: "The same payment callback arrived twice",
     consequence: "The second delivery must not advance the payment again.",
     premise:
       "The first delivery completes the payment. The second should be recorded without repeating the state change.",
@@ -104,7 +112,7 @@ export const scenarios: Scenario[] = [
         src: "/projects/payflow/audit-trail.png",
         alt: "PayFlow audit trail showing transaction state changes",
         caption: "The audit trail keeps previous and resulting transaction state readable.",
-        focus: "Previous state → resulting state",
+        focus: "Previous and resulting state",
       },
       {
         src: "/projects/payflow/duplicate-webhook.png",
@@ -118,9 +126,13 @@ export const scenarios: Scenario[] = [
   },
   {
     slug: "iyup",
+    category: "Service observability",
+    shortcutLabel: "Service case",
+    indexTechnology: "Prometheus · Grafana",
+    indexResult: "Latency alert while health still passed",
     number: "02",
     shortTitle: "The service was up, but getting slower",
-    title: "The service was responding, but getting slower.",
+    title: "The service was responding, but getting slower",
     consequence: "Operators needed a warning before it became an outage.",
     premise:
       "The health check still said “up.” Latency showed that users were already experiencing degradation.",
@@ -197,9 +209,13 @@ export const scenarios: Scenario[] = [
   },
   {
     slug: "trustgate",
+    category: "Android device trust",
+    shortcutLabel: "Device case",
+    indexTechnology: "Kotlin · Jetpack Compose",
+    indexResult: "Suspicion became confirmation, not an automatic block",
     number: "03",
     shortTitle: "One device signal looked suspicious",
-    title: "One device signal looked suspicious, but it was not a verdict.",
+    title: "One device signal looked suspicious, but it was not a verdict",
     consequence: "The action still needed context before allow, confirm, or block.",
     premise:
       "A root signal changes confidence. The final decision also depends on other signals and the risk of the requested action.",
@@ -280,6 +296,23 @@ export function getScenario(slug: string) {
   return scenarios.find((scenario) => scenario.slug === slug);
 }
 
+export function resolveScenarioConditions(
+  scenario: Scenario | ScenarioSlug,
+  conditions?: Conditions,
+): Conditions {
+  const definition = typeof scenario === "string" ? getScenario(scenario) : scenario;
+  if (!definition) return {};
+
+  const resolved = { ...definition.defaults };
+  for (const control of definition.controls) {
+    const candidate = conditions?.[control.key];
+    if (typeof candidate === "string" && control.options.some((option) => option.value === candidate)) {
+      resolved[control.key] = candidate;
+    }
+  }
+  return resolved;
+}
+
 const node = (
   id: string,
   label: string,
@@ -293,11 +326,13 @@ export function projectScenario(
   conditions: Conditions,
   mode: ProjectionMode,
 ): ProjectionNode[] {
+  const resolvedConditions = resolveScenarioConditions(scenario, conditions);
+
   if (scenario === "payflow") {
-    const repeated = conditions.delivery !== "once";
-    const outOfOrder = conditions.delivery === "out-of-order";
-    const mismatched = conditions.settlement === "mismatched";
-    const interrupted = conditions.persistence === "interrupted";
+    const repeated = resolvedConditions.delivery !== "once";
+    const outOfOrder = resolvedConditions.delivery === "out-of-order";
+    const mismatched = resolvedConditions.settlement === "mismatched";
+    const interrupted = resolvedConditions.persistence === "interrupted";
     const safe = mode === "designed";
 
     return [
@@ -306,7 +341,7 @@ export function projectScenario(
       node(
         "callback",
         "Provider callback",
-        conditions.delivery.toUpperCase().replaceAll("-", " "),
+        resolvedConditions.delivery.toUpperCase().replaceAll("-", " "),
         outOfOrder
           ? "An older provider event arrives after a newer transaction state."
           : repeated
@@ -349,10 +384,10 @@ export function projectScenario(
   }
 
   if (scenario === "iyup") {
-    const healthPasses = conditions.health === "pass";
-    const latency = conditions.latency;
-    const missing = conditions.scrape === "missing";
-    const alertPresent = conditions.alert === "present";
+    const healthPasses = resolvedConditions.health === "pass";
+    const latency = resolvedConditions.latency;
+    const missing = resolvedConditions.scrape === "missing";
+    const alertPresent = resolvedConditions.alert === "present";
     const designed = mode === "designed";
     const degraded = latency !== "normal";
 
@@ -386,26 +421,40 @@ export function projectScenario(
       node(
         "decision",
         "Operator context",
-        designed && !healthPasses ? (alertPresent ? "ACTIONABLE" : "INCOMPLETE") : designed && degraded && alertPresent && !missing ? "ACTIONABLE" : designed && missing ? "INVESTIGATE COLLECTION" : degraded ? "INCOMPLETE" : "QUIET",
+        designed && !healthPasses
+          ? (alertPresent ? "ACTIONABLE" : "INCOMPLETE")
+          : designed && degraded && alertPresent && !missing
+            ? "ACTIONABLE"
+            : designed && missing
+              ? "INVESTIGATE COLLECTION"
+              : !designed && !healthPasses
+                ? "OUTAGE"
+                : degraded
+                  ? "INCOMPLETE"
+                  : "QUIET",
         designed && !healthPasses
           ? "The health contract reports the service unavailable; investigate even without a latency breach."
           : designed && degraded && alertPresent && !missing
           ? "The operator sees the breached signal and where to inspect next."
           : designed && missing
             ? "The next decision is to restore or inspect collection."
-            : degraded
-              ? "The availability view stays simple but cannot localize the degradation."
-              : "No degraded condition requires action.",
+            : !designed && !healthPasses
+              ? "The failing health check is the one signal this view has; it reports an outage."
+              : designed && degraded
+                ? "Latency is collected, but no alert rule raises the breach to an operator."
+                : degraded
+                  ? "The availability view stays simple but cannot localize the degradation."
+                  : "No degraded condition requires action.",
         designed ? (!healthPasses || missing ? "uncertain" : degraded && alertPresent ? "confirmed" : "neutral") : !healthPasses || degraded ? "adverse" : "neutral",
       ),
     ];
   }
 
-  const suspicious = conditions.root !== "clear" || conditions.emulator === "detected";
-  const invalidSignature = conditions.signature === "invalid";
-  const highSensitivity = conditions.sensitivity === "high";
+  const suspicious = resolvedConditions.root !== "clear" || resolvedConditions.emulator === "detected";
+  const invalidSignature = resolvedConditions.signature === "invalid";
+  const highSensitivity = resolvedConditions.sensitivity === "high";
   const designed = mode === "designed";
-  const designedDecision = invalidSignature || (conditions.root === "detected" && highSensitivity)
+  const designedDecision = invalidSignature || (resolvedConditions.root === "detected" && highSensitivity)
     ? "BLOCK"
     : suspicious && highSensitivity
       ? "REQUIRE CONFIRMATION"
@@ -414,9 +463,9 @@ export function projectScenario(
   const decision = designed ? designedDecision : baselineDecision;
 
   return [
-    node("action", "Sensitive action", conditions.sensitivity.toUpperCase(), "The policy starts with what the user is trying to do."),
+    node("action", "Sensitive action", resolvedConditions.sensitivity.toUpperCase(), "The policy starts with what the user is trying to do."),
     node("environment", "Environment signals", suspicious ? "SUSPICIOUS" : "CLEAR", "Root and emulator indicators are collected as evidence.", suspicious ? "uncertain" : "neutral"),
-    node("signature", "Request signature", conditions.signature.toUpperCase(), "Request integrity contributes a separate signal.", invalidSignature ? "adverse" : "neutral"),
+    node("signature", "Request signature", resolvedConditions.signature.toUpperCase(), "Request integrity contributes a separate signal.", invalidSignature ? "adverse" : "neutral"),
     node(
       "policy",
       "Policy",
@@ -453,7 +502,7 @@ export function explainScenario(
     {
       label: "Condition",
       text: scenario.controls
-        .map((control) => `${control.label}: ${conditions[control.key]}`)
+        .map((control) => `${control.label}: ${control.options.find((option) => option.value === conditions[control.key])?.label ?? conditions[control.key]}`)
         .join(" · "),
     },
     {
@@ -464,8 +513,7 @@ export function explainScenario(
     },
     {
       label: "Outcome",
-      text: `Variant A: ${finalBaseline?.value.toLowerCase()}. Variant B: ${finalDesigned?.value.toLowerCase()}.`,
+      text: `${scenario.baselineLabel}: ${finalBaseline?.value.toLowerCase()}. ${scenario.designedLabel}: ${finalDesigned?.value.toLowerCase()}.`,
     },
-    { label: "Boundary", text: scenario.limitation },
   ];
 }

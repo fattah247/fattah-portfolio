@@ -1,0 +1,4359 @@
+/*
+ * Fattah environment — retro material, colour, and type authority.
+ *
+ * A small personal computer: solid surfaces, one-pixel ink borders, bevelled controls that
+ * press in, square windows with solid title bars, and hard offset shadows. No glass, no blur,
+ * no gradients, no gloss. Colour carries meaning: the accent marks focus, selection, and the
+ * focused app; instrument colours keep their meaning inside documents (blue designed, teal
+ * verified, amber uncertain, red adverse).
+ *
+ * Loaded after globals.css and window-system.css; those still own layout behaviour.
+ */
+
+:root {
+  /* Shell */
+  --shell-ground: #dce3ea;
+  --shell-ground-deep: #c9d2dc;
+  --shell-ink: #252b34;
+  --shell-ink-muted: #59616d;
+
+  /* Surfaces */
+  --surface: #f1f3f5;
+  --surface-2: #e3e7ec;
+  --raised: #f7f8f9;
+  --recessed: #d3d9e1;
+  --border: #8d98a7;
+  --line-ink: #252b34;
+
+  /* Title bars */
+  --title-active: #455d83;
+  --title-active-ink: #ffffff;
+  --title-inactive: #d3d9e1;
+  --title-inactive-ink: #59616d;
+
+  /* Accent roles */
+  --accent: #536fa3;
+  --accent-bright: #7590c4;
+  --accent-deep: #3f5687;
+  --accent-soft: #c8d8f0;
+  --accent-action: #536fa3;
+  --accent-action-edge: #252b34;
+  --mint: #5e9990;
+  --mint-soft: #cfe3df;
+
+  /* Documents */
+  --doc: #f7f8f9;
+  --doc-sunken: #e9edf1;
+  --doc-edge: #b8c1cd;
+
+  /* Legacy glass names now resolve to solid surfaces. */
+  --glass: #e3e7ec;
+  --glass-strong: #e3e7ec;
+  --glass-light: #f7f8f9;
+  --glass-light-strong: #f7f8f9;
+  --glass-edge: #8d98a7;
+  --glass-edge-light: #ffffff;
+
+  /* Bevels and hard shadows */
+  --bevel-raised: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #8d98a7;
+  --bevel-inset: inset 1px 1px 0 #8d98a7, inset -1px -1px 0 #ffffff;
+  --bevel-primary: inset 1px 1px 0 #7590c4, inset -1px -1px 0 #3f5687;
+  --bevel-primary-inset: inset 1px 1px 0 #3f5687, inset -1px -1px 0 #7590c4;
+
+  --radius-window: 0;
+  --radius-tile: 2px;
+  --radius-sheet: 2px;
+  --radius-control: 2px;
+
+  --window-shadow: 3px 3px 0 rgb(37 43 52 / 18%);
+  --window-shadow-active: 4px 4px 0 rgb(37 43 52 / 28%);
+  --object-shadow: 2px 2px 0 rgb(37 43 52 / 22%);
+  --object-shadow-lifted: 4px 4px 0 rgb(37 43 52 / 28%);
+
+  --focus: #536fa3;
+  --env-spring: cubic-bezier(.2, .8, .2, 1);
+  --env-settle: cubic-bezier(.2, .8, .2, 1);
+
+  /* Type scale: IBM Plex Sans for every interface and reading role; IBM Plex Mono only for
+   * identifiers, times, measurements, and instrument values. */
+  --type-caption: 500 .75rem/1.35 var(--font-body), system-ui, sans-serif;
+  --type-label: 500 .84rem/1.3 var(--font-body), system-ui, sans-serif;
+  --type-system: 600 .8rem/1.2 var(--font-body), system-ui, sans-serif;
+  --type-button: 600 .84rem/1 var(--font-body), system-ui, sans-serif;
+  --type-body: 400 1rem/1.55 var(--font-body), system-ui, sans-serif;
+  --type-body-strong: 600 1rem/1.45 var(--font-body), system-ui, sans-serif;
+  --type-app-heading: 650 1.05rem/1.25 var(--font-body), system-ui, sans-serif;
+  --type-section: 650 clamp(1.3rem, 2.2cqw, 1.7rem)/1.2 var(--font-body), system-ui, sans-serif;
+  --type-title: 650 clamp(1.9rem, 3.6cqw, 2.9rem)/1.06 var(--font-body), system-ui, sans-serif;
+  --type-mono: 500 .8rem/1.35 var(--font-mono), ui-monospace, monospace;
+
+  --os-topbar: 34px;
+  --os-taskbar: 40px;
+}
+
+html[data-system-mode="computer"] { --os-topbar: 34px; }
+html[data-system-mode="tablet"] { --os-topbar: 36px; }
+
+html[data-system-mode="phone"] {
+  --os-phone-nav: calc(50px + env(safe-area-inset-bottom));
+  --os-topbar: calc(30px + env(safe-area-inset-top));
+  --window-chrome-height: 52px;
+}
+
+::selection {
+  background: rgb(103 133 200 / 32%);
+}
+
+html,
+body {
+  background: var(--shell-ground);
+}
+
+:focus-visible {
+  outline-color: var(--focus);
+}
+
+/* ------------------------------------------------------------------ Wallpaper */
+
+/* A static pattern: solid ground, three stepped terraces with opaque two-pixel edges, a few
+ * block clouds. No parallax, pulse, grain, or scroll linkage. The art is anchored to the
+ * bottom of the screen, so a tall phone crops sky and a wide monitor crops nothing important. */
+.environment-wallpaper {
+  background: var(--shell-ground);
+  inset: 0;
+  overflow: clip;
+  pointer-events: none;
+  position: fixed;
+  z-index: 0;
+}
+
+.environment-wallpaper > .wallpaper-art {
+  block-size: 100%;
+  display: block;
+  inline-size: 100%;
+  inset: 0;
+  position: absolute;
+}
+
+.wallpaper-sky { fill: var(--shell-ground); }
+.wallpaper-clouds path { fill: #f7f8f9; }
+.terrace-far { fill: #cdd6e2; }
+.terrace-mid { fill: #c4dbd5; }
+.terrace-near { fill: #bccadf; }
+
+.terrace-edge {
+  fill: none;
+  stroke: #f7f8f9;
+  stroke-width: 2;
+}
+
+/* ---------------------------------------------------------------- Status bar */
+
+/* A menu-bar strip: solid, one rule underneath, the owner on the left, the time on the right. */
+.system-status-bar {
+  background: var(--raised) !important;
+  border-bottom: 1px solid var(--line-ink) !important;
+  box-shadow: inset 0 -1px 0 var(--border) !important;
+  color: var(--shell-ink) !important;
+  height: var(--os-topbar) !important;
+  padding-inline: 12px !important;
+}
+
+.system-status-bar .system-brand,
+.system-status-bar .system-brand strong,
+.system-status-bar .system-active-app,
+.system-status-bar .system-status,
+.system-status-bar time,
+.system-status-bar time span,
+.system-status-bar time small { color: var(--shell-ink) !important; }
+
+.system-status-bar .system-brand > span {
+  background: var(--accent) !important;
+  border: 1px solid var(--line-ink) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.system-status-bar .system-brand strong { font: var(--type-system) !important; letter-spacing: 0; }
+.system-status-bar .system-active-app { font: var(--type-system) !important; letter-spacing: 0 !important; }
+.system-status-bar time small { color: var(--shell-ink-muted) !important; }
+
+/* ------------------------------------------------------------- Desktop world */
+
+/* The desktop is a fixed screen: the identity panel top left, the four apps beneath it, the
+ * three case documents down the right edge, the taskbar along the bottom. */
+html[data-system-mode="computer"] .desktop-surface {
+  background: var(--shell-ground) !important;
+  overflow: clip !important;
+}
+
+html[data-system-mode="computer"] .desktop-identity {
+  background: var(--raised);
+  border: 1px solid var(--line-ink);
+  border-radius: 0;
+  box-shadow: var(--bevel-raised), var(--object-shadow);
+  color: var(--ink);
+  column-gap: 0;
+  display: grid;
+  /* Inset, mark, gap, copy, inset: the title strip spans every column, the body sits inside. */
+  grid-template-columns: 14px 44px 14px minmax(0, 1fr) 16px;
+  left: 24px;
+  max-inline-size: 400px;
+  padding: 0;
+  position: absolute;
+  row-gap: 0;
+  top: 20px;
+  z-index: 3;
+}
+
+/* The desk accessory's title strip: the inactive window colour, no controls, because it is
+ * pinned to the desktop rather than opened from it. */
+.desktop-identity-title {
+  background: var(--title-inactive);
+  border-bottom: 1px solid var(--line-ink);
+  color: var(--title-inactive-ink);
+  font: var(--type-system);
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 5px 10px;
+}
+
+.desktop-identity-mark { block-size: 44px; inline-size: 44px; }
+html[data-system-mode="computer"] .desktop-identity-mark { grid-column: 2; margin-top: 14px; }
+html[data-system-mode="computer"] .desktop-identity-copy { grid-column: 4; padding-top: 14px; }
+
+html[data-system-mode="computer"] .desktop-identity h1 {
+  color: var(--ink);
+  font: 650 1.3rem/1.1 var(--font-body), sans-serif;
+  letter-spacing: -.015em;
+  margin: 1px 0 4px;
+  max-inline-size: none !important;
+  max-width: none !important;
+}
+
+html[data-system-mode="computer"] .desktop-identity-copy > p {
+  color: var(--ink-secondary);
+  font: var(--type-label);
+  margin: 0;
+  text-transform: none;
+}
+
+html[data-system-mode="computer"] .desktop-identity-copy > p.desktop-identity-focus { color: var(--ink); font-size: .9rem; margin-top: 6px; }
+
+.desktop-identity-actions {
+  align-items: center;
+  border-top: 1px solid var(--rule);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  grid-column: 2 / 5;
+  margin: 12px 0 14px;
+  padding-top: 12px;
+}
+
+html[data-system-mode="computer"] .desktop-identity-email {
+  color: var(--ink);
+  font: var(--type-label);
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 3px;
+}
+
+html[data-system-mode="computer"] .desktop-identity-email:hover { color: var(--accent-deep); text-decoration-color: currentColor; }
+
+html[data-system-mode="computer"] .desktop-board {
+  display: block !important;
+  height: calc(100dvh - var(--os-topbar) - var(--os-taskbar)) !important;
+  inset: 0 0 auto 0 !important;
+  overflow: clip !important;
+  padding: 0 !important;
+  position: absolute !important;
+  z-index: 2;
+}
+
+/* A shortcut is an icon with a label, never a card. */
+html[data-system-mode="computer"] .desktop-object {
+  align-self: start !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: var(--shell-ink);
+  cursor: default;
+  display: grid !important;
+  gap: 4px !important;
+  inset: auto;
+  justify-items: center;
+  justify-self: start !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  outline: 0 !important;
+  box-sizing: border-box !important;
+  padding: 6px 4px !important;
+  position: absolute !important;
+  transform: translate3d(var(--desktop-offset-x), var(--desktop-offset-y), 0) !important;
+  transition: none !important;
+  width: 100px !important;
+}
+
+html[data-system-mode="computer"] .desktop-object[data-grab-ready="true"] { cursor: grab; }
+html[data-system-mode="computer"] .desktop-object[data-dragging="true"] { cursor: grabbing; opacity: .85; }
+
+html[data-system-mode="computer"] .desktop-object-copy strong {
+  border: 1px solid transparent;
+  color: var(--shell-ink) !important;
+  display: block;
+  font: var(--type-system) !important;
+  max-inline-size: 100% !important;
+  overflow: visible !important;
+  padding: 1px 5px !important;
+  text-align: center;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}
+
+/* Selection: the icon darkens and the label inverts, as on a classic desktop. */
+html[data-system-mode="computer"] .desktop-object[data-selected="true"] .desktop-object-copy strong,
+html[data-system-mode="computer"] .desktop-object:focus-visible .desktop-object-copy strong {
+  background: var(--accent-deep) !important;
+  border-color: var(--line-ink);
+  color: #ffffff !important;
+}
+
+html[data-system-mode="computer"] .desktop-object[data-selected="true"] :is(.desktop-app-glyph, .case-file-sheet) { filter: brightness(.8); }
+html[data-system-mode="computer"] .desktop-object:focus-visible .desktop-object-copy strong { outline: 1px dotted #ffffff; outline-offset: -3px; }
+
+html[data-system-mode="computer"] .desktop-app-glyph {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  display: grid;
+  filter: none;
+  height: 48px !important;
+  place-items: center;
+  width: 48px !important;
+}
+
+.desktop-app-glyph .app-icon { block-size: 48px; inline-size: 48px; }
+
+/* Default places sit below the identity panel. Rows are measured in rem so that a larger text
+ * setting, which makes the panel and the labels taller, moves the shortcuts with them. */
+html[data-system-mode="computer"] .desktop-board { --desk-row-1: calc(28px + 14.5rem); --desk-row-2: calc(28px + 20.5rem); }
+html[data-system-mode="computer"] .surface-work { left: 24px; top: var(--desk-row-1); }
+html[data-system-mode="computer"] .surface-experience { left: 132px; top: var(--desk-row-1); }
+html[data-system-mode="computer"] .surface-contact { left: 24px; top: var(--desk-row-2); }
+html[data-system-mode="computer"] .surface-products { left: 132px; top: var(--desk-row-2); }
+
+/* Case documents: compact sheets with a folded corner and a thumbnail of their schematic. */
+html[data-system-mode="computer"] .desktop-case-file { width: 136px !important; }
+html[data-system-mode="computer"] .surface-shot-payflow { left: calc(100% - 160px); top: 20px; }
+html[data-system-mode="computer"] .surface-shot-iyup { left: calc(100% - 160px); top: 146px; }
+html[data-system-mode="computer"] .surface-shot-trustgate { left: calc(100% - 160px); top: 272px; }
+
+.case-file-sheet {
+  background: #ffffff;
+  border: 1px solid var(--line-ink);
+  border-radius: 0;
+  box-shadow: var(--object-shadow);
+  display: block;
+  inline-size: 92px;
+  padding: 10px 6px 6px;
+  position: relative;
+}
+
+.case-file-sheet::before {
+  background: var(--recessed);
+  block-size: 12px;
+  border-bottom: 1px solid var(--line-ink);
+  border-left: 1px solid var(--line-ink);
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+  content: "";
+  inline-size: 12px;
+  position: absolute;
+  right: -1px;
+  top: -1px;
+}
+
+.case-file-sheet::after {
+  background: var(--shell-ground);
+  block-size: 12px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  content: "";
+  inline-size: 12px;
+  position: absolute;
+  right: -1px;
+  top: -1px;
+}
+
+html[data-system-mode="computer"] .desktop-object[data-dragging="true"] .case-file-sheet { box-shadow: var(--object-shadow-lifted); }
+
+.case-file-sheet .case-cover { display: block; inline-size: 100%; }
+.case-file-sheet .case-cover-ground { fill: transparent; }
+
+/* Short desktops: apps form one row and the case documents a row along the top right, so
+ * nothing sits under the taskbar. */
+@media (max-height: 640px) {
+  html[data-system-mode="computer"] .desktop-identity-copy > p.desktop-identity-focus { display: none; }
+  html[data-system-mode="computer"] .surface-work { left: 16px; top: calc(28px + 11rem); }
+  html[data-system-mode="computer"] .surface-experience { left: 120px; top: calc(28px + 11rem); }
+  html[data-system-mode="computer"] .surface-contact { left: 224px; top: calc(28px + 11rem); }
+  html[data-system-mode="computer"] .surface-products { left: 328px; top: calc(28px + 11rem); }
+  html[data-system-mode="computer"] .surface-shot-payflow { left: calc(100% - 456px); top: 16px; }
+  html[data-system-mode="computer"] .surface-shot-iyup { left: calc(100% - 308px); top: 16px; }
+  html[data-system-mode="computer"] .surface-shot-trustgate { left: calc(100% - 160px); top: 16px; }
+}
+
+/* Case cover schematics (shared by desktop files, Home, and the Projects index). */
+.case-cover-ground { fill: #ffffff; }
+.case-cover-label { fill: #8593a6; font: 500 9px var(--font-mono), monospace; letter-spacing: .04em; }
+.case-cover-note { fill: var(--ink); font: 600 10px var(--font-mono), monospace; }
+.case-cover-rule { stroke: #dce3ec; stroke-width: 1; }
+.case-cover-flow { fill: none; stroke: #6b7a90; stroke-width: 1.6; }
+.case-cover-flow-repeat { stroke: var(--uncertain); stroke-dasharray: 4 3; }
+.case-cover-flow-designed { stroke: var(--designed); stroke-width: 2; }
+.case-cover-arrow { fill: none; stroke: #6b7a90; stroke-width: 1.6; }
+.case-cover-event { fill: #fff; stroke: #6b7a90; stroke-width: 1.2; }
+.case-cover-event-repeat { stroke: var(--uncertain); }
+.case-cover-event-text { fill: var(--ink); font: 600 9px var(--font-mono), monospace; }
+.case-cover-stop { stroke: var(--adverse); stroke-width: 2.4; }
+.case-cover-boundary { fill: var(--designed-wash); stroke: var(--designed); stroke-width: 1.4; }
+.case-cover-state { fill: var(--confirmed-wash); stroke: var(--confirmed); stroke-width: 1.4; }
+.case-cover-state-text { fill: var(--confirmed); font: 700 10px var(--font-mono), monospace; }
+.case-cover-threshold { stroke: var(--uncertain); stroke-dasharray: 5 4; stroke-width: 1.2; }
+.case-cover-threshold-label { fill: var(--uncertain); }
+.case-cover-trace { fill: none; stroke: var(--adverse); stroke-linejoin: round; stroke-width: 2.4; }
+.case-cover-breach { fill: #fff; stroke: var(--adverse); stroke-width: 2; }
+.case-cover-health { stroke: var(--confirmed); stroke-width: 2.4; }
+.case-cover-health-text { fill: var(--confirmed); font: 700 9px var(--font-mono), monospace; }
+.case-cover-signal { fill: #fff; stroke: #97a3b4; stroke-width: 1.1; }
+.case-cover-signal-suspect { fill: var(--uncertain-wash); stroke: var(--uncertain); }
+.case-cover-signal-text { fill: var(--ink); font: 500 8.5px var(--font-mono), monospace; }
+.case-cover-decision { fill: var(--uncertain-wash); stroke: var(--uncertain); stroke-width: 1.4; }
+.case-cover-decision-text { fill: var(--uncertain); font: 700 9px var(--font-mono), monospace; }
+
+/* ------------------------------------------------------------------ Taskbar */
+
+/* A full-width taskbar: Desktop on the left, one button per application with its icon and name,
+ * the overview on the right. Not running: flat. Running: raised. Focused: pressed in. Minimized:
+ * raised with a hollow marker. It never scrolls; four labelled apps fit the narrowest desktop. */
+html[data-system-mode="computer"] .desktop-taskbar {
+  align-items: center;
+  background: var(--surface-2) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  border-top: 1px solid var(--line-ink) !important;
+  bottom: 0 !important;
+  box-shadow: inset 0 1px 0 #ffffff !important;
+  display: flex !important;
+  gap: 6px !important;
+  height: var(--os-taskbar) !important;
+  justify-content: flex-start !important;
+  left: 0 !important;
+  overflow: clip !important;
+  padding: 0 8px !important;
+  right: 0 !important;
+  transform: none !important;
+  width: auto !important;
+}
+
+html[data-system-mode="computer"] .desktop-taskbar .taskbar-apps {
+  border-inline: 1px solid var(--border);
+  box-shadow: inset 1px 0 0 #ffffff;
+  display: flex !important;
+  flex: 1 1 auto;
+  gap: 4px !important;
+  min-inline-size: 0;
+  padding: 0 6px !important;
+}
+
+html[data-system-mode="computer"] .desktop-taskbar button {
+  align-items: center;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--radius-control) !important;
+  box-shadow: none !important;
+  color: var(--shell-ink) !important;
+  display: inline-flex !important;
+  gap: 8px !important;
+  height: 32px !important;
+  justify-content: flex-start;
+  min-height: 32px !important;
+  min-width: 32px !important;
+  padding: 0 8px !important;
+  position: relative;
+  transform: none !important;
+  transition: none !important;
+  width: auto !important;
+}
+
+html[data-system-mode="computer"] .desktop-taskbar :is(.taskbar-home, .taskbar-overview) { justify-content: center; padding: 0 !important; width: 36px !important; }
+
+html[data-system-mode="computer"] .desktop-taskbar .taskbar-app { flex: 0 1 168px; min-inline-size: 0; }
+
+html[data-system-mode="computer"] .desktop-taskbar .taskbar-app > span:not(.taskbar-app-preview):not(.system-app-mark) {
+  display: inline !important;
+  font: var(--type-system);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-system-mode="computer"] .desktop-taskbar button:hover { background: var(--raised) !important; border-color: var(--border) !important; }
+
+html[data-system-mode="computer"] .desktop-taskbar .taskbar-app[data-running="true"],
+html[data-system-mode="computer"] .desktop-taskbar :is(.taskbar-home, .taskbar-overview) {
+  background: var(--raised) !important;
+  border-color: var(--line-ink) !important;
+  box-shadow: var(--bevel-raised) !important;
+}
+
+html[data-system-mode="computer"] .desktop-taskbar .taskbar-app[data-active="true"],
+html[data-system-mode="computer"] .desktop-taskbar :is(.taskbar-home, .taskbar-overview)[data-active="true"],
+html[data-system-mode="computer"] .desktop-taskbar button:active {
+  background: var(--recessed) !important;
+  border-color: var(--line-ink) !important;
+  box-shadow: var(--bevel-inset) !important;
+}
+
+html[data-system-mode="computer"] .desktop-taskbar .taskbar-app[data-active="true"] > span:not(.taskbar-app-preview):not(.system-app-mark) { font-weight: 700; }
+
+html[data-system-mode="computer"] .desktop-taskbar button:focus-visible { outline: 2px solid var(--focus) !important; outline-offset: 1px; }
+
+html[data-system-mode="computer"] .taskbar-app .system-app-mark {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  flex: none;
+  height: 16px !important;
+  width: 16px !important;
+}
+
+html[data-system-mode="computer"] .taskbar-app .app-icon { block-size: 16px; inline-size: 16px; }
+
+/* Every app reads in full ink, running or not: the state is the bevel and this marker, never a
+ * greyed label that would look disabled. A square: filled when running, hollow when minimized,
+ * accent when focused. */
+html[data-system-mode="computer"] .taskbar-app > i {
+  background: transparent !important;
+  block-size: 6px !important;
+  border: 1px solid transparent;
+  border-radius: 0 !important;
+  bottom: auto !important;
+  flex: none;
+  height: 6px !important;
+  inline-size: 6px !important;
+  left: auto !important;
+  margin-inline-start: auto;
+  position: static !important;
+  top: auto !important;
+  transform: none !important;
+  width: 6px !important;
+}
+
+html[data-system-mode="computer"] .taskbar-app[data-running="true"] > i { background: var(--shell-ink) !important; border-color: var(--shell-ink); }
+html[data-system-mode="computer"] .taskbar-app[data-minimized="true"] > i { background: transparent !important; border-color: var(--shell-ink); }
+html[data-system-mode="computer"] .taskbar-app[data-active="true"] > i { background: var(--accent) !important; border-color: var(--line-ink); box-shadow: none !important; }
+
+html[data-system-mode="computer"] .taskbar-home svg,
+html[data-system-mode="computer"] .taskbar-overview svg { block-size: 18px; inline-size: 18px; stroke: var(--shell-ink) !important; }
+
+/* Hover and focus caption: a plain tooltip box above the button. */
+html[data-system-mode="computer"] .taskbar-app > .taskbar-app-preview {
+  background: var(--raised) !important;
+  border: 1px solid var(--line-ink) !important;
+  border-radius: 0 !important;
+  bottom: calc(100% + 8px) !important;
+  box-shadow: var(--object-shadow) !important;
+  color: var(--shell-ink) !important;
+}
+
+html[data-system-mode="computer"] .desktop-taskbar button::after { display: none !important; }
+
+/* ------------------------------------------------------------------ Windows */
+
+html[data-system-mode="computer"] { --window-chrome-height: 36px; }
+
+/* Square windows with a one-pixel ink frame and a hard shadow. The focused window has a solid
+ * blue title bar; the others are grey and stay fully readable. */
+html[data-system-mode="computer"] :is(.portfolio-window, .contact-window, .evidence-sheet),
+html[data-system-mode="tablet"] :is(.portfolio-window, .contact-window, .evidence-sheet) {
+  background: var(--doc) !important;
+  border: 1px solid var(--line-ink) !important;
+  border-radius: 0 !important;
+  box-shadow: var(--window-shadow) !important;
+  overflow: hidden;
+}
+
+html[data-system-mode="computer"] :is(.portfolio-window, .contact-window, .evidence-sheet)[data-window-state="active"],
+html[data-system-mode="tablet"] :is(.portfolio-window, .contact-window, .evidence-sheet)[data-window-state="active"] {
+  box-shadow: var(--window-shadow-active) !important;
+}
+
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) :is(.window-chrome, .portfolio-window-chrome, .window-titlebar, .evidence-sheet-head) {
+  background: var(--title-inactive) !important;
+  border-bottom: 1px solid var(--line-ink) !important;
+  box-shadow: none !important;
+  color: var(--title-inactive-ink) !important;
+  user-select: none;
+}
+
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) [data-window-state="active"] > :is(.window-chrome, .portfolio-window-chrome),
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) [data-window-state="active"] .evidence-sheet-head {
+  background: var(--title-active) !important;
+  box-shadow: none !important;
+  color: var(--title-active-ink) !important;
+}
+
+html[data-system-mode="computer"] :is(.window-chrome, .portfolio-window-chrome) {
+  block-size: var(--window-chrome-height) !important;
+  min-block-size: var(--window-chrome-height) !important;
+  padding-block: 0 !important;
+  padding-inline: 4px 8px !important;
+}
+
+/* Title: one breadcrumb line, the app then the open document. */
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) .window-chrome .window-location {
+  align-items: baseline;
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 6px;
+  min-inline-size: 0;
+}
+
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) .window-chrome .window-location :is(.micro-label, strong) {
+  color: inherit !important;
+  font: var(--type-system) !important;
+  font-size: .86rem !important;
+  letter-spacing: 0 !important;
+  margin: 0 !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: none !important;
+  white-space: nowrap;
+}
+
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) .window-chrome .window-location:has(strong) .micro-label { font-weight: 500 !important; opacity: .78; }
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) .window-chrome .window-location strong::before { content: "/"; font-weight: 400; margin-inline: 0 6px; opacity: .6; }
+
+/* Window controls: small bevelled squares inside the full hit target. Close turns red on hover. */
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) :is(.window-close-action, .evidence-close-action, .case-close-action, .window-system-control, .window-management-menu > summary) {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: var(--line-ink) !important;
+}
+
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) :is(.window-close-action, .evidence-close-action, .case-close-action, .window-system-control) > span,
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) .window-management-menu > summary > svg {
+  align-items: center;
+  background: var(--raised) !important;
+  block-size: 20px !important;
+  border: 1px solid var(--line-ink) !important;
+  border-radius: 0 !important;
+  box-shadow: var(--bevel-raised) !important;
+  color: var(--line-ink) !important;
+  display: inline-flex !important;
+  inline-size: 20px !important;
+  justify-content: center;
+  padding: 4px !important;
+}
+
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) :is(.window-close-action, .evidence-close-action, .case-close-action):is(:hover, :focus-visible) > span {
+  background: var(--adverse) !important;
+  color: #ffffff !important;
+}
+
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) :is(.window-close-action, .evidence-close-action, .case-close-action, .window-system-control):active > span,
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) .window-management-menu > summary:active > svg,
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) .window-management-menu[open] > summary > svg {
+  background: var(--recessed) !important;
+  box-shadow: var(--bevel-inset) !important;
+}
+
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) :is(.window-close-action, .evidence-close-action, .case-close-action, .window-system-control, .window-management-menu > summary):focus-visible { outline: 2px solid #ffffff !important; outline-offset: -8px; }
+
+/* The window menu opens as a plain menu panel. */
+html[data-system-mode="computer"] .window-management-menu { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+
+html[data-system-mode="computer"] .window-management-options {
+  background: var(--raised) !important;
+  border: 1px solid var(--line-ink) !important;
+  border-radius: 0 !important;
+  box-shadow: var(--object-shadow) !important;
+  color: var(--ink);
+}
+
+html[data-system-mode="computer"] .window-management-options button { border-radius: 0 !important; color: var(--ink) !important; font: var(--type-label) !important; }
+html[data-system-mode="computer"] .window-management-options button:hover { background: var(--accent-deep) !important; color: #ffffff !important; }
+
+html[data-system-mode="computer"] .window-snap-preview {
+  background: rgb(83 111 163 / 14%) !important;
+  border: 2px dashed var(--accent-deep) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Window manager cursors follow desktop convention. */
+html[data-system-mode="computer"] :is(.portfolio-window-chrome, .window-titlebar, .evidence-sheet-head) { cursor: default; }
+html[data-system-mode="computer"] .window-chrome :is(button, a, summary) { cursor: default; }
+
+/* -------------------------------------------- Phone and tablet Home (launcher) */
+
+/* ----------------------------------------------------------- Projects index */
+
+.home-window .projects-index .work-intro h1 {
+  font-size: clamp(2rem, 3.6cqw, 2.9rem) !important;
+  font-weight: 600 !important;
+  letter-spacing: -.035em !important;
+  line-height: 1.05 !important;
+  max-width: none !important;
+}
+
+/* The index opens like a document: its title, then a short abstract beneath it. No split hero. */
+.home-window .projects-index { padding-top: clamp(20px, 3cqw, 32px) !important; }
+
+.home-window .projects-index .work-intro {
+  align-items: start;
+  grid-template-columns: minmax(0, 1fr) !important;
+  margin-bottom: clamp(18px, 2.4cqw, 28px) !important;
+  row-gap: 8px !important;
+}
+
+.home-window .projects-index .work-intro > p:last-child {
+  align-self: start;
+  color: var(--ink-secondary);
+  font-size: 1rem;
+  margin: 0;
+  max-width: 64ch !important;
+}
+
+.editorial-work-list {
+  display: grid;
+  gap: 22px;
+  grid-template-columns: minmax(0, 1fr);
+  padding-top: 10px;
+}
+
+.editorial-work-list::before { display: none !important; }
+
+/* The three cases are case files, the same objects as on the desktop: one boundary, a folder
+ * tab, the schematic printed on the paper beside the account. Uniform rows, no featured card,
+ * so the index reads as an archive rather than a landing page. */
+.case-entry {
+  background: var(--raised);
+  border: 1px solid var(--line-ink);
+  border-radius: 0;
+  box-shadow: var(--object-shadow);
+  color: var(--ink);
+  display: grid;
+  min-inline-size: 0;
+  position: relative;
+  text-decoration: none;
+}
+
+/* The tab is part of the file: it overlaps the file's top edge, so no line runs beneath it. */
+.case-entry::before {
+  background: var(--raised);
+  block-size: 11px;
+  border: 1px solid var(--line-ink);
+  border-bottom: 0;
+  box-shadow: inset 1px 1px 0 #ffffff;
+  box-sizing: border-box;
+  content: "";
+  inline-size: 7.5rem;
+  inset-block-start: -11px;
+  inset-inline-start: -1px;
+  position: absolute;
+}
+
+.case-entry:hover { box-shadow: var(--object-shadow-lifted); }
+.case-entry:active { box-shadow: none; transform: translate(2px, 2px); }
+.case-entry:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+
+.case-entry-cover {
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  padding: clamp(10px, 2cqw, 18px) clamp(12px, 2.4cqw, 22px);
+  place-items: center;
+}
+
+.case-entry-cover .case-cover {
+  block-size: auto;
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 340px;
+}
+
+.case-entry-cover .case-cover-ground { fill: transparent; }
+
+.case-entry-body {
+  align-content: center;
+  display: grid;
+  gap: 6px;
+  min-inline-size: 0;
+  padding: 16px 20px 18px;
+}
+
+.case-entry-meta {
+  align-items: baseline;
+  color: var(--ink-secondary);
+  display: flex;
+  font-size: .84rem;
+  gap: 8px;
+}
+
+.case-entry-number {
+  color: var(--accent-deep);
+  font-family: var(--font-mono), monospace;
+  font-size: .78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.case-entry-body > strong {
+  font-size: clamp(1.2rem, 2.1cqw, 1.5rem);
+  font-weight: 650;
+  letter-spacing: -.015em;
+  line-height: 1.2;
+}
+
+.case-entry-summary { color: var(--ink-secondary); font-size: .97rem; line-height: 1.45; max-inline-size: 60ch; }
+
+.case-entry-facts {
+  color: var(--ink-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: .84rem;
+  gap: 2px 14px;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+.case-entry-result { color: var(--ink); }
+
+@container projects-app (min-width: 40rem) {
+  .case-entry { grid-template-columns: minmax(13rem, 21rem) minmax(0, 1fr); }
+  .case-entry .case-entry-cover { border-bottom: 0; border-right: 1px solid var(--border); }
+}
+
+@container projects-app (min-width: 72rem) {
+  .case-entry { grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr); }
+  .case-entry-body { padding: 20px 28px; }
+}
+
+/* Narrow (a phone, or a narrow window): three uniform rows that fit the first screen together.
+ * Each schematic is shown inside its case, where it is explained, instead of shrunk past
+ * reading here. The "Open case" line says what a tap does. */
+@container projects-app (max-width: 39.999rem) {
+  .editorial-work-list { gap: 20px; }
+  .case-entry { box-shadow: none; grid-template-columns: minmax(0, 1fr); }
+  .case-entry::before { inline-size: 5rem; }
+  .case-entry-cover { display: none; }
+  .case-entry-body { gap: 4px; padding: 12px 14px; }
+  .case-entry-body > strong { font-size: 1.12rem; }
+  .case-entry-summary { font-size: .92rem; }
+  .case-entry-facts { margin-top: 2px; }
+  .case-entry-result { display: none; }
+  .home-window .projects-index .work-intro { margin-bottom: 12px !important; }
+}
+
+.case-entry-open {
+  align-items: center;
+  color: var(--accent-deep);
+  display: inline-flex;
+  font: var(--type-button);
+  gap: 2px;
+  margin-top: 8px;
+}
+
+.case-entry-open svg { block-size: 14px; inline-size: 14px; }
+
+/* ------------------------------------------------------ Side projects list */
+
+.github-projects-index {
+  background: transparent !important;
+  border: 0 !important;
+  box-sizing: border-box;
+  margin: clamp(8px, 2cqw, 24px) auto 0 !important;
+  max-inline-size: 88rem;
+  padding: 0 clamp(16px, 4cqw, 64px) !important;
+}
+
+.github-projects-index .github-project-count { margin: 0 !important; padding: 0 !important; }
+.home-window .projects-index { padding-bottom: clamp(24px, 4cqw, 44px) !important; }
+
+.github-projects-index .github-projects-heading {
+  align-items: baseline;
+  border-bottom: 1px solid var(--rule-strong);
+  display: flex !important;
+  gap: 16px;
+  justify-content: space-between;
+  margin: 0 !important;
+  padding: 0 0 10px !important;
+}
+
+.github-projects-index .github-projects-heading h2 {
+  font-size: 1.2rem !important;
+  font-weight: 650 !important;
+  letter-spacing: -.01em !important;
+  margin: 0 !important;
+}
+
+.github-projects-index .github-projects-github-link {
+  align-items: center;
+  color: var(--ink-secondary) !important;
+  display: inline-flex;
+  font-size: .86rem !important;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.github-projects-index .github-projects-github-link:hover { color: var(--ink) !important; }
+
+.github-projects-index .github-project-count {
+  color: inherit !important;
+  font: inherit !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.github-projects-index .github-project-list {
+  border: 0 !important;
+  display: block !important;
+  list-style: none;
+  margin: 0;
+  overflow: visible !important;
+  padding: 0 !important;
+}
+
+.github-projects-index .github-project-list > li {
+  border: 0 !important;
+  border-bottom: 1px solid var(--rule) !important;
+  display: block !important;
+  flex: none !important;
+}
+
+.github-projects-index .github-project-list .github-project-row {
+  --language: #8593a6;
+  align-items: baseline;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: var(--ink) !important;
+  column-gap: 20px !important;
+  display: grid !important;
+  grid-template-columns: minmax(9rem, 13rem) minmax(0, 1fr) 7.5rem 7.5rem !important;
+  min-block-size: 48px !important;
+  padding: 12px 6px !important;
+  text-decoration: none;
+  transition: background var(--duration-micro) ease;
+}
+
+.github-projects-index .github-project-list .github-project-row:hover { background: rgb(32 43 58 / 4%) !important; }
+.github-projects-index .github-project-list .github-project-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+.github-projects-index .github-project-list .github-project-row > strong {
+  font-size: .98rem;
+  font-weight: 600;
+  letter-spacing: -.005em;
+}
+
+.github-project-row-description {
+  color: var(--ink-secondary);
+  font-size: .9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.github-project-row-language {
+  align-items: center;
+  color: var(--ink-secondary);
+  display: inline-flex;
+  font-size: .84rem;
+  gap: 6px;
+}
+
+.github-project-row-language::before {
+  background: var(--language);
+  block-size: 8px;
+  border-radius: 2px;
+  content: "";
+  flex: none;
+  inline-size: 8px;
+}
+
+.github-project-row-updated {
+  color: var(--ink-secondary);
+  font-size: .84rem;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+/* GitHub's own language colours, the convention developers already read. */
+.github-projects-index .github-project-list .github-project-row[data-language="Swift"] { --language: #f05138; }
+.github-projects-index .github-project-list .github-project-row[data-language="JavaScript"] { --language: #e2cf3f; }
+.github-projects-index .github-project-list .github-project-row[data-language="TypeScript"] { --language: #3178c6; }
+.github-projects-index .github-project-list .github-project-row[data-language="Python"] { --language: #3572a5; }
+.github-projects-index .github-project-list .github-project-row[data-language="Kotlin"] { --language: #a97bff; }
+.github-projects-index .github-project-list .github-project-row[data-language="Java"] { --language: #b07219; }
+.github-projects-index .github-project-list .github-project-row[data-language="Dart"] { --language: #00b4ab; }
+.github-projects-index .github-project-list .github-project-row[data-language="Go"] { --language: #00add8; }
+.github-projects-index .github-project-list .github-project-row[data-language="HTML"] { --language: #e34c26; }
+
+@container projects-app (max-width: 51.999rem) {
+  .github-projects-index .github-project-list .github-project-row {
+    grid-template-areas: "name language" "description description";
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    row-gap: 3px !important;
+  }
+
+  .github-projects-index .github-project-list .github-project-row > strong { grid-area: name; }
+  .github-project-row-description {
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    display: -webkit-box;
+    grid-area: description;
+    white-space: normal;
+  }
+  .github-project-row-language { grid-area: language; }
+  .github-project-row-updated { display: none; }
+}
+
+/* The hand-off to Experience is a sentence, not a banner. */
+.home-window .editorial-footer {
+  background: transparent !important;
+  border: 0 !important;
+  box-sizing: border-box;
+  color: var(--ink-secondary) !important;
+  display: block !important;
+  font-size: .95rem;
+  margin: clamp(28px, 4cqw, 44px) auto 0 !important;
+  max-inline-size: 88rem;
+  min-block-size: 0 !important;
+  padding: 0 clamp(16px, 4cqw, 64px) clamp(32px, 5cqw, 56px) !important;
+}
+
+.home-window .editorial-footer a {
+  align-items: center;
+  color: var(--ink) !important;
+  display: inline-flex;
+  font-weight: 600;
+  gap: 2px;
+  text-decoration: none;
+}
+
+.home-window .editorial-footer a:hover { color: var(--accent-deep) !important; }
+.home-window .editorial-footer a svg { block-size: 14px; inline-size: 14px; }
+
+/* ------------------------------------------------------------- Phone chrome */
+
+html[data-system-mode="phone"] .portfolio-window > .window-chrome,
+html[data-system-mode="phone"] .contact-window > .window-chrome {
+  background: var(--glass-light-strong) !important;
+  block-size: var(--window-chrome-height) !important;
+  box-sizing: border-box;
+  flex-shrink: 0 !important;
+  min-block-size: var(--window-chrome-height) !important;
+  min-height: var(--window-chrome-height) !important;
+  padding-block: 4px !important;
+  padding-inline: 6px 12px !important;
+}
+
+html[data-system-mode="phone"] .selected-work-window,
+html[data-system-mode="phone"] .embedded-case-workspace {
+  --case-progress-height: 44px;
+}
+
+/* Chapters become a segmented control: one row, labels only, 44px targets. */
+html[data-system-mode="phone"] .selected-work-window .case-progress {
+  background: var(--glass-light-strong) !important;
+  border-bottom: 1px solid var(--rule) !important;
+  border-top: 0 !important;
+  box-shadow: none !important;
+  gap: 0 !important;
+  min-height: var(--case-progress-height) !important;
+  padding: 0 8px !important;
+  top: var(--window-chrome-height) !important;
+}
+
+html[data-system-mode="phone"] .selected-work-window .case-progress a {
+  background: transparent !important;
+  border: 0 !important;
+  flex-direction: row !important;
+  isolation: isolate;
+  min-height: var(--case-progress-height) !important;
+  padding: 0 2px !important;
+  position: relative;
+}
+
+html[data-system-mode="phone"] .selected-work-window .case-progress a::before {
+  border-radius: 2px;
+  content: "";
+  inset: 5px 2px;
+  position: absolute;
+  transition: background var(--duration-micro) ease, box-shadow var(--duration-micro) ease;
+  z-index: -1;
+}
+
+html[data-system-mode="phone"] .selected-work-window .case-progress a[aria-current="step"]::before {
+  background: #fff;
+  box-shadow: 0 0 0 1px rgb(32 43 58 / 8%);
+}
+
+html[data-system-mode="phone"] .selected-work-window .case-progress a::after { display: none !important; }
+html[data-system-mode="phone"] .selected-work-window .case-progress a > span { display: none !important; }
+
+html[data-system-mode="phone"] .selected-work-window .case-progress a > b {
+  color: var(--ink-secondary);
+  font-family: var(--font-body), sans-serif !important;
+  font-size: .8rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  margin: 0 !important;
+  text-transform: none !important;
+}
+
+html[data-system-mode="phone"] .selected-work-window .case-progress a[aria-current="step"] > b { color: var(--ink); }
+
+/* ---------------------------------------------------------- Tablet surfaces */
+
+html[data-system-mode="tablet"] .portfolio-window,
+html[data-system-mode="tablet"] .contact-window,
+html[data-system-mode="tablet"] .evidence-sheet {
+  background: var(--doc) !important;
+  border: 1px solid rgb(32 43 58 / 40%) !important;
+  border-radius: 2px!important;
+  box-shadow: var(--window-shadow) !important;
+  overflow: hidden;
+}
+
+html[data-system-mode="tablet"] .portfolio-window[data-window-state="active"],
+html[data-system-mode="tablet"] .contact-window[data-window-state="active"],
+html[data-system-mode="tablet"] .evidence-sheet[data-window-state="active"] {
+  border-color: rgb(32 43 58 / 55%) !important;
+  box-shadow: var(--window-shadow-active) !important;
+}
+
+html[data-system-mode="tablet"] .portfolio-window > .window-chrome,
+html[data-system-mode="tablet"] .contact-window > .window-chrome {
+  background: var(--title-active) !important;
+  border-bottom: 1px solid rgb(32 43 58 / 12%) !important;
+}
+
+html[data-system-mode="tablet"] .portfolio-window[data-window-state="clear"] > .window-chrome {
+  background: var(--title-inactive) !important;
+}
+
+/* Paired: the focused pane has the active title colour; the other keeps the inactive one. */
+
+html[data-system-mode="tablet"] .window-close-action > span,
+html[data-system-mode="tablet"] .case-close-action > span {
+  align-items: center;
+  background: var(--raised) !important;
+  block-size: 28px !important;
+  border: 1px solid var(--line-ink) !important;
+  border-radius: 0 !important;
+  box-shadow: var(--bevel-raised) !important;
+  color: var(--line-ink) !important;
+  display: inline-flex !important;
+  inline-size: 28px !important;
+  justify-content: center;
+}
+
+html[data-system-mode="tablet"] .window-close-action,
+html[data-system-mode="tablet"] .case-close-action {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+/* The shelf is a floating dock: same icons, same running and focus marks. */
+
+/* -------------------------------------------------------- Experience dossier */
+
+.workspace-experience-window .experience-brief-content { background: var(--doc) !important; }
+
+/* The action bar stays above the dossier as it scrolls, so it is a solid strip: text never
+ * shows through it. */
+.workspace-experience-window .experience-brief-utility {
+  background: var(--doc) !important;
+  border-bottom: 1px solid var(--doc-edge);
+  min-height: 56px !important;
+  padding-block: 8px !important;
+}
+
+.experience-brief-actions { gap: 8px !important; }
+
+/* Experience actions use the shared control family (see "Control family"). */
+
+/* Header: who, in one block. The mark, the name, then three facts on a single line of columns. */
+.workspace-experience-window .experience-brief-intro {
+  align-items: end !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--rule-strong) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  column-gap: clamp(24px, 4cqw, 56px) !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) !important;
+  margin-top: clamp(24px, 4cqw, 44px);
+  padding: 0 0 clamp(20px, 3cqw, 28px) !important;
+}
+
+.workspace-experience-window .experience-brief-heading {
+  align-items: center;
+  border: 0 !important;
+  column-gap: 16px;
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  padding: 0 !important;
+}
+
+.experience-brief-mark { block-size: 60px; inline-size: 60px; }
+
+.workspace-experience-window .experience-brief-heading h1 {
+  font-size: clamp(1.9rem, 3.4cqw, 2.6rem) !important;
+  font-weight: 650 !important;
+  letter-spacing: -.03em !important;
+  line-height: 1.05 !important;
+  margin: 0 !important;
+  max-width: none !important;
+}
+
+.workspace-experience-window .experience-brief-summary {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+}
+
+.workspace-experience-window .experience-brief-facts {
+  display: grid;
+  gap: 10px 28px !important;
+  grid-template-columns: repeat(3, minmax(0, max-content));
+  justify-content: end;
+  margin: 0;
+}
+
+.workspace-experience-window .experience-brief-facts > div {
+  align-content: start;
+  border: 0 !important;
+  display: grid !important;
+  gap: 2px !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  padding: 0 !important;
+}
+
+.workspace-experience-window .experience-brief-facts dt {
+  color: var(--ink-secondary);
+  font: 500 .8rem/1.3 var(--font-body), sans-serif !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.workspace-experience-window .experience-brief-facts dd {
+  font-size: .95rem !important;
+  font-weight: 600;
+  margin: 0;
+  max-width: 26ch;
+}
+
+/* Role history: a timeline. Dates and employer on the rail, the work beside them. */
+.workspace-experience-window .experience-brief-section-heading h2 {
+  font-size: clamp(1.35rem, 2.4cqw, 1.7rem) !important;
+  font-weight: 650 !important;
+  letter-spacing: -.02em !important;
+}
+
+.workspace-experience-window .experience-list {
+  border: 0 !important;
+  display: grid;
+  gap: 0;
+  position: relative;
+}
+
+.workspace-experience-window .experience-entry {
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--rule) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  column-gap: clamp(24px, 4cqw, 56px) !important;
+  margin: 0 !important;
+  padding: clamp(18px, 2.6cqw, 26px) 0 !important;
+  position: relative;
+}
+
+.workspace-experience-window .experience-entry:last-child { border-bottom: 0 !important; }
+
+/* Role history is a timeline: a hairline with a square node per role, the current role filled. */
+.workspace-experience-window .experience-entry-meta {
+  border-inline-start: 1px solid var(--border);
+  padding-inline-start: 16px;
+  position: relative;
+}
+
+.workspace-experience-window .experience-entry-meta::before {
+  background: #ffffff;
+  block-size: 9px;
+  border: 1px solid var(--line-ink);
+  box-sizing: border-box;
+  content: "";
+  inline-size: 9px;
+  inset-block-start: 5px;
+  inset-inline-start: -5px;
+  position: absolute;
+}
+
+.workspace-experience-window .experience-entry[data-current="true"] .experience-entry-meta::before { background: var(--accent); }
+
+.workspace-experience-window .experience-period {
+  color: var(--ink-secondary) !important;
+  font: 500 .86rem/1.4 var(--font-body), sans-serif !important;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.workspace-experience-window .experience-company {
+  font-family: var(--font-body), sans-serif !important;
+  font-size: 1.04rem !important;
+  font-weight: 650 !important;
+  letter-spacing: -.01em !important;
+}
+
+.workspace-experience-window .experience-entry-meta > span {
+  color: var(--ink-secondary);
+  font: 500 .84rem/1.4 var(--font-body), sans-serif !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.workspace-experience-window .experience-main h3 {
+  font-size: clamp(1.15rem, 2cqw, 1.4rem) !important;
+  font-weight: 650 !important;
+  margin-top: 0 !important;
+}
+
+.workspace-experience-window .experience-scope {
+  color: #34425a !important;
+  font-size: 1rem !important;
+  line-height: 1.5 !important;
+}
+
+/* Scope: a two-column table of what has been used where. */
+.workspace-experience-window .scope-map { border: 0 !important; display: grid; gap: 0; }
+
+.workspace-experience-window .scope-row {
+  align-items: baseline;
+  border: 0 !important;
+  border-bottom: 1px solid var(--rule) !important;
+  display: grid !important;
+  gap: 4px 24px !important;
+  grid-template-columns: minmax(96px, 140px) minmax(0, 1fr) !important;
+  min-height: 0 !important;
+  padding: 10px 0 !important;
+}
+
+.workspace-experience-window .scope-row > strong {
+  color: var(--ink-secondary);
+  font: 500 .86rem/1.4 var(--font-body), sans-serif !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.workspace-experience-window .scope-row > p {
+  color: var(--ink) !important;
+  font-size: .95rem !important;
+  line-height: 1.45 !important;
+  margin: 0 !important;
+}
+
+/* Principles: a numbered list, read as the engineer's own rules. */
+.workspace-experience-window .principles-list {
+  border: 0 !important;
+  counter-reset: none;
+  display: grid;
+  gap: 0;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 64ch;
+}
+
+.workspace-experience-window .principles-list > li {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  display: grid !important;
+  font-size: 1rem;
+  gap: 14px;
+  grid-template-columns: 2ch minmax(0, 1fr) !important;
+  line-height: 1.5;
+  margin: 0 !important;
+  padding: 8px 0 !important;
+}
+
+.workspace-experience-window .principles-list > li > span {
+  color: var(--accent-deep) !important;
+  font-family: var(--font-mono), monospace;
+  font-size: .86rem !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.workspace-experience-window .experience-work-handoff {
+  background: transparent !important;
+  border-top: 1px solid var(--rule) !important;
+  color: var(--ink-secondary) !important;
+  display: block !important;
+  font-size: .95rem;
+  margin-top: clamp(24px, 4cqw, 40px);
+  padding: 16px 0 0 !important;
+}
+
+.workspace-experience-window .experience-work-handoff a {
+  align-items: center;
+  color: var(--ink) !important;
+  display: inline-flex;
+  font-weight: 600;
+  gap: 2px;
+  text-decoration: none;
+}
+
+.workspace-experience-window .experience-work-handoff a:hover { color: var(--accent-deep) !important; }
+.workspace-experience-window .experience-work-handoff a svg { block-size: 14px; inline-size: 14px; }
+
+/* The name and three facts share one line only when the facts fit without wrapping; otherwise
+ * the facts sit in one left-aligned row under the name. */
+@container experience-brief (max-width: 75rem) {
+  .workspace-experience-window .experience-brief-intro { align-items: start !important; grid-template-columns: minmax(0, 1fr) !important; row-gap: 18px; }
+  .workspace-experience-window .experience-brief-facts { justify-content: start; }
+}
+
+@container experience-brief (max-width: 640px) {
+  .workspace-experience-window .experience-brief-heading { column-gap: 14px; grid-template-columns: 48px minmax(0, 1fr); }
+  .experience-brief-mark { block-size: 48px; inline-size: 48px; }
+  .workspace-experience-window .experience-brief-facts { grid-template-columns: minmax(0, 1fr); }
+  .workspace-experience-window .scope-row { grid-template-columns: minmax(0, 1fr) !important; }
+  .workspace-experience-window .experience-entry { grid-template-columns: minmax(0, 1fr) !important; row-gap: 12px !important; }
+
+  .workspace-experience-window .experience-entry-meta {
+    display: grid !important;
+    gap: 2px !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    justify-items: start;
+  }
+
+  .workspace-experience-window .experience-entry-meta > * { grid-column: 1 !important; grid-row: auto !important; text-align: start !important; }
+}
+
+html[data-system-mode="computer"] .window-management-menu {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+
+/* Phone app bar: the app's name is its title; Back lives in the system bar at the root. */
+html[data-system-mode="phone"] .window-chrome .window-location .micro-label {
+  color: var(--ink) !important;
+  font-family: var(--font-body), sans-serif !important;
+  font-size: 1.04rem !important;
+  font-weight: 650 !important;
+  letter-spacing: -.01em !important;
+  text-transform: none !important;
+}
+
+html[data-system-mode="phone"] .portfolio-window > .window-chrome:not(:has(.window-compact-back-action)),
+html[data-system-mode="phone"] .contact-window > .window-chrome:not(:has(.window-compact-back-action)) {
+  padding-inline-start: 18px !important;
+}
+
+/* ------------------------------------------------------------------ Contact */
+
+.contact-window-body { background: var(--doc) !important; }
+
+/* A contact card: who you are writing to, and when it is daytime for them. */
+.contact-card-head {
+  align-items: center;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 48px minmax(0, 1fr);
+  margin-bottom: 20px;
+}
+
+.contact-card-mark { block-size: 48px; inline-size: 48px; }
+
+.contact-card-head h2 {
+  font-size: 1.3rem !important;
+  font-weight: 650 !important;
+  letter-spacing: -.015em !important;
+  line-height: 1.15 !important;
+  margin: 0 !important;
+}
+
+.contact-card-head p {
+  color: var(--ink-secondary);
+  font-size: .9rem;
+  margin: 3px 0 0;
+}
+
+.contact-directory {
+  border: 0 !important;
+  display: grid;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Email is the primary channel: large, with its two actions directly beneath. */
+.contact-directory > li.contact-primary {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  display: grid !important;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) !important;
+  margin-bottom: 20px;
+  padding: 0 !important;
+}
+
+/* The remaining channels share one grouped list. */
+.contact-directory > li:not(.contact-primary) {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--doc-edge) !important;
+  border-radius: 0 !important;
+  border-top-width: 0 !important;
+  box-shadow: none !important;
+  padding: 10px 10px 10px 16px !important;
+}
+
+.contact-directory > li.contact-primary + li { border-radius: 2px!important; border-top-width: 1px !important; }
+.contact-directory > li:last-child { border-radius: 2px!important; }
+
+.contact-channel > span:first-child {
+  color: var(--ink-secondary) !important;
+  font: 500 .82rem/1.3 var(--font-body), sans-serif !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.contact-channel > span:last-child,
+.contact-channel > a {
+  color: var(--ink) !important;
+  font-family: var(--font-body), sans-serif !important;
+  font-size: .96rem !important;
+  letter-spacing: 0 !important;
+  overflow-wrap: anywhere;
+  text-transform: none !important;
+}
+
+.contact-primary .contact-channel > a {
+  font-size: clamp(1.15rem, 4.6cqw, 1.45rem) !important;
+  font-weight: 650;
+  letter-spacing: -.01em !important;
+  text-decoration: none;
+}
+
+.contact-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.contact-directory-action {
+  align-items: center;
+  background: #fff !important;
+  border: 1px solid var(--doc-edge) !important;
+  border-radius: var(--radius-control) !important;
+  box-shadow: none !important;
+  color: var(--ink) !important;
+  display: inline-flex;
+  font-weight: 600;
+  gap: 6px;
+  font-size: .9rem !important;
+  justify-content: center;
+  min-height: 42px !important;
+  padding-inline: 16px !important;
+  text-decoration: none;
+}
+
+.contact-directory > li:not(.contact-primary) .contact-directory-action {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--ink-secondary) !important;
+}
+
+.contact-directory > li:not(.contact-primary) .contact-directory-action:hover { background: #ffffff !important; color: var(--ink) !important; }
+
+.contact-directory-action.is-primary {
+  background: var(--accent-action) !important;
+  border-color: var(--line-ink) !important;
+  color: #ffffff !important;
+}
+
+@container (max-width: 520px) {
+  /* Narrow: the channel links become arrow buttons; each keeps its accessible name. */
+  .contact-directory > li:not(.contact-primary) .contact-action-label { display: none; }
+
+  .contact-directory > li:not(.contact-primary) .contact-directory-action {
+    gap: 0;
+    inline-size: 44px;
+    padding: 0 !important;
+  }
+
+  .contact-directory > li:not(.contact-primary) .contact-directory-action svg { block-size: 16px; inline-size: 16px; }
+  .contact-channel > span:last-child { font-size: .92rem !important; }
+}
+
+/* ------------------------------------------------------- Product catalogue */
+
+.product-links-app-content { background: var(--doc) !important; }
+
+.product-links-app-content > * {
+  box-sizing: border-box;
+  margin-inline: auto !important;
+  max-inline-size: 860px !important;
+}
+
+.product-links-intro {
+  display: block !important;
+  padding-block: clamp(22px, 3.4cqw, 36px) 12px !important;
+}
+
+.product-links-intro > * { margin-inline: 0 !important; max-width: none !important; }
+
+.product-links-intro h1 {
+  font-size: clamp(1.6rem, 3.6cqw, 2.2rem) !important;
+  font-weight: 650 !important;
+  letter-spacing: -.025em !important;
+  line-height: 1.1 !important;
+}
+
+.product-links-intro p { color: var(--ink-secondary) !important; font: var(--type-body) !important; font-size: .95rem !important; margin: 6px 0 0 !important; }
+
+/* A search field that looks like one, with its label inside. */
+.product-links-search {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--doc-edge) !important;
+  border-radius: 2px;
+  display: grid !important;
+  gap: 0 12px !important;
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+  padding: 4px 6px 4px 14px !important;
+}
+
+.product-links-search:focus-within { border-color: var(--accent) !important; outline: 2px solid var(--focus); outline-offset: 1px; }
+
+.product-links-search label {
+  color: var(--ink-secondary) !important;
+  font: 500 .86rem/1 var(--font-body), sans-serif !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  white-space: nowrap;
+}
+
+.product-links-search input {
+  background: transparent !important;
+  border: 0 !important;
+  font-size: 1rem !important;
+  min-height: 40px;
+  outline: 0 !important;
+  padding: 0 !important;
+}
+
+.product-links-count {
+  color: var(--ink-secondary) !important;
+  font: 500 .8rem/1.3 var(--font-body), sans-serif !important;
+  letter-spacing: 0 !important;
+  margin: 10px 2px 14px !important;
+  text-align: start !important;
+  text-transform: none !important;
+}
+
+/* Groups read like a catalogue index: a letter, then its rows in one list. */
+.product-link-groups { display: grid; gap: 14px; }
+
+.product-link-group {
+  display: grid !important;
+  gap: 0 16px !important;
+  grid-template-columns: 24px minmax(0, 1fr) !important;
+}
+
+.product-link-group > h2 {
+  border: 0;
+  color: var(--ink-secondary) !important;
+  font: 600 .9rem/1 var(--font-body), sans-serif !important;
+  letter-spacing: 0 !important;
+  margin: 0 !important;
+  padding-top: 18px;
+}
+
+.product-links-list {
+  background: #fff;
+  border: 1px solid var(--doc-edge);
+  border-radius: 2px;
+  display: grid;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.product-link-row {
+  align-items: center !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--rule) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  column-gap: 14px !important;
+  display: grid !important;
+  grid-template-areas: "id copy offers" !important;
+  grid-template-columns: 4.2rem minmax(0, 1fr) auto !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  padding: 8px 8px 8px 14px !important;
+}
+
+.product-link-row:last-child { border-bottom: 0 !important; }
+
+.product-link-id {
+  color: var(--ink-secondary) !important;
+  text-transform: none !important;
+  font-family: var(--font-mono), monospace;
+  font-size: .78rem !important;
+  font-variant-numeric: tabular-nums;
+  grid-area: id;
+  writing-mode: horizontal-tb !important;
+}
+
+.product-link-copy { grid-area: copy; min-inline-size: 0; }
+
+.product-link-name {
+  display: block;
+  font-size: .98rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -.005em !important;
+  line-height: 1.3 !important;
+}
+
+.product-link-offers { display: flex !important; flex-wrap: wrap; gap: 6px !important; grid-area: offers; justify-content: end; }
+
+.product-marketplace-link {
+  align-items: center;
+  background: transparent !important;
+  border: 1px solid var(--doc-edge) !important;
+  border-radius: var(--radius-control) !important;
+  box-shadow: none !important;
+  color: var(--ink) !important;
+  display: inline-flex !important;
+  font-size: .86rem;
+  font-weight: 600;
+  gap: 6px !important;
+  min-height: 40px !important;
+  min-width: 0 !important;
+  padding: 0 12px !important;
+  width: auto !important;
+}
+
+.product-marketplace-link:hover { background: rgb(32 43 58 / 5%) !important; border-color: #b9c6d6 !important; }
+.product-marketplace-link .marketplace-mark { block-size: 18px; fill: none; inline-size: 18px; stroke: currentColor; stroke-width: 1.6; }
+.product-marketplace-link b { display: inline-flex; }
+
+.product-marketplace-filter button {
+  background: #fff !important;
+  border: 1px solid var(--doc-edge) !important;
+  border-radius: 2px!important;
+}
+
+.product-marketplace-filter button[aria-pressed="true"] {
+  background: var(--shell-ground) !important;
+  border-color: var(--shell-ground) !important;
+  color: var(--shell-ink) !important;
+}
+
+@container (max-width: 560px) {
+  .product-links-search { grid-template-columns: minmax(0, 1fr) auto !important; padding-block: 8px !important; }
+  .product-links-search label { grid-column: 1 / -1; }
+  .product-link-group { grid-template-columns: minmax(0, 1fr) !important; }
+  .product-link-group > h2 { padding: 0 2px 6px; }
+
+  .product-link-row {
+    grid-template-areas: "id offers" "copy offers" !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    row-gap: 2px !important;
+  }
+}
+
+html[data-system-mode="computer"] .desktop-object:hover .desktop-app-glyph,
+html[data-system-mode="computer"] .desktop-object:focus-visible .desktop-app-glyph,
+html[data-system-mode="computer"] .desktop-object:active .desktop-app-glyph {
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+html[data-system-mode="computer"] .desktop-object:active { background: rgb(32 43 58 / 5%); }
+html[data-system-mode="computer"] .desktop-object[data-dragging="true"] { background: transparent !important; z-index: 5; }
+
+/* ------------------------------------------------- Minimize into the dock */
+
+html[data-system-mode="computer"] .portfolio-window,
+html[data-system-mode="computer"] .contact-window {
+  transition:
+    border-color .18s,
+    box-shadow .22s var(--env-settle),
+    filter .22s,
+    opacity 260ms ease,
+    transform 380ms var(--env-settle),
+    visibility 0s linear 0s !important;
+}
+
+html[data-system-mode="computer"] .portfolio-window[data-window-state="minimized"],
+html[data-system-mode="computer"] .contact-window[data-window-state="minimized"] {
+  opacity: 0 !important;
+  transform: translate3d(var(--minimize-dx, 0px), var(--minimize-dy, 240px), 0) scale(.06) !important;
+  transition:
+    opacity 170ms ease-in 210ms,
+    transform 380ms cubic-bezier(.5, 0, .75, .4),
+    visibility 0s linear 380ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-system-mode="computer"] .portfolio-window,
+  html[data-system-mode="computer"] .contact-window,
+  html[data-system-mode="computer"] .portfolio-window[data-window-state="minimized"],
+  html[data-system-mode="computer"] .contact-window[data-window-state="minimized"] {
+    transition: opacity 120ms ease, visibility 0s linear 120ms !important;
+  }
+
+  html[data-system-mode="computer"] .portfolio-window[data-window-state="minimized"],
+  html[data-system-mode="computer"] .contact-window[data-window-state="minimized"] { transform: none !important; }
+}
+
+/* Open animations must not keep filling once finished, or they own transform and opacity
+ * and the minimize, restore, and Home transitions can never run. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-system-mode="computer"] .portfolio-window,
+  html[data-system-mode="computer"] .contact-window,
+  html[data-system-mode="computer"] .evidence-dialog:not([data-closing="true"]) .evidence-sheet {
+    animation: os-window-open 300ms var(--env-settle) backwards !important;
+  }
+}
+
+/* ------------------------------------------------------------ Case document */
+
+.selected-work-window { background: var(--doc) !important; }
+
+/* Chapters: four plain tabs that hug their labels; copper marks the current one. */
+/* Chapters: a classic tab strip. The strip is solid and spans the window; the current tab is
+ * the document colour, outlined on three sides, and joins the page below it. */
+html:not([data-system-mode="phone"]) .selected-work-window .case-progress {
+  align-items: end !important;
+  background: var(--surface-2) !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--line-ink) !important;
+  box-shadow: none !important;
+  display: flex !important;
+  gap: 2px !important;
+  grid-template-columns: none !important;
+  margin-inline: 0 !important;
+  max-width: none !important;
+  padding: 6px clamp(16px, 4cqw, 64px) 0 !important;
+  width: auto !important;
+  min-height: 0 !important;
+}
+
+html:not([data-system-mode="phone"]) .selected-work-window .case-progress a {
+  align-items: center !important;
+  border: 1px solid transparent !important;
+  border-bottom: 0 !important;
+  display: flex !important;
+  flex: 0 0 auto !important;
+  margin-bottom: -1px !important;
+  min-height: 36px !important;
+  min-width: 0 !important;
+  padding: 0 14px !important;
+}
+
+html:not([data-system-mode="phone"]) .selected-work-window .case-progress a:hover { background: var(--raised) !important; border-color: var(--border) !important; }
+html:not([data-system-mode="phone"]) .selected-work-window .case-progress a::after { display: none !important; }
+
+html:not([data-system-mode="phone"]) .selected-work-window .case-progress a > b {
+  color: var(--ink-secondary);
+  font: 600 .9rem/1 var(--font-body), sans-serif !important;
+  letter-spacing: 0 !important;
+  margin: 0 !important;
+  text-transform: none !important;
+}
+
+html:not([data-system-mode="phone"]) .selected-work-window .case-progress a[aria-current="step"] > b { color: var(--ink); }
+html:not([data-system-mode="phone"]) .selected-work-window .case-progress a[aria-current="step"] {
+  background: var(--doc) !important;
+  border-color: var(--line-ink) !important;
+  box-shadow: inset 0 2px 0 var(--accent) !important;
+  padding-bottom: 1px !important;
+}
+
+/* Opening: the failure and its constraint, the situation in prose, the decision marked once,
+ * and the case's own schematic beside it. */
+.selected-work-window .case-intro {
+  align-items: start !important;
+  column-gap: clamp(32px, 5cqw, 72px) !important;
+  display: grid !important;
+  grid-template-areas: "thesis" "figure" "story" !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  min-height: 0 !important;
+  padding-block: clamp(28px, 5cqw, 56px) clamp(20px, 3cqw, 32px) !important;
+  row-gap: clamp(20px, 3cqw, 32px) !important;
+}
+
+.selected-work-window .case-thesis { grid-area: thesis; margin: 0 !important; max-width: none !important; }
+
+.selected-work-window .case-thesis h1 {
+  font-size: clamp(2rem, 3.8cqw, 3.15rem) !important;
+  font-weight: 650 !important;
+  letter-spacing: -.03em !important;
+  line-height: 1.06 !important;
+  margin: 0 !important;
+  max-width: 19ch !important;
+  text-wrap: balance;
+}
+
+.selected-work-window .case-consequence {
+  color: #34425a !important;
+  font-size: clamp(1.08rem, 1.6cqw, 1.3rem) !important;
+  font-weight: 500 !important;
+  letter-spacing: -.005em !important;
+  line-height: 1.4 !important;
+  margin: 14px 0 0 !important;
+  max-width: 38ch !important;
+  text-wrap: pretty;
+}
+
+.case-narrative { display: grid; gap: 18px; grid-area: story; grid-template-columns: minmax(0, 1fr); max-width: 62ch; }
+
+.case-situation {
+  color: var(--ink-secondary);
+  font-size: 1.04rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* The decision is marked once, with the designed path's lamp, not with a coloured bar. */
+.case-decision-line {
+  color: var(--ink);
+  font-size: 1.08rem;
+  font-weight: 600;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.case-decision-line > span {
+  align-items: center;
+  color: var(--designed);
+  display: flex;
+  font-size: .8rem;
+  font-weight: 600;
+  gap: 7px;
+  margin-bottom: 3px;
+}
+
+.case-decision-line > span::before { background: var(--designed); block-size: 10px; border: 1px solid var(--line-ink); content: ""; flex: none; inline-size: 10px; }
+
+.selected-work-window .case-figure {
+  grid-area: figure;
+  margin: 0;
+  max-inline-size: 460px;
+}
+
+.selected-work-window .case-figure .case-cover {
+  background: #ffffff;
+  block-size: auto;
+  border: 1px solid var(--doc-edge);
+  border-radius: 2px;
+  display: block;
+  inline-size: 100%;
+}
+
+.selected-work-window .case-figure figcaption {
+  color: var(--ink-secondary);
+  font-size: .78rem;
+  margin-top: 8px;
+}
+
+@container selected-work (min-width: 56rem) {
+  .selected-work-window .case-intro {
+    grid-template-areas: "thesis figure" "story figure" !important;
+    grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr) !important;
+  }
+
+  .selected-work-window .case-figure { align-self: center; justify-self: end; }
+}
+
+.selected-work-window .interaction-title {
+  font-size: clamp(1.4rem, 2.2cqw, 1.8rem) !important;
+  font-weight: 650 !important;
+  letter-spacing: -.02em !important;
+}
+
+/* Result: the conclusion first, then the two paths, then what the lab does not prove. */
+.selected-work-window .case-result {
+  border: 0 !important;
+  column-gap: clamp(24px, 4cqw, 48px) !important;
+  display: grid !important;
+  grid-template-areas: "note note" "baseline designed" "limits limits" !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  padding-block: clamp(32px, 5cqw, 56px) clamp(16px, 2cqw, 24px) !important;
+  row-gap: 18px !important;
+}
+
+.selected-work-window .case-result > .case-result-note {
+  color: var(--ink) !important;
+  font-size: clamp(1.3rem, 2.3cqw, 1.75rem) !important;
+  font-weight: 650 !important;
+  grid-area: note;
+  letter-spacing: -.02em !important;
+  line-height: 1.25 !important;
+  margin: 0 !important;
+  max-width: 30ch !important;
+  text-wrap: balance;
+}
+
+/* The two paths carry lamps in their meaning colours beside their labels. */
+.selected-work-window .case-result > div {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  display: grid;
+  gap: 3px;
+  padding: 0 !important;
+}
+
+.selected-work-window .case-result > div[data-path="baseline"] { grid-area: baseline; }
+.selected-work-window .case-result > div[data-path="designed"] { grid-area: designed; }
+
+.selected-work-window .case-result > div > span {
+  align-items: center;
+  color: var(--ink-secondary) !important;
+  display: flex;
+  font: 500 .86rem/1.3 var(--font-body), sans-serif !important;
+  gap: 7px;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.selected-work-window .case-result > div > span::before { background: var(--adverse); block-size: 10px; border: 1px solid var(--line-ink); content: ""; flex: none; inline-size: 10px; }
+.selected-work-window .case-result > div[data-path="designed"] > span::before { background: var(--designed); }
+.selected-work-window .case-result > div > strong { padding-inline-start: 17px; }
+
+.selected-work-window .case-result > div > strong {
+  font: 650 1.08rem/1.3 var(--font-body), sans-serif !important;
+}
+
+.case-limits {
+  border-top: 1px solid var(--rule);
+  color: var(--ink-secondary);
+  font-size: .95rem;
+  grid-area: limits;
+  line-height: 1.55;
+  margin: 6px 0 0;
+  max-width: 72ch;
+  padding-top: 14px;
+}
+
+.selected-work-window .case-result > .case-limits > span {
+  color: var(--ink) !important;
+  display: inline !important;
+  font: 600 .95rem/1.55 var(--font-body), sans-serif !important;
+  letter-spacing: 0 !important;
+  margin-inline-end: 8px;
+  text-transform: none !important;
+}
+
+@container selected-work (max-width: 41.999rem) {
+  .selected-work-window .case-result {
+    grid-template-areas: "note" "baseline" "designed" "limits" !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* Evidence: exhibits are real screenshots, so they keep a physical frame. */
+.selected-work-window .evidence-card {
+  background: #fff !important;
+  border: 1px solid var(--doc-edge) !important;
+  border-radius: 2px!important;
+  box-shadow: none;
+  overflow: hidden;
+  transition: border-color var(--duration-micro) ease, box-shadow 240ms var(--env-settle);
+}
+
+.selected-work-window .evidence-card:hover { border-color: #b9c6d6 !important; box-shadow: 3px 3px 0 rgb(37 43 52 / 22%); }
+.selected-work-window .evidence-thumb { background: var(--shell-ground-deep) !important; }
+
+.selected-work-window .evidence-number {
+  color: var(--ink-secondary) !important;
+  font-size: .78rem !important;
+  letter-spacing: .02em !important;
+}
+
+.selected-work-window .evidence-focus {
+  color: var(--ink) !important;
+  font: 600 .98rem/1.35 var(--font-body), sans-serif !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.selected-work-window .evidence-view { color: var(--accent-deep) !important; font-size: .86rem !important; font-weight: 600; }
+
+.selected-work-window .evidence-intro h2 {
+  font-size: clamp(1.5rem, 2.6cqw, 2.1rem) !important;
+  font-weight: 650 !important;
+  letter-spacing: -.025em !important;
+}
+
+.selected-work-window .solid-link,
+.selected-work-window .case-handoff .solid-link {
+  background: var(--shell-ground) !important;
+  border-radius: 2px!important;
+  color: var(--shell-ink) !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.selected-work-window .solid-link:hover { background: #34445c !important; }
+
+/* Title-bar actions match the flat window controls. */
+.case-preview-titlebar-actions .case-back-action {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 2px!important;
+  box-shadow: none !important;
+  color: #4c5a6e !important;
+  font-family: var(--font-body), sans-serif !important;
+  font-size: .84rem !important;
+  font-weight: 600;
+  gap: 4px;
+  letter-spacing: 0 !important;
+  min-height: 32px !important;
+  padding-inline: 8px 10px !important;
+  text-transform: none !important;
+}
+
+.case-preview-titlebar-actions .case-back-action:hover { background: rgb(32 43 58 / 9%) !important; }
+
+/* ---------------------------------------------------------- Evidence viewer */
+
+.evidence-stage { background: var(--shell-ground-deep) !important; }
+.evidence-stage::after { display: none !important; }
+
+.evidence-stage-tools {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: 10px;
+  position: relative;
+  z-index: 2;
+}
+
+.evidence-zoom {
+  background: rgb(32 43 58 / 7%);
+  border: 1px solid rgb(32 43 58 / 13%);
+  border-radius: var(--radius-control);
+  color: var(--shell-ink);
+  cursor: pointer;
+  font: 600 .84rem/1 var(--font-body), sans-serif;
+  min-height: 40px;
+  padding: 0 14px;
+  position: relative;
+}
+
+.evidence-zoom::after { content: ""; inset: -2px; position: absolute; }
+.evidence-zoom[aria-pressed="true"] { background: rgb(103 133 200 / 24%); border-color: rgb(103 133 200 / 60%); }
+.evidence-zoom:disabled { cursor: default; opacity: .5; }
+
+.evidence-image-wrap {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.evidence-stage[data-zoomed] {
+  align-items: start !important;
+  justify-items: start !important;
+  overflow: auto !important;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
+}
+
+.evidence-stage[data-zoomed] .evidence-stage-tools {
+  justify-content: flex-start;
+  left: 0;
+  position: sticky;
+  top: 0;
+  width: max-content;
+}
+
+.evidence-stage[data-zoomed] .evidence-image-wrap {
+  align-self: start !important;
+  animation: none !important;
+  block-size: auto !important;
+  cursor: zoom-out;
+  height: auto !important;
+  max-height: none !important;
+  max-inline-size: none !important;
+  max-width: none !important;
+  min-height: 0 !important;
+}
+
+.evidence-stage:not([data-zoomed]) .evidence-image-wrap { cursor: zoom-in; }
+
+.evidence-sheet .evidence-original {
+  background: #fff !important;
+  border: 1px solid var(--doc-edge) !important;
+  border-radius: var(--radius-control) !important;
+  color: var(--ink) !important;
+}
+
+.evidence-sheet .evidence-focus-label { color: var(--accent) !important; }
+
+/* Type floor for system chrome and metadata. */
+.system-status-bar time small { font-size: .75rem !important; }
+
+/* Home scrolls above the shelf when the stage is short. */
+html[data-system-mode] .system-status-bar .system-status time small { font-size: .75rem !important; }
+html[data-system-mode] .system-status-bar .system-status time span { font-size: .8rem !important; }
+
+html[data-system-mode="computer"] .desktop-identity-actions > * {
+  align-items: center;
+  block-size: 36px;
+  box-sizing: border-box;
+  line-height: 1 !important;
+  margin: 0 !important;
+}
+
+/* Landscape phones: the status bar steps aside, as it does natively, to give reading room. */
+@media (orientation: landscape) and (max-height: 500px) {
+  html[data-system-mode="phone"] {
+    /* 44 px targets plus the bar rule. */
+    --os-phone-nav: calc(45px + env(safe-area-inset-bottom));
+    --os-topbar: env(safe-area-inset-top);
+  }
+
+  html[data-system-mode="phone"] .system-status-bar { display: none !important; }
+}
+
+/* Phone case header: Back already returns to the list, and one title line is enough. */
+html[data-system-mode="phone"] .case-preview-titlebar-actions { display: none !important; }
+html[data-system-mode="phone"] .window-chrome .window-location:has(strong) .micro-label { display: none !important; }
+
+html[data-system-mode="phone"] .window-chrome .window-location strong {
+  font-size: .92rem !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-system-mode="phone"] .selected-work-window .case-progress a {
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+/* A snapped window is a resting state, not an alert: no ring. The snap preview shows the target while dragging. */
+html[data-system-mode="computer"] .portfolio-window[data-snap],
+html[data-system-mode="computer"] .contact-window[data-snap],
+html[data-system-mode="computer"] .selected-work-window[data-snap],
+html[data-system-mode="computer"] .evidence-sheet[data-snap] {
+  outline: none !important;
+}
+
+/* Repository preview: a bounded figure with a named placeholder while GitHub's image loads. */
+.github-project-preview-figure { max-inline-size: 880px; }
+
+.github-project-preview-figure .github-project-image {
+  background: var(--shell-ground-deep) !important;
+  border: 1px solid var(--doc-edge) !important;
+  border-radius: var(--radius-tile);
+  box-shadow: 3px 3px 0 rgb(37 43 52 / 22%);
+}
+
+.github-project-image-fallback {
+  align-content: center !important;
+  background: var(--surface-2) !important;
+  color: var(--shell-ink);
+  justify-items: center;
+  text-align: center;
+}
+
+.github-project-image-fallback b { font-size: clamp(1.2rem, 3cqw, 1.8rem) !important; }
+.github-project-image-fallback small { color: var(--shell-ink-muted) !important; font-size: .75rem !important; text-transform: none !important; }
+
+.github-project-preview figcaption { color: var(--ink-secondary); font-size: .78rem; }
+
+/* The evidence route sits in the same environment as every other window. */
+.evidence-route-window { z-index: 2; }
+
+/* Exhibit labels sit inside the card's padding; the state trace is a quiet disclosure. */
+.selected-work-window .evidence-card > .evidence-number,
+.selected-work-window .evidence-card > .evidence-focus {
+  padding-inline: 16px !important;
+}
+
+.selected-work-window .evidence-card > .evidence-number { padding-top: 14px !important; }
+
+/* Dossier rhythm: sections separate by a clear step, not by a screen of empty paper. */
+.workspace-experience-window .experience-brief-section {
+  padding-block: clamp(28px, 4cqw, 44px) 0 !important;
+}
+
+.workspace-experience-window .experience-brief-section-heading {
+  margin: 0 0 clamp(8px, 1.4cqw, 14px) !important;
+  padding: 0 !important;
+}
+
+.product-links-app-content { padding-top: 0 !important; }
+.product-links-intro { margin-bottom: 16px !important; }
+
+html[data-system-mode="phone"] .product-links-intro { padding-top: 18px !important; }
+
+/* ------------------------------------------------------------- Motion audit */
+
+/* Entrance choreography removed: documents, rows, icons, and window contents no longer
+ * fade up in staggered sequence. Motion that carries meaning stays: opening and closing
+ * apps, window focus and minimize, the evidence sheet, the chapter marker, and every
+ * simulation state change. */
+.evidence-image,
+.case-workspace-chrome,
+.case-intro .case-index-block,
+.case-intro .case-thesis,
+.case-interaction,
+.evidence-inspector,
+.evidence-stage-label,
+.evidence-image-wrap,
+.evidence-image-wrap::before,
+.evidence-image-wrap::after,
+.brief-actions .brief-action,
+.contact-window-body > *,
+.desktop-object,
+.portfolio-window-chrome,
+.portfolio-window-content > *,
+.experience-window > .brief-section,
+.portfolio-window-chrome::after,
+.case-workspace-chrome::after,
+.portfolio-window-content > .editorial-work,
+.portfolio-window-content > .editorial-footer,
+.selected-work-window .case-intro,
+.selected-work-window .case-interaction,
+.selected-work-window .mobile-outcome-strip,
+.selected-work-window .case-evidence,
+.selected-work-window .case-handoff,
+.editorial-home .portfolio-window .portfolio-window-chrome,
+.editorial-home .experience-window .portfolio-window-chrome,
+.editorial-home .workspace-case-window .portfolio-window-chrome,
+.case-page.selected-work-window .case-workspace-chrome,
+.editorial-home .portfolio-window .portfolio-window-chrome::after,
+.editorial-home .experience-window .portfolio-window-chrome::after,
+.editorial-home .workspace-case-window .portfolio-window-chrome::after,
+.case-page.selected-work-window .case-workspace-chrome::after,
+.window-close-action:active > span,
+.case-close-action:active > span,
+.portfolio-window > :not(.window-chrome):not(.window-resize-handle),
+.selected-work-window > :not(.window-chrome):not(.window-resize-handle)
+ {
+  animation: none !important;
+}
+
+/* Evidence ledger: a document heading, not a poster. */
+.evidence-route-window .evidence-route-content { background: var(--doc) !important; }
+
+.evidence-route-window .evidence-hero {
+  padding-block: clamp(28px, 4cqw, 48px) clamp(20px, 3cqw, 32px) !important;
+}
+
+.evidence-route-window .evidence-hero h1 {
+  font-size: clamp(1.9rem, 3.4cqw, 2.6rem) !important;
+  font-weight: 650 !important;
+  letter-spacing: -.03em !important;
+  line-height: 1.08 !important;
+  max-width: 22ch !important;
+}
+
+.evidence-route-window .evidence-hero p { color: var(--ink-secondary) !important; font-size: 1rem !important; max-width: 64ch !important; }
+
+.evidence-route-window .claim-header span {
+  font: 500 .84rem/1.3 var(--font-body), sans-serif !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+/* System metadata reads as text; mono stays for times, identifiers, and instrument values. */
+.system-status-bar .system-brand > span { box-shadow: none !important; }
+
+.evidence-route-window .claim-row h2 {
+  font-size: clamp(1.15rem, 2cqw, 1.45rem) !important;
+  font-weight: 650 !important;
+  letter-spacing: -.015em !important;
+  line-height: 1.25 !important;
+  margin: 6px 0 !important;
+}
+
+.evidence-route-window .claim-row > div > span {
+  color: var(--accent-deep) !important;
+  font-family: var(--font-mono), monospace;
+  font-size: .8rem !important;
+}
+
+.evidence-route-window .claim-evidence a { color: var(--accent-deep) !important; }
+
+/* The embedded case is its own scroll owner, so it must also contain its absolutely
+ * positioned children (the screen-reader status line); otherwise they extend the outer
+ * window's scroll area and wheel scrolling chains into empty space. */
+.workspace-work-window > .selected-work-window,
+.workspace-work-window > .embedded-case-workspace { position: relative !important; }
+
+/* The state trace disclosure sits flush with the result: a ruled row, not a framed box. */
+
+/* Exhibit labels: identifiers stay mono, at reading size. */
+.selected-work-window .evidence-card .evidence-number { font-size: .8rem !important; }
+
+.workspace-experience-window .experience-brief-facts {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 12px 32px !important;
+}
+
+.workspace-experience-window .experience-brief-facts > div { flex: 0 1 auto; min-inline-size: 9rem; }
+
+.workspace-experience-window .experience-brief-section { row-gap: 4px !important; }
+.workspace-experience-window .experience-list > .experience-entry:first-child { padding-top: 12px !important; }
+
+/* App icons carry their own fills and strokes; legacy system-bar rules that stroke every SVG
+ * must not reach them. */
+svg.app-icon,
+svg.owner-mark {
+  fill: none;
+  stroke: none !important;
+  stroke-width: 1;
+}
+
+/* ------------------------------------------------------------ Type authority */
+
+/* One family for interface and reading text. Monospace stays only on identifiers (event IDs,
+ * exhibit and product IDs, case numbers), times, measurements, and instrument values. */
+.micro-label,
+.case-progress a,
+.case-workspace-actions a,
+.case-workspace-actions button,
+.contact-channel > span,
+.desktop-identity > p,
+.desktop-object-copy small,
+.desktop-taskbar button::after,
+.evidence-card .evidence-focus,
+.evidence-focus,
+.evidence-focus-label,
+.evidence-meta dt,
+.evidence-sheet-head .window-location strong,
+.evidence-sheet-head > div > p:last-child,
+.evidence-stage-label,
+.experience-brief-facts dt,
+.experience-brief-heading > p,
+.experience-company,
+.experience-entry-meta > span,
+.experience-period,
+.github-project-count,
+.github-project-image-fallback small,
+.github-project-preview-figure figcaption,
+.github-project-preview-intro > div > p,
+.github-project-preview-intro dt,
+.mobile-outcome-strip strong,
+.product-link-group > h2,
+.product-links-count,
+.product-links-intro > p,
+.product-links-list small,
+.product-links-search label,
+.projects-index-heading > p,
+.scope-row > span,
+.selected-work-window .case-progress a > b,
+.solid-link,
+.system-active-app,
+.system-brand strong,
+.taskbar-app > .taskbar-app-preview small,
+.taskbar-app > .taskbar-app-preview strong,
+.window-close-action > small,
+.case-close-action > small,
+.evidence-close-action > small,
+.window-titlebar > p,
+.claim-header,
+.claim-header span,
+.github-project-preview-intro > div > p {
+  font-family: var(--font-body), system-ui, sans-serif !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.github-project-switcher > span,
+.system-status time span,
+.product-link-id,
+.case-entry-number,
+.evidence-number { font-variant-numeric: tabular-nums; }
+
+body { font-feature-settings: "kern" 1; text-rendering: optimizeLegibility; }
+
+/* -------------------------------------------------------- Desktop selection */
+
+/* Selected shortcut: a soft tile behind the icon and an accent pill behind the label, the
+ * familiar desktop selection. Hover only brightens; it never moves the icon. */
+html[data-system-mode="computer"] .desktop-object { cursor: default; }
+html[data-system-mode="computer"] .desktop-object:hover { background: rgb(255 255 255 / 34%); }
+html[data-system-mode="computer"] .desktop-object:focus-visible { background: rgb(255 255 255 / 34%); box-shadow: 0 0 0 2px var(--focus) !important; }
+
+html[data-system-mode="computer"] .desktop-object[data-selected="true"] { background: rgb(103 133 200 / 18%); }
+
+html[data-system-mode="computer"] .desktop-object[data-selected="true"] .desktop-object-copy strong {
+  background: var(--accent-action);
+  border-radius: 2px;
+  color: #ffffff !important;
+}
+
+html[data-system-mode="computer"] .desktop-object .desktop-object-copy strong { padding: 1px 6px; }
+html[data-system-mode="computer"] .desktop-object:focus-visible .desktop-object-copy strong { background: var(--accent-action); color: #fff !important; }
+
+/* Snap previews match the frames they produce: below the status bar, above the dock. */
+html[data-system-mode="computer"] .window-snap-preview[data-edge="left"] { inset: 46px calc(50% + 6px) var(--os-taskbar) 12px !important; }
+html[data-system-mode="computer"] .window-snap-preview[data-edge="right"] { inset: 46px 12px var(--os-taskbar) calc(50% + 6px) !important; }
+html[data-system-mode="computer"] .window-snap-preview[data-edge="top"] { inset: 46px 12px var(--os-taskbar) 12px !important; }
+
+/* ============================================================ Case instruments */
+
+/* Each "Try it" is one piece of lab equipment set on the page: a raised object with a
+ * nameplate, an input panel of selector keys, the case's display set into it, and a readout.
+ * Inputs, display, readout read left to right on a wide window and top to bottom on a narrow
+ * one. The composition follows the instrument's own width, never the viewport, so resizing,
+ * snapping, or rotating never resets a run. */
+.selected-work-window .instrument {
+  box-sizing: border-box;
+  inline-size: min(calc(100% - (var(--projects-gutter, 24px) * 2)), var(--projects-reading-width, 88rem));
+  margin-inline: auto;
+}
+
+.instrument {
+  --instrument-pad: clamp(12px, 2.2cqw, 20px);
+  background: var(--surface);
+  border: 1px solid var(--line-ink);
+  border-radius: 0;
+  box-shadow: var(--object-shadow);
+  container: instrument / inline-size;
+  display: grid;
+  gap: 0;
+  margin-block: clamp(8px, 2cqw, 20px);
+  padding: 0;
+  scroll-margin-top: calc(var(--window-chrome-height) + var(--case-progress-height, 46px) + 16px);
+}
+
+/* Nameplate: the same title strip as the desktop's "About this computer" accessory. */
+.instrument-plate {
+  align-items: baseline;
+  background: var(--title-inactive);
+  border-bottom: 1px solid var(--line-ink);
+  box-shadow: inset 1px 1px 0 #ffffff;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  justify-content: space-between;
+  padding: 8px var(--instrument-pad);
+}
+
+.instrument .instrument-plate h2.interaction-title {
+  color: var(--ink) !important;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font: var(--type-app-heading) !important;
+  letter-spacing: 0 !important;
+  margin: 0 !important;
+}
+
+.instrument-plate-name { align-items: baseline; color: var(--ink-secondary); display: flex; font: var(--type-caption); gap: 8px; margin: 0; }
+.instrument-plate-name span { color: var(--ink); font: var(--type-mono); }
+.instrument-plate-name small,
+.pay-step-event small { font: var(--type-caption); }
+
+.instrument-instruction {
+  color: var(--ink-secondary);
+  font: var(--type-body);
+  font-size: .92rem;
+  margin: 0;
+  max-inline-size: 76ch;
+  padding: 12px var(--instrument-pad) 0;
+}
+
+.instrument-body {
+  align-items: start;
+  display: grid;
+  gap: 16px 20px;
+  grid-template-areas: "inputs" "view" "inspector";
+  grid-template-columns: minmax(0, 1fr);
+  padding: 14px var(--instrument-pad) var(--instrument-pad);
+}
+
+.instrument-inputs { align-content: start; display: grid; gap: 14px; grid-area: inputs; min-inline-size: 0; }
+.instrument-primary { display: grid; }
+.instrument-controls { align-content: start; display: grid; gap: 14px; }
+.instrument-view { container: instrument-view / inline-size; grid-area: view; min-inline-size: 0; }
+.instrument-inspector { align-content: start; display: grid; gap: 10px; grid-area: inspector; min-inline-size: 0; }
+
+@container instrument (min-width: 44rem) {
+  .instrument-body {
+    grid-template-areas: "inputs view" "inspector inspector";
+    grid-template-columns: minmax(12rem, 15rem) minmax(0, 1fr);
+  }
+}
+
+@container instrument (min-width: 68rem) {
+  .instrument-body {
+    grid-template-areas: "inputs view inspector";
+    grid-template-columns: minmax(12rem, 14.5rem) minmax(0, 1fr) minmax(14rem, 16.5rem);
+  }
+}
+
+/* Inputs: selector keys joined into one object per group. Two options read as a switch side by
+ * side; three stack as a short column. The pressed key is set in, tinted, and its marker filled,
+ * so the selection never depends on colour alone. */
+.instrument-control { border: 0; margin: 0; min-inline-size: 0; padding: 0; }
+.instrument-control legend { color: var(--ink-secondary); font: var(--type-label); margin-bottom: 5px; padding: 0; }
+
+.instrument-keys { display: grid; grid-template-columns: minmax(0, 1fr); }
+.instrument-keys[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.instrument-option {
+  align-items: center;
+  background: var(--raised);
+  border: 1px solid var(--line-ink);
+  border-radius: 0;
+  box-shadow: var(--bevel-raised);
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  font: var(--type-label);
+  gap: 8px;
+  line-height: 1.25;
+  min-block-size: 34px;
+  padding: 5px 10px;
+  position: relative;
+  text-align: start;
+}
+
+.instrument-keys > .instrument-option + .instrument-option { margin-block-start: -1px; }
+.instrument-keys[data-count="2"] > .instrument-option + .instrument-option { margin-block-start: 0; margin-inline-start: -1px; }
+
+.instrument-option::before {
+  background: #ffffff;
+  block-size: 8px;
+  border: 1px solid var(--line-ink);
+  content: "";
+  flex: none;
+  inline-size: 8px;
+}
+
+.instrument-option:hover { background: #ffffff; }
+
+.instrument-option[aria-pressed="true"] {
+  background: var(--accent-soft);
+  box-shadow: var(--bevel-inset);
+  color: var(--accent-deep);
+  font-weight: 600;
+  z-index: 1;
+}
+
+.instrument-option[aria-pressed="true"]::before { background: var(--accent); }
+.instrument-option:active { background: var(--recessed); box-shadow: var(--bevel-inset); }
+.instrument-option:focus-visible { outline: 2px solid var(--focus); outline-offset: -5px; z-index: 2; }
+
+/* Once a group leaves the story's setting, the key it left is marked, so the visitor can see
+ * where the case started. */
+.instrument-option[data-story][aria-pressed="false"]::after {
+  color: var(--ink-secondary);
+  content: "story";
+  font: var(--type-caption);
+  font-family: var(--font-mono), monospace;
+  margin-inline-start: auto;
+  padding-inline-start: 6px;
+}
+
+/* In the side panel a long two-way choice (the approach) stacks like the others. */
+@container instrument (min-width: 44rem) {
+  .instrument-approach .instrument-keys { grid-template-columns: minmax(0, 1fr); }
+  .instrument-approach .instrument-keys > .instrument-option + .instrument-option { margin-block-start: -1px; margin-inline-start: 0; }
+}
+
+.instrument-approach .instrument-option { font-weight: 600; min-block-size: 40px; }
+
+/* Touch modes keep 44 px keys; the switch stays one joined object. */
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-option { min-block-size: 44px; }
+
+.instrument-reset { justify-self: start; }
+.instrument-reset svg { block-size: 15px; inline-size: 15px; }
+
+/* Display: the case's own view, set into the instrument like a screen. */
+.instrument-view > * {
+  background: var(--doc);
+  border: 1px solid var(--line-ink);
+  border-radius: 0;
+  box-shadow: inset 1px 1px 0 var(--border);
+  display: grid;
+  gap: 14px;
+  padding: clamp(12px, 3cqw, 16px);
+  transition: opacity 160ms ease;
+}
+
+.instrument[data-phase="rewind"] .instrument-view > * { opacity: .55; }
+
+/* Readout: the result for the chosen approach with a lamp in its meaning colour, the other
+ * approach's result, then what changed and each part's state. */
+@container instrument (min-width: 68rem) {
+  .instrument-inspector { border-inline-start: 1px solid var(--rule-strong); padding-inline-start: 18px; }
+}
+
+@container instrument (max-width: 67.999rem) {
+  .instrument-inspector { border-top: 1px solid var(--rule-strong); padding-top: 14px; }
+}
+
+@container instrument (min-width: 44rem) and (max-width: 67.999rem) {
+  .instrument-inspector { column-gap: 28px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .instrument-inspector .inspector-details { grid-column: 2; grid-row: 1 / span 3; }
+}
+
+.inspector-outcome { display: grid; gap: 2px; padding: 0; }
+.inspector-outcome > span { align-items: center; color: var(--ink-secondary); display: flex; font: var(--type-caption); gap: 7px; }
+.inspector-outcome > span > i { background: var(--border); block-size: 10px; border: 1px solid var(--line-ink); flex: none; inline-size: 10px; }
+.inspector-outcome[data-tone="confirmed"] > span > i { background: var(--confirmed); }
+.inspector-outcome[data-tone="designed"] > span > i { background: var(--designed); }
+.inspector-outcome[data-tone="uncertain"] > span > i { background: var(--uncertain); }
+.inspector-outcome[data-tone="adverse"] > span > i { background: var(--adverse); }
+.inspector-outcome > strong { font: var(--type-app-heading); font-size: 1.12rem; }
+.inspector-outcome[data-tone="adverse"] > strong { color: var(--adverse-ink); }
+.inspector-outcome[data-tone="uncertain"] > strong { color: var(--uncertain); }
+.inspector-outcome > p { color: var(--ink-secondary); font: var(--type-body); font-size: .88rem; line-height: 1.45; margin: 2px 0 0; }
+
+.inspector-compare,
+.inspector-difference { color: var(--ink-secondary); font: var(--type-body); font-size: .86rem; line-height: 1.45; margin: 0; }
+.inspector-compare b { color: var(--ink); }
+.inspector-difference { color: var(--ink); }
+
+.inspector-state { display: grid; gap: 0; list-style: none; margin: 4px 0 0; padding: 0; }
+
+.inspector-state li {
+  align-items: baseline;
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 6px 2px;
+}
+
+.inspector-state li span { color: var(--ink-secondary); font: var(--type-label); }
+.inspector-state li b { font: var(--type-mono); text-align: end; }
+.inspector-state li[data-tone="adverse"] b { color: var(--adverse-ink); }
+.inspector-state li[data-tone="uncertain"] b { color: var(--uncertain); }
+.inspector-state li[data-tone="confirmed"] b { color: var(--confirmed); }
+.inspector-state li[data-tone="designed"] b { color: var(--designed); }
+
+/* Cause and effect: whatever changed in the last update is outlined in the accent and steps
+ * back out, once. Values never depend on the mark; reduced motion leaves it out. */
+:is(.inspector-outcome, .inspector-state li, .sig-cell, .pv-stage[data-stage="policy"] li, .pv-stage[data-stage="decision"], .pay-states li)[data-changed] {
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+}
+
+[data-changed="odd"]:is(.inspector-outcome, .inspector-state li, .sig-cell, .pv-stage[data-stage="policy"] li, .pv-stage[data-stage="decision"], .pay-states li) { animation: instrument-mark-odd 1100ms steps(4, end); }
+[data-changed="even"]:is(.inspector-outcome, .inspector-state li, .sig-cell, .pv-stage[data-stage="policy"] li, .pv-stage[data-stage="decision"], .pay-states li) { animation: instrument-mark-even 1100ms steps(4, end); }
+
+@keyframes instrument-mark-odd { 0%, 45% { outline-color: var(--accent); } 100% { outline-color: transparent; } }
+@keyframes instrument-mark-even { 0%, 45% { outline-color: var(--accent); } 100% { outline-color: transparent; } }
+
+/* ------------------------------------------------------------ Payment view */
+
+/* One display in three bands: the transport (input), the event sequence it produces, and the
+ * payment state with its counts (output). Rows are rows, not cards. */
+.instrument-view > .pay-view { gap: 0; padding: 0; }
+
+.pay-playback {
+  align-items: center;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line-ink);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.instrument-run,
+.instrument-step { min-block-size: 32px !important; }
+.instrument-run { gap: 7px !important; min-inline-size: 9rem; padding: 0 14px 0 10px !important; }
+.instrument-run .inline-icon { block-size: 14px; inline-size: 14px; }
+.instrument-run[data-state="running"] { background: var(--accent-deep) !important; box-shadow: var(--bevel-primary-inset) !important; }
+.instrument-rewind { min-inline-size: 32px; padding: 0 !important; }
+.instrument-rewind .inline-icon { block-size: 16px; inline-size: 16px; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-rewind { min-inline-size: 44px; }
+
+/* The run's own readout: a lamp, its state, and how far it has got. */
+.pay-run-status {
+  align-items: center;
+  background: var(--doc);
+  border: 1px solid var(--border);
+  box-shadow: var(--bevel-inset);
+  color: var(--ink);
+  display: inline-flex;
+  font: var(--type-label);
+  font-weight: 600;
+  gap: 8px;
+  margin: 0 0 0 auto;
+  min-block-size: 32px;
+  min-inline-size: 10rem;
+  padding: 0 10px;
+}
+
+.pay-run-status > i { background: transparent; block-size: 8px; border: 1px solid var(--line-ink); flex: 0 0 auto; inline-size: 8px; }
+.pay-run-status[data-state="running"] > i { background: var(--accent); }
+.pay-run-status[data-state="paused"] > i { background: var(--uncertain); }
+.pay-run-status[data-state="completed"] > i { background: var(--confirmed); }
+.pay-run-status > small { color: var(--ink-secondary); font: var(--type-caption); font-family: var(--font-mono), monospace; font-variant-numeric: tabular-nums; margin-inline-start: auto; }
+
+@container instrument-view (max-width: 30rem) {
+  .pay-run-status { flex-basis: 100%; margin-inline-start: 0; }
+}
+
+.pay-steps { display: grid; gap: 0; list-style: none; margin: 0; padding: 0; }
+
+.pay-step {
+  border-bottom: 1px solid var(--rule);
+  display: grid;
+  gap: 2px 10px;
+  grid-template-areas: "index title" "index event" "index check" "index result";
+  grid-template-columns: 1.6rem minmax(0, 1fr);
+  padding: 10px 12px;
+}
+
+.pay-step:last-child { border-bottom: 0; }
+
+@container instrument-view (min-width: 34rem) {
+  .pay-step {
+    align-items: center;
+    grid-template-areas: "index title check result" "index event check result";
+    grid-template-columns: 1.6rem 7rem minmax(0, 1fr) minmax(10rem, 12rem);
+  }
+}
+
+.pay-step-index { align-self: start; color: var(--ink-secondary); font: var(--type-mono); font-size: .75rem; grid-area: index; padding-top: 2px; }
+.pay-step-title { font: var(--type-label); font-weight: 650; grid-area: title; }
+.pay-step-event { color: var(--ink-secondary); font: var(--type-caption); grid-area: event; }
+.pay-step-event code { color: var(--ink); font: var(--type-mono); }
+.pay-step-check { color: var(--ink-secondary); font: var(--type-body); font-size: .86rem; grid-area: check; line-height: 1.4; }
+.pay-step-result { display: grid; gap: 1px; grid-area: result; }
+.pay-step-result b { align-items: center; display: flex; font: var(--type-label); font-weight: 650; gap: 7px; }
+.pay-step-result b > i { background: var(--border); block-size: 9px; border: 1px solid var(--line-ink); flex: none; inline-size: 9px; }
+.pay-step-result small { color: var(--ink-secondary); font: var(--type-mono); font-size: .75rem; padding-inline-start: 16px; }
+
+.pay-step[data-decision="applied"] .pay-step-result b > i { background: var(--designed); }
+.pay-step:is([data-decision="acknowledged"], [data-decision="ignored-stale"], [data-decision="written"], [data-decision="matched"]) .pay-step-result b > i { background: var(--confirmed); }
+.pay-step:is([data-decision="applied-again"], [data-decision="regressed"]) .pay-step-result b { color: var(--adverse-ink); }
+.pay-step:is([data-decision="applied-again"], [data-decision="regressed"]) .pay-step-result b > i { background: var(--adverse); }
+.pay-step:is([data-decision="review"], [data-decision="pending"]) .pay-step-result b { color: var(--uncertain); }
+.pay-step:is([data-decision="review"], [data-decision="pending"]) .pay-step-result b > i { background: var(--uncertain); }
+
+/* Not yet reached in a run: the row keeps its place and name, but not its result. */
+.pay-step:not([data-shown]) { border-bottom-style: dashed; }
+.pay-step:not([data-shown]) > :not(.pay-step-title):not(.pay-step-index) { visibility: hidden; }
+.pay-step:not([data-shown]) :is(.pay-step-title, .pay-step-index) { color: #a3afbf; }
+
+/* The step that just arrived is lit once, in steps, then settles. */
+.pay-step[data-arrived="odd"] { animation: pay-arrive-odd 900ms steps(3, end); }
+.pay-step[data-arrived="even"] { animation: pay-arrive-even 900ms steps(3, end); }
+@keyframes pay-arrive-odd { from { background: var(--accent-soft); } to { background: transparent; } }
+@keyframes pay-arrive-even { from { background: var(--accent-soft); } to { background: transparent; } }
+
+.pay-output {
+  align-items: center;
+  background: var(--surface-2);
+  border-top: 1px solid var(--line-ink);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+/* Payment state is read, not pressed: lamps with labels, the current one lit in its meaning
+ * colour; visited states keep a dark outline. */
+.pay-state-panel { align-items: center; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.pay-state-caption { color: var(--ink-secondary); font: var(--type-caption); }
+.pay-states { display: flex; flex-wrap: wrap; gap: 6px 16px; list-style: none; margin: 0; padding: 0; }
+.pay-states li { align-items: center; color: var(--border); display: inline-flex; font: var(--type-label); gap: 7px; min-block-size: 24px; padding: 0 2px; }
+.pay-states li > i { block-size: 10px; border: 1px solid var(--border); flex: 0 0 auto; inline-size: 10px; }
+.pay-states li[data-visited] { color: var(--ink-secondary); }
+.pay-states li[data-visited] > i { border-color: var(--line-ink); }
+.pay-states li[data-current] { color: var(--ink); font-weight: 650; }
+.pay-states li[data-current] > i { background: var(--ink); border-color: var(--line-ink); }
+.pay-states li[data-current][data-state="paid"] > i { background: var(--confirmed); }
+.pay-states li[data-current][data-state="review"] > i { background: var(--uncertain); }
+
+.pay-counts { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0; }
+.pay-counts > div { align-items: baseline; display: flex; gap: 6px; }
+.pay-counts dt { color: var(--ink-secondary); font: var(--type-caption); }
+.pay-counts dd { font: var(--type-mono); font-size: .9rem; font-weight: 600; margin: 0; }
+.pay-counts > div[data-tone="adverse"] dd { color: var(--adverse-ink); }
+
+/* -------------------------------------------------------- Observability view */
+
+.sig-chart { display: grid; gap: 0 10px; grid-template-columns: 6.5rem minmax(0, 1fr); }
+
+.sig-axis {
+  color: #8593a6;
+  display: flex;
+  flex-direction: column;
+  font: var(--type-mono);
+  font-size: .75rem;
+  justify-content: space-between;
+  padding-block: 2px;
+  text-align: end;
+}
+
+.sig-axis span { white-space: nowrap; }
+
+.sig-plot {
+  background: #ffffff;
+  block-size: 150px;
+  border: 1px solid var(--border);
+  position: relative;
+}
+
+.sig-plot svg { block-size: 100%; inline-size: 100%; inset: 0; overflow: visible; position: absolute; }
+.sig-threshold { stroke: var(--uncertain); stroke-dasharray: 6 5; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.sig-actual { fill: none; stroke: #a3afbf; stroke-dasharray: 4 4; stroke-width: 2; }
+.sig-observed { fill: none; stroke: var(--ink); stroke-width: 2.6; }
+
+.sig-point {
+  background: #ffffff;
+  block-size: 12px;
+  border: 2px dashed #a3afbf;
+  box-sizing: border-box;
+  inline-size: 12px;
+  left: var(--x);
+  position: absolute;
+  top: calc(100% - var(--y));
+  transform: translate(-50%, -50%);
+}
+
+.sig-point[data-observed] { background: var(--ink); border: 2px solid #ffffff; box-shadow: 0 0 0 1px var(--ink); }
+.sig-point[data-observed][data-over] { background: var(--adverse); box-shadow: 0 0 0 1px var(--adverse); }
+
+.sig-threshold-label { color: var(--uncertain); font: var(--type-caption); inset-inline: 8px auto; position: absolute; top: calc(50% + 6px); }
+
+.sig-rows { display: grid; gap: 4px; }
+
+.sig-row {
+  align-items: stretch;
+  display: grid;
+  gap: 4px 6px;
+  grid-template-columns: 6.5rem repeat(var(--sig-cols), minmax(0, 1fr));
+}
+
+.sig-row-label { align-self: center; color: var(--ink-secondary); font: var(--type-label); text-align: end; }
+
+.sig-cell {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  display: flex;
+  font: var(--type-label);
+  justify-content: center;
+  min-block-size: 32px;
+  padding: 2px 4px;
+  text-align: center;
+}
+
+.sig-row[data-row="latency"] .sig-cell { font: var(--type-mono); }
+.sig-cell[data-state="ok"] { background: var(--confirmed-wash); border-color: rgb(36 120 107 / 35%); color: var(--confirmed); }
+.sig-cell:is([data-state="over"], [data-state="fail"]) { background: var(--adverse-wash); border-color: rgb(201 74 67 / 40%); color: var(--adverse-ink); font-weight: 600; }
+/* A missing sample is hatched amber: unknown, never zero, never quiet. */
+.sig-cell[data-state="missing"] {
+  background: repeating-linear-gradient(135deg, var(--uncertain-wash) 0 6px, #ffffff 6px 12px);
+  border: 1px dashed rgb(148 96 15 / 55%);
+  color: var(--uncertain);
+  font-family: var(--font-body), sans-serif;
+  font-weight: 600;
+}
+.sig-cell[data-state="off"] { background: transparent; border-style: dashed; color: #8593a6; }
+
+.sig-times .sig-cell { background: transparent; border: 0; color: #8593a6; font: var(--type-mono); font-size: .75rem; min-block-size: 0; }
+
+.sig-summary { color: var(--ink-secondary); font: var(--type-body); font-size: .88rem; margin: 0; }
+.sig-summary b { color: var(--ink); }
+
+@container instrument-view (max-width: 30rem) {
+  .sig-chart { grid-template-columns: 3.9rem minmax(0, 1fr); }
+  .sig-row { grid-template-columns: repeat(var(--sig-cols), minmax(0, 1fr)); }
+  .sig-row-label { grid-column: 1 / -1; text-align: start; }
+  .sig-times .sig-row-label { display: none; }
+  .sig-cell { font-size: .75rem; }
+}
+
+/* ---------------------------------------------------------- Device trust view */
+
+/* Signals, assessment, the ordered policy, and the decision: read as one path. */
+.pv-stage { align-content: start; display: grid; gap: 8px; position: relative; }
+.pv-stage + .pv-stage { border-top: 1px dashed var(--rule-strong); padding-top: 14px; }
+
+.pv-stage h3 { color: var(--ink-secondary); font: var(--type-label) !important; font-weight: 600 !important; margin: 0 !important; }
+.pv-stage h3 small { color: #8593a6; font: var(--type-caption); margin-inline-start: 6px; }
+
+.pv-stage dl { align-content: start; display: grid; gap: 4px; margin: 0; }
+.pv-stage dl > div { align-items: baseline; display: flex; gap: 10px; justify-content: space-between; }
+.pv-stage dt { color: var(--ink-secondary); font: var(--type-label); }
+.pv-stage dd { font: var(--type-label); font-weight: 600; margin: 0; text-align: end; }
+.pv-stage dl > div[data-flag] dd { color: var(--uncertain); }
+.pv-stage dl > div[data-flag] dd::before { background: var(--uncertain); block-size: 7px; content: ""; display: inline-block; inline-size: 7px; margin-inline-end: 6px; vertical-align: 1px; }
+
+.pv-stage ol { display: grid; gap: 0; list-style: none; margin: 0; padding: 0; }
+
+.pv-stage[data-stage="policy"] li {
+  align-items: center;
+  border: 1px solid var(--border);
+  display: grid;
+  gap: 4px 10px;
+  grid-template-areas: "index when status" "index conditions conditions" "index result result";
+  grid-template-columns: 1.6rem minmax(0, 1fr) auto;
+  padding: 8px 10px;
+}
+
+.pv-stage[data-stage="policy"] li + li { margin-block-start: -1px; }
+
+.pv-rule-index { align-self: start; color: #8593a6; font: var(--type-mono); grid-area: index; }
+.pv-rule-when { font: var(--type-label); font-weight: 600; grid-area: when; }
+.pv-rule-conditions { display: flex; flex-wrap: wrap; gap: 4px; grid-area: conditions; }
+.pv-rule-conditions span { background: var(--doc-sunken); color: var(--ink-secondary); font: var(--type-caption); padding: 2px 6px; }
+.pv-rule-conditions span[data-met] { background: var(--accent-soft); color: var(--accent-deep); }
+.pv-rule-result { color: var(--ink-secondary); font: var(--type-caption); grid-area: result; }
+.pv-rule-result::before { content: "Then: "; }
+.pv-rule-status { color: #8593a6; font: var(--type-caption); grid-area: status; }
+
+.pv-stage[data-stage="policy"] li[data-status="matched"] { background: var(--accent-soft); border-color: var(--line-ink); box-shadow: var(--bevel-inset); position: relative; z-index: 1; }
+.pv-stage[data-stage="policy"] li[data-status="matched"] .pv-rule-status { color: var(--accent-deep); font-weight: 650; }
+.pv-stage[data-stage="policy"] li[data-status="not reached"] { background: transparent; border-style: dashed; color: #8593a6; }
+.pv-stage[data-stage="policy"] li[data-status="not reached"] .pv-rule-when { color: #8593a6; }
+
+.pv-stage[data-stage="decision"] strong { font: var(--type-app-heading); font-size: 1.2rem; }
+.pv-stage[data-stage="decision"] p { color: var(--ink-secondary); font: var(--type-body); font-size: .88rem; margin: 0; }
+.policy-view[data-decision="allow"] [data-stage="decision"] strong { color: var(--confirmed); }
+.policy-view[data-decision="require-confirmation"] [data-stage="decision"] strong { color: var(--uncertain); }
+.policy-view[data-decision="block"] [data-stage="decision"] strong { color: var(--adverse-ink); }
+
+@container instrument-view (min-width: 40rem) {
+  .policy-view { column-gap: 22px; grid-template-areas: "signals policy" "assessment policy" "assessment decision"; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); }
+  .pv-stage[data-stage="signals"] { grid-area: signals; }
+  .pv-stage[data-stage="assessment"] { grid-area: assessment; }
+  .pv-stage[data-stage="policy"] { border-top: 0 !important; grid-area: policy; padding-top: 0 !important; }
+  .pv-stage[data-stage="decision"] { grid-area: decision; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .instrument-view > *,
+  .pay-step,
+  [data-changed] { animation: none !important; transition: none; }
+}
+
+/* ------------------------------------------------- Phone and tablet app launch */
+
+/* An app grows out of the icon or row that opened it. `scale` is animated rather than
+ * `transform`, which legacy phone rules pin; the old sideways content slide is retired so
+ * there is one motion, not two. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-system-mode="phone"] .portfolio-window[data-window-state="active"],
+  html[data-system-mode="phone"] .contact-window[data-window-state="active"],
+  html[data-system-mode="tablet"] .portfolio-window[data-window-state="active"],
+  html[data-system-mode="tablet"] .contact-window[data-window-state="active"] {
+    animation: app-launch 280ms var(--env-settle) backwards !important;
+    transform-origin: var(--launch-x, 50%) calc(var(--launch-y, 100%) - var(--os-topbar));
+  }
+
+  html[data-system-mode="phone"] .portfolio-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle),
+  html[data-system-mode="phone"] .contact-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle),
+  html[data-system-mode="tablet"] .portfolio-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle),
+  html[data-system-mode="tablet"] .contact-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle) {
+    animation: none !important;
+  }
+}
+
+@keyframes app-launch {
+  from { opacity: .4; scale: .9; }
+  to { opacity: 1; scale: 1; }
+}
+
+
+html[data-system-mode="computer"] .desktop-object .desktop-object-copy strong {
+  max-inline-size: 100% !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+}
+
+/* Evidence inspector heading uses the document title scale. */
+.evidence-inspector-copy h2 {
+  font: var(--type-section) !important;
+  font-size: clamp(1.35rem, 2.2vw, 1.75rem) !important;
+  letter-spacing: -.02em !important;
+  line-height: 1.15 !important;
+}
+
+.evidence-inspector { background: var(--doc) !important; }
+
+/* Tablet title bars use the desktop breadcrumb: app name, then the open document. */
+html[data-system-mode="tablet"] .window-chrome .window-location { align-items: baseline; display: flex !important; flex-direction: row !important; gap: 8px; min-inline-size: 0; }
+html[data-system-mode="tablet"] .window-chrome .window-location .micro-label { color: inherit !important; font: 600 .9rem/1.2 var(--font-body), sans-serif !important; letter-spacing: 0 !important; margin: 0 !important; text-transform: none !important; white-space: nowrap; }
+html[data-system-mode="tablet"] .window-chrome .window-location:has(strong) .micro-label { color: inherit !important; font-weight: 500 !important; opacity: .78; }
+html[data-system-mode="tablet"] .window-chrome .window-location strong { font: 600 .9rem/1.2 var(--font-body), sans-serif !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html[data-system-mode="tablet"] .window-chrome .window-location strong::before { color: inherit; content: "/"; opacity: .6; font-weight: 400; margin-inline: 2px 8px; }
+
+/* Repository preview: labels at reading size; the language and position are metadata, not code. */
+.github-project-preview-intro > div > p { color: var(--ink-secondary) !important; font: var(--type-label) !important; }
+.github-project-preview-intro dt { color: var(--ink-secondary) !important; font: var(--type-caption) !important; }
+.github-project-preview-intro dd { font: var(--type-label) !important; }
+.github-project-switcher > span { color: var(--ink-secondary); font: var(--type-mono) !important; font-size: .8rem !important; }
+
+.github-project-preview-intro h2 {
+  font: var(--type-title) !important;
+  letter-spacing: -.03em !important;
+}
+
+/* =================================================================== Home */
+
+/* Home is a screen, not a page. Each device's Home fills exactly the usable screen between its
+ * system bars, and its content is composed to fit that box at every size we support: the
+ * layout is a size container, so compositions change with the real width and height instead
+ * of scrolling. Overflow is clipped only as a last safeguard. */
+html[data-system-mode] { overscroll-behavior: none; }
+html[data-system-mode],
+html[data-system-mode] body { overflow: clip !important; }
+
+html[data-system-mode] .system-home-screen {
+  background: var(--shell-ground) !important;
+  container: home / size;
+  display: block !important;
+  overflow: clip !important;
+  overscroll-behavior: none;
+  padding: 0 !important;
+}
+
+html[data-system-mode="computer"] .system-home-screen { display: none !important; }
+
+.system-home-screen > .home-layout {
+  align-content: start;
+  box-sizing: border-box;
+  display: grid;
+  gap: 12px;
+  grid-template-areas: "identity" "resume" "work" "." "launcher" "clock";
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
+  inset: 0;
+  margin: 0 auto;
+  max-inline-size: 640px;
+  overflow: clip;
+  padding: 14px 14px max(10px, env(safe-area-inset-bottom));
+  position: absolute;
+  z-index: 1;
+}
+
+.system-home-screen > .home-layout:not([data-resume]) { grid-template-areas: "identity" "work" "." "launcher" "clock"; grid-template-rows: auto auto minmax(0, 1fr) auto auto; }
+
+/* Identity: a solid panel with the owner mark, name, role, focus, and the two first actions. */
+.home-identity {
+  background: var(--raised);
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--bevel-raised), var(--object-shadow);
+  color: var(--ink);
+  column-gap: 12px;
+  display: grid;
+  grid-area: identity;
+  grid-template-columns: 40px minmax(0, 1fr);
+  padding: 12px;
+  row-gap: 10px;
+}
+
+.home-identity-mark { block-size: 40px; inline-size: 40px; }
+.home-identity-copy { min-inline-size: 0; }
+.home-identity-copy h1 { font: 650 1.2rem/1.15 var(--font-body), sans-serif !important; letter-spacing: -.01em; margin: 0 0 2px; }
+.home-identity-copy p { color: var(--ink-secondary); font: var(--type-label) !important; margin: 0; }
+.home-identity-copy p.home-identity-focus { color: var(--ink); font-size: .88rem !important; margin-top: 4px; }
+
+.home-identity-actions {
+  display: grid;
+  gap: 8px;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.system-resume-app { grid-area: resume; }
+
+/* Engineering cases: one panel, three rows. */
+.home-work {
+  background: var(--raised);
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--object-shadow);
+  display: grid;
+  gap: 0;
+  grid-area: work;
+}
+
+.home-work-head {
+  align-items: center;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line-ink);
+  display: flex;
+  justify-content: space-between;
+  min-block-size: 36px;
+  padding: 0 4px 0 12px;
+}
+
+.home-work-head h2 { color: var(--ink); font: var(--type-system) !important; margin: 0; }
+
+.home-work-head button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--accent-deep);
+  cursor: pointer;
+  display: inline-flex;
+  font: var(--type-system);
+  gap: 2px;
+  min-block-size: 36px;
+  padding: 0 8px;
+}
+
+.home-work-head button svg { block-size: 14px; inline-size: 14px; }
+.home-work ol { display: grid; list-style: none; margin: 0; padding: 0; }
+.home-work li + li { border-top: 1px solid var(--rule); }
+
+.home-case {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 72px minmax(0, 1fr);
+  inline-size: 100%;
+  min-block-size: 44px;
+  padding: 8px 12px 8px 8px;
+  text-align: start;
+}
+
+.home-case:active { background: var(--accent-soft); }
+.home-case .case-cover { background: #ffffff; block-size: auto; border: 1px solid var(--border); display: block; inline-size: 72px; }
+.home-case-copy { display: grid; gap: 2px; min-inline-size: 0; }
+.home-case-copy small { color: var(--ink-secondary); font: var(--type-caption) !important; }
+.home-case-copy strong { font: 600 .92rem/1.25 var(--font-body), sans-serif; }
+.home-case-summary { display: none; }
+
+/* Launcher: the four apps on a solid tray anchored above the system bar. Icons are drawn at
+ * 32 px inside 64 px touch targets. */
+.system-home-screen .system-launcher {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--line-ink) !important;
+  border-radius: 0 !important;
+  box-shadow: var(--bevel-raised) !important;
+  display: grid !important;
+  gap: 0 !important;
+  grid-area: launcher;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  max-width: none !important;
+  padding: 6px 4px !important;
+}
+
+.system-home-screen .system-launcher-app {
+  align-content: center;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: var(--shell-ink) !important;
+  display: grid !important;
+  gap: 4px !important;
+  justify-items: center;
+  min-block-size: 64px !important;
+  min-height: 64px !important;
+  padding: 4px 2px !important;
+  position: relative;
+  text-align: center !important;
+  transform: none !important;
+}
+
+.system-home-screen .system-launcher-app:active { background: var(--recessed) !important; border-color: var(--border) !important; box-shadow: var(--bevel-inset) !important; }
+.system-home-screen .system-launcher-app:focus-visible { outline: 2px solid var(--focus) !important; outline-offset: -2px; }
+.system-home-screen .system-launcher-app .system-app-mark { background: transparent !important; border: 0 !important; box-shadow: none !important; filter: none !important; height: 32px !important; width: 32px !important; }
+.system-home-screen .system-launcher-app .app-icon { block-size: 32px; inline-size: 32px; }
+.system-home-screen .system-launcher-app strong { color: var(--shell-ink) !important; font: var(--type-system) !important; font-size: .75rem !important; white-space: nowrap; }
+.system-home-screen .system-launcher-app > span:not(.system-app-mark) { display: none !important; }
+.system-home-screen .system-launcher-app .system-app-label-full { display: none !important; }
+.system-home-screen .system-launcher-app .system-app-label-compact { display: inline !important; }
+
+.system-home-screen .system-launcher-app > i {
+  background: var(--accent) !important;
+  block-size: 6px !important;
+  border: 1px solid var(--line-ink);
+  border-radius: 0 !important;
+  bottom: auto !important;
+  height: 6px !important;
+  left: auto !important;
+  position: absolute;
+  right: calc(50% - 22px) !important;
+  top: 6px !important;
+  width: 6px !important;
+}
+
+.system-resume-app {
+  align-items: center;
+  background: var(--raised) !important;
+  border: 1px solid var(--line-ink) !important;
+  border-radius: 0 !important;
+  box-shadow: var(--bevel-raised) !important;
+  color: var(--ink) !important;
+  display: grid !important;
+  gap: 10px;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  min-block-size: 44px !important;
+  padding: 0 12px 0 8px !important;
+}
+
+.system-resume-app small { color: var(--ink-secondary) !important; font: var(--type-caption) !important; letter-spacing: 0 !important; text-transform: none !important; }
+.system-resume-app strong { color: var(--ink) !important; font: var(--type-system) !important; }
+.system-resume-app > .system-app-mark { background: transparent !important; block-size: 32px !important; border: 0 !important; box-shadow: none !important; inline-size: 32px !important; }
+.system-resume-app .app-icon { block-size: 32px !important; height: 32px !important; inline-size: 32px !important; width: 32px !important; }
+html[data-system-mode] .system-resume-app { box-sizing: border-box; justify-self: stretch; max-width: none !important; width: auto !important; }
+
+.home-clock {
+  color: var(--shell-ink-muted);
+  display: flex;
+  font: var(--type-caption) !important;
+  grid-area: clock;
+  justify-content: space-between;
+  margin: 0;
+}
+
+.home-clock span:last-child { font-family: var(--font-mono), monospace; font-variant-numeric: tabular-nums; }
+
+/* Compositions by the space actually available. Breakpoints are in rem: a larger text setting
+ * makes every panel taller and every label wider, so the same screen reaches the next, more
+ * compact composition sooner instead of overflowing. */
+@container home (max-height: 43.75rem) {
+  .home-case { grid-template-columns: minmax(0, 1fr); padding-inline: 12px; }
+  .home-case .case-cover { display: none; }
+  .home-identity-copy p.home-identity-focus { display: none; }
+}
+
+@container home (max-height: 33.75rem) {
+  .home-clock { display: none; }
+  .home-case-copy small { display: none; }
+  .home-work-head { min-block-size: 32px; }
+}
+
+/* Too short for the case list: Projects stays one tap away in the launcher. Narrow screens
+ * wrap each title onto two lines and stack the launcher 2×2, so they reach this point sooner. */
+@container home (max-height: 27rem) {
+  .home-work { display: none; }
+}
+
+@container home (max-width: 19rem) and (max-height: 37.5rem) {
+  .home-work { display: none; }
+}
+
+/* Four launcher columns need room for the longest label ("Experience"). */
+@container home (max-width: 19rem) {
+  .system-home-screen .system-launcher { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .home-identity { grid-template-columns: minmax(0, 1fr); }
+  .home-identity-mark { display: none; }
+}
+
+/* Short landscape screens: identity on the left, the launcher on the right, nothing below. */
+@container home (orientation: landscape) and (max-height: 32.5rem) {
+  .system-home-screen > .home-layout,
+  .system-home-screen > .home-layout:not([data-resume]) {
+    align-content: center;
+    column-gap: 16px;
+    grid-template-areas: "identity launcher" "resume launcher";
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    max-inline-size: 920px;
+  }
+
+  .system-home-screen .system-launcher { align-self: center; }
+}
+
+/* Tablet Home: a board of widgets. The labelled shelf is the launcher, so Home does not repeat
+ * the four apps; it shows who this is, the three cases, and the role history. Like a tablet's
+ * home screen it starts at the top and leaves the terraces of the wallpaper below it. The status
+ * bar keeps the date and time, so Home has no clock line of its own. */
+html[data-system-mode="tablet"] .system-home-screen .system-launcher,
+html[data-system-mode="tablet"] .home-clock { display: none !important; }
+
+html[data-system-mode="tablet"] .system-home-screen > .home-layout,
+html[data-system-mode="tablet"] .system-home-screen > .home-layout:not([data-resume]) {
+  align-content: start;
+  column-gap: 24px;
+  grid-template-areas: "identity" "resume" "work" "experience";
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: none;
+  max-inline-size: 820px;
+  padding: 28px 32px;
+  row-gap: 20px;
+}
+
+html[data-system-mode="tablet"] .system-home-screen > .home-layout:not([data-resume]) { grid-template-areas: "identity" "work" "experience"; }
+
+html[data-system-mode="tablet"] .home-identity {
+  align-items: center;
+  align-self: start;
+  column-gap: 16px;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  padding: 16px;
+}
+
+html[data-system-mode="tablet"] .home-identity-mark { block-size: 56px; display: block; inline-size: 56px; }
+html[data-system-mode="tablet"] .home-identity-copy h1 { font-size: 1.45rem !important; }
+html[data-system-mode="tablet"] .home-identity-copy p.home-identity-focus { display: block; }
+html[data-system-mode="tablet"] .home-identity-actions { grid-column: 3; grid-row: 1; grid-template-columns: repeat(2, minmax(112px, auto)); }
+
+html[data-system-mode="tablet"] .system-resume-app { align-self: start; }
+html[data-system-mode="tablet"] .home-work { align-self: start; }
+/* The cases are rows in both orientations: the schematic beside its title, never three tiles. */
+html[data-system-mode="tablet"] .home-work ol { grid-template-columns: minmax(0, 1fr); }
+html[data-system-mode="tablet"] .home-work li { display: grid; }
+html[data-system-mode="tablet"] .home-case { align-items: center; gap: 16px; grid-template-columns: 168px minmax(0, 1fr); padding: 12px; }
+html[data-system-mode="tablet"] .home-case .case-cover { display: block; inline-size: 100%; }
+html[data-system-mode="tablet"] .home-case-copy small { display: block; }
+html[data-system-mode="tablet"] .home-case-summary { color: var(--ink-secondary); display: block; font: var(--type-label); line-height: 1.4; }
+
+/* Role history: the tablet's extra room shows who the cases come from. */
+.home-experience { display: none; }
+
+html[data-system-mode="tablet"] .home-experience {
+  align-self: start;
+  background: var(--raised);
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--object-shadow);
+  display: grid;
+  grid-area: experience;
+}
+
+.home-experience ol { display: grid; list-style: none; margin: 0; padding: 0; }
+.home-role { align-items: baseline; column-gap: 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; padding: 10px 12px; row-gap: 2px; }
+.home-role + .home-role { border-top: 1px solid var(--rule); }
+.home-role strong { color: var(--ink); font: 600 .92rem/1.3 var(--font-body), sans-serif; grid-column: 1; grid-row: 1; }
+.home-role span { color: var(--ink-secondary); font: var(--type-label); grid-column: 1; grid-row: 2; }
+.home-role small { color: var(--ink-secondary); font: var(--type-caption); grid-column: 2; grid-row: 1; white-space: nowrap; }
+
+/* Landscape: identity and role history on the left, the cases as rows on the right. The left
+ * column's spare height goes to its last row, so nothing in it stretches. */
+@container home (orientation: landscape) {
+  html[data-system-mode="tablet"] .system-home-screen > .home-layout,
+  html[data-system-mode="tablet"] .system-home-screen > .home-layout:not([data-resume]) {
+    grid-template-areas: "identity work" "resume work" "experience work";
+    grid-template-columns: minmax(320px, 400px) minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    max-inline-size: 1180px;
+  }
+
+  html[data-system-mode="tablet"] .system-home-screen > .home-layout:not([data-resume]) {
+    grid-template-areas: "identity work" "experience work";
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  html[data-system-mode="tablet"] .home-identity { grid-template-columns: 48px minmax(0, 1fr); }
+  html[data-system-mode="tablet"] .home-identity-mark { block-size: 48px; inline-size: 48px; }
+  html[data-system-mode="tablet"] .home-identity-actions { grid-column: 1 / -1; grid-row: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  html[data-system-mode="tablet"] .home-case { grid-template-columns: minmax(150px, 34%) minmax(0, 1fr); }
+}
+
+@container home (orientation: landscape) and (max-height: 40rem) {
+  html[data-system-mode="tablet"] .home-case-summary { display: none; }
+  html[data-system-mode="tablet"] .home-case { grid-template-columns: 112px minmax(0, 1fr); padding-block: 8px; }
+  html[data-system-mode="tablet"] .home-identity-copy p.home-identity-focus { display: none; }
+}
+
+@container home (max-height: 30rem) {
+  html[data-system-mode="tablet"] .home-case .case-cover,
+  html[data-system-mode="tablet"] .home-experience { display: none; }
+  html[data-system-mode="tablet"] .home-case { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* =============================================================== System bars */
+
+/* Phone: Back, Home, and Recents on a solid bar. Tablet: one shelf with the system controls and
+ * the four apps, centred with a fixed maximum width so landscape does not spread it thin. Neither
+ * ever scrolls. */
+html[data-system-mode="phone"] .phone-system-navigation {
+  align-items: stretch !important;
+  background: var(--surface-2) !important;
+  border-top: 1px solid var(--line-ink) !important;
+  box-shadow: inset 0 1px 0 #ffffff !important;
+  box-sizing: border-box !important;
+  overflow: clip !important;
+  padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left) !important;
+}
+
+html[data-system-mode="phone"] .phone-system-navigation button {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: var(--shell-ink) !important;
+  min-block-size: 44px;
+  min-height: 44px !important;
+}
+
+html[data-system-mode="phone"] .phone-system-navigation button::before,
+html[data-system-mode="phone"] .phone-system-navigation button::after { display: none !important; }
+html[data-system-mode="phone"] .phone-system-navigation button svg { stroke: var(--shell-ink) !important; }
+html[data-system-mode="phone"] .phone-system-navigation button span { display: none !important; }
+html[data-system-mode="phone"] .phone-system-navigation button:active { background: var(--recessed) !important; box-shadow: var(--bevel-inset) !important; }
+html[data-system-mode="phone"] .phone-system-navigation button[data-active="true"] svg { stroke: var(--accent-deep) !important; stroke-width: 2.2 !important; }
+
+/* Tablet shelf: the launcher and the system controls on one solid bar in three groups: Back
+ * and Home, the four apps, then Recents and Side by side. Every button has an icon over its
+ * name. Running apps are raised, the foreground app is pressed in, and a square marks state as
+ * on the taskbar. The bar never scrolls. */
+html[data-system-mode="tablet"] { --os-shelf: calc(68px + env(safe-area-inset-bottom)); }
+
+html[data-system-mode="tablet"] nav.tablet-shelf {
+  align-items: stretch !important;
+  background: var(--surface-2) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  border-top: 1px solid var(--line-ink) !important;
+  bottom: 0 !important;
+  box-shadow: inset 0 1px 0 #ffffff !important;
+  box-sizing: border-box;
+  display: flex !important;
+  gap: 0 !important;
+  height: var(--os-shelf) !important;
+  justify-content: center !important;
+  left: 0 !important;
+  overflow: clip !important;
+  padding: 5px max(12px, env(safe-area-inset-right)) calc(5px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)) !important;
+  right: 0 !important;
+  transform: none !important;
+  width: auto !important;
+}
+
+.tablet-shelf-group { align-items: stretch; display: flex; gap: 4px; padding-inline: 8px; }
+.tablet-shelf-group + .tablet-shelf-group { border-inline-start: 1px solid var(--border); box-shadow: inset 1px 0 0 #ffffff; }
+
+html[data-system-mode="tablet"] nav.tablet-shelf button {
+  align-content: center;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: var(--shell-ink) !important;
+  cursor: pointer;
+  display: grid !important;
+  flex: 0 0 auto !important;
+  gap: 4px !important;
+  height: auto !important;
+  justify-items: center;
+  min-block-size: 44px;
+  min-inline-size: 56px !important;
+  padding: 0 6px !important;
+  position: relative;
+  transform: none !important;
+  width: auto !important;
+}
+
+html[data-system-mode="tablet"] nav.tablet-shelf [data-group="apps"] button { min-inline-size: 80px !important; }
+html[data-system-mode="tablet"] nav.tablet-shelf button::before,
+html[data-system-mode="tablet"] nav.tablet-shelf button::after { display: none !important; }
+html[data-system-mode="tablet"] nav.tablet-shelf button[data-running="true"] { background: var(--raised) !important; border-color: var(--line-ink) !important; box-shadow: var(--bevel-raised) !important; }
+html[data-system-mode="tablet"] nav.tablet-shelf button[data-active="true"],
+html[data-system-mode="tablet"] nav.tablet-shelf button:not(:disabled):active { background: var(--recessed) !important; border-color: var(--line-ink) !important; box-shadow: var(--bevel-inset) !important; }
+html[data-system-mode="tablet"] nav.tablet-shelf button:focus-visible { outline: 2px solid var(--focus) !important; outline-offset: -2px; }
+html[data-system-mode="tablet"] nav.tablet-shelf button:disabled { cursor: default; opacity: 1 !important; }
+html[data-system-mode="tablet"] nav.tablet-shelf button:disabled svg { stroke: var(--border) !important; }
+html[data-system-mode="tablet"] nav.tablet-shelf button:disabled .tablet-app-label { color: var(--border) !important; }
+/* Pixel icons are shown at whole multiples of their grid (32 px here), never resampled. */
+html[data-system-mode="tablet"] nav.tablet-shelf .system-app-mark { background: transparent !important; border: 0 !important; box-shadow: none !important; height: 32px !important; width: 32px !important; }
+html[data-system-mode="tablet"] nav.tablet-shelf .app-icon { block-size: 32px; inline-size: 32px; }
+/* System glyphs sit in the same 32 px box as the app icons so every label shares a baseline. */
+html[data-system-mode="tablet"] nav.tablet-shelf svg:not(.app-icon) { block-size: 32px; fill: none; inline-size: 32px; padding: 4px; box-sizing: border-box; stroke: var(--shell-ink) !important; stroke-width: 1.8; }
+
+html[data-system-mode="tablet"] nav.tablet-shelf .tablet-app-label,
+html[data-system-mode="tablet"] nav.tablet-shelf .tablet-pair-label {
+  color: var(--shell-ink) !important;
+  display: block !important;
+  font: 500 .75rem/1 var(--font-body), system-ui, sans-serif !important;
+  letter-spacing: 0 !important;
+  max-width: none !important;
+  overflow: visible !important;
+  text-transform: none !important;
+  white-space: nowrap;
+}
+
+html[data-system-mode="tablet"] nav.tablet-shelf button[data-active="true"] .tablet-app-label { font-weight: 650 !important; }
+
+html[data-system-mode="tablet"] nav.tablet-shelf button > i {
+  background: transparent !important;
+  block-size: 6px !important;
+  border: 1px solid transparent;
+  border-radius: 0 !important;
+  bottom: auto !important;
+  height: 6px !important;
+  left: auto !important;
+  position: absolute;
+  right: 6px !important;
+  top: 5px !important;
+  transform: none !important;
+  width: 6px !important;
+}
+
+html[data-system-mode="tablet"] nav.tablet-shelf button[data-running="true"] > i { background: var(--shell-ink) !important; border-color: var(--shell-ink); }
+html[data-system-mode="tablet"] nav.tablet-shelf button[data-minimized="true"] > i { background: transparent !important; border-color: var(--shell-ink); }
+html[data-system-mode="tablet"] nav.tablet-shelf button[data-active="true"][data-running="true"] > i { background: var(--accent) !important; border-color: var(--line-ink); }
+html[data-system-mode="tablet"] nav.tablet-shelf .tablet-pair-control { min-block-size: 44px !important; padding: 0 10px !important; }
+html[data-system-mode="tablet"] nav.tablet-shelf .tablet-pair-control[aria-pressed="true"] { background: var(--accent-soft) !important; border-color: var(--line-ink) !important; box-shadow: var(--bevel-inset) !important; }
+
+/* ================================================================== Recents */
+
+/* Recents is its own surface: running apps as window thumbnails with a solid title strip.
+ * On phone it pages sideways; the system bar below stays put. */
+.system-recents { background: var(--shell-ground) !important; }
+.system-recents > header,
+.system-recents > .system-recents-list,
+.system-recents > .system-recents-empty { position: relative; z-index: 1; }
+
+.system-recents > header h2 { color: var(--shell-ink) !important; font: 650 1.4rem/1.15 var(--font-body), sans-serif !important; letter-spacing: -.01em; margin: 0; }
+.system-recents > header p { color: var(--shell-ink-muted) !important; font: var(--type-label) !important; letter-spacing: 0 !important; margin: 4px 0 0; text-transform: none !important; }
+.system-recents-empty { color: var(--shell-ink-muted); font: var(--type-body); margin: 0; padding: 0 20px; }
+
+.system-recent-card { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+.system-recent-open { background: transparent !important; border: 0 !important; color: inherit; padding: 0 !important; text-align: start; }
+
+.system-recent-preview {
+  background: var(--doc) !important;
+  border: 1px solid var(--line-ink) !important;
+  border-radius: 0 !important;
+  box-shadow: var(--object-shadow) !important;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 280px;
+  overflow: hidden;
+}
+
+.system-recent-card[data-current="true"] .system-recent-preview { box-shadow: var(--object-shadow-lifted) !important; }
+
+.system-recent-preview-bar {
+  align-items: center;
+  background: var(--title-inactive) !important;
+  border-bottom: 1px solid var(--line-ink) !important;
+  color: var(--title-inactive-ink);
+  display: flex;
+  gap: 8px;
+  padding: 6px 10px !important;
+}
+
+.system-recent-card[data-current="true"] .system-recent-preview-bar { background: var(--title-active) !important; color: var(--title-active-ink); }
+.system-recent-preview-bar > span { font: var(--type-system); }
+.system-recent-preview-bar small { color: inherit !important; font: var(--type-caption) !important; letter-spacing: 0 !important; opacity: .85; text-transform: none !important; }
+.system-recent-preview-bar .system-app-mark { background: transparent !important; block-size: 16px !important; border: 0 !important; box-shadow: none !important; inline-size: 16px !important; }
+.system-recent-preview-bar .app-icon { block-size: 16px; inline-size: 16px; }
+.system-recent-preview-body { align-content: start !important; display: grid; padding: 0 !important; }
+
+.recent-preview { color: var(--ink); display: grid; gap: 6px; padding: 12px; }
+.recent-preview small { color: var(--ink-secondary); font: var(--type-caption) !important; }
+.recent-preview b { font: 600 .95rem/1.3 var(--font-body), sans-serif; }
+.recent-preview span { color: var(--ink-secondary); font: var(--type-label); }
+.recent-preview-index b { border-top: 1px solid var(--rule); font-size: .86rem; padding-top: 6px; }
+.recent-preview-case .case-cover { background: #ffffff; border: 1px solid var(--border); inline-size: 100%; }
+.recent-preview ol,
+.recent-preview ul { display: grid; gap: 8px; list-style: none; margin: 4px 0 0; padding: 0; }
+.recent-preview-dossier li { border-top: 1px solid var(--rule); display: grid; gap: 2px; padding-top: 6px; }
+.recent-preview-contact li { border: 1px solid var(--border); color: var(--ink); font: var(--type-label); padding: 6px 8px; }
+
+.system-recent-close {
+  background: transparent !important;
+  block-size: 44px !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  display: grid !important;
+  inline-size: 44px !important;
+  place-items: center;
+  right: -8px !important;
+  top: -12px !important;
+}
+
+.system-recent-close > span {
+  background: var(--raised);
+  block-size: 24px;
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--bevel-raised);
+  color: var(--ink);
+  display: grid;
+  inline-size: 24px;
+  place-items: center;
+}
+
+.system-recent-close:hover > span { background: var(--adverse); color: #ffffff; }
+.system-recent-close svg { block-size: 12px; inline-size: 12px; }
+
+html[data-system-mode="phone"] .system-recents-list {
+  box-sizing: border-box;
+  gap: 16px !important;
+  grid-auto-columns: min(74vw, 300px) !important;
+  inline-size: 100vw;
+  margin-inline: calc(50% - 50vw) !important;
+  max-width: none !important;
+  overscroll-behavior: contain;
+  padding: 12px calc((100vw - min(74vw, 300px)) / 2) 22px !important;
+  scroll-padding-inline: calc((100vw - min(74vw, 300px)) / 2);
+  scrollbar-width: none;
+}
+
+html[data-system-mode="phone"] .system-recents-list::-webkit-scrollbar { display: none; }
+
+/* ============================================================ Control family */
+
+/* Every button in the system is one of two bevelled controls. Secondary: light, raised, ink
+ * border. Primary: solid accent with white text. Both press in on activation and show a plain
+ * focus ring; none are gradients, pills, or glossy. */
+:is(.home-action, .contact-directory-action, .experience-brief-action, .instrument-step, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom, .case-preview-titlebar-actions .case-back-action, .instrument-reset, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button) {
+  align-items: center;
+  background: var(--raised) !important;
+  border: 1px solid var(--line-ink) !important;
+  border-radius: var(--radius-control) !important;
+  box-shadow: var(--bevel-raised) !important;
+  color: var(--ink) !important;
+  cursor: pointer;
+  display: inline-flex;
+  font: var(--type-button) !important;
+  gap: 6px;
+  justify-content: center;
+  letter-spacing: 0 !important;
+  min-block-size: 36px !important;
+  padding: 0 12px !important;
+  text-decoration: none !important;
+  text-transform: none !important;
+}
+
+:is(.desktop-identity-primary, .home-action:first-child, .contact-directory-action.is-primary, .experience-brief-action.is-primary, .instrument-run, .github-project-actions .primary-action) {
+  align-items: center;
+  background: var(--accent-action) !important;
+  border: 1px solid var(--line-ink) !important;
+  border-radius: var(--radius-control) !important;
+  box-shadow: var(--bevel-primary) !important;
+  color: #ffffff !important;
+  cursor: pointer;
+  display: inline-flex;
+  font: var(--type-button) !important;
+  gap: 6px;
+  justify-content: center;
+  letter-spacing: 0 !important;
+  min-block-size: 36px !important;
+  padding: 0 14px !important;
+  text-decoration: none !important;
+  text-transform: none !important;
+}
+
+:is(.home-action, .contact-directory-action, .experience-brief-action, .instrument-step, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom, .case-preview-titlebar-actions .case-back-action, .instrument-reset, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button):hover { background: #ffffff !important; }
+
+:is(.desktop-identity-primary, .home-action:first-child, .contact-directory-action.is-primary, .experience-brief-action.is-primary, .instrument-run, .github-project-actions .primary-action):hover { background: var(--accent-deep) !important; }
+
+:is(.home-action, .contact-directory-action, .experience-brief-action, .instrument-step, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom, .case-preview-titlebar-actions .case-back-action, .instrument-reset, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button):active {
+  background: var(--recessed) !important;
+  box-shadow: var(--bevel-inset) !important;
+  transform: translate(1px, 1px);
+}
+
+:is(.desktop-identity-primary, .home-action:first-child, .contact-directory-action.is-primary, .experience-brief-action.is-primary, .instrument-run, .github-project-actions .primary-action):active {
+  background: var(--accent-deep) !important;
+  box-shadow: var(--bevel-primary-inset) !important;
+  transform: translate(1px, 1px);
+}
+
+:is(.home-action, .contact-directory-action, .experience-brief-action, .instrument-step, .instrument-run, .product-marketplace-link, .evidence-original, .evidence-zoom, .instrument-reset, .desktop-identity-primary, .solid-link, .case-back-action):focus-visible {
+  outline: 2px solid var(--focus) !important;
+  outline-offset: 2px;
+}
+
+:is(.instrument-step, .instrument-run):disabled {
+  background: var(--surface-2) !important;
+  box-shadow: none !important;
+  color: var(--border) !important;
+  cursor: default;
+  transform: none;
+}
+
+/* Phone and tablet controls keep a 44 px target while staying visually compact. */
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.home-action, .contact-directory-action, .experience-brief-action, .instrument-step, .instrument-run, .product-marketplace-link, .evidence-original, .evidence-zoom, .instrument-reset, .solid-link) { min-block-size: 44px !important; }
+
+/* ==================================================================== Tablet */
+
+/* A tablet is a personal work surface, not a small desktop. Apps fill the stage between the
+ * status bar and the shelf with no window margin, border, or shadow, and there is no close box:
+ * apps close from Recents. Below an app's root the title bar carries a labelled Back to the
+ * parent ("‹ Projects"), which replaces the in-window "All projects"; the shelf keeps the
+ * system Back. */
+html[data-system-mode="tablet"] .editorial-home .portfolio-window,
+html[data-system-mode="tablet"] .experience-window,
+html[data-system-mode="tablet"] .contact-window,
+html[data-system-mode="tablet"] .product-links-window,
+html[data-system-mode="tablet"] .evidence-route-window,
+html[data-system-mode="tablet"] .case-page.selected-work-window[data-window-mode="route"] {
+  border: 0 !important;
+  border-radius: 0 !important;
+  bottom: var(--os-shelf) !important;
+  box-shadow: none !important;
+  inset: var(--os-topbar) 0 var(--os-shelf) !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: var(--os-topbar) !important;
+}
+
+html[data-system-mode="tablet"] .contact-window-layer { inset: var(--os-topbar) 0 var(--os-shelf) !important; }
+
+/* Side by side: the two panes meet at the middle on one ink divider. */
+@media (orientation: landscape) {
+  html[data-system-mode="tablet"] .editorial-home:has(.portfolio-window[data-window-state="clear"]) .portfolio-window[data-window-state="clear"] {
+    border-inline-end: 1px solid var(--line-ink) !important;
+    bottom: var(--os-shelf) !important;
+    inset: var(--os-topbar) auto var(--os-shelf) 0 !important;
+    left: 0 !important;
+    top: var(--os-topbar) !important;
+    width: 50% !important;
+  }
+
+  html[data-system-mode="tablet"] .editorial-home:has(.portfolio-window[data-window-state="clear"]) .portfolio-window[data-window-state="active"] {
+    bottom: var(--os-shelf) !important;
+    inset: var(--os-topbar) 0 var(--os-shelf) 50% !important;
+    left: 50% !important;
+    right: 0 !important;
+    top: var(--os-topbar) !important;
+    width: auto !important;
+  }
+}
+
+@media (min-width: 1040px) and (min-height: 600px) {
+  html[data-system-mode="tablet"] .editorial-home[data-workspace-paired="true"] .workspace-work-window,
+  html[data-system-mode="tablet"] .editorial-home[data-workspace-paired="true"] .workspace-experience-window {
+    bottom: var(--os-shelf) !important;
+    inset-block: var(--os-topbar) var(--os-shelf) !important;
+    top: var(--os-topbar) !important;
+    width: 50% !important;
+  }
+
+  html[data-system-mode="tablet"] .editorial-home[data-workspace-paired="true"] .workspace-work-window {
+    border-inline-end: 1px solid var(--line-ink) !important;
+    inset-inline: 0 auto !important;
+    left: 0 !important;
+    right: auto !important;
+  }
+
+  html[data-system-mode="tablet"] .editorial-home[data-workspace-paired="true"] .workspace-experience-window {
+    inset-inline: auto 0 !important;
+    left: auto !important;
+    right: 0 !important;
+  }
+}
+
+html[data-system-mode="tablet"] :is(.portfolio-window, .contact-window) > .window-chrome .window-control-cluster,
+html[data-system-mode="tablet"] .case-preview-titlebar-actions { display: none !important; }
+
+html[data-system-mode="tablet"] .window-compact-back-action {
+  align-items: center;
+  background: var(--raised) !important;
+  border: 1px solid var(--line-ink) !important;
+  border-radius: var(--radius-control) !important;
+  box-shadow: var(--bevel-raised) !important;
+  color: var(--ink) !important;
+  cursor: pointer;
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  font: var(--type-button) !important;
+  gap: 2px;
+  min-block-size: 36px;
+  padding: 0 12px 0 6px !important;
+}
+
+html[data-system-mode="tablet"] .window-compact-back-action svg { block-size: 18px; fill: none; inline-size: 18px; stroke: currentColor; stroke-width: 2; }
+html[data-system-mode="tablet"] .window-compact-back-action:active { background: var(--recessed) !important; box-shadow: var(--bevel-inset) !important; transform: translate(1px, 1px); }
+html[data-system-mode="tablet"] .window-compact-back-action:focus-visible { outline: 2px solid #ffffff !important; outline-offset: 2px; }
+.window-compact-back-text { display: none; }
+html[data-system-mode="tablet"] .window-compact-back-text { display: inline; }
+html[data-system-mode="tablet"] .window-chrome .window-location:has(strong) .micro-label { display: none !important; }
+html[data-system-mode="tablet"] .window-chrome .window-location strong::before { content: none !important; }
+
+/* The status bar keeps the date and time on every tablet surface. */
+.system-status-date { display: none; }
+html[data-system-mode="tablet"] .system-status { visibility: visible !important; }
+html[data-system-mode="tablet"] .system-status-date { display: inline; font: var(--type-system); margin-inline-end: 10px; }
+
+/* Recents shows every running app at once as a 2 × 2 board of window thumbnails sized to the
+ * screen. There are four apps at most, so it never needs to scroll. */
+html[data-system-mode="tablet"] .system-recents {
+  box-sizing: border-box;
+  display: grid !important;
+  gap: 20px;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: clip !important;
+  padding: 28px 32px !important;
+}
+
+html[data-system-mode="tablet"] .system-recents > header { margin: 0 !important; padding: 0 !important; }
+
+html[data-system-mode="tablet"] .system-recents-list {
+  display: grid !important;
+  gap: 24px !important;
+  grid-auto-flow: row !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+  margin: 0 auto !important;
+  max-inline-size: 1120px !important;
+  min-block-size: 0;
+  overflow: clip !important;
+  padding: 0 !important;
+  width: 100%;
+}
+
+html[data-system-mode="tablet"] .system-recent-card { block-size: 100%; min-block-size: 0; position: relative; }
+html[data-system-mode="tablet"] .system-recent-open { block-size: 100%; display: block !important; inline-size: 100%; }
+html[data-system-mode="tablet"] .system-recent-preview { block-size: 100%; min-height: 0 !important; }
+html[data-system-mode="tablet"] .system-recent-preview-body { overflow: clip; }
+/* Thumbnails are composed for their cell: the case cover keeps its whole drawing, and the role
+ * list is tight enough that the last role is not cut through. */
+html[data-system-mode="tablet"] .recent-preview { gap: 4px; padding: 10px 12px; }
+html[data-system-mode="tablet"] .recent-preview-case .case-cover { block-size: auto; inline-size: min(100%, 15rem); }
+html[data-system-mode="tablet"] .recent-preview-dossier ol { gap: 4px; }
+html[data-system-mode="tablet"] .recent-preview-dossier li { gap: 0; padding-top: 4px; }
+html[data-system-mode="tablet"] .recent-preview-dossier b { font-size: .88rem; }
+@media (max-height: 820px) { html[data-system-mode="tablet"] .recent-preview-dossier li:nth-child(n + 3) { display: none; } }
+
+/* Contact is a short document; on the wider stage it sits in a readable centred column. */
+html[data-system-mode="tablet"] .contact-window-body {
+  box-sizing: border-box;
+  margin-inline: auto !important;
+  max-inline-size: 640px !important;
+  padding: 40px 32px !important;
+  width: 100%;
+}
+
+
+/* ============================================================ Case reading */
+
+/* Where the visitor is in the set of cases: sequence, not an eyebrow. */
+.case-position { color: var(--ink-secondary); font: var(--type-label); margin: 0 0 8px; }
+
+/* The simulator's extras fold away on a narrow instrument: secondary conditions behind "More
+ * conditions" (with a count when any differ from the story), and the per-part state behind
+ * "State of each part". Wide instruments show both and hide the toggles. */
+.instrument-disclosure { display: none; }
+.instrument-more { display: grid; gap: 14px; }
+.inspector-details { display: grid; gap: 10px; }
+
+@container instrument (max-width: 43.999rem) {
+  .instrument-disclosure {
+    align-items: center;
+    background: var(--raised);
+    border: 1px solid var(--line-ink);
+    border-radius: var(--radius-control);
+    box-shadow: var(--bevel-raised);
+    color: var(--ink);
+    cursor: pointer;
+    display: flex;
+    font: var(--type-button);
+    inline-size: 100%;
+    justify-content: space-between;
+    min-block-size: 44px;
+    padding: 0 12px;
+    text-align: start;
+  }
+
+  .instrument-disclosure:active { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
+  .instrument-disclosure:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .instrument-disclosure svg { block-size: 16px; inline-size: 16px; }
+  .instrument-controls:not([data-open]) .instrument-more,
+  .instrument-inspector:not([data-open]) .inspector-details { display: none; }
+  .instrument-inspector { display: grid; gap: 10px; }
+}
+
+/* On a phone the instrument runs edge to edge, so its display gets the whole screen width; it
+ * keeps its nameplate and its top and bottom edges. */
+html[data-system-mode="phone"] .selected-work-window .instrument {
+  border-inline: 0;
+  box-shadow: none;
+  inline-size: 100%;
+  margin-block: 28px 8px;
+}
+
+/* Narrow evidence: each exhibit is a row, a small preview beside its label, caption, and Open.
+ * The screenshot is readable in the evidence viewer, not as a thumbnail. */
+@container selected-work (max-width: 41.999rem) {
+  .selected-work-window .evidence-grid { display: grid !important; gap: 12px !important; grid-template-columns: minmax(0, 1fr) !important; }
+
+  .selected-work-window .evidence-card {
+    align-items: start;
+    column-gap: 14px !important;
+    display: grid !important;
+    grid-template-areas: "thumb number" "thumb focus" "thumb caption" "thumb view" !important;
+    grid-template-columns: 88px minmax(0, 1fr) !important;
+    grid-template-rows: auto auto auto 1fr !important;
+    min-block-size: 0 !important;
+    padding: 12px !important;
+    row-gap: 4px !important;
+    text-align: start;
+  }
+
+  .selected-work-window .evidence-card > *,
+  .selected-work-window .evidence-card > .evidence-number,
+  .selected-work-window .evidence-card > .evidence-focus { margin: 0 !important; padding: 0 !important; }
+  .selected-work-window .evidence-card > .evidence-number { grid-area: number; }
+  .selected-work-window .evidence-card > .evidence-focus { grid-area: focus; }
+  .selected-work-window .evidence-card > .evidence-caption { font-size: .86rem !important; grid-area: caption; }
+  .selected-work-window .evidence-card > .evidence-view { align-self: end; grid-area: view; }
+
+  .selected-work-window .evidence-card > .evidence-thumb {
+    aspect-ratio: auto !important;
+    block-size: 88px !important;
+    border: 1px solid var(--doc-edge);
+    grid-area: thumb;
+    inline-size: 88px !important;
+    position: relative !important;
+  }
+}
+
+
+/* ==================================================== Phone status and Home */
+
+/* A phone keeps the time in its status bar on every surface; on Home the short date joins it,
+ * so Home needs no clock line of its own. */
+html[data-system-mode="phone"] .system-status { visibility: visible !important; }
+html[data-system-mode="phone"] .home-clock { display: none !important; }
+html[data-system-mode="phone"][data-system-surface="home"] .system-status-date { display: inline; font: var(--type-system); margin-inline-end: 8px; }
+
+/* Phone Home lists the cases by number, as the Projects index does; a cover is drawn only where
+ * it is large enough to read (the tablet board, and inside each case). */
+.home-case-number { display: none; }
+
+html[data-system-mode="phone"] .home-case-number {
+  color: var(--accent-deep);
+  display: block;
+  font: 500 .8rem/1.3 var(--font-mono), monospace;
+  font-variant-numeric: tabular-nums;
+  padding-top: 2px;
+}
+
+html[data-system-mode="phone"] .home-case { align-items: start; grid-template-columns: 26px minmax(0, 1fr); }
+html[data-system-mode="phone"] .home-case .case-cover { display: none !important; }
+
+/* ================================================== Desktop title bar (v2) */
+
+/* One bar, read left to right: the app's own icon opens the window menu, then the title, the
+ * document's actions, and the three window controls grouped at the trailing edge. The bar is
+ * 36 px, as on a small personal computer, and the controls touch so they read as one object. */
+html[data-system-mode="computer"] :is(.window-chrome, .portfolio-window-chrome) {
+  gap: 6px !important;
+  padding-inline: 4px !important;
+}
+
+html[data-system-mode="computer"] .window-chrome .window-location { flex: 1 1 auto; min-inline-size: 0; }
+
+html[data-system-mode="computer"] .window-management-menu {
+  flex: 0 0 28px !important;
+  min-inline-size: 28px !important;
+  order: 0;
+}
+
+html[data-system-mode="computer"] .window-management-menu > summary {
+  block-size: 28px;
+  border: 1px solid transparent;
+  box-sizing: border-box;
+  inline-size: 28px;
+  min-block-size: 28px !important;
+  min-inline-size: 28px !important;
+}
+
+/* The icon sits on the title bar as itself; a menu that is open presses in. */
+html[data-system-mode="computer"] .window-management-menu > summary > svg.app-icon {
+  background: transparent !important;
+  block-size: 16px !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  inline-size: 16px !important;
+  padding: 0 !important;
+}
+
+html[data-system-mode="computer"] .window-management-menu > summary:hover { background: rgb(255 255 255 / 14%); }
+[data-window-state="active"] > .window-chrome .window-management-menu > summary:hover { background: rgb(255 255 255 / 14%); }
+html[data-system-mode="computer"] .window-management-menu[open] > summary {
+  background: var(--recessed) !important;
+  border-color: var(--line-ink);
+  box-shadow: var(--bevel-inset) !important;
+}
+
+html[data-system-mode="computer"] .window-management-options {
+  inset-inline: 0 auto !important;
+  min-inline-size: 13rem !important;
+  padding: 2px !important;
+  top: calc(100% + 4px) !important;
+}
+
+html[data-system-mode="computer"] .window-management-options button {
+  min-block-size: 30px !important;
+  padding-inline: 10px !important;
+}
+
+html[data-system-mode="computer"] .window-management-options hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  box-shadow: 0 1px 0 #ffffff;
+  margin: 2px 4px;
+}
+
+/* Minimize, maximize, close: 22 px keys that share edges, close set one step apart. */
+html[data-system-mode="computer"] .window-chrome .window-control-cluster {
+  flex: 0 0 auto;
+  gap: 0 !important;
+  margin-inline-start: 2px;
+}
+
+html[data-system-mode="computer"] .window-chrome :is(.window-close-action, .evidence-close-action, .case-close-action, .window-system-control) {
+  align-items: center;
+  block-size: 28px !important;
+  display: inline-flex !important;
+  inline-size: 24px !important;
+  justify-content: center;
+  min-block-size: 28px !important;
+  min-inline-size: 24px !important;
+  padding: 0 !important;
+}
+
+html[data-system-mode="computer"] .window-chrome :is(.window-close-action, .evidence-close-action, .case-close-action) { inline-size: 28px !important; min-inline-size: 28px !important; padding-inline-start: 4px !important; }
+
+html[data-system-mode="computer"] .window-chrome :is(.window-close-action, .evidence-close-action, .case-close-action, .window-system-control) > span {
+  block-size: 20px !important;
+  inline-size: 22px !important;
+  padding: 4px 5px !important;
+}
+
+/* Document actions in the bar are compact text keys, not full toolbar buttons. */
+html[data-system-mode="computer"] .window-chrome .case-preview-titlebar-actions .case-back-action {
+  background: var(--raised) !important;
+  border: 1px solid var(--line-ink) !important;
+  box-shadow: var(--bevel-raised) !important;
+  color: var(--ink) !important;
+  font: var(--type-system) !important;
+  min-block-size: 24px !important;
+  block-size: 24px !important;
+  padding: 0 8px 0 4px !important;
+}
+
+html[data-system-mode="computer"] .window-chrome .case-preview-titlebar-actions .case-back-action:active {
+  background: var(--recessed) !important;
+  box-shadow: var(--bevel-inset) !important;
+  transform: translate(1px, 1px);
+}
+
+/* ============================================ Attached evidence on desktop */
+
+/* On a desktop, attached evidence is a child window over its case: the case and the desktop stay
+ * visible around it, the case's title bar goes inactive, and a click outside the sheet still
+ * dismisses it. Tablet and phone keep the solid stage behind the sheet. */
+html[data-system-mode="computer"] .evidence-dialog .evidence-scrim { background: transparent !important; }
+
+
+/* ======================================================== Phone refinements */
+
+/* Projects index on a narrow container: the title, one line of abstract, and the three case
+ * files fit the first phone screen together. How to use a case is said by each file's "Open
+ * case", so the second sentence of the abstract folds away here. */
+html[data-system-mode="phone"] .home-window .editorial-work.projects-index { padding-top: 18px !important; }
+
+@container projects-app (max-width: 39.999rem) {
+  .home-window .projects-index .work-intro h1 { font-size: 1.5rem !important; letter-spacing: -.02em !important; }
+  .home-window .projects-index .work-intro > p:last-child { font-size: .94rem; line-height: 1.45; }
+  .work-intro-how { display: none; }
+  .editorial-work-list { gap: 18px; }
+
+  /* The stack and "Open case" share the file's last line. */
+  .case-entry-body { column-gap: 12px; grid-template-columns: minmax(0, 1fr) auto; }
+  .case-entry-body > :is(.case-entry-meta, strong, .case-entry-summary) { grid-column: 1 / -1; }
+  .case-entry-facts { align-self: center; margin-top: 4px; }
+  .case-entry-open { align-self: center; justify-self: end; margin-top: 4px; }
+}
+
+/* Phone Home: when the screen is tall enough, each case row carries its consequence line, so
+ * the band above the launcher explains the work instead of showing empty wallpaper. Measured in
+ * rem, so a larger text setting keeps the compact rows. */
+@container home (min-height: 44rem) {
+  html[data-system-mode="phone"] .home-case-summary {
+    color: var(--ink-secondary);
+    display: block;
+    font: var(--type-label) !important;
+    margin-top: 2px;
+  }
+}
+
+/* Attached evidence on a phone reads as one column: what to verify, the screenshot at its own
+ * proportions (no empty bands above and below it), then its source. */
+html[data-system-mode="phone"] .evidence-sheet-content { display: flex !important; flex-direction: column; }
+html[data-system-mode="phone"] .evidence-inspector { display: contents !important; }
+html[data-system-mode="phone"] .evidence-inspector-copy { margin: 0 !important; order: 1; padding: 18px 16px 14px !important; }
+html[data-system-mode="phone"] .evidence-inspector-copy h2 { font-size: 1.25rem !important; line-height: 1.25 !important; }
+html[data-system-mode="phone"] .evidence-stage { order: 2; }
+html[data-system-mode="phone"] .evidence-meta { margin: 0 !important; order: 3; padding: 14px 16px 0 !important; }
+html[data-system-mode="phone"] .evidence-sheet .evidence-original { align-self: stretch !important; inline-size: auto !important; margin: 12px 16px 20px !important; order: 4; width: auto !important; }
+
+html[data-system-mode="phone"] .evidence-stage:not([data-zoomed]) {
+  block-size: auto !important;
+  height: auto !important;
+  min-block-size: 0 !important;
+  min-height: 0 !important;
+  padding: 10px 16px 16px !important;
+}
+
+html[data-system-mode="phone"] .evidence-stage:not([data-zoomed]) .evidence-image-wrap {
+  align-self: start !important;
+  aspect-ratio: var(--evidence-ratio, 4 / 3);
+  inline-size: 100% !important;
+  width: 100% !important;
+  block-size: auto !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+}
+
+/* Recents on a phone: the cards stand as tall as the screen allows, like the apps they hold,
+ * and show the next lines of each document. Tablet thumbnails keep their compact snapshot. */
+html:not([data-system-mode="phone"]) .recent-preview-extra { display: none !important; }
+
+html[data-system-mode="phone"] .system-recents {
+  align-content: stretch !important;
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+html[data-system-mode="phone"] .system-recents-list { align-items: stretch !important; max-block-size: 34rem; }
+html[data-system-mode="phone"] .system-recent-card { display: grid !important; min-block-size: 0; }
+html[data-system-mode="phone"] .system-recent-open { block-size: 100%; display: grid !important; min-block-size: 0; }
+html[data-system-mode="phone"] .system-recent-preview { block-size: 100%; box-sizing: border-box; min-height: 0 !important; }
+html[data-system-mode="phone"] .recent-preview { gap: 8px; padding: 14px; }
+html[data-system-mode="phone"] .recent-preview-case > span { color: var(--ink-secondary); font: var(--type-label); }
+html[data-system-mode="phone"] .recent-preview-index b { font-size: .92rem; }
+html[data-system-mode="phone"] .recent-preview-index b > span { color: var(--accent-deep); font: 500 .8rem/1 var(--font-mono), monospace; }
+html[data-system-mode="phone"] .recent-preview-catalog li { border-top: 1px solid var(--rule); font: var(--type-label); padding-top: 6px; }
+
+/* Contact on a phone: each channel row is one target; the arrow still says it opens a new tab. */
+html[data-system-mode="phone"] .contact-directory > li:not(.contact-primary) { position: relative; }
+html[data-system-mode="phone"] .contact-directory > li:not(.contact-primary) .contact-directory-action { position: static !important; }
+html[data-system-mode="phone"] .contact-directory > li:not(.contact-primary) .contact-directory-action::after { content: ""; inset: 0; position: absolute; }
+html[data-system-mode="phone"] .contact-directory > li:not(.contact-primary):has(.contact-directory-action:active) { background: var(--accent-soft) !important; }
+html[data-system-mode="phone"] .contact-directory > li:not(.contact-primary):has(.contact-directory-action:focus-visible) { outline: 2px solid var(--focus); outline-offset: -2px; }
+html[data-system-mode="phone"] .contact-directory > li:not(.contact-primary) .contact-directory-action:focus-visible { outline: none !important; }
+
+/* Experience on a narrow container: the name is a heading, not a poster, so the facts and the
+ * role history start on the first screen. */
+@container experience-brief (max-width: 640px) {
+  .workspace-experience-window .experience-brief-heading h1 { font-size: 1.6rem !important; }
+  .workspace-experience-window .experience-brief-intro { margin-top: 20px; }
+}
+
+/* The phone's Back rests disabled on Home, where nothing is behind it. */
+html[data-system-mode="phone"] .phone-system-navigation button:disabled { cursor: default; }
+html[data-system-mode="phone"] .phone-system-navigation button:disabled svg { stroke: var(--border) !important; }
+/* Recents keeps its heading at the reading edge, as before the cards grew. */
+html[data-system-mode="phone"] .system-recents > header { box-sizing: border-box; inline-size: 100% !important; justify-self: stretch; margin-inline: 0 !important; max-inline-size: none !important; text-align: start; }
+
+/* Phone landscape: identity and the three cases on the left, the launcher and Continue on the
+ * right, so a turned phone still shows the work instead of a band of wallpaper. Rows lose their
+ * category line and summary; below 19rem of height the case list leaves again. */
+@container home (orientation: landscape) and (max-height: 32.5rem) and (min-width: 36rem) and (min-height: 19rem) {
+  html[data-system-mode="phone"] .system-home-screen > .home-layout,
+  html[data-system-mode="phone"] .system-home-screen > .home-layout:not([data-resume]) {
+    align-content: center;
+    column-gap: 16px;
+    grid-template-areas: "identity launcher" "work resume" "work .";
+    grid-template-columns: minmax(0, 1.35fr) minmax(15rem, 1fr);
+    grid-template-rows: auto auto auto;
+    max-inline-size: 960px;
+    row-gap: 10px;
+  }
+
+  html[data-system-mode="phone"] .home-work { align-self: start; display: grid; }
+  html[data-system-mode="phone"] .home-work-head { min-block-size: 32px; }
+  html[data-system-mode="phone"] .home-case { min-block-size: 44px; padding-block: 6px; }
+  html[data-system-mode="phone"] .home-case-copy small,
+  html[data-system-mode="phone"] .home-case-summary { display: none !important; }
+  html[data-system-mode="phone"] .system-home-screen .system-launcher,
+  html[data-system-mode="phone"] .system-resume-app { align-self: start; }
+}
+
+/* The screenshot fills the evidence stage's width; no reserved rows above or below it. */
+html[data-system-mode="phone"] .evidence-stage:not([data-zoomed]) { align-content: start !important; grid-template-rows: auto auto !important; }
+html[data-system-mode="phone"] .evidence-stage:not([data-zoomed]) .evidence-image { padding: 0 !important; }
+
+/* A short phone with something running: Continue joins the column, so the panels close up
+ * (targets keep 44 px) rather than pushing the launcher under the system bar. */
+@container home (max-height: 32rem) {
+  html[data-system-mode="phone"] .system-home-screen > .home-layout[data-resume] { padding-top: 10px; row-gap: 8px; }
+  html[data-system-mode="phone"] .home-layout[data-resume] .home-case { padding-block: 6px; }
+}
+
+/* Phone touch targets: links that stand on their own line and the search field reach 44 px;
+ * the case panel's "All projects" does too wherever Home has the height for it. */
+html[data-system-mode="phone"] :is(.github-projects-github-link, .home-window .editorial-footer a, .workspace-experience-window .experience-work-handoff a, .contact-primary .contact-channel > a) {
+  align-items: center;
+  display: inline-flex !important;
+  min-block-size: 44px;
+}
+
+html[data-system-mode="phone"] .product-links-search input { min-height: 44px; }
+
+@container home (min-height: 36rem) {
+  html[data-system-mode="phone"] .home-work-head,
+  html[data-system-mode="phone"] .home-work-head button { min-block-size: 44px; }
+}
+
+/* A phone turned sideways has width but little height: the Projects index keeps its heading
+ * compact, and attached evidence puts its account beside a screenshot fitted to the height. */
+@media (orientation: landscape) and (max-height: 500px) {
+  html[data-system-mode="phone"] .home-window .projects-index .work-intro h1 { font-size: 1.5rem !important; }
+  html[data-system-mode="phone"] .work-intro-how { display: none; }
+
+  html[data-system-mode="phone"] .evidence-sheet-content {
+    align-items: start;
+    display: grid !important;
+    grid-template-areas: "copy stage" "meta stage" "original stage" ". stage";
+    grid-template-columns: minmax(14rem, 34%) minmax(0, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+  }
+
+  html[data-system-mode="phone"] .evidence-inspector-copy { grid-area: copy; }
+  html[data-system-mode="phone"] .evidence-meta { grid-area: meta; }
+  html[data-system-mode="phone"] .evidence-sheet .evidence-original { grid-area: original; }
+  html[data-system-mode="phone"] .evidence-stage { align-self: stretch; grid-area: stage; }
+
+  html[data-system-mode="phone"] .evidence-stage:not([data-zoomed]) .evidence-image-wrap {
+    aspect-ratio: auto;
+    block-size: calc(100dvh - var(--os-phone-nav) - var(--os-topbar) - 140px) !important;
+    height: calc(100dvh - var(--os-phone-nav) - var(--os-topbar) - 140px) !important;
+  }
+}
+
+/* Not found: an unknown address is still inside the environment, as one small window with a
+ * way back to the work. */
+.not-found-screen { background: var(--shell-ground); box-sizing: border-box; display: grid; min-block-size: 100dvh; padding: 24px 16px; place-items: center; }
+.not-found-panel { background: var(--raised); border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); inline-size: 100%; max-inline-size: 30rem; }
+.not-found-bar { background: var(--title-active); border-bottom: 1px solid var(--line-ink); color: var(--title-active-ink); font: var(--type-system); margin: 0; padding: 8px 12px; }
+.not-found-body { display: grid; gap: 12px; padding: 20px 16px; }
+.not-found-body h1 { color: var(--ink); font: 650 1.35rem/1.2 var(--font-body), sans-serif; margin: 0; }
+.not-found-body p { color: var(--ink-secondary); font: var(--type-body); margin: 0; }
+.not-found-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.not-found-actions a { min-block-size: 44px !important; }

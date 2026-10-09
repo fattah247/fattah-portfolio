@@ -1,17 +1,13 @@
 import type { Metadata } from "next";
+import { portfolioApp } from "@/components/app-registry";
+import { PortfolioWorkspace } from "@/components/portfolio-workspace";
 import { PortfolioHeader } from "@/components/portfolio-header";
-import { ProductLinksRouteWindow } from "@/components/product-links-app";
 
 export const metadata: Metadata = {
-  title: "Product links",
+  title: portfolioApp("products").documentTitle,
   description: "Products and tools used by Muhammad A. Fattah.",
 };
 
 export default function ProductLinksPage() {
-  return (
-    <>
-      <PortfolioHeader />
-      <ProductLinksRouteWindow />
-    </>
-  );
+  return <><PortfolioHeader /><PortfolioWorkspace initialProductsOpen /></>;
 }

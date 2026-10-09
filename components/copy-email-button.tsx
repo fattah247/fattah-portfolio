@@ -34,8 +34,11 @@ export function CopyEmailButton({
   }
 
   return (
-    <button className={className} onClick={handleCopy} type="button">
-      {status === "copied" ? copiedLabel : status === "manual" ? email : label}
-    </button>
+    <>
+      <button className={className} onClick={handleCopy} type="button">
+        {status === "copied" ? copiedLabel : status === "manual" ? email : label}
+      </button>
+      <span className="sr-only" role="status">{status === "copied" ? copiedLabel : status === "manual" ? `Copy unavailable. Email: ${email}` : ""}</span>
+    </>
   );
 }

@@ -56,10 +56,24 @@ describe("product link directory", () => {
     ]);
   });
 
-  it("renders alphabetical groups, supports ID search, clear, and an honest empty result", () => {
+  it("lists a short catalogue alphabetically and indexes a long one by initial", () => {
     render(createElement(ProductLinksDirectory, { links }));
+    expect(screen.queryByRole("heading", { name: "A" })).toBeNull();
+    expect(Array.from(screen.getByRole("list", { name: "Product links" }).querySelectorAll(".product-link-name")).map((item) => item.textContent)).toEqual(["Alpha Cable", "Zebra Stand"]);
+    cleanup();
+
+    const longCatalogue = Array.from({ length: 13 }, (_, index) => ({
+      id: `PL-${String(index + 1).padStart(3, "0")}`,
+      name: `${String.fromCharCode(65 + index)} product`,
+      offers: [{ marketplace: "shopee" as const, href: `https://shopee.example/${index}` }],
+    }));
+    render(createElement(ProductLinksDirectory, { links: longCatalogue }));
     expect(screen.getByRole("heading", { name: "A" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Z" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "M" })).toBeTruthy();
+  });
+
+  it("supports ID search, clear, and an honest empty result", () => {
+    render(createElement(ProductLinksDirectory, { links }));
 
     const search = screen.getByRole("searchbox", { name: "Find a product" });
     fireEvent.change(search, { target: { value: "PL-002" } });
