@@ -280,6 +280,23 @@ export function getScenario(slug: string) {
   return scenarios.find((scenario) => scenario.slug === slug);
 }
 
+export function resolveScenarioConditions(
+  scenario: Scenario | ScenarioSlug,
+  conditions?: Conditions,
+): Conditions {
+  const definition = typeof scenario === "string" ? getScenario(scenario) : scenario;
+  if (!definition) return {};
+
+  const resolved = { ...definition.defaults };
+  for (const control of definition.controls) {
+    const candidate = conditions?.[control.key];
+    if (typeof candidate === "string" && control.options.some((option) => option.value === candidate)) {
+      resolved[control.key] = candidate;
+    }
+  }
+  return resolved;
+}
+
 const node = (
   id: string,
   label: string,
@@ -293,11 +310,13 @@ export function projectScenario(
   conditions: Conditions,
   mode: ProjectionMode,
 ): ProjectionNode[] {
+  const resolvedConditions = resolveScenarioConditions(scenario, conditions);
+
   if (scenario === "payflow") {
-    const repeated = conditions.delivery !== "once";
-    const outOfOrder = conditions.delivery === "out-of-order";
-    const mismatched = conditions.settlement === "mismatched";
-    const interrupted = conditions.persistence === "interrupted";
+    const repeated = resolvedConditions.delivery !== "once";
+    const outOfOrder = resolvedConditions.delivery === "out-of-order";
+    const mismatched = resolvedConditions.settlement === "mismatched";
+    const interrupted = resolvedConditions.persistence === "interrupted";
     const safe = mode === "designed";
 
     return [
@@ -306,7 +325,7 @@ export function projectScenario(
       node(
         "callback",
         "Provider callback",
-        conditions.delivery.toUpperCase().replaceAll("-", " "),
+        resolvedConditions.delivery.toUpperCase().replaceAll("-", " "),
         outOfOrder
           ? "An older provider event arrives after a newer transaction state."
           : repeated
@@ -349,10 +368,10 @@ export function projectScenario(
   }
 
   if (scenario === "iyup") {
-    const healthPasses = conditions.health === "pass";
-    const latency = conditions.latency;
-    const missing = conditions.scrape === "missing";
-    const alertPresent = conditions.alert === "present";
+    const healthPasses = resolvedConditions.health === "pass";
+    const latency = resolvedConditions.latency;
+    const missing = resolvedConditions.scrape === "missing";
+    const alertPresent = resolvedConditions.alert === "present";
     const designed = mode === "designed";
     const degraded = latency !== "normal";
 
@@ -401,11 +420,11 @@ export function projectScenario(
     ];
   }
 
-  const suspicious = conditions.root !== "clear" || conditions.emulator === "detected";
-  const invalidSignature = conditions.signature === "invalid";
-  const highSensitivity = conditions.sensitivity === "high";
+  const suspicious = resolvedConditions.root !== "clear" || resolvedConditions.emulator === "detected";
+  const invalidSignature = resolvedConditions.signature === "invalid";
+  const highSensitivity = resolvedConditions.sensitivity === "high";
   const designed = mode === "designed";
-  const designedDecision = invalidSignature || (conditions.root === "detected" && highSensitivity)
+  const designedDecision = invalidSignature || (resolvedConditions.root === "detected" && highSensitivity)
     ? "BLOCK"
     : suspicious && highSensitivity
       ? "REQUIRE CONFIRMATION"
@@ -414,9 +433,9 @@ export function projectScenario(
   const decision = designed ? designedDecision : baselineDecision;
 
   return [
-    node("action", "Sensitive action", conditions.sensitivity.toUpperCase(), "The policy starts with what the user is trying to do."),
+    node("action", "Sensitive action", resolvedConditions.sensitivity.toUpperCase(), "The policy starts with what the user is trying to do."),
     node("environment", "Environment signals", suspicious ? "SUSPICIOUS" : "CLEAR", "Root and emulator indicators are collected as evidence.", suspicious ? "uncertain" : "neutral"),
-    node("signature", "Request signature", conditions.signature.toUpperCase(), "Request integrity contributes a separate signal.", invalidSignature ? "adverse" : "neutral"),
+    node("signature", "Request signature", resolvedConditions.signature.toUpperCase(), "Request integrity contributes a separate signal.", invalidSignature ? "adverse" : "neutral"),
     node(
       "policy",
       "Policy",
