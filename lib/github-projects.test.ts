@@ -98,8 +98,8 @@ describe("getGithubProjects", () => {
     const result = await getGithubProjects();
 
     expect(result.source).toBe("fallback");
+    // TrustGate Android is case 03, so it stays out of Side projects.
     expect(result.projects.map((project) => project.id)).toEqual([
-      "trustgate-android",
       "Stock-Triage",
       "SnapSort-iOS",
       "Xpire",

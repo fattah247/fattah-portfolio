@@ -1,3 +1,5 @@
+import { scenarios } from "./scenarios";
+
 const githubOwner = "fattah247";
 const githubApiVersion = "2022-11-28";
 const portfolioTopic = "portfolio";
@@ -178,6 +180,10 @@ async function readmeExcerpt(repository: GithubRepositoryResponse) {
   }
 }
 
+/** A repository that already has a complete case belongs in Projects, not in Side projects. */
+const caseRepositories = new Set(scenarios.map((scenario) => scenario.repo.toLocaleLowerCase()));
+const isSideProject = (project: GithubProject) => !caseRepositories.has(project.repositoryUrl.toLocaleLowerCase());
+
 function isPortfolioRepository(repository: GithubRepositoryResponse) {
   return !repository.private
     && !repository.fork
@@ -214,8 +220,8 @@ export async function getGithubProjects(): Promise<GithubProjectsPayload> {
         updatedLabel: updatedLabel(activityDate),
       });
     }
-    return { projects, source: "github" };
+    return { projects: projects.filter(isSideProject), source: "github" };
   } catch {
-    return { projects: fallbackProjects.map((project) => ({ ...project, topics: [...project.topics] })), source: "fallback" };
+    return { projects: fallbackProjects.filter(isSideProject).map((project) => ({ ...project, topics: [...project.topics] })), source: "fallback" };
   }
 }
