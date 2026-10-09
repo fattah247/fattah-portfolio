@@ -405,16 +405,30 @@ export function projectScenario(
       node(
         "decision",
         "Operator context",
-        designed && !healthPasses ? (alertPresent ? "ACTIONABLE" : "INCOMPLETE") : designed && degraded && alertPresent && !missing ? "ACTIONABLE" : designed && missing ? "INVESTIGATE COLLECTION" : degraded ? "INCOMPLETE" : "QUIET",
+        designed && !healthPasses
+          ? (alertPresent ? "ACTIONABLE" : "INCOMPLETE")
+          : designed && degraded && alertPresent && !missing
+            ? "ACTIONABLE"
+            : designed && missing
+              ? "INVESTIGATE COLLECTION"
+              : !designed && !healthPasses
+                ? "OUTAGE"
+                : degraded
+                  ? "INCOMPLETE"
+                  : "QUIET",
         designed && !healthPasses
           ? "The health contract reports the service unavailable; investigate even without a latency breach."
           : designed && degraded && alertPresent && !missing
           ? "The operator sees the breached signal and where to inspect next."
           : designed && missing
             ? "The next decision is to restore or inspect collection."
-            : degraded
-              ? "The availability view stays simple but cannot localize the degradation."
-              : "No degraded condition requires action.",
+            : !designed && !healthPasses
+              ? "The failing health check is the one signal this view has; it reports an outage."
+              : designed && degraded
+                ? "Latency is collected, but no alert rule raises the breach to an operator."
+                : degraded
+                  ? "The availability view stays simple but cannot localize the degradation."
+                  : "No degraded condition requires action.",
         designed ? (!healthPasses || missing ? "uncertain" : degraded && alertPresent ? "confirmed" : "neutral") : !healthPasses || degraded ? "adverse" : "neutral",
       ),
     ];
