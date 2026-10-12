@@ -14,6 +14,7 @@ import { AppIcon, OwnerMark } from "./app-icons";
 import { CaseCover } from "./case-cover";
 import { Wallpaper } from "./wallpaper";
 import { experience } from "../lib/content";
+import { rowsThatFit } from "../lib/fit-rows";
 import { filterProductLinks, indexProductLinks, productLinks, searchProductLinks, type Marketplace } from "../lib/product-links";
 import { scenarios, type ScenarioSlug } from "../lib/scenarios";
 
@@ -112,6 +113,38 @@ export function SystemShell() {
     if (list) list.scrollLeft = list.scrollWidth;
   }, [workspace.surface, runningApps.length]);
   const resumeEntry = portfolioApp(resumeApp);
+
+  // Tablet Home role history: the list length is data, so it is fitted by measurement rather than
+  // by breakpoints. It shows as many whole roles as fit above the shelf, oldest dropped first, and
+  // steps aside when fewer than two fit. Rows stay laid out (clipped, not removed) so a larger
+  // screen can bring them back.
+  const rolesRef = useRef<HTMLOListElement>(null);
+  const [roleFit, setRoleFit] = useState<{ count: number; height: number } | null>(null);
+  useLayoutEffect(() => {
+    const list = rolesRef.current;
+    const panel = list?.parentElement;
+    const layout = panel?.parentElement;
+    const screen = layout?.parentElement;
+    if (!list || !panel || !layout || !screen) return;
+    const fit = () => {
+      if (getComputedStyle(panel).display === "none") return;
+      const listTop = list.getBoundingClientRect().top;
+      const bottoms = Array.from(list.children, (row) => row.getBoundingClientRect().bottom - listTop);
+      const limit = screen.getBoundingClientRect().bottom
+        - (parseFloat(getComputedStyle(layout).paddingBottom) || 0)
+        - (parseFloat(getComputedStyle(panel).borderBottomWidth) || 0)
+        - listTop;
+      const count = rowsThatFit(bottoms, limit, 2);
+      const next = count === bottoms.length ? null : { count, height: count ? Math.ceil(bottoms[count - 1]) : 0 };
+      setRoleFit((current) => (current?.count === next?.count && current?.height === next?.height ? current : next));
+    };
+    fit();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(fit);
+    observer.observe(screen);
+    for (const node of [...Array.from(layout.children), ...Array.from(list.children)]) if (node !== panel) observer.observe(node);
+    return () => observer.disconnect();
+  }, [workspace.mode, workspace.surface, runningApps.length]);
 
   // When an app closes and takes the keyboard focus with it, focus returns to that app's own
   // taskbar or shelf button, so a keyboard user continues from where the app lived.
@@ -274,14 +307,14 @@ export function SystemShell() {
           </section>
 
           {/* Tablet only: the larger Home shows the role history the phone leaves to the app. */}
-          {workspace.mode === "tablet" ? <section className="home-experience" aria-labelledby="home-experience-title">
+          {workspace.mode === "tablet" ? <section className="home-experience" aria-labelledby="home-experience-title" data-fit={roleFit?.count === 0 ? "none" : undefined}>
             <div className="home-work-head">
               <h2 id="home-experience-title">Experience</h2>
               <button onClick={(event) => { noteLaunchOrigin(event.currentTarget); launchApp("experience"); }} type="button">Open Experience <ChevronIcon direction="right" /></button>
             </div>
-            <ol>
-              {experience.map((item) => (
-                <li className="home-role" key={`${item.company}-${item.period}`}>
+            <ol data-clipped={roleFit ? "true" : undefined} ref={rolesRef} style={roleFit ? { maxBlockSize: roleFit.height } : undefined}>
+              {experience.map((item, index) => (
+                <li aria-hidden={roleFit && index >= roleFit.count ? true : undefined} className="home-role" key={`${item.company}-${item.period}`}>
                   <small>{item.period}</small>
                   <strong>{item.role}</strong>
                   <span>{item.company}</span>

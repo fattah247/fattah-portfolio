@@ -3574,6 +3574,12 @@ html[data-system-mode="tablet"] .home-experience {
   html[data-system-mode="tablet"] .home-case { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* The role history is fitted by the shell: it keeps as many whole roles as fit above the shelf,
+ * clipped at the last one, and steps aside (still laid out, so it can be measured again) when
+ * fewer than two fit. Experience always keeps the full history. */
+html[data-system-mode="tablet"] .home-experience ol[data-clipped] { overflow: hidden; }
+html[data-system-mode="tablet"] .home-experience[data-fit="none"] { visibility: hidden; }
+
 /* =============================================================== System bars */
 
 /* Phone: Back, Home, and Recents on a solid bar. Tablet: one shelf with the system controls and
