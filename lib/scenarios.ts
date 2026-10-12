@@ -109,16 +109,16 @@ export const scenarios: Scenario[] = [
     ],
     evidence: [
       {
-        src: "/projects/payflow/audit-trail.png",
-        alt: "PayFlow audit trail showing transaction state changes",
-        caption: "The audit trail keeps previous and resulting transaction state readable.",
-        focus: "Previous and resulting state",
+        src: "/projects/payflow/09-audit-trail.png",
+        alt: "Payflow audit-trail scenario output: one payment's events, each with its state transition, actor, and request",
+        caption: "One call explains what happened to a payment: every state change with the actor and the request that caused it.",
+        focus: "Each transition, its actor, and its request",
       },
       {
-        src: "/projects/payflow/duplicate-webhook.png",
-        alt: "PayFlow response for a repeated provider webhook",
-        caption: "A repeated delivery is acknowledged as handled behavior instead of silently replaying state.",
-        focus: "Duplicate acknowledged; state unchanged",
+        src: "/projects/payflow/05-duplicate-webhook-ignored.png",
+        alt: "Payflow duplicate-webhook scenario output: redeliveries answered HTTP 200 and ignored, ten parallel deliveries applied once",
+        caption: "Redeliveries are acknowledged and ignored: ten parallel deliveries apply once, leaving one provider transaction and no review cases.",
+        focus: "Applied once; repeats acknowledged",
       },
     ],
     limitation:
@@ -275,16 +275,16 @@ export const scenarios: Scenario[] = [
     ],
     evidence: [
       {
-        src: "/projects/trustgate/device-risk-details.png",
-        alt: "TrustGate Android device risk details",
-        caption: "Individual device signals remain inspectable before a sensitive action is evaluated.",
-        focus: "Signals visible before the decision",
+        src: "/projects/trustgate/02-device-risk-details.png",
+        alt: "TrustGate Android Signals tab: three of eight checks flagged, with the points each adds to a high-risk score of 5",
+        caption: "Each flagged check shows the points it adds, so the risk verdict can be checked by hand before a sensitive action is evaluated.",
+        focus: "The points behind the verdict",
       },
       {
-        src: "/projects/trustgate/security-event-log.png",
-        alt: "TrustGate Android local security event trail",
-        caption: "Gated and blocked actions leave a readable local security trail.",
-        focus: "Recorded action and policy result",
+        src: "/projects/trustgate/07-security-event-log.png",
+        alt: "TrustGate Android Activity log: the reference verifier rejecting a late, an edited, and a replayed request, and the signals found",
+        caption: "Device checks, gate decisions, and the verifier's reasons for accepting or rejecting each request leave a readable local trail.",
+        focus: "Why each request was accepted or rejected",
       },
     ],
     limitation:
