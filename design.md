@@ -216,7 +216,7 @@ System information is never repeated within one view. Desktop uses the top-right
 Every visual and interaction choice needs a reason tied to the work or the workspace. These rules are checked in code and tests.
 
 - **Icons come from the shared SVG set.** Glyph characters (▶ Ⅱ ⇆ × ↗ ⋯ ← →) never stand in for icons. The up-right arrow marks only links that open a new tab; chevrons mark in-app navigation; the download icon marks files.
-- **Containers represent objects.** Windows, case files, instruments, exhibits, the identity card, Home widgets, and Recents cards get a boundary. Lists, tables, timelines, and prose do not: side projects are a plain repository list, Experience is a timeline (a hairline with a square node per role, the current role filled) with a scope table, the catalogue is one grouped list, and contact channels share one list under the primary email.
+- **Containers represent objects.** Windows, case files, instruments, exhibits, the identity card, Home widgets, and Recents cards get a boundary. Lists, tables, timelines, and prose do not: side projects are a plain list (a live site whose source is private leads it, then the public repositories), Experience is a timeline (a hairline with a square node per role, every current role filled) with a scope table, the catalogue is one grouped list, and contact channels share one list under the primary email.
 - **Labels carry information.** No eyebrow over ordinary headings, no uppercase micro-labels on chrome, no badges for "Current" or counts that repeat what the layout shows. Mono is reserved for identifiers, times, and instrument values.
 - **Each case reads in order without literal headings:** the failure and its constraint, the situation in prose, the decision marked once, the schematic, the replay, the result with its limits, then evidence.
 - **Headings are statements, not slogans,** without a closing full stop.
@@ -231,4 +231,4 @@ Every visual and interaction choice needs a reason tied to the work or the works
 
 ## Evidence and content integrity
 
-Never invent employers, metrics, outcomes, repositories, testimonials, or technical claims. Preserve scenario facts, public-demonstration labels, analytics, links, CV, and contact data. Visual refinement may change hierarchy and presentation, but not the meaning of the evidence.
+Never invent employers, metrics, outcomes, repositories, testimonials, or technical claims. Clients are not named: an independent role says what the founder does, and a live site is shown through its own published concept pieces, each linking to its page. Preserve scenario facts, public-demonstration labels, analytics, links, CV, and contact data. Visual refinement may change hierarchy and presentation, but not the meaning of the evidence.

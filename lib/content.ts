@@ -1,3 +1,5 @@
+import { canoeShowcase } from "./canoe";
+
 export const experience = [
   {
     company: "Bank Central Asia",
@@ -10,6 +12,19 @@ export const experience = [
       "Repeated callbacks, stuck transactions, and merchant-facing incident recovery.",
       "Release coordination with QA, security, infrastructure, operations, and early iOS merchant support.",
     ],
+  },
+  {
+    company: "Canoe",
+    role: "Founder",
+    period: "2019 — Present",
+    stage: "Independent studio",
+    scope: "Founded and runs Canoe, an independent studio in Indonesia that makes wedding invitations, company profiles, and campaign microsites.",
+    details: [
+      "Runs the studio from brief to launch: scopes each request into one of four published service tiers and agrees price and timing before work starts.",
+      "Designs and builds the invitations, company profiles, and microsites, and keeps each site current after launch.",
+      "Built canoe.quest, the studio's bilingual English and Indonesian site, in Astro, with its service catalogue, concept work, and inquiry form.",
+    ],
+    site: canoeShowcase,
   },
   {
     company: "Telkom Indonesia",

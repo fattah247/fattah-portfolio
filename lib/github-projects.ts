@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { canoeShowcase, type SiteShowcase } from "./canoe";
 import { scenarios } from "./scenarios";
 
 const githubOwner = "fattah247";
@@ -12,10 +13,16 @@ export type GithubProject = {
   displayName: string;
   homepageUrl: string | null;
   id: string;
+  /** A live product whose source is private: listed with its site, never with a repository. */
+  kind?: "site";
   language: string | null;
   previewImageUrl: string;
   readmeExcerpt: string;
-  repositoryUrl: string;
+  repositoryUrl: string | null;
+  /** For a site: its home page and the kinds of work it shows, in place of a single preview. */
+  showcase?: SiteShowcase;
+  /** For a site, the year it began, shown in place of a last update. */
+  since?: string;
   topics: string[];
   updatedAt: string;
   updatedLabel: string;
@@ -40,6 +47,27 @@ type GithubRepositoryResponse = {
   topics?: string[];
   updated_at: string;
 };
+
+/** Live products with private source. They lead Side projects whatever GitHub returns, and
+ * every statement here is one the product's own public site makes. */
+const siteProjects: GithubProject[] = [
+  {
+    description: "Website for Canoe, the independent studio I founded in 2019: wedding invitations, company profiles, and campaign microsites.",
+    displayName: "canoe.quest",
+    homepageUrl: "https://canoe.quest",
+    id: "canoe",
+    kind: "site",
+    language: null,
+    previewImageUrl: canoeShowcase.cover.src,
+    readmeExcerpt: "A bilingual site, in English and Indonesian, built with Astro. Briefs arrive through an inquiry form and map to four service tiers with published prices, and the work catalogue shows the studio's concept pieces: invitations, company profiles, and microsites.",
+    repositoryUrl: null,
+    showcase: canoeShowcase,
+    since: "2019",
+    topics: ["astro", "bilingual", "microsites"],
+    updatedAt: "",
+    updatedLabel: "",
+  },
+];
 
 const fallbackProjects: GithubProject[] = [
   {
@@ -183,7 +211,9 @@ async function readmeExcerpt(repository: GithubRepositoryResponse, signal: Abort
 
 /** A repository that already has a complete case belongs in Projects, not in Side projects. */
 const caseRepositories = new Set(scenarios.map((scenario) => scenario.repo.toLocaleLowerCase()));
-const isSideProject = (project: GithubProject) => !caseRepositories.has(project.repositoryUrl.toLocaleLowerCase());
+const isSideProject = (project: GithubProject) => !project.repositoryUrl || !caseRepositories.has(project.repositoryUrl.toLocaleLowerCase());
+
+const copyProject = (project: GithubProject): GithubProject => ({ ...project, topics: [...project.topics] });
 
 function isPortfolioRepository(repository: GithubRepositoryResponse) {
   return !repository.private
@@ -228,8 +258,8 @@ export const getGithubProjects = cache(async function getGithubProjects(): Promi
       }
     };
     await Promise.all(Array.from({ length: Math.min(3, repositories.length) }, worker));
-    return { projects: projects.filter(isSideProject), source: "github" };
+    return { projects: [...siteProjects.map(copyProject), ...projects.filter(isSideProject)], source: "github" };
   } catch {
-    return { projects: fallbackProjects.filter(isSideProject).map((project) => ({ ...project, topics: [...project.topics] })), source: "fallback" };
+    return { projects: [...siteProjects, ...fallbackProjects.filter(isSideProject)].map(copyProject), source: "fallback" };
   }
 });

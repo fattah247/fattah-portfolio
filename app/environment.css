@@ -1009,6 +1009,8 @@ html[data-system-mode="computer"] .window-chrome :is(button, a, summary) { curso
 .github-projects-index .github-project-list .github-project-row[data-language="Dart"] { --language: #00b4ab; }
 .github-projects-index .github-project-list .github-project-row[data-language="Go"] { --language: #00add8; }
 .github-projects-index .github-project-list .github-project-row[data-language="HTML"] { --language: #e34c26; }
+/* A live product is not a language: its marker is a plain ink square. */
+.github-projects-index .github-project-list .github-project-row[data-language="Live site"] { --language: var(--shell-ink); }
 
 @container projects-app (max-width: 51.999rem) {
   .github-projects-index .github-project-list .github-project-row {
@@ -1348,6 +1350,81 @@ html[data-system-mode="tablet"] .case-close-action {
   color: #34425a !important;
   font-size: 1rem !important;
   line-height: 1.5 !important;
+}
+
+/* A role with a public site carries a glimpse of the work on it, then one link out. */
+.workspace-experience-window .experience-glimpse {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  margin-top: 18px;
+  max-inline-size: 30rem;
+}
+
+.workspace-experience-window .experience-glimpse-link {
+  align-items: center;
+  color: var(--accent-deep);
+  display: inline-flex;
+  font: 600 .94rem/1.3 var(--font-body), sans-serif;
+  gap: 6px;
+  min-block-size: 24px;
+  text-underline-offset: 3px;
+}
+
+html[data-system-mode="phone"] .workspace-experience-window .experience-glimpse-link,
+html[data-system-mode="tablet"] .workspace-experience-window .experience-glimpse-link { min-block-size: 44px; }
+
+/* Site showcase: a live site's home page, then the kinds of work it shows. The pages are real
+ * captures, so each keeps an exhibit's frame. Two tall phone pages stand beside two wide desktop
+ * pages; the tall pages fill the height of the pair (they are captured a touch shorter, so they
+ * never set it), and a narrow container stacks the set. */
+.site-showcase {
+  container: showcase / inline-size;
+  display: grid;
+  gap: 12px;
+  inline-size: 100%;
+}
+
+.site-showcase a { color: inherit; text-decoration: none; }
+
+.site-showcase img {
+  background: var(--surface-2);
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--object-shadow);
+  box-sizing: border-box;
+  display: block;
+  inline-size: 100%;
+}
+
+.site-showcase a:hover img { border-color: var(--accent-deep); }
+.site-showcase-cover img { aspect-ratio: 1600 / 660; block-size: auto; }
+
+.site-showcase-samples {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.site-showcase-samples li { display: grid; min-inline-size: 0; }
+.site-showcase-samples li[data-shape="tall"] { grid-row: span 2; }
+.site-showcase-samples li[data-shape="wide"] { grid-column: 3; }
+.site-showcase-samples a { display: grid; gap: 6px; grid-template-rows: minmax(0, 1fr) auto; }
+.site-showcase-samples li[data-shape="wide"] img { aspect-ratio: 16 / 9; block-size: auto; }
+.site-showcase-samples li[data-shape="tall"] img { block-size: 100%; min-block-size: 0; object-fit: cover; object-position: top; }
+.site-showcase[data-compact] .site-showcase-samples { gap: 8px; }
+.site-showcase[data-compact] .site-showcase-samples a { gap: 0; grid-template-rows: minmax(0, 1fr); }
+
+.site-showcase-caption { color: var(--ink-secondary); font: var(--type-caption); }
+.site-showcase-note { color: var(--ink-secondary); font: var(--type-caption); margin: 0; }
+
+@container showcase (max-width: 30rem) {
+  .site-showcase:not([data-compact]) .site-showcase-samples { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .site-showcase:not([data-compact]) .site-showcase-samples li[data-shape="tall"] { grid-row: auto; }
+  .site-showcase:not([data-compact]) .site-showcase-samples li[data-shape="wide"] { grid-column: 1 / -1; }
+  .site-showcase:not([data-compact]) .site-showcase-samples li[data-shape="tall"] img { aspect-ratio: 780 / 1400; block-size: auto; }
 }
 
 /* Scope: a two-column table of what has been used where. */
