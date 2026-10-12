@@ -4463,3 +4463,25 @@ html[data-system-mode="computer"] .desktop-object[data-dragging="true"] .desktop
   html[data-system-mode="computer"] :is(.portfolio-window, .selected-work-window, .contact-window, .evidence-sheet)[data-dragging="true"],
   html[data-system-mode="computer"] .desktop-object[data-dragging="true"] :is(.case-file-sheet, .desktop-app-glyph) { translate: none; }
 }
+
+/* ------------------------------------------------------------- Interface glyphs */
+
+/* Every interface glyph is pixel art on a 16-unit grid (components/icons.tsx), shown at a whole
+ * multiple so each square lands on a screen pixel: 16 px everywhere, 32 px on the tablet shelf.
+ * This replaces a dozen sizes between 12 and 22 px, at which even a crisp drawing smears. */
+svg.pixel-glyph { block-size: 16px !important; flex: none; inline-size: 16px !important; }
+html[data-system-mode="tablet"] nav.tablet-shelf svg.pixel-glyph { block-size: 32px !important; inline-size: 32px !important; }
+
+/* A window control's 20 px bevelled key holds its 16 px glyph exactly (it used to squeeze the old
+ * icon into 10 px). */
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) :is(.window-close-action, .evidence-close-action, .case-close-action, .window-system-control) > span { padding: 1px !important; }
+
+/* Glyphs are filled in the text colour. The states that used to colour stroked icons with
+ * `stroke` colour the glyph instead. */
+html[data-system-mode="computer"] :is(.taskbar-home, .taskbar-overview) svg.pixel-glyph { color: var(--shell-ink); }
+html[data-system-mode="phone"] .phone-system-navigation button svg.pixel-glyph { color: var(--shell-ink); }
+html[data-system-mode="phone"] .phone-system-navigation button[data-active="true"] svg.pixel-glyph { color: var(--accent-deep); }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-system-navigation, nav.tablet-shelf) button:disabled svg.pixel-glyph { color: var(--border); }
+
+/* A glyph may step sideways on hover, but never turns: a rotation would smear it off the grid. */
+:is(.inline-link, .solid-link, .evidence-original):is(:hover, :focus-visible) svg.pixel-glyph { transform: translateX(2px) !important; }

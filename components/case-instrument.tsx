@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PlayIcon, RewindIcon } from "./icons";
+import { PlayIcon, ResetIcon, StartOverIcon } from "./icons";
 import { messageTravelMs, PaymentDiagram, PolicyDiagram, ruleStepMs, ServiceDiagram, toRulesMs } from "./sim-diagrams";
 import { useSound } from "./sound-provider";
 import { LANDING, type CueId } from "../lib/sound/engine";
@@ -177,7 +177,7 @@ type SimProps = {
 
 /** Puts every condition back where the case's example starts. */
 function StoryReset({ isDefault, onReset }: Pick<SimProps, "isDefault" | "onReset">) {
-  return !isDefault && onReset ? <button className="sim-secondary" onClick={onReset} type="button"><RewindIcon />Reset</button> : null;
+  return !isDefault && onReset ? <button className="sim-secondary" onClick={onReset} type="button"><ResetIcon />Reset</button> : null;
 }
 
 /** A labelled group of joined selector keys: two read as a switch, three as a short column. */
@@ -351,7 +351,7 @@ function PaymentSim({ approach, conditions, isDefault, onApproachChange, onChang
 
       <div className="sim-actions">
         <button className="sim-primary" disabled={story !== null} onClick={() => playStory()} type="button"><PlayIcon />{story !== null ? "Playing the example…" : "Play the example"}</button>
-        <button className="sim-secondary" onClick={() => { stopStory(); setWorld(emptyPayWorld); play("pay.start-over"); }} type="button"><RewindIcon />Start over</button>
+        <button className="sim-secondary" onClick={() => { stopStory(); setWorld(emptyPayWorld); play("pay.start-over"); }} type="button"><StartOverIcon />Start over</button>
         <StoryReset isDefault={isDefault} onReset={onReset} />
         <p className="sim-compare">{checked ? "Repeat check on: each message can change the payment only once." : "Repeat check off: every message is processed as it arrives."}</p>
       </div>

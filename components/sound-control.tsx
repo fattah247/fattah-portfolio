@@ -13,8 +13,8 @@ function SpeakerGlyph({ level }: { level: SoundLevel }) {
     ? [[10, 5, 1, 1], [14, 5, 1, 1], [11, 6, 1, 1], [13, 6, 1, 1], [12, 7, 1, 1], [11, 8, 1, 1], [13, 8, 1, 1], [10, 9, 1, 1], [14, 9, 1, 1]]
     : [[10, 5, 1, 1], [11, 6, 1, 4], [10, 10, 1, 1], ...(level === "on" ? [[12, 3, 1, 1], [13, 4, 1, 8], [12, 12, 1, 1]] : [])];
   return (
-    <svg aria-hidden="true" className="sound-glyph" focusable="false" shapeRendering="crispEdges" viewBox="0 0 16 16">
-      <path d={[...speaker, ...marks].map(([x, y, w, h]) => `M${x} ${y}h${w}v${h}h-${w}z`).join("")} />
+    <svg aria-hidden="true" className="pixel-glyph sound-glyph" focusable="false" shapeRendering="crispEdges" viewBox="0 0 16 16">
+      <path d={[...speaker, ...marks].map(([x, y, w, h]) => `M${x} ${y}h${w}v${h}h-${w}z`).join("")} fill="currentColor" stroke="none" />
     </svg>
   );
 }
