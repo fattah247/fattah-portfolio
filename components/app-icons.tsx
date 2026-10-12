@@ -13,13 +13,16 @@ import type { PortfolioAppId } from "./workspace-manager";
  * The same identity is used by the desktop, taskbar, tablet shelf, phone launcher, and Recents.
  *
  * Map key: . clear, k ink, w white, p paper, g/G paper shades, s/S slate and graphite,
- * b/B/D steel blue light, face, deep, A accent, t/T/Y sea green pale, face, deep.
+ * b/B/D steel blue light, face, deep, A accent, N navy, t/T/Y sea green pale, face, deep.
+ * The owner's portrait adds l/f/F/E skin light, face, shade, deep, m mouth, h/H hair and its sheen.
  */
 export const appIconPalette: Record<string, string> = {
   k: "#252b34", w: "#ffffff", p: "#f7f8f9", g: "#d3d9e1", G: "#b8c1cd",
   s: "#8d98a7", S: "#59616d",
-  b: "#c8d8f0", B: "#8ea5cb", D: "#6e88b6", A: "#536fa3",
+  b: "#c8d8f0", B: "#8ea5cb", D: "#6e88b6", A: "#536fa3", N: "#3f5687",
   t: "#cfe3df", T: "#5e9990", Y: "#3a7a6c",
+  l: "#f9e4c4", f: "#f1d0a0", F: "#d9ac78", E: "#c0915f", m: "#c98673",
+  h: "#2b2523", H: "#5a4a40",
 };
 
 type PixelMap = readonly string[];
@@ -269,17 +272,55 @@ export function AppIcon({ app, className = "", size, variant = "large" }: { app:
   );
 }
 
-/** The owner's monogram: initials on a small bevelled plate. */
+/**
+ * The owner's picture, drawn like an account photo printed with a white border (light top-left,
+ * shade bottom-right). It is a portrait from the owner's own description, not a photograph:
+ * short wavy dark hair swept to one side, slate glasses, a light warm (kuning langsat) skin tone,
+ * a squared jaw and broad shoulders in a navy collared shirt. It keeps the icon rules: an ink
+ * outline, flat fills, light from the top left. The backdrop is the wallpaper (block cloud,
+ * stepped terraces), so the photo was taken inside this environment.
+ */
+export const ownerPortrait: PixelMap = [
+  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
+  "kwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwk",
+  "kwbbbbbbbbbbkkkkbkkkkbbbbbbbbbGk",
+  "kwbbwwbbbbkkHHHhkhhhhkkbbbbbbbGk",
+  "kwbwwwwbkhhhhHHHhhhhHHhkbbbbbbGk",
+  "kwbbbbbkhhhhhhhHHHhhhHHhkbbbbbGk",
+  "kwbbbbbkhhHHHhhhhhHHhhhhkbbbbbGk",
+  "kwbbbbbkhhhhHHHhhhhhhhhhkbbbbbGk",
+  "kwbbbbbkhllffhhHhhhhhhhhkbbbbbGk",
+  "kwbbbbbkhlffffhhffffhhhhkbbbbbGk",
+  "kwbbbbbkhlfhhhffffhhhffhkbbbbbGk",
+  "kwbbbbbkSSSSSSSffSSSSSSSkbbbbbGk",
+  "kwbbbbklfSfkkfSSSSfkkfSfFkbbbbGk",
+  "kwbbbbkEfSffffSffSffffSfEkbbbbGk",
+  "kwbbbbkffSSSSSSfFSSSSSSFFkbbbbGk",
+  "kwbbbbbkffffffffFfffffFFkbbbbbGk",
+  "kwbbbbbkfffffffFFfffffFFkwwwwwGk",
+  "kwbbbbbbkffffmffffmfffFkggggggGk",
+  "kwbbbbbbkfffffmmmmffffFkggggggGk",
+  "kwbbbbbbbkfffffffffffFkgggggggGk",
+  "kwbbbbbbbbkffffffffFFkggggggggGk",
+  "kwbbbbbbbbbkkkkkkkkkkgggggggggGk",
+  "kwwwwwwkkkkkFFFFFFFFkkkkkgggggGk",
+  "kwggkkkAAAAppffffffppAAAAkkkggGk",
+  "kwkkAAANNNNNppffffppNNNNNAAAkkGk",
+  "kwkANNNNNNNNNppffppNNNNNNNNNNkGk",
+  "kwkANNNNNNNNNNpNNpNNNNNNNNNNNkGk",
+  "kwkANNNNNNNNNNNNNNNNNNNNNNNNNkGk",
+  "kwkANNNNNNNNNNNNNNNNNNNNNNNNNkGk",
+  "kwkANNNNNNNNNNNNNNNNNNNNNNNNNkGk",
+  "kwGGGGGGGGGGGGGGGGGGGGGGGGGGGGGk",
+  "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
+];
+
+const compiledPortrait = compile(ownerPortrait);
+
 export function OwnerMark({ className = "" }: { className?: string }) {
   return (
     <svg aria-hidden="true" className={`owner-mark ${className}`.trim()} focusable="false" shapeRendering="crispEdges" viewBox="0 0 32 32">
-      <rect fill={appIconPalette.k} height="32" width="32" />
-      <rect fill={appIconPalette.A} height="30" width="30" x="1" y="1" />
-      <rect fill="#7590c4" height="1" width="29" x="1" y="1" />
-      <rect fill="#7590c4" height="29" width="1" x="1" y="1" />
-      <rect fill="#3f5687" height="1" width="29" x="2" y="30" />
-      <rect fill="#3f5687" height="29" width="1" x="30" y="2" />
-      <text fill="#f7f8f9" fontFamily="var(--font-body), sans-serif" fontSize="13" fontWeight="700" letterSpacing="-.3" textAnchor="middle" x="16" y="20.5">MF</text>
+      {compiledPortrait.map(({ d, fill }) => <path d={d} fill={fill} key={fill} />)}
     </svg>
   );
 }

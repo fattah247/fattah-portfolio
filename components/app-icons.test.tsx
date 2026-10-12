@@ -1,6 +1,6 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { AppIcon, appIconDrawings, appIconPalette } from "./app-icons";
+import { AppIcon, appIconDrawings, appIconPalette, OwnerMark, ownerPortrait } from "./app-icons";
 
 describe("application icon family", () => {
   afterEach(cleanup);
@@ -28,5 +28,24 @@ describe("application icon family", () => {
     const paths = Array.from(svg.querySelectorAll("path"));
     expect(new Set(paths.map((path) => path.getAttribute("fill"))).size).toBe(paths.length);
     for (const path of paths) expect(path.getAttribute("d")).toMatch(/^(M\d+ \d+h\d+v1h-\d+z)+$/);
+  });
+
+  it("draws the owner as a framed pixel portrait with a face, not initials", () => {
+    expect(ownerPortrait).toHaveLength(32);
+    for (const row of ownerPortrait) {
+      expect(row).toHaveLength(32);
+      for (const pixel of row) expect(appIconPalette[pixel], `portrait uses ${pixel}`).toBeDefined();
+    }
+    // A print: ink outline on every edge, around a face (skin, hair, mouth) and a navy shirt.
+    expect(ownerPortrait[0]).toBe("k".repeat(32));
+    expect(ownerPortrait[31]).toBe("k".repeat(32));
+    expect(ownerPortrait.every((row) => row[0] === "k" && row[31] === "k")).toBe(true);
+    for (const pixel of ["f", "h", "m", "N"]) expect(ownerPortrait.join("")).toContain(pixel);
+
+    const { container } = render(<OwnerMark />);
+    const svg = container.querySelector("svg")!;
+    expect(svg.getAttribute("viewBox")).toBe("0 0 32 32");
+    expect(svg.querySelector("text")).toBeNull();
+    for (const path of svg.querySelectorAll("path")) expect(path.getAttribute("d")).toMatch(/^(M\d+ \d+h\d+v1h-\d+z)+$/);
   });
 });
