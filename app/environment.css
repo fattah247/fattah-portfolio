@@ -179,6 +179,10 @@ body {
   box-shadow: none !important;
 }
 
+/* The owner mark is a label, not a control, so the bar's height sets the row and everything in it
+ * centres on the same line instead of dropping onto the rule. */
+.system-status-bar .system-brand { min-height: 0; }
+
 .system-status-bar .system-brand strong { font: var(--type-system) !important; letter-spacing: 0; }
 .system-status-bar .system-active-app { font: var(--type-system) !important; letter-spacing: 0 !important; }
 .system-status-bar time small { color: var(--shell-ink-muted) !important; }
