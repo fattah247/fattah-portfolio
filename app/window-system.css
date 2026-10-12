@@ -3005,10 +3005,6 @@ html[data-system-mode="tablet"] .system-active-app {
   display: block;
 }
 
-html[data-system-mode="tablet"] .system-brand {
-  min-height: 44px;
-}
-
 html[data-system-mode="tablet"] .system-home-screen,
 html[data-system-mode="tablet"] .system-recents {
   bottom: var(--os-shelf);
@@ -4399,10 +4395,6 @@ html[data-system-mode="phone"] .system-status-bar {
   padding: env(safe-area-inset-top) max(14px, env(safe-area-inset-right)) 0 max(14px, env(safe-area-inset-left));
 }
 
-html[data-system-mode="phone"] .system-brand {
-  min-height: 44px;
-}
-
 html[data-system-mode="phone"] .system-active-app {
   display: none;
 }
@@ -4719,7 +4711,6 @@ html[data-system-mode="phone"] {
 }
 
 /* A control never becomes visually or physically smaller than its hit target. */
-.system-brand,
 .taskbar-home,
 .taskbar-overview,
 .taskbar-app,

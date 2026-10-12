@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { ArrowIcon, ChevronIcon } from "./icons";
+import { SiteShowcase } from "./site-showcase";
 import type { GithubProject, GithubProjectsPayload } from "../lib/github-projects";
 
 function ProjectImage({
@@ -16,10 +17,10 @@ function ProjectImage({
     <span className="github-project-image" data-project={project.id}>
       <span className="github-project-image-fallback" aria-hidden="true">
         <b>{project.displayName}</b>
-        <small>GitHub repository</small>
+        <small>{project.kind === "site" ? "Live site" : "GitHub repository"}</small>
       </span>
       <img
-        alt={`${project.displayName} repository preview`}
+        alt={project.kind === "site" ? `${project.displayName} home page` : `${project.displayName} repository preview`}
         decoding="async"
         fetchPriority={priority ? "high" : "auto"}
         height="315"
@@ -33,9 +34,12 @@ function ProjectImage({
 }
 
 /**
- * Side projects stay secondary to the three cases: a plain repository list with each
- * repository's own language, description, and last update, opened inside Projects.
+ * Side projects stay secondary to the three cases: a plain list with each repository's own
+ * language, description, and last update, opened inside Projects. A live product with private
+ * source leads the list and reads "Live site" and its starting year instead.
  */
+const rowLanguage = (project: GithubProject) => (project.kind === "site" ? "Live site" : project.language ?? "Repository");
+
 export function GithubProjectsIndex({
   onOpenProject,
   projects,
@@ -45,18 +49,19 @@ export function GithubProjectsIndex({
   projects: GithubProject[];
   source: GithubProjectsPayload["source"];
 }) {
+  const repositoryCount = projects.filter((project) => project.kind !== "site").length;
   return (
     <section className="github-projects-index" aria-labelledby="github-projects-heading" data-source={source}>
       <header className="github-projects-heading">
         <h2 id="github-projects-heading">Side projects</h2>
         <a
-          aria-label={`All ${projects.length} public repositories on GitHub`}
+          aria-label={`All ${repositoryCount} public repositories on GitHub`}
           className="github-projects-github-link"
           href="https://github.com/fattah247?tab=repositories"
           rel="noopener noreferrer"
           target="_blank"
         >
-          <span className="github-project-count">{projects.length} public {projects.length === 1 ? "repo" : "repos"}</span> on GitHub <ArrowIcon />
+          <span className="github-project-count">{repositoryCount} public {repositoryCount === 1 ? "repo" : "repos"}</span> on GitHub <ArrowIcon />
         </a>
       </header>
 
@@ -67,7 +72,7 @@ export function GithubProjectsIndex({
               <a
                 aria-label={`Open ${project.displayName} project preview`}
                 className="github-project-row"
-                data-language={project.language ?? "Repository"}
+                data-language={rowLanguage(project)}
                 href={`/projects/${encodeURIComponent(project.id)}`}
                 onClick={(event) => {
                   event.preventDefault();
@@ -76,8 +81,8 @@ export function GithubProjectsIndex({
               >
                 <strong>{project.displayName}</strong>
                 <span className="github-project-row-description">{project.description}</span>
-                <span className="github-project-row-language">{project.language ?? "Repository"}</span>
-                <span className="github-project-row-updated">Updated {project.updatedLabel}</span>
+                <span className="github-project-row-language">{rowLanguage(project)}</span>
+                <span className="github-project-row-updated">{project.since ? `Since ${project.since}` : `Updated ${project.updatedLabel}`}</span>
               </a>
             </li>
           ))}
@@ -108,42 +113,50 @@ export function GithubProjectPreview({
     <div className="github-project-preview" data-project={project.id}>
       <section className="github-project-preview-intro" aria-labelledby="github-project-preview-title">
         <div>
-          <p>{project.language ?? "Public repository"}</p>
+          <p>{project.kind === "site" ? "Live site" : project.language ?? "Public repository"}</p>
           <h2 id="github-project-preview-title">{project.displayName}</h2>
           <span>{project.description}</span>
         </div>
         <dl>
-          <div><dt>Updated</dt><dd>{project.updatedLabel}</dd></div>
-          <div><dt>Repository</dt><dd>Public</dd></div>
+          {project.since ? <div><dt>Since</dt><dd>{project.since}</dd></div> : <div><dt>Updated</dt><dd>{project.updatedLabel}</dd></div>}
+          <div><dt>{project.repositoryUrl ? "Repository" : "Source"}</dt><dd>{project.repositoryUrl ? "Public" : "Private"}</dd></div>
           <div><dt>Topics</dt><dd>{project.topics.length ? project.topics.join(" · ") : "Project source"}</dd></div>
         </dl>
       </section>
 
-      <figure className="github-project-preview-figure">
-        <ProjectImage priority project={project} />
-        <figcaption>Repository preview supplied by GitHub.</figcaption>
-      </figure>
+      {project.showcase ? (
+        <section aria-label={`${project.displayName} and the work it shows`} className="github-project-showcase">
+          <SiteShowcase showcase={project.showcase} />
+        </section>
+      ) : (
+        <figure className="github-project-preview-figure">
+          <ProjectImage priority project={project} />
+          <figcaption>{project.kind === "site" ? `The ${project.displayName} home page.` : "Repository preview supplied by GitHub."}</figcaption>
+        </figure>
+      )}
 
       {project.readmeExcerpt && project.readmeExcerpt !== project.description ? (
         <section className="github-project-readme" aria-labelledby="github-project-readme-heading">
-          <h3 id="github-project-readme-heading">About the repository</h3>
+          <h3 id="github-project-readme-heading">{project.kind === "site" ? "About the site" : "About the repository"}</h3>
           <p>{project.readmeExcerpt}</p>
         </section>
       ) : null}
 
       <div className="github-project-actions">
-        <a className="primary-action" href={project.repositoryUrl} rel="noopener noreferrer" target="_blank">
-          View source <ArrowIcon />
-        </a>
+        {project.repositoryUrl ? (
+          <a className="primary-action" href={project.repositoryUrl} rel="noopener noreferrer" target="_blank">
+            View source <ArrowIcon />
+          </a>
+        ) : null}
         {project.homepageUrl ? (
-          <a className="inline-link" href={project.homepageUrl} rel="noopener noreferrer" target="_blank">
-            Open live site <ArrowIcon />
+          <a className={project.repositoryUrl ? "inline-link" : "primary-action"} href={project.homepageUrl} rel="noopener noreferrer" target="_blank">
+            {project.repositoryUrl ? "Open live site" : `Visit ${project.displayName}`} <ArrowIcon />
           </a>
         ) : null}
       </div>
 
       {projects.length > 1 ? (
-        <nav className="github-project-switcher" aria-label="Move between GitHub project previews">
+        <nav className="github-project-switcher" aria-label="Move between side project previews">
           <button onClick={() => onSelectProject(previous.id)} type="button"><ChevronIcon /> Previous</button>
           <span>{String(projectIndex + 1).padStart(2, "0")} / {String(projects.length).padStart(2, "0")}</span>
           <button onClick={() => onSelectProject(next.id)} type="button">Next <ChevronIcon direction="right" /></button>

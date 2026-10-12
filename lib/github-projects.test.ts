@@ -1,5 +1,7 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getGithubProjects } from "./github-projects";
+import { getGithubProjects, type GithubProject } from "./github-projects";
 
 type NextRequestInit = RequestInit & { next?: { revalidate?: number } };
 
@@ -20,6 +22,8 @@ function repository(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+const repositoriesOnly = (projects: GithubProject[]) => projects.filter((project) => project.kind !== "site");
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -46,15 +50,16 @@ describe("getGithubProjects", () => {
     const result = await getGithubProjects();
 
     expect(result.source).toBe("github");
-    expect(result.projects).toHaveLength(1);
-    expect(result.projects[0]).toMatchObject({
+    const repositories = repositoriesOnly(result.projects);
+    expect(repositories).toHaveLength(1);
+    expect(repositories[0]).toMatchObject({
       displayName: "example project",
       homepageUrl: "https://example.com/",
       id: "example-project",
       topics: ["typescript", "tooling"],
       updatedLabel: "Jul 2026",
     });
-    expect(result.projects[0].readmeExcerpt).toContain("repository README paragraph");
+    expect(repositories[0].readmeExcerpt).toContain("repository README paragraph");
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const requestOptions = fetchMock.mock.calls[0][1];
     expect((requestOptions?.headers as Record<string, string>).Authorization).toBeUndefined();
@@ -76,7 +81,7 @@ describe("getGithubProjects", () => {
 
     const result = await getGithubProjects();
 
-    expect(result.projects).toHaveLength(8);
+    expect(repositoriesOnly(result.projects)).toHaveLength(8);
     expect(fetchMock).toHaveBeenCalledTimes(9);
     for (const call of fetchMock.mock.calls) {
       const requestOptions = call[1];
@@ -84,12 +89,13 @@ describe("getGithubProjects", () => {
     }
   });
 
-  it("treats a successful empty selection as an honest empty state", async () => {
+  it("lists only the live site when GitHub selects no repositories", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify([]))));
 
     const result = await getGithubProjects();
 
-    expect(result).toEqual({ projects: [], source: "github" });
+    expect(result.source).toBe("github");
+    expect(result.projects.map((project) => project.id)).toEqual(["canoe"]);
   });
 
   it("returns the cached project index when GitHub is unavailable", async () => {
@@ -100,10 +106,27 @@ describe("getGithubProjects", () => {
     expect(result.source).toBe("fallback");
     // TrustGate Android is case 03, so it stays out of Side projects.
     expect(result.projects.map((project) => project.id)).toEqual([
+      "canoe",
       "Stock-Triage",
       "SnapSort-iOS",
       "Xpire",
       "IoTifyHome",
     ]);
+  });
+
+  it("leads Side projects with canoe.quest as a live site whose source stays private", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify([repository()]))));
+    const live = await getGithubProjects();
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
+    const fallback = await getGithubProjects();
+
+    for (const result of [live, fallback]) {
+      expect(result.projects[0]).toMatchObject({ id: "canoe", kind: "site", homepageUrl: "https://canoe.quest", repositoryUrl: null, since: "2019" });
+    }
+    const site = live.projects[0];
+    const images = [site.previewImageUrl, ...(site.showcase?.samples.map((sample) => sample.src) ?? [])];
+    expect(images).toHaveLength(5);
+    for (const image of images) expect(existsSync(resolve(process.cwd(), "public", image.slice(1))), image).toBe(true);
+    for (const sample of site.showcase?.samples ?? []) expect(sample.href.startsWith("https://canoe.quest/")).toBe(true);
   });
 });

@@ -9,7 +9,7 @@ export const portfolioIdentity = {
   email: "fattahmuhammad17@gmail.com",
   linkedin: "https://www.linkedin.com/in/muhammad24fattah",
   whatsapp: "https://wa.me/6281944242422",
-  whatsappDisplay: "0819 4424 2422",
+  whatsappDisplay: "+6281944242422",
 } as const;
 
 /** A link's host and path without the protocol, for showing a profile handle once. */
