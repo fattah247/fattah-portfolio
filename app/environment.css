@@ -4358,3 +4358,108 @@ html[data-system-mode="phone"] .product-links-search input { min-height: 44px; }
 .not-found-body p { color: var(--ink-secondary); font: var(--type-body); margin: 0; }
 .not-found-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .not-found-actions a { min-block-size: 44px !important; }
+
+/* ------------------------------------------------------------ Sound and effects */
+
+/* The sound level lives in the status bar's tray, beside the clock, on every device: a 16-unit
+ * pixel speaker that opens three joined keys. The visual stays compact; touch modes widen the hit
+ * area to 44 px without making the bar taller. */
+.system-tray { align-items: center; display: flex; gap: 6px; justify-self: end; min-width: 0; position: relative; }
+.sound-control { position: relative; }
+/* In the bar the panel hangs from the tray's right edge, so it stays on screen even on a 262 px
+ * phone, where the speaker sits mid-bar beside the clock. */
+.system-tray .sound-control { position: static; }
+.sound-control-toggle {
+  align-items: center;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: var(--shell-ink) !important;
+  cursor: pointer;
+  display: inline-flex;
+  height: 24px;
+  justify-content: center;
+  padding: 0 !important;
+  position: relative;
+  width: 28px;
+}
+.sound-control-toggle:hover { background: #ffffff !important; border-color: var(--line-ink) !important; }
+.sound-control-toggle:active,
+.sound-control[data-open] .sound-control-toggle { background: var(--recessed) !important; border-color: var(--line-ink) !important; box-shadow: var(--bevel-inset); }
+.sound-control-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.sound-glyph { block-size: 16px; fill: currentColor; inline-size: 16px; }
+.sound-control[data-level="off"] .sound-glyph { color: var(--shell-ink-muted); }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sound-control-toggle::before { content: ""; inset: -10px -8px; position: absolute; }
+
+.sound-control-panel {
+  background: var(--raised);
+  border: 1px solid var(--line-ink);
+  box-shadow: 3px 3px 0 rgb(37 43 52 / 28%);
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px 10px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+}
+.sound-control-panel p { color: var(--shell-ink-muted); font: var(--type-label); margin: 0; }
+.sound-control-keys { display: grid; grid-template-columns: repeat(3, minmax(4.25rem, auto)); }
+.sound-control-keys button {
+  align-items: center;
+  background: var(--raised) !important;
+  border: 1px solid var(--line-ink) !important;
+  box-shadow: var(--bevel-raised);
+  color: var(--ink) !important;
+  cursor: pointer;
+  display: flex;
+  font: var(--type-label) !important;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 10px !important;
+}
+.sound-control-keys button + button { margin-left: -1px; }
+.sound-control-keys button::before { background: #ffffff; border: 1px solid var(--line-ink); content: ""; flex: none; height: 8px; width: 8px; }
+.sound-control-keys button:hover { background: #ffffff !important; }
+.sound-control-keys button[aria-pressed="true"] { background: var(--accent-soft) !important; box-shadow: var(--bevel-inset); color: var(--accent-deep) !important; font-weight: 600 !important; }
+.sound-control-keys button[aria-pressed="true"]::before { background: var(--accent); }
+.sound-control-keys button:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sound-control-keys button { min-height: 44px; }
+
+/* A landscape phone hides the status bar, so its sound level moves to the Recents header. */
+.system-recents .sound-control-recents { display: none; }
+@media (orientation: landscape) and (max-height: 500px) {
+  html[data-system-mode="phone"] .system-recents .sound-control-recents { display: block; margin-inline-start: auto; }
+}
+
+/* Knock and jolt: the film's landings and its vibration, at 2 px. The payment knocks when a
+ * message lands on it and jolts with the buzz when one is handled twice; an answer knocks once it
+ * is stamped, and a Block jolts; the monitor jolts when the site goes down; a dropped desktop icon
+ * knocks into place. Timings come from the drawing (--hit-delay, --d), so they meet the sound. */
+@keyframes sd-knock { 0%, 100% { transform: translate(0, 0); } 34% { transform: translate(0, 2px); } }
+@keyframes sd-jolt { 0%, 100% { transform: translate(0, 0); } 17%, 50% { transform: translate(-2px, 0); } 33%, 67% { transform: translate(2px, 0); } 83% { transform: translate(-1px, 0); } }
+@keyframes fx-knock-odd { 0%, 100% { translate: 0 0; } 34% { translate: 0 2px; } }
+@keyframes fx-knock-even { 0%, 100% { translate: 0 0; } 34% { translate: 0 2px; } }
+@keyframes fx-jolt-odd { 0%, 100% { translate: 0 0; } 17%, 50% { translate: -2px 0; } 33%, 67% { translate: 2px 0; } 83% { translate: -1px 0; } }
+@keyframes fx-jolt-even { 0%, 100% { translate: 0 0; } 17%, 50% { translate: -2px 0; } 33%, 67% { translate: 2px 0; } 83% { translate: -1px 0; } }
+
+.sd-state[data-hit="land"] { animation: sd-knock 150ms steps(3, end) var(--hit-delay); }
+.sd-state[data-hit="bad"] { animation: sd-jolt 255ms steps(6, end) var(--hit-delay); }
+.sd-decision { animation: sd-stamp 300ms steps(3, end) var(--d) backwards, sd-knock 150ms steps(3, end) calc(var(--d) + 300ms); }
+.sd-decision[data-tone="adverse"] { animation: sd-stamp 300ms steps(3, end) var(--d) backwards, sd-jolt 255ms steps(6, end) calc(var(--d) + 300ms); }
+.svc-status[data-changed="odd"][data-jolt="odd"] { animation: instrument-mark-odd 1100ms steps(4, end), fx-jolt-odd 255ms steps(6, end); }
+.svc-status[data-changed="even"][data-jolt="even"] { animation: instrument-mark-even 1100ms steps(4, end), fx-jolt-even 255ms steps(6, end); }
+html[data-system-mode="computer"] .desktop-object[data-landed="odd"] { animation: fx-knock-odd 150ms steps(3, end) !important; }
+html[data-system-mode="computer"] .desktop-object[data-landed="even"] { animation: fx-knock-even 150ms steps(3, end) !important; }
+
+/* Lift: what is held casts a longer, lighter hard shadow down-right and rises a little up-left,
+ * by the film's light rule (one key light from the upper left). It returns to rest on release. */
+:root { --lift-shadow: 7px 10px 0 rgb(37 43 52 / 20%); --lift-shadow-small: 5px 7px 0 rgb(37 43 52 / 20%); }
+html[data-system-mode="computer"] :is(.portfolio-window, .selected-work-window, .contact-window, .evidence-sheet)[data-dragging="true"] { box-shadow: var(--lift-shadow) !important; translate: -1px -2px; }
+html[data-system-mode="computer"] .desktop-object[data-dragging="true"] .case-file-sheet { box-shadow: var(--lift-shadow-small) !important; translate: -1px -2px; }
+html[data-system-mode="computer"] .desktop-object[data-dragging="true"] .desktop-app-glyph { filter: drop-shadow(3px 4px 0 rgb(37 43 52 / 22%)); translate: -1px -2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-system-mode="computer"] .desktop-object[data-landed] { animation: none !important; }
+  html[data-system-mode="computer"] :is(.portfolio-window, .selected-work-window, .contact-window, .evidence-sheet)[data-dragging="true"],
+  html[data-system-mode="computer"] .desktop-object[data-dragging="true"] :is(.case-file-sheet, .desktop-app-glyph) { translate: none; }
+}

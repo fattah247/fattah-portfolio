@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, ty
 import { AppIcon, OwnerMark } from "./app-icons";
 import { CaseCover } from "./case-cover";
 import { DownloadIcon } from "./icons";
+import { useSound } from "./sound-provider";
 import { Wallpaper } from "./wallpaper";
 import { scenarios, type ScenarioSlug } from "../lib/scenarios";
 import { portfolioIdentity } from "../lib/portfolio-identity";
@@ -84,6 +85,9 @@ export function DesktopSurface({
   const grabHintTimerRef = useRef<number | null>(null);
   const [desktopOffsets, setDesktopOffsets] = useState<DesktopOffsets>({});
   const [draggingDesktopItem, setDraggingDesktopItem] = useState<string | null>(null);
+  // The last drop, with a count whose parity restarts the landing knock on every drop.
+  const [landedDesktopItem, setLandedDesktopItem] = useState<{ key: string; count: number } | null>(null);
+  const { play } = useSound();
   const [grabReadyDesktopItem, setGrabReadyDesktopItem] = useState<string | null>(null);
   // Desktop convention: one click selects a shortcut, a double click (or Enter, or a touch tap)
   // opens it. Selection is visual only; focus follows it for keyboard users.
@@ -213,6 +217,8 @@ export function DesktopSurface({
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     if (drag.moved) {
       suppressClickRef.current = drag.key;
+      play(drag.key.startsWith("surface-shot-") ? "sys.drop-file" : "sys.drop-icon");
+      setLandedDesktopItem((current) => ({ key: drag.key, count: (current?.count ?? 0) + 1 }));
       setDesktopOffsets((current) => {
         const next = { ...current, [drag.key]: drag.latest };
         storeDesktopOffsets(next);
@@ -270,7 +276,7 @@ export function DesktopSurface({
           <p className="desktop-identity-focus">{portfolioIdentity.focus}</p>
         </div>
         <div className="desktop-identity-actions">
-          <a className="desktop-identity-primary" href={portfolioIdentity.cv} download>Download CV <DownloadIcon /></a>
+          <a className="desktop-identity-primary" href={portfolioIdentity.cv} download onClick={() => play("ui.download")}>Download CV <DownloadIcon /></a>
           <a className="desktop-identity-email" href={`mailto:${portfolioIdentity.email}`}>{portfolioIdentity.email}</a>
         </div>
       </div>
@@ -286,6 +292,7 @@ export function DesktopSurface({
           <Link
             className={`desktop-object ${item.type === "folder" ? "desktop-folder" : "desktop-evidence desktop-case-file"} ${item.className}`}
             data-dragging={draggingDesktopItem === item.className ? "true" : undefined}
+            data-landed={landedDesktopItem?.key === item.className ? (landedDesktopItem.count % 2 ? "odd" : "even") : undefined}
             data-selected={selectedDesktopItem === item.className ? "true" : undefined}
             onFocus={() => setSelectedDesktopItem(item.className)}
             data-grab-ready={grabReadyDesktopItem === item.className ? "true" : undefined}

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from "react";
 import { capabilitiesForWindow } from "../lib/device-capabilities";
+import { useSound } from "./sound-provider";
 import { useOptionalWorkspaceManager, type PortfolioAppId } from "./workspace-manager";
 
 type WindowFrameOptions = {
@@ -109,6 +110,18 @@ export function useWindowFrame({
   const [resizing, setResizing] = useState(false);
   const [snap, setSnap] = useState<SnapEdge>(null);
   const [snapCandidate, setSnapCandidate] = useState<SnapEdge>(null);
+  const { play } = useSound();
+  const seated = useRef({ maximized: false, snap: null as SnapEdge });
+
+  // A window seating into an edge, maximizing, or restoring makes the firmer plastic sound. Pulling
+  // a snapped window loose with a drag is silent; the drop that snaps it again is not.
+  useEffect(() => {
+    const before = seated.current;
+    seated.current = { maximized, snap };
+    if ((snap !== null && snap !== before.snap) || (maximized !== before.maximized && !dragging)) play("sys.snap");
+  // `dragging` is read, not watched: only a change of seat makes a sound.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maximized, play, snap]);
   const snapRef = useRef<SnapEdge>(null);
   const keyboardRect = useRef<FrameRect | null>(null);
 

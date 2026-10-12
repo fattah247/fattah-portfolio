@@ -243,7 +243,7 @@ export function workspaceWindowState(state: WorkspaceState, id: WorkspaceWindowI
 type BackHandler = () => boolean;
 export type AppDocumentState = { documentId: string; scroll?: number; geometry?: FrameRect; data?: Record<string, unknown> };
 
-type WorkspaceManagerValue = {
+export type WorkspaceManagerValue = {
   capabilities: DeviceCapabilities;
   modeReady: boolean;
   paired: boolean;

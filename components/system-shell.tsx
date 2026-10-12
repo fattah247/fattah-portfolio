@@ -13,6 +13,9 @@ import { ChevronIcon, CloseIcon, DownloadIcon, PairIcon } from "./icons";
 import { AppIcon, OwnerMark } from "./app-icons";
 import { CaseCover } from "./case-cover";
 import { Wallpaper } from "./wallpaper";
+import { SoundControl } from "./sound-control";
+import { useSound } from "./sound-provider";
+import { useWorkspaceSounds } from "./use-workspace-sounds";
 import { experience } from "../lib/content";
 import { rowsThatFit } from "../lib/fit-rows";
 import { filterProductLinks, indexProductLinks, productLinks, searchProductLinks, type Marketplace } from "../lib/product-links";
@@ -95,6 +98,8 @@ export function SystemShell() {
   const pathname = usePathname();
   const router = useRouter();
   const workspace = useWorkspaceManager();
+  const { play } = useSound();
+  useWorkspaceSounds(workspace);
   const [clock, setClock] = useState({ date: "", shortDate: "", time: "--:--", utc: "UTC" });
   const runningApps = useMemo(
     () => workspace.recentApps.filter((app) => workspace.isAppOpen(app)),
@@ -246,13 +251,17 @@ export function SystemShell() {
         <div className="system-active-app" aria-live="polite">
           {workspace.surface === "home" ? workspace.mode === "computer" ? "Desktop" : "Home" : workspace.surface === "recents" ? "Recents" : activeEntry?.label ?? "Desktop"}
         </div>
-        <div className="system-status" role="group" aria-label={`Local time ${clock.time}, ${clock.utc}`}>
-          <time>
-            {/* Tablet shows the date beside the time, as its status bar does; other modes hide it. */}
-            <span className="system-status-date">{clock.shortDate}</span>
-            <span>{clock.time}</span>
-            <small>{clock.utc}</small>
-          </time>
+        {/* The tray: the sound level beside the clock, in the bar's last slot. */}
+        <div className="system-tray">
+          <SoundControl />
+          <div className="system-status" role="group" aria-label={`Local time ${clock.time}, ${clock.utc}`}>
+            <time>
+              {/* Tablet shows the date beside the time, as its status bar does; other modes hide it. */}
+              <span className="system-status-date">{clock.shortDate}</span>
+              <span>{clock.time}</span>
+              <small>{clock.utc}</small>
+            </time>
+          </div>
         </div>
       </header>
 
@@ -267,7 +276,7 @@ export function SystemShell() {
               <p className="home-identity-focus">{portfolioIdentity.focus}</p>
             </div>
             <div className="home-identity-actions">
-              <a className="home-action" href={portfolioIdentity.cv} download>CV <DownloadIcon /></a>
+              <a className="home-action" href={portfolioIdentity.cv} download onClick={() => play("ui.download")}>CV <DownloadIcon /></a>
               <button className="home-action" onClick={(event) => { noteLaunchOrigin(event.currentTarget); launchApp("contact"); }} type="button">Contact</button>
             </div>
           </div>
@@ -347,6 +356,8 @@ export function SystemShell() {
             <h2>Recents</h2>
             <p>{runningApps.length ? `${runningApps.length} ${runningApps.length === 1 ? "app" : "apps"} open` : "No apps open."}</p>
           </div>
+          {/* A landscape phone hides the status bar, so its sound level lives here instead. */}
+          <SoundControl className="sound-control-recents" />
           <button onClick={workspace.goHome} type="button">Return home</button>
         </header>
         {runningApps.length ? null : <p className="system-recents-empty">Nothing is running. Open an app from Home and it will wait here.</p>}

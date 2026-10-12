@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { WorkspaceManagerProvider } from "@/components/workspace-manager";
 import { LimitedAnalytics } from "@/components/limited-analytics";
+import { SoundProvider } from "@/components/sound-provider";
 import { portfolioTitle } from "@/lib/portfolio-identity";
 import "@fontsource/ibm-plex-sans/latin-400.css";
 import "@fontsource/ibm-plex-sans/latin-500.css";
@@ -37,7 +38,9 @@ export default function RootLayout({
   return (
     <html data-scroll-behavior="smooth" lang="en">
       <body>
-        <WorkspaceManagerProvider>{children}</WorkspaceManagerProvider>
+        <SoundProvider>
+          <WorkspaceManagerProvider>{children}</WorkspaceManagerProvider>
+        </SoundProvider>
         <LimitedAnalytics production={process.env.VERCEL_ENV === "production"} />
       </body>
     </html>

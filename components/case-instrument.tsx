@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PlayIcon, RewindIcon } from "./icons";
-import { PaymentDiagram, PolicyDiagram, ServiceDiagram } from "./sim-diagrams";
+import { messageTravelMs, PaymentDiagram, PolicyDiagram, ruleStepMs, ServiceDiagram, toRulesMs } from "./sim-diagrams";
+import { useSound } from "./sound-provider";
+import { LANDING, type CueId } from "../lib/sound/engine";
 import { evaluatePolicy, latencyThresholdMs, type PolicyRun } from "../lib/instruments";
 import { type Conditions, type ProjectionMode, type Scenario } from "../lib/scenarios";
 import {
@@ -17,11 +19,42 @@ import {
   paymentScript,
   type LiveSample,
   type PayInput,
+  type PayOutcome,
   type PayTone,
   type PayWorld,
 } from "../lib/simulators";
 
 type Phase = "rest" | "rewind" | "reconstruct";
+
+/** Runs `effect` when `value` changes after the first render, with the value it changed from. */
+function useOnChange<T>(value: T, effect: (next: T, previous: T) => void) {
+  const previous = useRef(value);
+  const latest = useRef(effect);
+  useEffect(() => {
+    latest.current = effect;
+  });
+  useEffect(() => {
+    if (Object.is(previous.current, value)) return;
+    const before = previous.current;
+    previous.current = value;
+    latest.current(value, before);
+  }, [value]);
+}
+
+/** Every payment outcome has its sound, so a manual send and the played example sound alike. */
+const payCue: Record<PayOutcome, CueId> = {
+  applied: "pay.let-in",
+  duplicate: "pay.stopped",
+  stale: "pay.stopped",
+  "applied-again": "pay.twice",
+  regressed: "pay.overwritten",
+  matched: "pay.report-matches",
+  mismatched: "pay.report-differs",
+  "store-down": "pay.book-down",
+  "store-up": "pay.book-back",
+};
+/** A message's cue starts early enough that its knock lands as the packet reaches the payment. */
+const landingDelay = messageTravelMs / 1000 - LANDING;
 
 /** Each simulator has a name, like a small piece of equipment. */
 const simName: Record<Scenario["slug"], string> = {
@@ -109,6 +142,7 @@ export function CaseInstrument({
 }) {
   const titleId = `${scenario.slug}-instrument-title`;
   const [technical, setTechnical] = useState(false);
+  const { play } = useSound();
   const shared = { approach, conditions, isDefault, onApproachChange, onChange, onReset, scenario, selectedConditions, technical };
   return (
     <section aria-labelledby={titleId} className="instrument" data-approach={approach} data-instrument={scenario.slug} data-phase={phase} data-technical={technical || undefined} id="replay">
@@ -118,7 +152,7 @@ export function CaseInstrument({
       </header>
       <div className="instrument-intro">
         <p className="instrument-instruction">{howTo[scenario.slug]}</p>
-        <button aria-pressed={technical} className="instrument-technical" onClick={() => setTechnical((value) => !value)} type="button">
+        <button aria-pressed={technical} className="instrument-technical" onClick={() => { play(technical ? "ui.key-off" : "ui.key-on"); setTechnical((value) => !value); }} type="button">
           <i aria-hidden="true" />Technical details
         </button>
       </div>
@@ -233,6 +267,12 @@ function PaymentSim({ approach, conditions, isDefault, onApproachChange, onChang
   const checked = approach === "designed";
   const latest = world.entries.at(-1);
   const marks = useChangeMarks({ state: world.state, updates: String(world.updates), repeats: String(world.repeats) });
+  const { play } = useSound();
+  useOnChange(world.entries.length, (count, before) => {
+    const entry = world.entries.at(-1);
+    if (count > before && entry) play(payCue[entry.outcome], entry.message ? landingDelay : 0);
+  });
+  useOnChange(checked, (on) => play(on ? "pay.check-on" : "pay.check-off"));
 
   useEffect(() => () => timers.current.forEach(window.clearTimeout), []);
 
@@ -311,7 +351,7 @@ function PaymentSim({ approach, conditions, isDefault, onApproachChange, onChang
 
       <div className="sim-actions">
         <button className="sim-primary" disabled={story !== null} onClick={() => playStory()} type="button"><PlayIcon />{story !== null ? "Playing the example…" : "Play the example"}</button>
-        <button className="sim-secondary" onClick={() => { stopStory(); setWorld(emptyPayWorld); }} type="button"><RewindIcon />Start over</button>
+        <button className="sim-secondary" onClick={() => { stopStory(); setWorld(emptyPayWorld); play("pay.start-over"); }} type="button"><RewindIcon />Start over</button>
         <StoryReset isDefault={isDefault} onReset={onReset} />
         <p className="sim-compare">{checked ? "Repeat check on: each message can change the payment only once." : "Repeat check off: every message is processed as it arrives."}</p>
       </div>
@@ -352,6 +392,30 @@ const statusHood = (sample: Sample, title: string) => {
   return `p95 ${sample.observedLatency} ms ≤ ${latencyThresholdMs} ms · health PASS → quiet`;
 };
 
+const troubled = new Set(["Outage", "Paging on-call", "Investigate collection", "Breach, nobody paged"]);
+
+/**
+ * What the monitor sounds like as its status changes. "Too slow, and no alarm" is silent: nobody
+ * was told, and that silence is the point. "Back to normal" plays only when visitors are really
+ * served quickly again, never when a dashboard simply stops looking.
+ */
+function statusCue(title: string, before: string, sample: Sample): CueId | null {
+  if (title === "Paging on-call") return "svc.alarm";
+  if (title === "Outage") return "svc.down";
+  if (title === "Investigate collection") return "svc.blind";
+  if (troubled.has(before) && !troubled.has(title) && sample.health === "pass" && sample.actualLatency <= latencyThresholdMs) return "svc.recovered";
+  return null;
+}
+
+/** A stepped minute lands as a block pitched to its page time, rising D, F♯, A, and sour past the line. */
+function minuteCue(ms: number | null): CueId | null {
+  if (ms === null) return null;
+  if (ms <= 250) return "svc.minute-quick";
+  if (ms <= 400) return "svc.minute-slower";
+  if (ms <= latencyThresholdMs) return "svc.minute-slow";
+  return "svc.minute-too-slow";
+}
+
 function ServiceSim({ approach, conditions, foreground, isDefault, onApproachChange, onChange, onReset, scenario, selectedConditions, technical }: SimProps & { foreground: boolean }) {
   const [sim, setSim] = useState<ServiceState>(() => ({
     // The chart opens on the case's own four minutes, then keeps running.
@@ -390,6 +454,20 @@ function ServiceSim({ approach, conditions, foreground, isDefault, onApproachCha
   const model = onCallStatus(now, now.mode);
   const status = plainStatus(now, model.title);
   const statusMark = useChangeMarks({ status: model.title }).status;
+  const { play } = useSound();
+  const lever = (key: string, value: string) => {
+    play("ui.key-on");
+    onChange(key, value);
+  };
+  useOnChange(model.title, (title, before) => {
+    const cue = statusCue(title, before, now);
+    if (cue) play(cue);
+  });
+  // Stepping through minutes by hand lands each one; the running chart stays silent.
+  useOnChange(sim.minute, () => {
+    const cue = running ? null : minuteCue(now.observedLatency);
+    if (cue) play(cue);
+  });
 
   const journal: JournalEntry[] = [];
   sim.samples.forEach((sample, index) => {
@@ -403,7 +481,7 @@ function ServiceSim({ approach, conditions, foreground, isDefault, onApproachCha
   return (
     <div className="sim" data-sim="iyup">
       <div className="svc-screen">
-        <div className="svc-status" data-changed={statusMark} data-tone={model.tone}>
+        <div className="svc-status" data-changed={statusMark} data-jolt={model.title === "Outage" ? statusMark : undefined} data-tone={model.tone}>
           <span><i aria-hidden="true" />what the dashboard says</span>
           <strong>{status.title}</strong>
           <p>{status.detail}</p>
@@ -422,18 +500,18 @@ function ServiceSim({ approach, conditions, foreground, isDefault, onApproachCha
       <div className="svc-lamps">
         <p className="svc-clock"><time>{now.time}</time><small>1 second here = 1 minute</small></p>
         <div className="svc-transport">
-          <button className="sim-secondary" onClick={() => setRunning((value) => !value)} type="button"><PlayIcon paused={running} />{running ? "Pause" : "Run"}</button>
+          <button className="sim-secondary" onClick={() => { play(running ? "ui.key-off" : "ui.key-on"); setRunning((value) => !value); }} type="button"><PlayIcon paused={running} />{running ? "Pause" : "Run"}</button>
           <button className="sim-secondary" disabled={running} onClick={advance} type="button">Next minute</button>
           <StoryReset isDefault={isDefault} onReset={onReset} />
         </div>
       </div>
 
       <div className="sim-controls">
-        <ConditionKeys control="latency" onChange={onChange} scenario={scenario} selectedConditions={selectedConditions} />
-        <ConditionKeys control="health" onChange={onChange} scenario={scenario} selectedConditions={selectedConditions} />
-        <ConditionKeys control="scrape" onChange={onChange} scenario={scenario} selectedConditions={selectedConditions} />
-        <ConditionKeys control="alert" onChange={onChange} scenario={scenario} selectedConditions={selectedConditions} />
-        <ApproachKeys approach={approach} onApproachChange={onApproachChange} scenario={scenario} />
+        <ConditionKeys control="latency" onChange={lever} scenario={scenario} selectedConditions={selectedConditions} />
+        <ConditionKeys control="health" onChange={lever} scenario={scenario} selectedConditions={selectedConditions} />
+        <ConditionKeys control="scrape" onChange={lever} scenario={scenario} selectedConditions={selectedConditions} />
+        <ConditionKeys control="alert" onChange={lever} scenario={scenario} selectedConditions={selectedConditions} />
+        <ApproachKeys approach={approach} onApproachChange={(mode) => { play("ui.key-on"); onApproachChange(mode); }} scenario={scenario} />
       </div>
 
       <Journal empty="Waiting for the first minute." entries={journal.slice(0, 6)} technical={technical} />
@@ -445,6 +523,7 @@ function ServiceSim({ approach, conditions, foreground, isDefault, onApproachCha
 /* ------------------------------------------------------------- Device trust */
 
 const decisionTone = { ALLOW: "confirmed", "REQUIRE CONFIRMATION": "uncertain", BLOCK: "adverse" } as const;
+const decisionCue = { ALLOW: "pol.let-through", "REQUIRE CONFIRMATION": "pol.ask-to-confirm", BLOCK: "pol.block" } as const satisfies Record<keyof typeof decisionTone, CueId>;
 export const plainDecision = { ALLOW: "Let through", "REQUIRE CONFIRMATION": "Ask to confirm", BLOCK: "Block" } as const;
 type Decision = keyof typeof decisionTone;
 
@@ -483,6 +562,18 @@ function PolicySim({ approach, conditions, isDefault, onApproachChange, onChange
   const [history, setHistory] = useState<RequestRecord[]>([]);
   const requestKey = `${JSON.stringify(conditions)}:${approach}:${sends}`;
   const lastKey = useRef<string | null>(null);
+  const { play } = useSound();
+  const walk = useRef<number[]>([]);
+  useEffect(() => () => walk.current.forEach(window.clearTimeout), []);
+  // Each new request is heard as the drawing shows it: a quiet tick as each rule is read, in order,
+  // then the answer landing as the first rule that fits decides.
+  useOnChange(requestKey, () => {
+    walk.current.forEach(window.clearTimeout);
+    const read = Math.max(0, matched);
+    const steps: Array<[number, CueId]> = Array.from({ length: read + 1 }, (_, index) => [toRulesMs + index * ruleStepMs, `pol.rule-${Math.min(4, index + 1)}` as CueId]);
+    steps.push([toRulesMs + (read + 1) * ruleStepMs, decisionCue[run.decision]]);
+    walk.current = steps.map(([at, id]) => window.setTimeout(() => play(id), at));
+  });
   const hood = `root: ${conditions.root} · emulator: ${conditions.emulator} · signature: ${conditions.signature} · sensitivity: ${conditions.sensitivity} → rule ${matched + 1} "${run.rules[matched]?.when.toLowerCase()}" → ${run.decision}`;
 
   // Every new request (a changed signal, policy, or "Send again") is logged once.

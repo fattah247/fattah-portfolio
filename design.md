@@ -161,7 +161,7 @@ The window frame is the single scroll owner of a document: it records the scroll
 | Document | `#f7f8f9`, sunken `#e9edf1`, edge `#b8c1cd` |
 | Instruments | designed `#3a5f9f`, verified `#3a7a6c`, uncertain `#85621f`, adverse `#b84f55` |
 
-- Material: every surface is a solid colour. Raised controls use a one-pixel bevel (white top-left, `#8d98a7` bottom-right); pressed and recessed surfaces invert it. Primary controls are solid accent with an accent bevel. Shadows are hard offsets only (2–4px, no blur) and mark objects that sit above the desktop: windows, panels, case files.
+- Material: every surface is a solid colour. Raised controls use a one-pixel bevel (white top-left, `#8d98a7` bottom-right); pressed and recessed surfaces invert it. Primary controls are solid accent with an accent bevel. Shadows are hard offsets only (2–4px, no blur) and mark objects that sit above the desktop: windows, panels, case files. An object being dragged lifts: its hard shadow grows longer and lighter (7 × 10px for a window, 5 × 7px for a case file) and it rises 1–2px up-left, by the one key light from the upper left, then returns on release.
 - Radii: 0 for windows and title bars, 2px at most anywhere else.
 - Buttons: one family. Secondary is raised light with an ink border; primary is solid accent with white text. Both press in by one pixel, show a 2px focus ring, and have a disabled state; touch modes keep 44px targets while the visual stays compact. No pill, gloss, or gradient button exists.
 - Icon family: authored pixel art stored as pixel maps (`components/app-icons.tsx`), so every edge lands on the grid and nothing is anti-aliased. One-unit ink outline, flat fills, lit from the top left; no tile behind the object. A 32 × 32 drawing for 32–96px and a separate simplified 16 × 16 drawing for 16px (taskbar, window menus, Recents). Projects is an open folder with a sea-green tab, a thumb notch in its front cover, and a tiny state diagram on its front sheet; Experience is a clipboard carrying a CV; Contact is an envelope with a perforated stamp whose picture is the wallpaper's terraces; Product Links is a card file with tabbed index cards. Icons are shown only at whole multiples of their grid (16, 32, 48, 64, 96); the same artwork appears on the desktop (48), taskbar (16), title-bar menu (16), shelf (32), launcher (32), Continue (32), and Recents (16).
@@ -182,6 +182,7 @@ The window frame is the single scroll owner of a document: it records the scroll
 - Window open: 160ms; on tablet and phone the app grows from the icon or row that opened it (280ms)
 - Minimize and restore: 380ms along the vector to the taskbar button
 - Causal reconstruction: 380ms
+- Knock (something lands): 2px down and back in three steps, 150ms; jolt (something went wrong): 2px side to side in six steps, 255ms, in time with the buzz
 - Desktop objects follow the pointer 1:1 and drop in place
 - No boot sequence: `/` opens on Home with nothing auto-launched.
 
@@ -189,7 +190,21 @@ Motion communicates origin, destination, focus, or causality. Documents, rows, i
 
 Application entry changes with the device model: desktop uses a short focus-settle, tablet reveals the constrained stage, and phone reveals from the forward navigation edge. These transitions never delay readable content.
 
-System information is never repeated within one view. Desktop uses the top-right clock only. Tablet shows the date and time in its status bar on every surface. Phone shows the time in its status bar on every surface, with the short date on Home; Home has no clock line. Landscape phones hide the status bar.
+System information is never repeated within one view. Desktop's top right holds the tray: the sound level, then the clock. Tablet shows the date and time in its status bar on every surface. Phone shows the time in its status bar on every surface, with the short date on Home; Home has no clock line. Landscape phones hide the status bar.
+
+## Sound
+
+The environment sounds like the LinkedIn film (`ma-fattah-motion-campaign`), quieter. Its instruments are ported to `lib/sound/engine.ts` and synthesised in the browser: no audio files, no samples, no music. Every sound is a material (a wooden block, the steel gate arm, a key, paper, a window's plastic seat, a pixel), tonal sounds sit in D major pentatonic, and a mistake lands a semitone sour.
+
+- **Sound answers the visitor.** Nothing plays on page load (no boot chime), nothing loops, and nothing plays on hover, scroll, typing, focus, chapter tabs, links that leave the site, the live chart's minute ticks, or in a background window. Audio starts on the first press, as browsers require.
+- **One sound per action.** An action with an outcome plays the outcome, not a click and then the outcome. Window sounds within 250 ms of each other are one action; the same cue within 80 ms plays once; at most four sounds overlap; a hidden page is silent.
+- **No two hits alike.** Each cue renders three takes that drift slightly in pitch, decay, click colour and level, and a repeat never plays the take it just played.
+- **Every sound is redundant.** Each one repeats something already on screen, so Off loses no information.
+- **Where sounds are:** an app or window opening seats (plastic), closing or going Home taps a key and seats into its icon, minimize and restore move air along the window's travel, snapping seats firmer, a case or exhibit lands like paper, a dropped desktop icon lands on the grid, copying the email chimes, and Download CV presses a key. Switches click.
+- **The simulators sound their outcomes.** Payment desk: let in (a block in D, the counter, the Paid tick), stopped at the check (the steel arm catches it), handled twice or overwritten (a sour landing and the vibration buzz), the repeat-check latch, the daily report (bells or two rising notes), the record book (a relay down, the counter writing entries back), Start over (a soft rewind). A message's knock lands when the packet reaches the payment in the drawing. Website monitor: the alarm bell once, the buzz when the site goes down, a relay when measurements stop, two bells only when visitors are really served quickly again; "too slow, and no alarm" is silent on purpose; minutes stepped by hand land as blocks pitched to their page time. Security checkpoint: a quiet tick as each rule is read, in time with the drawing, then the answer: a wooden thock to let through, two rising notes to ask to confirm, the steel gate to block.
+- **Levels:** On, Quiet (about a third as loud) and Off; the site starts at Quiet and remembers the choice on the device. Each cue carries its own loudness for its role: problems loudest, windows quieter, ticks quietest, with peaks under −6 dBFS. On iPhone the sounds follow the ring/silent switch and leave the visitor's music playing.
+- **The control** is a 16-unit pixel speaker in the status bar's tray, before the clock, on every device (two waves On, one Quiet, a cross Off). It opens three joined keys; choosing one plays the repeat-check latch at that level. Escape and a press outside close it. A landscape phone hides the status bar, so the same control sits in the Recents header there.
+- **Effects stay small:** the knock and the jolt (see Motion) and the drag lift (see Material). Reduced motion removes the knock, the jolt and the lift's movement and keeps every sound.
 
 ## Responsive constraints
 
