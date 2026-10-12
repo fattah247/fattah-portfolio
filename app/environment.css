@@ -3091,6 +3091,12 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.sim-primar
   .sd-packet { display: none; }
 }
 
+/* On a phone the sticky chapter bar spans the case at every width, so the chapters scrolling under
+ * it never show past its ends. Before, a legacy rule (window-system.css, max-width 760px) shrank it to
+ * its four tabs between 672px and 760px, and above that it kept the reading-width gutters while the
+ * simulator runs edge to edge: landscape phones showed text on both sides of the bar. */
+html[data-system-mode="phone"] .case-page.selected-work-window .case-progress { margin-inline: 0 !important; width: 100% !important; }
+
 /* ------------------------------------------------- Phone and tablet app launch */
 
 /* An app grows out of the icon or row that opened it. `scale` is animated rather than
