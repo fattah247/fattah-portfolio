@@ -122,7 +122,7 @@ export const scenarios: Scenario[] = [
       },
     ],
     limitation:
-      "This public lab demonstrates state and delivery behavior; it is not a representation of BCA infrastructure or provider settlement rules.",
+      "This public lab is built from common payment engineering practice. It does not represent the systems, code, or business rules of any employer, past or present.",
   },
   {
     slug: "iyup",
