@@ -188,8 +188,9 @@ export function workspaceReducer(state: WorkspaceState, action: WorkspaceAction)
       focus: remainingFocus,
       minimized: state.minimized.filter((id) => appForWindow(id) !== action.app),
       recents: state.recents.filter((item) => item !== action.app),
-      // Closing a card in the phone's Recents leaves Recents open on the remaining cards.
-      surface: state.mode === "phone" && state.surface === "recents"
+      // Closing a card in phone or tablet Recents (where tablet apps close) leaves Recents open on
+      // the remaining cards; the desktop overview still returns to the remaining window.
+      surface: state.mode !== "computer" && state.surface === "recents"
         ? "recents"
         : remainingFocus.length ? "application" : "home",
     };
