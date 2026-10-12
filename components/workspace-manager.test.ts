@@ -198,6 +198,27 @@ describe("workspaceReducer", () => {
     expect(desktop.surface).toBe("application");
   });
 
+  it("keeps the tablet's Recents open while its cards are closed, down to the empty state", () => {
+    // Tablet apps have no close box, so Recents is where they close; it must not jump into an app.
+    const tablet = reduce(
+      initialWorkspaceState,
+      { type: "sync-mode", mode: "tablet" },
+      { type: "open", id: "work" },
+      { type: "open", id: "experience" },
+      { type: "surface", surface: "recents" },
+    );
+    const afterForeground = reduce(tablet, { type: "close-app", app: "experience" });
+    expect(afterForeground.surface).toBe("recents");
+    expect(afterForeground.open).toEqual(["work"]);
+    expect(afterForeground.recents).toEqual(["work"]);
+    const empty = reduce(afterForeground, { type: "close-app", app: "work" });
+    expect(empty.surface).toBe("recents");
+    expect(empty.open).toEqual([]);
+    // Closing outside Recents still lands on what remains.
+    const fromApp = reduce({ ...tablet, surface: "application" }, { type: "close-app", app: "experience" });
+    expect(fromApp.surface).toBe("application");
+  });
+
   it("keeps only the two most recently focused desktop windows clear", () => {
     const state = reduce(
       { ...initialWorkspaceState, modeReady: true },
