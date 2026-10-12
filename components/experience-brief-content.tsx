@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import type { MouseEvent } from "react";
-import { ChevronIcon, DownloadIcon } from "./icons";
+import { ArrowIcon, ChevronIcon, DownloadIcon } from "./icons";
 import { OwnerMark } from "./app-icons";
+import { SiteShowcase } from "./site-showcase";
 import { experience, principles, systemScope } from "../lib/content";
 import { portfolioIdentity } from "../lib/portfolio-identity";
 
@@ -49,8 +50,8 @@ export function ExperienceBriefContent({
           <h2 id="experience-heading">Role history</h2>
         </header>
         <div className="experience-list">
-          {experience.map((item, index) => (
-            <article className="experience-entry" data-current={index === 0 ? "true" : undefined} key={item.company}>
+          {experience.map((item) => (
+            <article className="experience-entry" data-current={item.period.endsWith("Present") ? "true" : undefined} key={item.company}>
               <div className="experience-entry-meta">
                 <p className="experience-period">{item.period}</p>
                 <p className="experience-company">{item.company}</p>
@@ -62,6 +63,15 @@ export function ExperienceBriefContent({
                 <ul className="experience-details">
                   {item.details.map((detail) => <li key={detail}>{detail}</li>)}
                 </ul>
+                {"site" in item ? (
+                  // A role with a public site shows a glimpse of the work on it, linked out.
+                  <div className="experience-glimpse">
+                    <SiteShowcase compact showcase={item.site} />
+                    <a className="experience-glimpse-link" href={item.site.href} rel="noopener noreferrer" target="_blank">
+                      Visit {item.site.label} <ArrowIcon /><span className="sr-only">, opens in a new tab</span>
+                    </a>
+                  </div>
+                ) : null}
               </div>
             </article>
           ))}

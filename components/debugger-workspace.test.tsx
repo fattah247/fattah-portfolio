@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { scenarios } from "../lib/scenarios";
 import { caseSections, DebuggerWorkspace } from "./debugger-workspace";
@@ -19,6 +19,9 @@ function installBrowserStubs() {
   });
   Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: vi.fn() });
 }
+
+/** A key inside one control group; several groups share "Yes" and "No". */
+const key = (group: string, option: string) => within(screen.getByRole("group", { name: new RegExp(`^${group.replace(/[?]/g, "\\?")}`) })).getByRole("button", { name: option });
 
 function ScenarioRoundTripHost() {
   const [slug, setSlug] = useState(scenarios[0].slug);
@@ -80,83 +83,94 @@ describe("DebuggerWorkspace", () => {
   });
 
   it.each([
-    ["one delivery", { delivery: "once", settlement: "matched", persistence: "available" }, ["evt-01"], ["Payment completed", "Payment completed"]],
-    ["a duplicate delivery", { delivery: "duplicate", settlement: "matched", persistence: "available" }, ["evt-01", "evt-01"], ["Payment updated again", "Payment stayed completed"]],
-    ["out-of-order delivery", { delivery: "out-of-order", settlement: "matched", persistence: "available" }, ["evt-02", "evt-01"], ["Manual review needed", "Payment stayed completed"]],
-    ["mismatched settlement", { delivery: "duplicate", settlement: "mismatched", persistence: "available" }, ["evt-01", "evt-01"], ["Manual review needed", "Manual review needed"]],
-  ] as const)("keeps the payment instrument and the result consistent for %s", (_name, initialConditions, expectedEvents, expectedOutcomes) => {
+    ["one delivery", { delivery: "once", settlement: "matched", persistence: "available" }, { designed: ["paid", "0"], baseline: ["paid", "0"] }],
+    ["a duplicate delivery", { delivery: "duplicate", settlement: "matched", persistence: "available" }, { designed: ["paid", "0"], baseline: ["paid", "1"] }],
+    ["out-of-order delivery", { delivery: "out-of-order", settlement: "matched", persistence: "available" }, { designed: ["paid", "0"], baseline: ["review", "0"] }],
+    ["mismatched settlement", { delivery: "duplicate", settlement: "mismatched", persistence: "available" }, { designed: ["review", "0"], baseline: ["review", "1"] }],
+  ] as const)("plays the payment story to the case model's end, with and without the check, for %s", (_name, initialConditions, expected) => {
     render(
       <WorkspaceManagerProvider>
         <DebuggerWorkspace scenario={scenarios[0]} initialConditions={initialConditions} onClose={vi.fn()} />
       </WorkspaceManagerProvider>,
     );
+    const state = () => screen.getByRole("list", { name: "Payment state" }).querySelector("[data-current]")?.getAttribute("data-state");
+    const repeats = () => screen.getByText("Handled twice").nextElementSibling?.textContent;
+    const play = () => {
+      fireEvent.click(screen.getByRole("button", { name: "Play the example" }));
+      expect(screen.getByRole("button", { name: "Playing the example…" }).hasAttribute("disabled")).toBe(true);
+      act(() => vi.advanceTimersByTime(5_000));
+    };
 
-    const events = () => Array.from(document.querySelectorAll(".pay-step-event code")).map((item) => item.textContent);
-    expect(events()).toEqual(expectedEvents);
-    expect(document.querySelector(".inspector-outcome strong")?.textContent).toBe(expectedOutcomes[1]);
-    expect(document.querySelector(".inspector-compare b")?.textContent).toBe(expectedOutcomes[0]);
+    play();
+    expect([state(), repeats()]).toEqual(expected.designed);
     // The Result chapter reports the story's own conditions, whatever the simulator is set to.
     expect(Array.from(document.querySelectorAll(".mobile-outcome-strip strong")).map((item) => item.textContent)).toEqual(["Payment updated again", "Payment stayed completed"]);
 
-    // The same deliveries, handled without the check, reach the baseline outcome.
-    fireEvent.click(screen.getByRole("button", { name: scenarios[0].baselineLabel }));
-    expect(events()).toEqual(expectedEvents);
-    expect(document.querySelector(".inspector-outcome strong")?.textContent).toBe(expectedOutcomes[0]);
+    // The same story, handled without the check, reaches the baseline outcome.
+    fireEvent.click(screen.getByRole("button", { name: "Off" }));
+    play();
+    expect([state(), repeats()]).toEqual(expected.baseline);
   });
 
-  it("runs and steps the payment sequence, and a condition change shows the new result in full", () => {
+  it("lets the visitor send the bank's messages, stopping repeats at the id check until the check is off", () => {
     render(
       <WorkspaceManagerProvider>
         <DebuggerWorkspace scenario={scenarios[0]} initialConditions={scenarios[0].defaults} onClose={vi.fn()} />
       </WorkspaceManagerProvider>,
     );
-    const shown = () => document.querySelectorAll(".pay-step[data-shown]").length;
-    const status = () => document.querySelector(".pay-run-status")?.getAttribute("data-state");
-    const total = document.querySelectorAll(".pay-step").length;
-    expect(shown()).toBe(total);
-    expect(status()).toBe("completed");
+    const state = () => screen.getByRole("list", { name: "Payment state" }).querySelector("[data-current]")?.getAttribute("data-state");
+    const count = (label: string) => screen.getByText(label).nextElementSibling?.textContent;
     // Payment state is an indicator panel, never a set of controls.
-    const states = screen.getByRole("list", { name: "Payment state" });
-    expect(states.querySelectorAll("button")).toHaveLength(0);
-    expect(states.querySelector("[data-current]")?.getAttribute("data-state")).toBe("paid");
+    expect(screen.getByRole("list", { name: "Payment state" }).querySelectorAll("button")).toHaveLength(0);
+    expect(screen.getByRole("button", { name: /Bank sends it again/ }).hasAttribute("disabled")).toBe(true);
 
-    fireEvent.click(screen.getByRole("button", { name: "Run sequence" }));
-    expect(shown()).toBe(0);
-    expect(status()).toBe("running");
-    expect(screen.getByRole("button", { name: "Step" }).hasAttribute("disabled")).toBe(true);
-    act(() => vi.advanceTimersByTime(700));
-    expect(shown()).toBe(1);
-    fireEvent.click(screen.getByRole("button", { name: "Pause" }));
-    expect(status()).toBe("paused");
-    act(() => vi.advanceTimersByTime(2_000));
-    expect(shown()).toBe(1);
-    fireEvent.click(screen.getByRole("button", { name: "Step" }));
-    expect(shown()).toBe(2);
-    fireEvent.click(screen.getByRole("button", { name: "Resume" }));
-    // Each step schedules the next after it renders.
-    for (let step = 0; step < total; step += 1) act(() => vi.advanceTimersByTime(700));
-    expect(shown()).toBe(total);
-    expect(status()).toBe("completed");
-    expect(screen.getByRole("button", { name: "Run sequence" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Bank sends “paid”/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Bank sends it again/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Bank sends it again/ }));
+    expect(state()).toBe("paid");
+    expect([count("Messages received"), count("Times the payment changed"), count("Handled twice")]).toEqual(["3", "1", "0"]);
+    expect(screen.getByRole("list", { name: "Processed IDs" }).querySelectorAll("li")).toHaveLength(1);
+    expect(document.querySelector(".sim-journal li p")?.textContent).toMatch(/Already handled/);
 
-    // Rewind returns the run to Ready; Step then advances from the start.
-    fireEvent.click(screen.getByRole("button", { name: "Rewind" }));
-    expect(shown()).toBe(0);
-    expect(status()).toBe("ready");
-    expect(screen.getByRole("button", { name: "Rewind" }).hasAttribute("disabled")).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: "Step" }));
-    expect(shown()).toBe(1);
-    expect(status()).toBe("paused");
+    fireEvent.click(screen.getByRole("button", { name: "Off" }));
+    fireEvent.click(screen.getByRole("button", { name: /Bank sends it again/ }));
+    expect(count("Handled twice")).toBe("1");
+    fireEvent.click(screen.getByRole("button", { name: /Late “pending” update/ }));
+    expect(state()).toBe("review");
 
-    fireEvent.click(screen.getByRole("button", { name: "Resume" }));
-    act(() => vi.advanceTimersByTime(700));
-    fireEvent.click(screen.getByRole("button", { name: "One delivery" }));
-    // While the new conditions settle, the run controls are disabled.
-    expect(document.querySelector(".instrument-run")?.hasAttribute("disabled")).toBe(true);
-    act(() => vi.advanceTimersByTime(500));
-    expect(screen.getByRole("button", { name: "Run sequence" }).hasAttribute("disabled")).toBe(false);
-    expect(shown()).toBe(document.querySelectorAll(".pay-step").length);
-    expect(screen.getByRole("status").textContent).toMatch(/Callback delivery changed\. Result: Payment completed\./);
+    // Audit records wait while the record book is unavailable and are all written when it returns.
+    fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+    expect(state()).toBe("pending");
+    fireEvent.click(screen.getByRole("button", { name: "Unavailable" }));
+    fireEvent.click(screen.getByRole("button", { name: /Bank sends “paid”/ }));
+    expect(screen.getByRole("list", { name: "Audit records" }).textContent).toMatch(/pending/);
+    fireEvent.click(screen.getByRole("button", { name: "Available" }));
+    expect(screen.getByRole("list", { name: "Audit records" }).textContent).not.toMatch(/pending/);
+  });
+
+  it("speaks in everyday words until the visitor asks for technical details", () => {
+    render(
+      <WorkspaceManagerProvider>
+        <DebuggerWorkspace scenario={scenarios[0]} initialConditions={scenarios[0].defaults} onClose={vi.fn()} />
+      </WorkspaceManagerProvider>,
+    );
+    const drawing = () => document.querySelector(".sd-pay .sd-wide")?.textContent ?? "";
+    const toggle = screen.getByRole("button", { name: "Technical details" });
+    fireEvent.click(screen.getByRole("button", { name: /Bank sends “paid”/ }));
+
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    expect(drawing()).toContain("“paid”");
+    expect(drawing()).toContain("Paid");
+    expect(drawing()).not.toMatch(/evt-|PAID/);
+    expect(document.querySelector(".sim-wire")).toBeNull();
+    expect(document.querySelector(".sim-journal code")).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    expect(drawing()).toContain("evt-02");
+    expect(drawing()).toContain("PAID");
+    expect(document.querySelector(".sim-wire")?.textContent).toMatch(/processed IDs \[evt-02\]/);
+    expect(document.querySelector(".sim-journal code")?.textContent).toMatch(/evt-02 new/);
   });
 
   it("replays a condition, opens and closes evidence, and switches projects", () => {
@@ -172,7 +186,7 @@ describe("DebuggerWorkspace", () => {
       </WorkspaceManagerProvider>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "One delivery" }));
+    fireEvent.click(screen.getByRole("button", { name: "The bank sends it once" }));
     act(() => vi.advanceTimersByTime(900));
     expect(screen.getByRole("status").textContent).toMatch(/Result:/);
 
@@ -192,49 +206,60 @@ describe("DebuggerWorkspace", () => {
     expect(onSelectScenario).toHaveBeenCalledWith("iyup");
   });
 
-  it("folds secondary conditions and per-part state behind labelled toggles that report changes", () => {
-    render(
-      <WorkspaceManagerProvider>
-        <DebuggerWorkspace scenario={scenarios[1]} initialConditions={{ ...scenarios[1].defaults, scrape: "missing" }} onClose={vi.fn()} />
-      </WorkspaceManagerProvider>,
-    );
-
-    // A changed secondary condition starts unfolded and is counted, so it is never hidden silently.
-    const more = screen.getByRole("button", { name: /More conditions · 1 changed/ });
-    expect(more.getAttribute("aria-expanded")).toBe("true");
-    expect(document.getElementById(more.getAttribute("aria-controls")!)?.contains(screen.getByRole("button", { name: "Missing" }))).toBe(true);
-    fireEvent.click(more);
-    expect(more.getAttribute("aria-expanded")).toBe("false");
-
-    const state = screen.getByRole("button", { name: "State of each part" });
-    expect(state.getAttribute("aria-expanded")).toBe("false");
-    fireEvent.click(state);
-    expect(state.getAttribute("aria-expanded")).toBe("true");
-    expect(document.getElementById(state.getAttribute("aria-controls")!)?.querySelectorAll(".inspector-state li")).toHaveLength(5);
-    expect(screen.getByRole("group", { name: "Approach" })).toBeTruthy();
-  });
-
-  it("explains the result for the chosen approach and names what the other approach would do", () => {
+  it("runs the service live: it pages past the line, goes blind without metrics, and the health-only dashboard stays green", () => {
     render(
       <WorkspaceManagerProvider>
         <DebuggerWorkspace scenario={scenarios[1]} initialConditions={scenarios[1].defaults} onClose={vi.fn()} />
       </WorkspaceManagerProvider>,
     );
+    const status = () => document.querySelector(".svc-status strong")?.textContent;
+    const clock = () => document.querySelector(".svc-clock time")?.textContent;
+    // The chart opens on the case's own four minutes: by 10:43 the slowing service pages on-call.
+    expect(status()).toBe("Alarm: engineers alerted");
+    expect(clock()).toBe("10:43");
+    act(() => vi.advanceTimersByTime(1_100));
+    expect(clock()).toBe("10:44");
 
-    const inspector = screen.getByRole("complementary", { name: "Result and state" });
-    expect(inspector.querySelector(".inspector-outcome strong")?.textContent).toBe("Degradation visible before outage");
-    expect(inspector.querySelector(".inspector-compare")?.textContent).toBe(`${scenarios[1].baselineLabel}: Health check misses degradation`);
-    expect(inspector.querySelectorAll(".inspector-state li")).toHaveLength(5);
-
-    fireEvent.click(screen.getByRole("button", { name: "Missing" }));
+    fireEvent.click(screen.getByRole("button", { name: "Stopped" }));
+    // Let the lever settle and render, then let a minute pass.
     act(() => vi.advanceTimersByTime(500));
-    expect(inspector.querySelector(".inspector-outcome strong")?.textContent).toBe("Telemetry collection needs investigation");
-    expect(Array.from(document.querySelectorAll('.sig-row[data-row="latency"] .sig-cell')).map((cell) => cell.textContent)).toEqual(["190 ms", "260 ms", "No sample", "No sample"]);
+    act(() => vi.advanceTimersByTime(1_100));
+    expect(status()).toBe("Can't tell: measurements stopped");
+    expect(document.querySelectorAll(".svc-gap").length).toBeGreaterThan(0);
     expect(screen.getByRole("status").textContent).toMatch(/Scrape target changed\. Result: Telemetry collection needs investigation\./);
 
-    fireEvent.click(screen.getByRole("button", { name: scenarios[1].baselineLabel }));
-    expect(screen.getByRole("button", { name: scenarios[1].baselineLabel }).getAttribute("aria-pressed")).toBe("true");
-    expect(Array.from(document.querySelectorAll('.sig-row[data-row="alert"] .sig-cell')).every((cell) => cell.textContent === "Not monitored")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Only “is it up?”" }));
+    act(() => vi.advanceTimersByTime(100));
+    act(() => vi.advanceTimersByTime(1_100));
+    expect(status()).toBe("Looks fine");
+    // Visitors still wait over half a second; the dashboard just doesn't measure it.
+    expect(Number.parseFloat(document.querySelector(".svc-users strong")?.textContent ?? "0")).toBeGreaterThan(.5);
+
+    fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+    const paused = clock();
+    act(() => vi.advanceTimersByTime(5_000));
+    expect(clock()).toBe(paused);
+    fireEvent.click(screen.getByRole("button", { name: "Next minute" }));
+    expect(clock()).not.toBe(paused);
+  });
+
+  it("names what the other policy would decide, and returns to the story on request", () => {
+    render(
+      <WorkspaceManagerProvider>
+        <DebuggerWorkspace scenario={scenarios[2]} initialConditions={scenarios[2].defaults} onClose={vi.fn()} />
+      </WorkspaceManagerProvider>,
+    );
+    expect(document.querySelector(".sim-compare")?.textContent).toBe("With the old rules (block anything odd): Block (different)");
+    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull();
+
+    fireEvent.click(key("Phone's security removed?", "No"));
+    act(() => vi.advanceTimersByTime(500));
+    expect(document.querySelector(".sim-compare")?.textContent).toBe("With the old rules (block anything odd): Let through (the same)");
+    expect(document.querySelectorAll(".sim-journal li")).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    act(() => vi.advanceTimersByTime(500));
+    expect(key("Phone's security removed?", "Maybe").getAttribute("aria-pressed")).toBe("true");
   });
 
   it("shows the policy's first matching rule for a device signal", () => {
@@ -243,14 +268,14 @@ describe("DebuggerWorkspace", () => {
         <DebuggerWorkspace scenario={scenarios[2]} initialConditions={scenarios[2].defaults} onClose={vi.fn()} />
       </WorkspaceManagerProvider>,
     );
-    const rules = () => Array.from(document.querySelectorAll<HTMLElement>(".pv-stage[data-stage=\"policy\"] li")).map((rule) => rule.dataset.status);
+    const rules = () => Array.from(document.querySelectorAll<HTMLElement>(".pol-rules li")).map((rule) => rule.dataset.status);
     expect(rules()).toEqual(["not met", "not met", "matched", "not reached"]);
-    expect(document.querySelector(".pv-stage[data-stage=\"decision\"] strong")?.textContent).toBe("Ask for confirmation");
+    expect(document.querySelector(".pol-decision strong")?.textContent).toBe("Ask to confirm");
 
-    fireEvent.click(screen.getByRole("button", { name: "Invalid" }));
+    fireEvent.click(key("Request tampered with?", "Yes"));
     act(() => vi.advanceTimersByTime(500));
     expect(rules()).toEqual(["matched", "not reached", "not reached", "not reached"]);
-    expect(document.querySelector(".pv-stage[data-stage=\"decision\"] strong")?.textContent).toBe("Block action");
+    expect(document.querySelector(".pol-decision strong")?.textContent).toBe("Block");
   });
 
   it("lets evidence switch between fit and actual pixels once the image has loaded", async () => {
@@ -289,9 +314,9 @@ describe("DebuggerWorkspace", () => {
   it("round-trips non-default controls with their owning scenario only", () => {
     render(<ScenarioRoundTripHost />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Older callback arrives" }));
+    fireEvent.click(screen.getByRole("button", { name: "An old message arrives late" }));
     act(() => vi.advanceTimersByTime(900));
-    expect(screen.getByRole("button", { name: "Older callback arrives" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "An old message arrives late" }).getAttribute("aria-pressed")).toBe("true");
 
     fireEvent.click(screen.getByRole("button", { name: "Next: Detect degradation" }));
     act(() => vi.advanceTimersByTime(0));
@@ -301,29 +326,29 @@ describe("DebuggerWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Previous" }));
     act(() => vi.advanceTimersByTime(0));
     expect(screen.getByRole("heading", { name: scenarios[0].title })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Older callback arrives" }).getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByRole("button", { name: "Same callback twice" }).getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("button", { name: "An old message arrives late" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "The bank sends it twice" }).getAttribute("aria-pressed")).toBe("false");
   });
 
   it("persists reset controls when a case is reopened after switching scenarios", () => {
     render(<ScenarioRoundTripHost />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Older callback arrives" }));
+    fireEvent.click(screen.getByRole("button", { name: "An old message arrives late" }));
     act(() => vi.advanceTimersByTime(900));
-    expect(screen.getByRole("button", { name: "Older callback arrives" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "An old message arrives late" }).getAttribute("aria-pressed")).toBe("true");
 
-    fireEvent.click(screen.getByRole("button", { name: "Reset conditions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
     act(() => vi.advanceTimersByTime(900));
-    expect(screen.getByRole("button", { name: "Same callback twice" }).getAttribute("aria-pressed")).toBe("true");
-    expect(screen.queryByRole("button", { name: "Reset conditions" })).toBeNull();
+    expect(screen.getByRole("button", { name: "The bank sends it twice" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Next: Detect degradation" }));
     act(() => vi.advanceTimersByTime(0));
     fireEvent.click(screen.getByRole("button", { name: "Previous" }));
     act(() => vi.advanceTimersByTime(0));
 
-    expect(screen.getByRole("button", { name: "Same callback twice" }).getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByRole("button", { name: "Older callback arrives" }).getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("button", { name: "The bank sends it twice" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "An old message arrives late" }).getAttribute("aria-pressed")).toBe("false");
   });
 
   it.each(scenarios)("renders the complete $slug chapter and evidence journey", (scenario) => {

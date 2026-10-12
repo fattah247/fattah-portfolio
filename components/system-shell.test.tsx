@@ -123,7 +123,7 @@ describe("SystemShell", () => {
 
     // The tablet Home board carries the role history from the same content as Experience.
     const roles = Array.from(container.querySelectorAll(".home-experience .home-role strong"), (role) => role.textContent);
-    expect(roles).toEqual(["Software Engineer / IT Specialist", "iOS Engineer Intern", "iOS Developer"]);
+    expect(roles).toEqual(["Software Engineer / IT Specialist", "Founder", "iOS Engineer Intern", "iOS Developer"]);
   });
 
   it("keeps phone Home and Recents as system surfaces without closing running apps", () => {

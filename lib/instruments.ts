@@ -94,7 +94,8 @@ export function simulatePayment(conditions: Conditions, mode: ProjectionMode): P
 export const latencyThresholdMs = 500;
 export const signalTimes = ["10:40", "10:41", "10:42", "10:43"] as const;
 
-const latencySeries: Record<string, number[]> = {
+/** The simulated service's p95 over four minutes for each behaviour. */
+export const latencyProfiles: Record<string, readonly number[]> = {
   normal: [170, 185, 178, 180],
   degraded: [190, 260, 430, 620],
   severe: [240, 560, 780, 940],
@@ -121,26 +122,33 @@ export type SignalRun = {
   decisionDetail: string;
 };
 
+/**
+ * What monitoring makes of one sample of the service: whether latency is observed at all, and
+ * what the alert says. Shared by the case model and the live simulator, so both alert alike.
+ */
+export function observeSample(actualLatency: number, collected: boolean, conditions: Conditions, mode: ProjectionMode): Omit<SignalInterval, "time"> {
+  const c = resolveScenarioConditions("iyup", conditions);
+  const monitorsLatency = mode === "designed";
+  const observed = monitorsLatency && collected ? actualLatency : null;
+  const alert: SignalInterval["alert"] = !monitorsLatency
+    ? "not monitored"
+    : c.alert === "absent"
+      ? "no rule"
+      : observed === null
+        ? "no data"
+        : observed > latencyThresholdMs
+          ? "firing"
+          : "quiet";
+  return { actualLatency, observedLatency: observed, collected, health: c.health === "pass" ? "pass" : "fail", alert };
+}
+
 export function simulateSignals(conditions: Conditions, mode: ProjectionMode): SignalRun {
   const c = resolveScenarioConditions("iyup", conditions);
   const monitorsLatency = mode === "designed";
   const missing = c.scrape === "missing";
-  const series = latencySeries[c.latency] ?? latencySeries.normal;
-  const intervals = series.map((value, index): SignalInterval => {
-    // A missing scrape target loses the two most recent samples.
-    const collected = !(missing && index >= series.length - 2);
-    const observed = monitorsLatency && collected ? value : null;
-    const alert: SignalInterval["alert"] = !monitorsLatency
-      ? "not monitored"
-      : c.alert === "absent"
-        ? "no rule"
-        : observed === null
-          ? "no data"
-          : observed > latencyThresholdMs
-            ? "firing"
-            : "quiet";
-    return { time: signalTimes[index], actualLatency: value, observedLatency: observed, collected, health: c.health === "pass" ? "pass" : "fail", alert };
-  });
+  const series = latencyProfiles[c.latency] ?? latencyProfiles.normal;
+  // A missing scrape target loses the two most recent samples.
+  const intervals = series.map((value, index): SignalInterval => ({ time: signalTimes[index], ...observeSample(value, !(missing && index >= series.length - 2), c, mode) }));
   const decisionNode = projectScenario("iyup", c, mode).find((node) => node.id === "decision");
   const observedTail = intervals.slice(-2).some((interval) => interval.observedLatency === null);
   return {
