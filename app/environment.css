@@ -2614,11 +2614,11 @@ html[data-system-mode="computer"] .window-snap-preview[data-edge="top"] { inset:
 
 /* ============================================================ Case instruments */
 
-/* Each "Try it" is one piece of lab equipment set on the page: a raised object with a
- * nameplate, an input panel of selector keys, the case's display set into it, and a readout.
- * Inputs, display, readout read left to right on a wide window and top to bottom on a narrow
- * one. The composition follows the instrument's own width, never the viewport, so resizing,
- * snapping, or rotating never resets a run. */
+/* Each "Try it" is a live simulator of the case's own system, set on the page as one raised
+ * object with a nameplate. Payments are driven event by event, the service runs minute by
+ * minute, and device requests are evaluated as they are made. The composition follows the
+ * instrument's own width, never the viewport, so resizing, snapping, or rotating never resets
+ * a run. */
 .selected-work-window .instrument {
   box-sizing: border-box;
   inline-size: min(calc(100% - (var(--projects-gutter, 24px) * 2)), var(--projects-reading-width, 88rem));
@@ -2663,8 +2663,7 @@ html[data-system-mode="computer"] .window-snap-preview[data-edge="top"] { inset:
 
 .instrument-plate-name { align-items: baseline; color: var(--ink-secondary); display: flex; font: var(--type-caption); gap: 8px; margin: 0; }
 .instrument-plate-name span { color: var(--ink); font: var(--type-mono); }
-.instrument-plate-name small,
-.pay-step-event small { font: var(--type-caption); }
+.instrument-plate-name small { font: var(--type-caption); }
 
 .instrument-instruction {
   color: var(--ink-secondary);
@@ -2675,34 +2674,31 @@ html[data-system-mode="computer"] .window-snap-preview[data-edge="top"] { inset:
   padding: 12px var(--instrument-pad) 0;
 }
 
-.instrument-body {
-  align-items: start;
-  display: grid;
-  gap: 16px 20px;
-  grid-template-areas: "inputs" "view" "inspector";
-  grid-template-columns: minmax(0, 1fr);
-  padding: 14px var(--instrument-pad) var(--instrument-pad);
+/* The instruction shares a row with the "Technical details" key, which swaps the everyday labels
+ * for the engineering ones (IDs, raw states, milliseconds, rule names) and shows the mechanism. */
+.instrument-intro { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; padding: 12px var(--instrument-pad) 0; }
+.instrument-intro .instrument-instruction { flex: 1 1 22rem; padding: 0; }
+.instrument-technical {
+  align-items: center;
+  background: var(--raised);
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--bevel-raised);
+  color: var(--ink);
+  cursor: pointer;
+  display: inline-flex;
+  flex: none;
+  font: var(--type-label);
+  gap: 8px;
+  min-block-size: 34px;
+  padding: 5px 12px;
 }
-
-.instrument-inputs { align-content: start; display: grid; gap: 14px; grid-area: inputs; min-inline-size: 0; }
-.instrument-primary { display: grid; }
-.instrument-controls { align-content: start; display: grid; gap: 14px; }
-.instrument-view { container: instrument-view / inline-size; grid-area: view; min-inline-size: 0; }
-.instrument-inspector { align-content: start; display: grid; gap: 10px; grid-area: inspector; min-inline-size: 0; }
-
-@container instrument (min-width: 44rem) {
-  .instrument-body {
-    grid-template-areas: "inputs view" "inspector inspector";
-    grid-template-columns: minmax(12rem, 15rem) minmax(0, 1fr);
-  }
-}
-
-@container instrument (min-width: 68rem) {
-  .instrument-body {
-    grid-template-areas: "inputs view inspector";
-    grid-template-columns: minmax(12rem, 14.5rem) minmax(0, 1fr) minmax(14rem, 16.5rem);
-  }
-}
+.instrument-technical i { background: #ffffff; block-size: 8px; border: 1px solid var(--line-ink); flex: none; inline-size: 8px; }
+.instrument-technical:hover { background: #ffffff; }
+.instrument-technical[aria-pressed="true"] { background: var(--accent-soft); box-shadow: var(--bevel-inset); color: var(--accent-deep); font-weight: 600; }
+.instrument-technical[aria-pressed="true"] i { background: var(--accent); }
+.instrument-technical:active { background: var(--recessed); box-shadow: var(--bevel-inset); }
+.instrument-technical:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-technical { min-block-size: 44px; }
 
 /* Inputs: selector keys joined into one object per group. Two options read as a switch side by
  * side; three stack as a short column. The pressed key is set in, tinted, and its marker filled,
@@ -2768,386 +2764,331 @@ html[data-system-mode="computer"] .window-snap-preview[data-edge="top"] { inset:
   padding-inline-start: 6px;
 }
 
-/* In the side panel a long two-way choice (the approach) stacks like the others. */
-@container instrument (min-width: 44rem) {
-  .instrument-approach .instrument-keys { grid-template-columns: minmax(0, 1fr); }
-  .instrument-approach .instrument-keys > .instrument-option + .instrument-option { margin-block-start: -1px; margin-inline-start: 0; }
-}
-
-.instrument-approach .instrument-option { font-weight: 600; min-block-size: 40px; }
-
 /* Touch modes keep 44 px keys; the switch stays one joined object. */
 html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-option { min-block-size: 44px; }
 
-.instrument-reset { justify-self: start; }
-.instrument-reset svg { block-size: 15px; inline-size: 15px; }
-
-/* Display: the case's own view, set into the instrument like a screen. */
-.instrument-view > * {
-  background: var(--doc);
-  border: 1px solid var(--line-ink);
-  border-radius: 0;
-  box-shadow: inset 1px 1px 0 var(--border);
-  display: grid;
-  gap: 14px;
-  padding: clamp(12px, 3cqw, 16px);
-  transition: opacity 160ms ease;
-}
-
-.instrument[data-phase="rewind"] .instrument-view > * { opacity: .55; }
-
-/* Readout: the result for the chosen approach with a lamp in its meaning colour, the other
- * approach's result, then what changed and each part's state. */
-@container instrument (min-width: 68rem) {
-  .instrument-inspector { border-inline-start: 1px solid var(--rule-strong); padding-inline-start: 18px; }
-}
-
-@container instrument (max-width: 67.999rem) {
-  .instrument-inspector { border-top: 1px solid var(--rule-strong); padding-top: 14px; }
-}
-
-@container instrument (min-width: 44rem) and (max-width: 67.999rem) {
-  .instrument-inspector { column-gap: 28px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .instrument-inspector .inspector-details { grid-column: 2; grid-row: 1 / span 3; }
-}
-
-.inspector-outcome { display: grid; gap: 2px; padding: 0; }
-.inspector-outcome > span { align-items: center; color: var(--ink-secondary); display: flex; font: var(--type-caption); gap: 7px; }
-.inspector-outcome > span > i { background: var(--border); block-size: 10px; border: 1px solid var(--line-ink); flex: none; inline-size: 10px; }
-.inspector-outcome[data-tone="confirmed"] > span > i { background: var(--confirmed); }
-.inspector-outcome[data-tone="designed"] > span > i { background: var(--designed); }
-.inspector-outcome[data-tone="uncertain"] > span > i { background: var(--uncertain); }
-.inspector-outcome[data-tone="adverse"] > span > i { background: var(--adverse); }
-.inspector-outcome > strong { font: var(--type-app-heading); font-size: 1.12rem; }
-.inspector-outcome[data-tone="adverse"] > strong { color: var(--adverse-ink); }
-.inspector-outcome[data-tone="uncertain"] > strong { color: var(--uncertain); }
-.inspector-outcome > p { color: var(--ink-secondary); font: var(--type-body); font-size: .88rem; line-height: 1.45; margin: 2px 0 0; }
-
-.inspector-compare,
-.inspector-difference { color: var(--ink-secondary); font: var(--type-body); font-size: .86rem; line-height: 1.45; margin: 0; }
-.inspector-compare b { color: var(--ink); }
-.inspector-difference { color: var(--ink); }
-
-.inspector-state { display: grid; gap: 0; list-style: none; margin: 4px 0 0; padding: 0; }
-
-.inspector-state li {
-  align-items: baseline;
-  border-bottom: 1px solid var(--rule);
-  display: flex;
-  gap: 10px;
-  justify-content: space-between;
-  padding: 6px 2px;
-}
-
-.inspector-state li span { color: var(--ink-secondary); font: var(--type-label); }
-.inspector-state li b { font: var(--type-mono); text-align: end; }
-.inspector-state li[data-tone="adverse"] b { color: var(--adverse-ink); }
-.inspector-state li[data-tone="uncertain"] b { color: var(--uncertain); }
-.inspector-state li[data-tone="confirmed"] b { color: var(--confirmed); }
-.inspector-state li[data-tone="designed"] b { color: var(--designed); }
-
-/* Cause and effect: whatever changed in the last update is outlined in the accent and steps
- * back out, once. Values never depend on the mark; reduced motion leaves it out. */
-:is(.inspector-outcome, .inspector-state li, .sig-cell, .pv-stage[data-stage="policy"] li, .pv-stage[data-stage="decision"], .pay-states li)[data-changed] {
-  outline: 2px solid transparent;
-  outline-offset: 1px;
-}
-
-[data-changed="odd"]:is(.inspector-outcome, .inspector-state li, .sig-cell, .pv-stage[data-stage="policy"] li, .pv-stage[data-stage="decision"], .pay-states li) { animation: instrument-mark-odd 1100ms steps(4, end); }
-[data-changed="even"]:is(.inspector-outcome, .inspector-state li, .sig-cell, .pv-stage[data-stage="policy"] li, .pv-stage[data-stage="decision"], .pay-states li) { animation: instrument-mark-even 1100ms steps(4, end); }
-
 @keyframes instrument-mark-odd { 0%, 45% { outline-color: var(--accent); } 100% { outline-color: transparent; } }
 @keyframes instrument-mark-even { 0%, 45% { outline-color: var(--accent); } 100% { outline-color: transparent; } }
-
-/* ------------------------------------------------------------ Payment view */
-
-/* One display in three bands: the transport (input), the event sequence it produces, and the
- * payment state with its counts (output). Rows are rows, not cards. */
-.instrument-view > .pay-view { gap: 0; padding: 0; }
-
-.pay-playback {
-  align-items: center;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--line-ink);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px 10px;
-}
-
-.instrument-run,
-.instrument-step { min-block-size: 32px !important; }
-.instrument-run { gap: 7px !important; min-inline-size: 9rem; padding: 0 14px 0 10px !important; }
-.instrument-run .inline-icon { block-size: 14px; inline-size: 14px; }
-.instrument-run[data-state="running"] { background: var(--accent-deep) !important; box-shadow: var(--bevel-primary-inset) !important; }
-.instrument-rewind { min-inline-size: 32px; padding: 0 !important; }
-.instrument-rewind .inline-icon { block-size: 16px; inline-size: 16px; }
-html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-rewind { min-inline-size: 44px; }
-
-/* The run's own readout: a lamp, its state, and how far it has got. */
-.pay-run-status {
-  align-items: center;
-  background: var(--doc);
-  border: 1px solid var(--border);
-  box-shadow: var(--bevel-inset);
-  color: var(--ink);
-  display: inline-flex;
-  font: var(--type-label);
-  font-weight: 600;
-  gap: 8px;
-  margin: 0 0 0 auto;
-  min-block-size: 32px;
-  min-inline-size: 10rem;
-  padding: 0 10px;
-}
-
-.pay-run-status > i { background: transparent; block-size: 8px; border: 1px solid var(--line-ink); flex: 0 0 auto; inline-size: 8px; }
-.pay-run-status[data-state="running"] > i { background: var(--accent); }
-.pay-run-status[data-state="paused"] > i { background: var(--uncertain); }
-.pay-run-status[data-state="completed"] > i { background: var(--confirmed); }
-.pay-run-status > small { color: var(--ink-secondary); font: var(--type-caption); font-family: var(--font-mono), monospace; font-variant-numeric: tabular-nums; margin-inline-start: auto; }
-
-@container instrument-view (max-width: 30rem) {
-  .pay-run-status { flex-basis: 100%; margin-inline-start: 0; }
-}
-
-.pay-steps { display: grid; gap: 0; list-style: none; margin: 0; padding: 0; }
-
-.pay-step {
-  border-bottom: 1px solid var(--rule);
-  display: grid;
-  gap: 2px 10px;
-  grid-template-areas: "index title" "index event" "index check" "index result";
-  grid-template-columns: 1.6rem minmax(0, 1fr);
-  padding: 10px 12px;
-}
-
-.pay-step:last-child { border-bottom: 0; }
-
-@container instrument-view (min-width: 34rem) {
-  .pay-step {
-    align-items: center;
-    grid-template-areas: "index title check result" "index event check result";
-    grid-template-columns: 1.6rem 7rem minmax(0, 1fr) minmax(10rem, 12rem);
-  }
-}
-
-.pay-step-index { align-self: start; color: var(--ink-secondary); font: var(--type-mono); font-size: .75rem; grid-area: index; padding-top: 2px; }
-.pay-step-title { font: var(--type-label); font-weight: 650; grid-area: title; }
-.pay-step-event { color: var(--ink-secondary); font: var(--type-caption); grid-area: event; }
-.pay-step-event code { color: var(--ink); font: var(--type-mono); }
-.pay-step-check { color: var(--ink-secondary); font: var(--type-body); font-size: .86rem; grid-area: check; line-height: 1.4; }
-.pay-step-result { display: grid; gap: 1px; grid-area: result; }
-.pay-step-result b { align-items: center; display: flex; font: var(--type-label); font-weight: 650; gap: 7px; }
-.pay-step-result b > i { background: var(--border); block-size: 9px; border: 1px solid var(--line-ink); flex: none; inline-size: 9px; }
-.pay-step-result small { color: var(--ink-secondary); font: var(--type-mono); font-size: .75rem; padding-inline-start: 16px; }
-
-.pay-step[data-decision="applied"] .pay-step-result b > i { background: var(--designed); }
-.pay-step:is([data-decision="acknowledged"], [data-decision="ignored-stale"], [data-decision="written"], [data-decision="matched"]) .pay-step-result b > i { background: var(--confirmed); }
-.pay-step:is([data-decision="applied-again"], [data-decision="regressed"]) .pay-step-result b { color: var(--adverse-ink); }
-.pay-step:is([data-decision="applied-again"], [data-decision="regressed"]) .pay-step-result b > i { background: var(--adverse); }
-.pay-step:is([data-decision="review"], [data-decision="pending"]) .pay-step-result b { color: var(--uncertain); }
-.pay-step:is([data-decision="review"], [data-decision="pending"]) .pay-step-result b > i { background: var(--uncertain); }
-
-/* Not yet reached in a run: the row keeps its place and name, but not its result. */
-.pay-step:not([data-shown]) { border-bottom-style: dashed; }
-.pay-step:not([data-shown]) > :not(.pay-step-title):not(.pay-step-index) { visibility: hidden; }
-.pay-step:not([data-shown]) :is(.pay-step-title, .pay-step-index) { color: #a3afbf; }
-
-/* The step that just arrived is lit once, in steps, then settles. */
-.pay-step[data-arrived="odd"] { animation: pay-arrive-odd 900ms steps(3, end); }
-.pay-step[data-arrived="even"] { animation: pay-arrive-even 900ms steps(3, end); }
 @keyframes pay-arrive-odd { from { background: var(--accent-soft); } to { background: transparent; } }
 @keyframes pay-arrive-even { from { background: var(--accent-soft); } to { background: transparent; } }
 
-.pay-output {
-  align-items: center;
-  background: var(--surface-2);
-  border-top: 1px solid var(--line-ink);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 24px;
-  justify-content: space-between;
-  padding: 10px 12px;
-}
-
-/* Payment state is read, not pressed: lamps with labels, the current one lit in its meaning
- * colour; visited states keep a dark outline. */
-.pay-state-panel { align-items: center; display: flex; flex-wrap: wrap; gap: 6px 14px; }
-.pay-state-caption { color: var(--ink-secondary); font: var(--type-caption); }
-.pay-states { display: flex; flex-wrap: wrap; gap: 6px 16px; list-style: none; margin: 0; padding: 0; }
-.pay-states li { align-items: center; color: var(--border); display: inline-flex; font: var(--type-label); gap: 7px; min-block-size: 24px; padding: 0 2px; }
-.pay-states li > i { block-size: 10px; border: 1px solid var(--border); flex: 0 0 auto; inline-size: 10px; }
-.pay-states li[data-visited] { color: var(--ink-secondary); }
-.pay-states li[data-visited] > i { border-color: var(--line-ink); }
-.pay-states li[data-current] { color: var(--ink); font-weight: 650; }
-.pay-states li[data-current] > i { background: var(--ink); border-color: var(--line-ink); }
-.pay-states li[data-current][data-state="paid"] > i { background: var(--confirmed); }
-.pay-states li[data-current][data-state="review"] > i { background: var(--uncertain); }
-
-.pay-counts { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0; }
-.pay-counts > div { align-items: baseline; display: flex; gap: 6px; }
-.pay-counts dt { color: var(--ink-secondary); font: var(--type-caption); }
-.pay-counts dd { font: var(--type-mono); font-size: .9rem; font-weight: 600; margin: 0; }
-.pay-counts > div[data-tone="adverse"] dd { color: var(--adverse-ink); }
-
-/* -------------------------------------------------------- Observability view */
-
-.sig-chart { display: grid; gap: 0 10px; grid-template-columns: 6.5rem minmax(0, 1fr); }
-
-.sig-axis {
-  color: #8593a6;
-  display: flex;
-  flex-direction: column;
-  font: var(--type-mono);
-  font-size: .75rem;
-  justify-content: space-between;
-  padding-block: 2px;
-  text-align: end;
-}
-
-.sig-axis span { white-space: nowrap; }
-
-.sig-plot {
-  background: #ffffff;
-  block-size: 150px;
-  border: 1px solid var(--border);
-  position: relative;
-}
-
-.sig-plot svg { block-size: 100%; inline-size: 100%; inset: 0; overflow: visible; position: absolute; }
-.sig-threshold { stroke: var(--uncertain); stroke-dasharray: 6 5; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
-.sig-actual { fill: none; stroke: #a3afbf; stroke-dasharray: 4 4; stroke-width: 2; }
-.sig-observed { fill: none; stroke: var(--ink); stroke-width: 2.6; }
-
-.sig-point {
-  background: #ffffff;
-  block-size: 12px;
-  border: 2px dashed #a3afbf;
-  box-sizing: border-box;
-  inline-size: 12px;
-  left: var(--x);
-  position: absolute;
-  top: calc(100% - var(--y));
-  transform: translate(-50%, -50%);
-}
-
-.sig-point[data-observed] { background: var(--ink); border: 2px solid #ffffff; box-shadow: 0 0 0 1px var(--ink); }
-.sig-point[data-observed][data-over] { background: var(--adverse); box-shadow: 0 0 0 1px var(--adverse); }
-
-.sig-threshold-label { color: var(--uncertain); font: var(--type-caption); inset-inline: 8px auto; position: absolute; top: calc(50% + 6px); }
-
-.sig-rows { display: grid; gap: 4px; }
-
-.sig-row {
-  align-items: stretch;
-  display: grid;
-  gap: 4px 6px;
-  grid-template-columns: 6.5rem repeat(var(--sig-cols), minmax(0, 1fr));
-}
-
-.sig-row-label { align-self: center; color: var(--ink-secondary); font: var(--type-label); text-align: end; }
-
-.sig-cell {
-  align-items: center;
-  background: #ffffff;
-  border: 1px solid var(--border);
-  display: flex;
-  font: var(--type-label);
-  justify-content: center;
-  min-block-size: 32px;
-  padding: 2px 4px;
-  text-align: center;
-}
-
-.sig-row[data-row="latency"] .sig-cell { font: var(--type-mono); }
-.sig-cell[data-state="ok"] { background: var(--confirmed-wash); border-color: rgb(36 120 107 / 35%); color: var(--confirmed); }
-.sig-cell:is([data-state="over"], [data-state="fail"]) { background: var(--adverse-wash); border-color: rgb(201 74 67 / 40%); color: var(--adverse-ink); font-weight: 600; }
-/* A missing sample is hatched amber: unknown, never zero, never quiet. */
-.sig-cell[data-state="missing"] {
-  background: repeating-linear-gradient(135deg, var(--uncertain-wash) 0 6px, #ffffff 6px 12px);
-  border: 1px dashed rgb(148 96 15 / 55%);
-  color: var(--uncertain);
-  font-family: var(--font-body), sans-serif;
-  font-weight: 600;
-}
-.sig-cell[data-state="off"] { background: transparent; border-style: dashed; color: #8593a6; }
-
-.sig-times .sig-cell { background: transparent; border: 0; color: #8593a6; font: var(--type-mono); font-size: .75rem; min-block-size: 0; }
-
-.sig-summary { color: var(--ink-secondary); font: var(--type-body); font-size: .88rem; margin: 0; }
-.sig-summary b { color: var(--ink); }
-
-@container instrument-view (max-width: 30rem) {
-  .sig-chart { grid-template-columns: 3.9rem minmax(0, 1fr); }
-  .sig-row { grid-template-columns: repeat(var(--sig-cols), minmax(0, 1fr)); }
-  .sig-row-label { grid-column: 1 / -1; text-align: start; }
-  .sig-times .sig-row-label { display: none; }
-  .sig-cell { font-size: .75rem; }
-}
-
-/* ---------------------------------------------------------- Device trust view */
-
-/* Signals, assessment, the ordered policy, and the decision: read as one path. */
-.pv-stage { align-content: start; display: grid; gap: 8px; position: relative; }
-.pv-stage + .pv-stage { border-top: 1px dashed var(--rule-strong); padding-top: 14px; }
-
-.pv-stage h3 { color: var(--ink-secondary); font: var(--type-label) !important; font-weight: 600 !important; margin: 0 !important; }
-.pv-stage h3 small { color: #8593a6; font: var(--type-caption); margin-inline-start: 6px; }
-
-.pv-stage dl { align-content: start; display: grid; gap: 4px; margin: 0; }
-.pv-stage dl > div { align-items: baseline; display: flex; gap: 10px; justify-content: space-between; }
-.pv-stage dt { color: var(--ink-secondary); font: var(--type-label); }
-.pv-stage dd { font: var(--type-label); font-weight: 600; margin: 0; text-align: end; }
-.pv-stage dl > div[data-flag] dd { color: var(--uncertain); }
-.pv-stage dl > div[data-flag] dd::before { background: var(--uncertain); block-size: 7px; content: ""; display: inline-block; inline-size: 7px; margin-inline-end: 6px; vertical-align: 1px; }
-
-.pv-stage ol { display: grid; gap: 0; list-style: none; margin: 0; padding: 0; }
-
-.pv-stage[data-stage="policy"] li {
-  align-items: center;
-  border: 1px solid var(--border);
-  display: grid;
-  gap: 4px 10px;
-  grid-template-areas: "index when status" "index conditions conditions" "index result result";
-  grid-template-columns: 1.6rem minmax(0, 1fr) auto;
-  padding: 8px 10px;
-}
-
-.pv-stage[data-stage="policy"] li + li { margin-block-start: -1px; }
-
-.pv-rule-index { align-self: start; color: #8593a6; font: var(--type-mono); grid-area: index; }
-.pv-rule-when { font: var(--type-label); font-weight: 600; grid-area: when; }
-.pv-rule-conditions { display: flex; flex-wrap: wrap; gap: 4px; grid-area: conditions; }
-.pv-rule-conditions span { background: var(--doc-sunken); color: var(--ink-secondary); font: var(--type-caption); padding: 2px 6px; }
-.pv-rule-conditions span[data-met] { background: var(--accent-soft); color: var(--accent-deep); }
-.pv-rule-result { color: var(--ink-secondary); font: var(--type-caption); grid-area: result; }
-.pv-rule-result::before { content: "Then: "; }
-.pv-rule-status { color: #8593a6; font: var(--type-caption); grid-area: status; }
-
-.pv-stage[data-stage="policy"] li[data-status="matched"] { background: var(--accent-soft); border-color: var(--line-ink); box-shadow: var(--bevel-inset); position: relative; z-index: 1; }
-.pv-stage[data-stage="policy"] li[data-status="matched"] .pv-rule-status { color: var(--accent-deep); font-weight: 650; }
-.pv-stage[data-stage="policy"] li[data-status="not reached"] { background: transparent; border-style: dashed; color: #8593a6; }
-.pv-stage[data-stage="policy"] li[data-status="not reached"] .pv-rule-when { color: #8593a6; }
-
-.pv-stage[data-stage="decision"] strong { font: var(--type-app-heading); font-size: 1.2rem; }
-.pv-stage[data-stage="decision"] p { color: var(--ink-secondary); font: var(--type-body); font-size: .88rem; margin: 0; }
-.policy-view[data-decision="allow"] [data-stage="decision"] strong { color: var(--confirmed); }
-.policy-view[data-decision="require-confirmation"] [data-stage="decision"] strong { color: var(--uncertain); }
-.policy-view[data-decision="block"] [data-stage="decision"] strong { color: var(--adverse-ink); }
-
-@container instrument-view (min-width: 40rem) {
-  .policy-view { column-gap: 22px; grid-template-areas: "signals policy" "assessment policy" "assessment decision"; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); }
-  .pv-stage[data-stage="signals"] { grid-area: signals; }
-  .pv-stage[data-stage="assessment"] { grid-area: assessment; }
-  .pv-stage[data-stage="policy"] { border-top: 0 !important; grid-area: policy; padding-top: 0 !important; }
-  .pv-stage[data-stage="decision"] { grid-area: decision; }
-}
 
 @media (prefers-reduced-motion: reduce) {
-  .instrument-view > *,
-  .pay-step,
   [data-changed] { animation: none !important; transition: none; }
+}
+
+/* ------------------------------------------------------------- Simulators */
+
+/* The view is the case's cover schematic drawn large and driven live (components/sim-diagrams):
+ * the same white ground, small mono labels, ink and meaning colours, dashed amber for a repeat and
+ * a red bar where it stops. Controls sit in one compact strip beneath; the journal says what
+ * happened in plain words with the mechanism underneath. */
+.instrument-control legend small { color: var(--ink-secondary); display: block; font: var(--type-caption); font-weight: 400; margin-top: 1px; }
+
+.sim { display: grid; gap: 16px; min-inline-size: 0; padding: 14px var(--instrument-pad) var(--instrument-pad); transition: opacity 160ms ease; }
+.instrument[data-phase="rewind"] .sim { opacity: .7; }
+
+/* ---- Diagram */
+.sd { background: #ffffff; border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); container: sd / inline-size; }
+/* The drawing reads like a figure: centred, and capped so its mono text stays near reading size. */
+.sd, .svc-screen { box-sizing: border-box; inline-size: 100%; justify-self: center; max-inline-size: 50rem; }
+/* A long two-way key has no room for the "story" tag; "Back to the story" marks the departure. */
+.sim-controls .instrument-keys[data-count="2"] .instrument-option[data-story]::after { display: none; }
+/* Three compositions, picked by the drawing's own width: wide (640 units) from 640px, medium (320)
+ * from 320px, compact (200) below. None is ever drawn smaller than its units, so diagram text (12px
+ * and up) never renders under 12px; each is capped so it never grows past about 1.35x either. */
+.sd-svg { block-size: auto; display: none; inline-size: 100%; margin-inline: auto; }
+.sd-compact { display: block; max-inline-size: 270px; }
+@container sd (min-width: 320px) {
+  .sd-compact { display: none; }
+  .sd-medium { display: block; max-inline-size: 432px; }
+}
+@container sd (min-width: 640px) {
+  .sd-medium { display: none; }
+  .sd-wide { display: block; }
+}
+/* With technical details on, the raw machine state sits under the drawing as one mono line. */
+.sim-wire { background: var(--doc-sunken); border: 1px dashed #97a3b4; box-sizing: border-box; color: var(--ink-secondary); font: 500 .75rem/1.45 var(--font-mono), monospace; inline-size: 100%; justify-self: center; max-inline-size: 50rem; overflow-wrap: anywhere; padding: 6px 10px; }
+.sd-ground { fill: #ffffff; }
+.sd-label { fill: #8593a6; font: 500 12px var(--font-mono), monospace; letter-spacing: .04em; }
+.sd-rule { stroke: #dce3ec; stroke-width: 1; }
+.sd-hint { fill: #8593a6; font: 500 12px var(--font-mono), monospace; }
+.sd-small { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
+.sd-note { fill: var(--ink); font: 600 13px var(--font-mono), monospace; }
+.sd-compact .sd-note { font-size: 12px; }
+.sd-note-bad { fill: var(--adverse-ink); }
+.sd-note-arrow { fill: #8593a6; }
+.sd-flow { fill: none; stroke: #6b7a90; stroke-width: 1.8; }
+.sd-arrow { fill: none; stroke: #6b7a90; stroke-width: 1.8; }
+.sd-flow-faint { stroke: #c3cbd6; stroke-dasharray: 3 3; }
+.sd-stop { stroke: var(--adverse); stroke-width: 3; }
+
+/* Payment */
+.sd-event rect { fill: #ffffff; stroke: #6b7a90; stroke-width: 1.4; }
+.sd-event text { fill: var(--ink); font: 600 12px var(--font-mono), monospace; }
+.sd-event .sd-event-seq { fill: #8593a6; font: 500 12px var(--font-mono), monospace; }
+/* Compact lists each message with what happened to it, since only the newest one travels. */
+.sd-event .sd-event-tag { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
+.sd-row[data-flow="stop"] .sd-event-tag { fill: var(--uncertain); }
+.sd-row[data-flow="pass-bad"] .sd-event-tag { fill: var(--adverse-ink); }
+.sd-row[data-flow="stop"] .sd-flow { stroke: var(--uncertain); stroke-dasharray: 5 4; }
+.sd-row[data-flow="stop"] .sd-event rect { stroke: var(--uncertain); }
+.sd-row[data-flow="pass-bad"] :is(.sd-flow, .sd-arrow) { stroke: var(--adverse); }
+.sd-row[data-flow="pass-bad"] .sd-event rect { fill: var(--adverse-wash); stroke: var(--adverse); }
+.sd-row:not(.sd-row-new) { opacity: .62; }
+.sd-gate { fill: var(--designed-wash); stroke: var(--designed); stroke-width: 1.6; }
+.sd-gate[data-check="off"] { fill: #ffffff; stroke: #97a3b4; stroke-dasharray: 5 4; }
+.sd-gate-text { fill: var(--designed); font: 600 12px var(--font-mono), monospace; }
+.sd-svg[data-check="off"] .sd-gate-text { fill: var(--ink-secondary); }
+.sd-flow-out, .sd-arrow-out { stroke: var(--designed); stroke-width: 2; }
+.sd-svg[data-check="off"] :is(.sd-flow-out, .sd-arrow-out) { stroke: #6b7a90; }
+.sd-state rect { fill: #ffffff; stroke: #97a3b4; stroke-width: 1.6; }
+.sd-state text { fill: var(--ink-secondary); font: 700 15px var(--font-mono), monospace; }
+/* Everyday state names run longer ("Needs checking"), so they step down a size. */
+.sd-svg:not([data-technical]) .sd-state text { font-size: 13px; }
+.sd-state[data-state="paid"] rect { fill: var(--confirmed-wash); stroke: var(--confirmed); }
+.sd-state[data-state="paid"] text { fill: var(--confirmed); }
+.sd-state[data-state="review"] rect { fill: var(--uncertain-wash); stroke: var(--uncertain); }
+.sd-state[data-state="review"] text { fill: var(--uncertain); }
+.sd-badge rect { fill: var(--adverse); stroke: var(--line-ink); }
+.sd-badge text { fill: #ffffff; font: 700 12px var(--font-mono), monospace; }
+.sd-settle rect { fill: #ffffff; stroke: #97a3b4; stroke-width: 1.2; }
+.sd-settle text { fill: var(--ink-secondary); font: 600 12px var(--font-mono), monospace; }
+.sd-settle[data-outcome="matched"] rect { stroke: var(--confirmed); }
+.sd-settle[data-outcome="matched"] text { fill: var(--confirmed); }
+.sd-settle[data-outcome="mismatched"] rect { fill: var(--uncertain-wash); stroke: var(--uncertain); }
+.sd-settle[data-outcome="mismatched"] text { fill: var(--uncertain); }
+.sd-record { fill: var(--confirmed); stroke: var(--line-ink); stroke-width: 1; }
+.sd-record[data-status="pending"] { fill: #ffffff; stroke: var(--uncertain); stroke-dasharray: 2 2; stroke-width: 1.6; }
+.sd-store rect { fill: var(--confirmed); stroke: var(--line-ink); }
+.sd-store[data-online="false"] rect { fill: var(--uncertain); }
+.sd-store text { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
+
+/* Packets travel one straight leg each; the boundary and the state answer when they arrive. */
+.sd-packet { animation: sd-travel 440ms steps(12, end) both; fill: var(--designed); stroke: #ffffff; stroke-width: 1.5; }
+.sd-row[data-flow="stop"] .sd-packet { fill: var(--uncertain); }
+.sd-row[data-flow="pass-bad"] .sd-packet { fill: var(--adverse); }
+.sd-row-new .sd-event { animation: sd-slide 260ms steps(4, end) both; }
+.sd-row-new .sd-stop { animation: sd-flash 600ms steps(3, end) 380ms both; }
+.sd-gate { animation: sd-hit 500ms steps(4, end) 380ms both; }
+.sd-state rect, .sd-badge, .sd-record-new { animation: sd-pop 360ms steps(3, end) both; transform-box: fill-box; transform-origin: center; }
+@keyframes sd-travel { 0% { opacity: 0; transform: translate(0, 0); } 6% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)); } }
+@keyframes sd-slide { from { opacity: 0; transform: translateX(-18px); } }
+@keyframes sd-flash { 0% { opacity: 0; } 34% { opacity: 1; stroke-width: 6; } 100% { opacity: 1; stroke-width: 3; } }
+@keyframes sd-hit { 0%, 100% { stroke-width: 1.6; } 40% { stroke-width: 4; } }
+@keyframes sd-pop { from { opacity: .3; transform: scale(1.12); } }
+
+/* Service */
+.sd-clock { fill: var(--ink); font: 700 15px var(--font-mono), monospace; }
+.sd-axis { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
+.sd-baseline-axis { fill: none; stroke: #c3cbd6; stroke-width: 1; }
+.sd-hatch-ground { fill: #ffffff; }
+.sd-hatch-line { stroke: var(--uncertain); stroke-opacity: .55; stroke-width: 3; }
+.sd-gap { stroke: var(--uncertain); stroke-dasharray: 3 3; stroke-width: 1; }
+.sd-ghost { fill: none; stroke: #8593a6; stroke-dasharray: 5 5; stroke-width: 1.8; }
+.sd-trace { fill: none; stroke: var(--adverse); stroke-linejoin: round; stroke-width: 2.8; }
+.sd-point { fill: #ffffff; stroke: #6b7a90; stroke-width: 1.4; }
+.sd-point[data-over] { fill: var(--adverse-wash); stroke: var(--adverse); }
+.sd-breach { fill: #ffffff; stroke: var(--adverse); stroke-width: 2.4; }
+.sd-breach[data-firing] { animation: sd-ring 1100ms steps(2, end) infinite; }
+.sd-threshold { stroke: var(--uncertain); stroke-dasharray: 6 4; stroke-width: 1.5; }
+.sd-threshold-label { fill: var(--uncertain); font: 600 12px var(--font-mono), monospace; }
+/* A white halo keeps the label legible where the trace crosses it in a narrow drawing. */
+.sd-threshold-label { paint-order: stroke; stroke: #ffffff; stroke-linejoin: round; stroke-width: 4px; }
+.sd-overlay rect { fill: var(--doc-sunken); stroke: #97a3b4; stroke-dasharray: 4 3; }
+.sd-overlay text { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
+.sd-health { stroke: var(--confirmed); stroke-width: 2.8; }
+.sd-health[data-state="fail"] { stroke: var(--adverse); stroke-dasharray: 6 4; }
+.sd-health-text { fill: var(--confirmed); font: 700 12px var(--font-mono), monospace; }
+.sd-health-text[data-state="fail"] { fill: var(--adverse-ink); }
+.sd-pager rect { fill: var(--confirmed); stroke: var(--line-ink); }
+.sd-pager text { fill: var(--ink); font: 600 12px var(--font-mono), monospace; }
+.sd-pager[data-state="paging"] rect { animation: sd-blink 1100ms steps(2, end) infinite; fill: var(--adverse); }
+.sd-pager[data-state="paging"] text { fill: var(--adverse-ink); }
+.sd-pager:is([data-state="nodata"], [data-state="silent"]) rect { fill: var(--uncertain); }
+.sd-pager:is([data-state="nodata"], [data-state="silent"]) text { fill: var(--uncertain); }
+.sd-pager[data-state="off"] rect { fill: #c3cbd6; }
+.sd-pager[data-state="off"] text { fill: var(--ink-secondary); }
+/* Two lines, two meanings: what the dashboard measured and what visitors actually waited. */
+.sd-legend text { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
+.sd-legend-measured { stroke: var(--adverse); stroke-width: 2.8; }
+.sd-legend-actual { stroke: #8593a6; stroke-dasharray: 5 5; stroke-width: 1.8; }
+/* Each minute the chart steps one slot to the left, so time is seen to pass. */
+.sd-scroll { animation: sd-scroll 700ms steps(7, end) both; }
+@keyframes sd-scroll { from { transform: translateX(var(--slot)); } }
+@keyframes sd-ring { 50% { stroke-width: 5; } }
+@keyframes sd-blink { 50% { fill: #ffffff; } }
+
+/* Device trust: the request walks the rulebook; each rule lights in turn and the decision lands. */
+.sd-signal rect { fill: #ffffff; stroke: #97a3b4; stroke-width: 1.2; }
+.sd-signal text { fill: var(--ink); font: 600 12px var(--font-mono), monospace; }
+.sd-signal[data-tone="uncertain"] rect { fill: var(--uncertain-wash); stroke: var(--uncertain); }
+.sd-signal[data-tone="adverse"] rect { fill: var(--adverse-wash); stroke: var(--adverse); }
+.sd-signal[data-tone="adverse"] text { fill: var(--adverse-ink); }
+.sd-action rect { fill: var(--designed-wash); stroke: var(--designed); stroke-width: 1.6; }
+.sd-action text { fill: var(--ink); font: 700 15px var(--font-mono), monospace; }
+.sd-action .sd-action-sub { fill: var(--designed); font: 600 12px var(--font-mono), monospace; }
+.sd-svg:not([data-technical]) .sd-action text:not(.sd-action-sub) { font-size: 13px; }
+.sd-spine, .sd-tick { fill: none; stroke: #97a3b4; stroke-width: 1.4; }
+.sd-policy-rule rect { fill: #ffffff; stroke: #97a3b4; stroke-width: 1.2; }
+.sd-policy-rule text { fill: var(--ink); font: 600 12px var(--font-mono), monospace; }
+.sd-policy-rule .sd-rule-status { fill: #8593a6; font: 500 12px var(--font-mono), monospace; }
+.sd-policy-rule[data-status="matched"] rect { fill: var(--accent-soft); stroke: var(--designed); stroke-width: 2; }
+.sd-policy-rule[data-status="matched"] .sd-rule-status { fill: var(--accent-deep); font-weight: 700; }
+.sd-policy-rule[data-status="not reached"] { opacity: .45; }
+.sd-policy-rule[data-status="not reached"] rect { stroke-dasharray: 4 3; }
+.sd-policy-rule { animation: sd-reveal 1ms linear var(--d) backwards; }
+.sd-decision rect { fill: #ffffff; stroke: #97a3b4; stroke-width: 1.8; }
+.sd-decision text { font: 700 16px var(--font-mono), monospace; }
+.sd-svg:not([data-technical]) .sd-decision text { font-size: 13px; }
+.sd-decision[data-tone="confirmed"] rect { fill: var(--confirmed-wash); stroke: var(--confirmed); }
+.sd-decision[data-tone="confirmed"] text { fill: var(--confirmed); }
+.sd-decision[data-tone="uncertain"] rect { fill: var(--uncertain-wash); stroke: var(--uncertain); }
+.sd-decision[data-tone="uncertain"] text { fill: var(--uncertain); }
+.sd-decision[data-tone="adverse"] rect { fill: var(--adverse-wash); stroke: var(--adverse); }
+.sd-decision[data-tone="adverse"] text { fill: var(--adverse-ink); }
+.sd-decision { animation: sd-stamp 300ms steps(3, end) var(--d) backwards; transform-box: fill-box; transform-origin: center; }
+.sd-walk .sd-flow-out { animation: sd-reveal 1ms linear var(--d) backwards; stroke: var(--designed); }
+.sd-packet-walk { animation-duration: calc(var(--rules, 1) * 280ms + 300ms); }
+@keyframes sd-reveal { from { opacity: .25; } }
+@keyframes sd-stamp { from { opacity: 0; transform: scale(1.15); } }
+
+/* ---- Controls: one compact strip of key groups beneath the view. */
+.sim-controls { align-items: start; display: grid; gap: 14px 18px; grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr)); }
+.sim-group { display: grid; gap: 5px; min-inline-size: 0; }
+.sim-group-label { color: var(--ink-secondary); font: var(--type-label); margin: 0; }
+.sim-buttons { display: grid; gap: 6px; }
+.sim-buttons-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sim-send {
+  align-content: center;
+  background: var(--raised);
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--bevel-raised);
+  color: var(--ink);
+  cursor: pointer;
+  display: grid;
+  font: var(--type-button);
+  gap: 1px;
+  justify-items: start;
+  min-block-size: 40px;
+  padding: 5px 10px;
+  text-align: start;
+}
+.sim-send small { color: var(--ink-secondary); font: var(--type-caption); }
+.sim-send small code { font: 500 .75rem/1.2 var(--font-mono), monospace; }
+.sim-send:hover:not(:disabled) { background: #ffffff; }
+.sim-send:active:not(:disabled) { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
+.sim-send:disabled { cursor: default; opacity: .5; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sim-send { min-block-size: 44px; }
+.sim-send:focus-visible, .sim-primary:focus-visible, .sim-secondary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---- Readout: the same state as text, on one line. */
+.sim-readout { align-items: center; border-block: 1px solid var(--rule); display: flex; flex-wrap: wrap; gap: 6px 22px; padding: 8px 0; }
+.pay-states { display: flex; flex-wrap: wrap; gap: 4px 14px; list-style: none; margin: 0; padding: 0; }
+.pay-states li { align-items: center; color: var(--ink-secondary); display: flex; font: var(--type-label); gap: 7px; outline: 2px solid transparent; outline-offset: 1px; padding: 2px 3px; }
+.pay-states li i { background: #ffffff; block-size: 11px; border: 1px solid var(--line-ink); flex: none; inline-size: 11px; }
+.pay-states li[data-current] { color: var(--ink); font-weight: 650; }
+.pay-states li[data-current][data-state="pending"] i { background: var(--border); }
+.pay-states li[data-current][data-state="paid"] i { background: var(--confirmed); }
+.pay-states li[data-current][data-state="review"] i { background: var(--uncertain); }
+.sim-counts { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0; }
+.sim-counts div { align-items: baseline; display: flex; gap: 8px; outline: 2px solid transparent; outline-offset: 1px; padding: 2px 3px; }
+.sim-counts dt { color: var(--ink-secondary); font: var(--type-label); }
+.sim-counts dd { color: var(--ink); font: 700 .92rem var(--font-mono), monospace; margin: 0; }
+.sim-counts div[data-tone="adverse"] dd { background: var(--adverse-wash); border: 1px solid var(--adverse); color: var(--adverse-ink); padding: 0 6px; }
+
+.sim-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 10px; }
+.sim-primary, .sim-secondary {
+  align-items: center;
+  border: 1px solid var(--line-ink);
+  cursor: pointer;
+  display: inline-flex;
+  font: var(--type-button);
+  gap: 7px;
+  min-block-size: 38px;
+  padding: 0 14px;
+}
+.sim-primary { background: var(--accent-action); box-shadow: var(--bevel-primary); color: #ffffff; }
+.sim-primary:hover:not(:disabled) { background: var(--accent-deep); }
+.sim-primary:active:not(:disabled) { background: var(--accent-deep); box-shadow: var(--bevel-primary-inset); transform: translate(1px, 1px); }
+.sim-secondary { background: var(--raised); box-shadow: var(--bevel-raised); color: var(--ink); }
+.sim-secondary:hover:not(:disabled) { background: #ffffff; }
+.sim-secondary:active:not(:disabled) { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
+.sim-primary:disabled, .sim-secondary:disabled { cursor: default; opacity: .55; }
+.sim-primary svg, .sim-secondary svg { block-size: 14px; inline-size: 14px; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.sim-primary, .sim-secondary) { min-block-size: 44px; }
+.sim-compare { color: var(--ink-secondary); font: var(--type-body); font-size: .9rem; margin: 0; }
+.sim-compare b { color: var(--ink); }
+.sim-compare[data-tone="adverse"] b { color: var(--adverse-ink); }
+
+/* ---- Journal: newest first; the newest entry arrives once. */
+.sim-journal { display: grid; gap: 8px; }
+.sim-journal > h3 { border-bottom: 1px solid #dce3ec; color: #8593a6; font: 500 .75rem/1.2 var(--font-mono), monospace; letter-spacing: .04em; margin: 0; padding-bottom: 6px; }
+.sim-journal > h3 small { font: inherit; letter-spacing: 0; margin-inline-start: 8px; opacity: .8; }
+.sim-journal ol { display: grid; list-style: none; margin: 0; padding: 0; }
+.sim-journal li { border-bottom: 1px solid var(--rule); column-gap: 12px; display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); padding: 7px 0; row-gap: 2px; }
+.sim-journal li:first-child { animation: sim-arrive 240ms steps(4, end) backwards; }
+.sim-journal-badge { align-items: center; color: var(--ink-secondary); display: inline-flex; font: 600 .75rem var(--font-mono), monospace; gap: 6px; grid-row: span 2; }
+.sim-journal-badge i { background: var(--border); block-size: 10px; border: 1px solid var(--line-ink); flex: none; inline-size: 10px; }
+.sim-journal li[data-tone="confirmed"] .sim-journal-badge i { background: var(--confirmed); }
+.sim-journal li[data-tone="designed"] .sim-journal-badge i { background: var(--designed); }
+.sim-journal li[data-tone="uncertain"] .sim-journal-badge i { background: var(--uncertain); }
+.sim-journal li[data-tone="adverse"] .sim-journal-badge i { background: var(--adverse); }
+.sim-journal p { color: var(--ink); font: var(--type-body); font-size: .92rem; margin: 0; }
+.sim-journal code { color: var(--ink-secondary); font: 500 .76rem/1.45 var(--font-mono), monospace; overflow-wrap: anywhere; }
+.sim-journal-empty { color: var(--ink-secondary); font: var(--type-caption); margin: 0; }
+@keyframes sim-arrive { from { opacity: 0; transform: translateY(-4px); } }
+
+/* ---- Service: the on-call screen beside the truth, above the chart. */
+.svc-screen { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr) minmax(9rem, auto); }
+.svc-status { background: #ffffff; border: 1px solid var(--line-ink); display: grid; gap: 3px; outline: 2px solid transparent; outline-offset: 1px; padding: 10px 12px; }
+.svc-status > span { align-items: center; color: var(--ink-secondary); display: flex; font: var(--type-caption); gap: 7px; }
+.svc-status > span i { background: var(--border); block-size: 10px; border: 1px solid var(--line-ink); flex: none; inline-size: 10px; }
+.svc-status[data-tone="confirmed"] > span i { background: var(--confirmed); }
+.svc-status[data-tone="uncertain"] > span i { background: var(--uncertain); }
+.svc-status[data-tone="adverse"] > span i { background: var(--adverse); }
+.svc-status > strong { color: var(--ink); font: var(--type-app-heading); font-size: 1.2rem; }
+.svc-status[data-tone="adverse"] > strong { color: var(--adverse-ink); }
+.svc-status[data-tone="uncertain"] > strong { color: var(--uncertain); }
+.svc-status[data-tone="confirmed"] > strong { color: var(--confirmed); }
+.svc-status > p { color: var(--ink-secondary); font: var(--type-body); font-size: .9rem; margin: 0; }
+.svc-users { align-content: center; background: var(--doc-sunken); border: 1px solid var(--line-ink); display: grid; gap: 2px; justify-items: center; padding: 8px 12px; text-align: center; }
+.svc-users span { color: var(--ink-secondary); font: var(--type-label); }
+.svc-users strong { color: var(--ink); font: 700 1.6rem/1.1 var(--font-mono), monospace; font-variant-numeric: tabular-nums; }
+.svc-users[data-over] strong { color: var(--adverse-ink); }
+.svc-users small { color: var(--ink-secondary); font: var(--type-caption); }
+.svc-lamps { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.svc-clock { align-items: baseline; display: flex; gap: 8px; margin: 0; }
+.svc-clock time { color: var(--ink); font: 700 1.1rem/1 var(--font-mono), monospace; font-variant-numeric: tabular-nums; }
+.svc-clock small { color: var(--ink-secondary); font: var(--type-caption); }
+.svc-transport { display: flex; flex-wrap: wrap; gap: 6px; margin-inline-start: auto; }
+
+/* ---- Device trust: the decision as text under the drawing. */
+.pol-decision { border: 1.5px solid var(--border); display: grid; gap: 2px; padding: 10px 12px; }
+.pol-decision span { color: var(--ink-secondary); font: var(--type-caption); }
+.pol-decision strong { font: var(--type-app-heading); font-size: 1.15rem; }
+.pol-decision p { color: var(--ink-secondary); font: var(--type-body); font-size: .9rem; margin: 0; }
+.pol-decision[data-tone="confirmed"] { background: var(--confirmed-wash); border-color: var(--confirmed); }
+.pol-decision[data-tone="confirmed"] strong { color: var(--confirmed); }
+.pol-decision[data-tone="uncertain"] { background: var(--uncertain-wash); border-color: var(--uncertain); }
+.pol-decision[data-tone="uncertain"] strong { color: var(--uncertain); }
+.pol-decision[data-tone="adverse"] { background: var(--adverse-wash); border-color: var(--adverse); }
+.pol-decision[data-tone="adverse"] strong { color: var(--adverse-ink); }
+
+@container instrument (max-width: 36rem) {
+  .svc-screen { grid-template-columns: minmax(0, 1fr); }
+  .svc-transport { margin-inline-start: 0; }
+  .sim-journal li { grid-template-columns: minmax(0, 1fr); }
+  .sim-journal-badge { grid-row: auto; }
+}
+
+/* Cause and effect: whatever changed in the last update is outlined in the accent once. */
+[data-changed="odd"]:is(.pay-states li, .sim-counts div, .svc-status) { animation: instrument-mark-odd 1100ms steps(4, end); }
+[data-changed="even"]:is(.pay-states li, .sim-counts div, .svc-status) { animation: instrument-mark-even 1100ms steps(4, end); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sd *, .sim-journal li:first-child { animation: none !important; }
+  .sd-packet { display: none; }
 }
 
 /* ------------------------------------------------- Phone and tablet app launch */
@@ -3817,7 +3758,7 @@ html[data-system-mode="phone"] .system-recents-list::-webkit-scrollbar { display
 /* Every button in the system is one of two bevelled controls. Secondary: light, raised, ink
  * border. Primary: solid accent with white text. Both press in on activation and show a plain
  * focus ring; none are gradients, pills, or glossy. */
-:is(.home-action, .contact-directory-action, .experience-brief-action, .instrument-step, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom, .case-preview-titlebar-actions .case-back-action, .instrument-reset, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button) {
+:is(.home-action, .contact-directory-action, .experience-brief-action, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom, .case-preview-titlebar-actions .case-back-action, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button) {
   align-items: center;
   background: var(--raised) !important;
   border: 1px solid var(--line-ink) !important;
@@ -3836,7 +3777,7 @@ html[data-system-mode="phone"] .system-recents-list::-webkit-scrollbar { display
   text-transform: none !important;
 }
 
-:is(.desktop-identity-primary, .home-action:first-child, .contact-directory-action.is-primary, .experience-brief-action.is-primary, .instrument-run, .github-project-actions .primary-action) {
+:is(.desktop-identity-primary, .home-action:first-child, .contact-directory-action.is-primary, .experience-brief-action.is-primary, .github-project-actions .primary-action) {
   align-items: center;
   background: var(--accent-action) !important;
   border: 1px solid var(--line-ink) !important;
@@ -3855,37 +3796,29 @@ html[data-system-mode="phone"] .system-recents-list::-webkit-scrollbar { display
   text-transform: none !important;
 }
 
-:is(.home-action, .contact-directory-action, .experience-brief-action, .instrument-step, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom, .case-preview-titlebar-actions .case-back-action, .instrument-reset, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button):hover { background: #ffffff !important; }
+:is(.home-action, .contact-directory-action, .experience-brief-action, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom, .case-preview-titlebar-actions .case-back-action, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button):hover { background: #ffffff !important; }
 
-:is(.desktop-identity-primary, .home-action:first-child, .contact-directory-action.is-primary, .experience-brief-action.is-primary, .instrument-run, .github-project-actions .primary-action):hover { background: var(--accent-deep) !important; }
+:is(.desktop-identity-primary, .home-action:first-child, .contact-directory-action.is-primary, .experience-brief-action.is-primary, .github-project-actions .primary-action):hover { background: var(--accent-deep) !important; }
 
-:is(.home-action, .contact-directory-action, .experience-brief-action, .instrument-step, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom, .case-preview-titlebar-actions .case-back-action, .instrument-reset, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button):active {
+:is(.home-action, .contact-directory-action, .experience-brief-action, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom, .case-preview-titlebar-actions .case-back-action, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button):active {
   background: var(--recessed) !important;
   box-shadow: var(--bevel-inset) !important;
   transform: translate(1px, 1px);
 }
 
-:is(.desktop-identity-primary, .home-action:first-child, .contact-directory-action.is-primary, .experience-brief-action.is-primary, .instrument-run, .github-project-actions .primary-action):active {
+:is(.desktop-identity-primary, .home-action:first-child, .contact-directory-action.is-primary, .experience-brief-action.is-primary, .github-project-actions .primary-action):active {
   background: var(--accent-deep) !important;
   box-shadow: var(--bevel-primary-inset) !important;
   transform: translate(1px, 1px);
 }
 
-:is(.home-action, .contact-directory-action, .experience-brief-action, .instrument-step, .instrument-run, .product-marketplace-link, .evidence-original, .evidence-zoom, .instrument-reset, .desktop-identity-primary, .solid-link, .case-back-action):focus-visible {
+:is(.home-action, .contact-directory-action, .experience-brief-action, .product-marketplace-link, .evidence-original, .evidence-zoom, .desktop-identity-primary, .solid-link, .case-back-action):focus-visible {
   outline: 2px solid var(--focus) !important;
   outline-offset: 2px;
 }
 
-:is(.instrument-step, .instrument-run):disabled {
-  background: var(--surface-2) !important;
-  box-shadow: none !important;
-  color: var(--border) !important;
-  cursor: default;
-  transform: none;
-}
-
 /* Phone and tablet controls keep a 44 px target while staying visually compact. */
-html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.home-action, .contact-directory-action, .experience-brief-action, .instrument-step, .instrument-run, .product-marketplace-link, .evidence-original, .evidence-zoom, .instrument-reset, .solid-link) { min-block-size: 44px !important; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.home-action, .contact-directory-action, .experience-brief-action, .product-marketplace-link, .evidence-original, .evidence-zoom, .solid-link) { min-block-size: 44px !important; }
 
 /* ==================================================================== Tablet */
 
@@ -4042,39 +3975,6 @@ html[data-system-mode="tablet"] .contact-window-body {
 
 /* Where the visitor is in the set of cases: sequence, not an eyebrow. */
 .case-position { color: var(--ink-secondary); font: var(--type-label); margin: 0 0 8px; }
-
-/* The simulator's extras fold away on a narrow instrument: secondary conditions behind "More
- * conditions" (with a count when any differ from the story), and the per-part state behind
- * "State of each part". Wide instruments show both and hide the toggles. */
-.instrument-disclosure { display: none; }
-.instrument-more { display: grid; gap: 14px; }
-.inspector-details { display: grid; gap: 10px; }
-
-@container instrument (max-width: 43.999rem) {
-  .instrument-disclosure {
-    align-items: center;
-    background: var(--raised);
-    border: 1px solid var(--line-ink);
-    border-radius: var(--radius-control);
-    box-shadow: var(--bevel-raised);
-    color: var(--ink);
-    cursor: pointer;
-    display: flex;
-    font: var(--type-button);
-    inline-size: 100%;
-    justify-content: space-between;
-    min-block-size: 44px;
-    padding: 0 12px;
-    text-align: start;
-  }
-
-  .instrument-disclosure:active { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
-  .instrument-disclosure:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-  .instrument-disclosure svg { block-size: 16px; inline-size: 16px; }
-  .instrument-controls:not([data-open]) .instrument-more,
-  .instrument-inspector:not([data-open]) .inspector-details { display: none; }
-  .instrument-inspector { display: grid; gap: 10px; }
-}
 
 /* On a phone the instrument runs edge to edge, so its display gets the whole screen width; it
  * keeps its nameplate and its top and bottom edges. */
