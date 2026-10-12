@@ -3672,7 +3672,10 @@ html[data-system-mode="tablet"] nav.tablet-shelf .tablet-pair-control[aria-press
 
 .system-recents > header h2 { color: var(--shell-ink) !important; font: 650 1.4rem/1.15 var(--font-body), sans-serif !important; letter-spacing: -.01em; margin: 0; }
 .system-recents > header p { color: var(--shell-ink-muted) !important; font: var(--type-label) !important; letter-spacing: 0 !important; margin: 4px 0 0; text-transform: none !important; }
-.system-recents-empty { color: var(--shell-ink-muted); font: var(--type-body); margin: 0; padding: 0 20px; }
+/* Closing the last card lands here, so the empty state lines up with the heading above it: in the
+ * heading's centred 1120px column on a desktop, flush with it on tablet and phone. */
+.system-recents-empty { color: var(--shell-ink-muted); font: var(--type-body); margin: 0 auto; max-width: 1120px; padding: 0; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .system-recents-empty { margin: 0; }
 
 .system-recent-card { background: transparent !important; border: 0 !important; box-shadow: none !important; }
 .system-recent-open { background: transparent !important; border: 0 !important; color: inherit; padding: 0 !important; text-align: start; }
