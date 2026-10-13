@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSound } from "./sound-provider";
 
 export function CopyEmailButton({
   email,
@@ -14,11 +15,13 @@ export function CopyEmailButton({
   className?: string;
 }) {
   const [status, setStatus] = useState<"idle" | "copied" | "manual">("idle");
+  const { play } = useSound();
 
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(email);
       setStatus("copied");
+      play("ui.copied");
     } catch {
       const field = document.createElement("textarea");
       field.value = email;
@@ -27,7 +30,9 @@ export function CopyEmailButton({
       field.style.opacity = "0";
       document.body.appendChild(field);
       field.select();
-      setStatus(document.execCommand("copy") ? "copied" : "manual");
+      const copied = document.execCommand("copy");
+      setStatus(copied ? "copied" : "manual");
+      if (copied) play("ui.copied");
       field.remove();
     }
     window.setTimeout(() => setStatus("idle"), 2400);

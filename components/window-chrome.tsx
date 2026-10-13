@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type HTMLAttributes, type ReactNode, type Ref } from "react";
 import { AppIcon } from "./app-icons";
-import { CloseIcon, MaximizeIcon, MinimizeIcon, MoreIcon } from "./icons";
+import { ChevronIcon, CloseIcon, MaximizeIcon, MinimizeIcon, MoreIcon } from "./icons";
 import { useOptionalWorkspaceManager, type PortfolioAppId } from "./workspace-manager";
 import type { useWindowFrame } from "./use-window-frame";
 
@@ -103,7 +103,7 @@ export function WindowChrome({
     <div className={`window-chrome ${className}`.trim()} {...titlebarProps}>
       {onCompactBack ? (
         <button className="window-compact-back-action" onClick={onCompactBack} type="button" aria-label={compactBackLabel ?? `Back from ${label}`}>
-          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15.5 5 8.5 12l7 7" /></svg>
+          <ChevronIcon className="system-glyph" direction="left" />
           {compactBackText ? <span className="window-compact-back-text" aria-hidden="true">{compactBackText}</span> : null}
         </button>
       ) : null}
