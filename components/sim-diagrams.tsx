@@ -3,7 +3,11 @@
 import { Fragment, useId, type CSSProperties, type ReactNode } from "react";
 import { latencyThresholdMs, type PolicyRun } from "../lib/instruments";
 import type { Conditions, ProjectionMode } from "../lib/scenarios";
+import { BUZZ_AFTER_LANDING } from "../lib/sound/engine";
 import { paymentStateWord, type LiveSample, type PayEntry, type PayWorld } from "../lib/simulators";
+
+/** How long a message takes to reach the payment in the drawing (the packet's travel in environment.css). */
+export const messageTravelMs = 440;
 
 /*
  * The simulators' main view: each case's cover schematic drawn large and driven live. Labels are
@@ -132,9 +136,14 @@ export function PaymentDiagram({ checked, technical, world }: { checked: boolean
   const stateText = technical ? world.state : paymentStateWord[world.state];
 
   // The parts every composition shares, placed by it.
+  // The payment answers what just reached it: a knock when a message lands on it, a jolt (in time
+  // with the buzz) when one is handled twice or overwrites newer news.
+  const lastOutcome = world.entries.at(-1)?.outcome;
+  const hit = lastOutcome === "applied" ? "land" : lastOutcome === "applied-again" || lastOutcome === "regressed" ? "bad" : undefined;
+  const hitDelay = messageTravelMs + (hit === "bad" ? BUZZ_AFTER_LANDING * 1000 : 0);
   const stateBox = (x: number, y: number, w: number, h: number) => (
     <>
-      <g className="sd-state" data-state={world.state.toLowerCase()} key={`state-${world.state}-${world.updates}`}>
+      <g className="sd-state" data-hit={hit} data-state={world.state.toLowerCase()} key={`state-${world.state}-${world.updates}`} style={{ "--hit-delay": `${hitDelay}ms` } as CSSProperties}>
         <rect height={h} width={w} x={x} y={y} />
         <text textAnchor="middle" x={x + w / 2} y={y + h / 2 + 5}>{stateText}</text>
       </g>
@@ -447,8 +456,9 @@ const decisionWord = {
   technical: { ALLOW: "ALLOW", "REQUIRE CONFIRMATION": "CONFIRM", BLOCK: "BLOCK" },
 } as const;
 const decisionTone = { ALLOW: "confirmed", "REQUIRE CONFIRMATION": "uncertain", BLOCK: "adverse" } as const;
-const ruleStepMs = 280;
-const toRulesMs = 320;
+/** The checkpoint's walk: the first rule lights after `toRulesMs`, then one rule per `ruleStepMs`. */
+export const ruleStepMs = 280;
+export const toRulesMs = 320;
 
 function policyNote(conditions: Conditions, run: PolicyRun, technical: boolean): Segment[] {
   if (technical) {

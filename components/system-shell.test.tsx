@@ -44,7 +44,8 @@ describe("SystemShell", () => {
     const taskbar = within(screen.getByRole("navigation", { name: "System taskbar" }));
 
     expect(screen.queryByRole("navigation", { name: "Desktop application menu" })).toBeNull();
-    expect(within(statusBar).queryByRole("button")).toBeNull();
+    // Status, not launchers: the bar's only control is the sound level, beside the clock.
+    expect(within(statusBar).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual(["Sound: Quiet"]);
     expect(within(statusBar).getByText("Desktop")).toBeTruthy();
 
     fireEvent.click(taskbar.getByRole("button", { name: /Open Experience\. Not running/i }));
@@ -69,7 +70,7 @@ describe("SystemShell", () => {
 
     const statusBar = screen.getByRole("banner");
     expect(within(statusBar).getByText("Product Links")).toBeTruthy();
-    expect(within(statusBar).queryByRole("button")).toBeNull();
+    expect(within(statusBar).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual(["Sound: Quiet"]);
   });
 
   it("opens, minimizes, and restores Product Links through one taskbar item", () => {

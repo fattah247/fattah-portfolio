@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 import { ArrowIcon, ChevronIcon } from "./icons";
 import { CaseCover } from "./case-cover";
 import { CaseInstrument } from "./case-instrument";
+import { useSound } from "./sound-provider";
 import { readableOutcome } from "../lib/instruments";
 import { findScrollOwner } from "./application-frame";
 import { useWindowFrame, windowResizeEdges } from "./use-window-frame";
@@ -293,6 +294,13 @@ export function DebuggerWorkspace({
     requestBack,
     surface,
   } = workspace;
+  const { play } = useSound();
+  // A case is a document: it lands like paper when it opens (or the next one does), and lifts away
+  // more softly when the visitor leaves it.
+  useEffect(() => {
+    play("sys.file-open");
+  }, [play, scenario.slug]);
+  useEffect(() => () => play("sys.file-close"), [play]);
   const [conditions, setConditions] = useState<Conditions>(() => resolveScenarioConditions(scenario, (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.conditions as Conditions) ?? initialConditions));
   const [selectedConditions, setSelectedConditions] = useState<Conditions>(() => resolveScenarioConditions(scenario, (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.conditions as Conditions) ?? initialConditions));
   const [phase, setPhase] = useState<MotionPhase>("rest");

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowIcon } from "./icons";
+import { ArrowIcon, MarketplaceIcon } from "./icons";
 import { useOptionalWorkspaceManager } from "./workspace-manager";
 import {
   filterProductLinks,
@@ -16,10 +16,7 @@ import {
 } from "../lib/product-links";
 
 function MarketplaceMark({ marketplace }: { marketplace: Marketplace }) {
-  if (marketplace === "shopee") return <svg aria-hidden="true" className="marketplace-mark" viewBox="0 0 24 24"><path d="M6 8.5h12l-1 11H7l-1-11Z" /><path d="M9 9V7a3 3 0 0 1 6 0v2" /><path d="M14.5 12.2c-.5-.4-1.1-.6-1.8-.6-1 0-1.7.5-1.7 1.2 0 1.8 4 .9 4 3.1 0 .9-.9 1.6-2.2 1.6-.8 0-1.6-.3-2.2-.8" /></svg>;
-  if (marketplace === "amazon") return <svg aria-hidden="true" className="marketplace-mark" viewBox="0 0 24 24"><path d="M8.2 10.1c.3-1.8 1.5-2.7 3.6-2.7 2.4 0 3.6 1.1 3.6 3.3v5.6c0 .7.2 1.3.6 1.8" /><path d="M15.3 13c-3.8-.2-5.7.7-5.7 2.6 0 1.3.9 2.1 2.3 2.1 1.5 0 2.6-.8 3.4-2.3" /><path d="M5 20c4.2 2 9.8 2 14-.5" /><path d="m17.4 18.6 1.9.2-.5 1.8" /></svg>;
-  if (marketplace === "tokopedia") return <svg aria-hidden="true" className="marketplace-mark" viewBox="0 0 24 24"><path d="M5.5 9 7 5.5l3 2h4l3-2L18.5 9v8.5c-1.8 1.1-4 1.7-6.5 1.7s-4.7-.6-6.5-1.7V9Z" /><circle cx="9.4" cy="12" r="1.7" /><circle cx="14.6" cy="12" r="1.7" /><path d="m10.5 15 1.5 1 1.5-1" /></svg>;
-  return <svg aria-hidden="true" className="marketplace-mark" viewBox="0 0 24 24"><path d="M14 4v11.2a3.8 3.8 0 1 1-3-3.7" /><path d="M14 4c.8 2.4 2.4 3.7 5 4" /></svg>;
+  return <MarketplaceIcon marketplace={marketplace} />;
 }
 
 const letterIndexThreshold = 12;

@@ -9,10 +9,13 @@ import {
 import { portfolioApp, portfolioApps } from "./app-registry";
 import { portfolioIdentity } from "../lib/portfolio-identity";
 import { decodeWorkspaceRoute } from "../lib/workspace-navigation";
-import { ChevronIcon, CloseIcon, DownloadIcon, PairIcon } from "./icons";
+import { ChevronIcon, CloseIcon, DownloadIcon, PairIcon, SystemIcon } from "./icons";
 import { AppIcon, OwnerMark } from "./app-icons";
 import { CaseCover } from "./case-cover";
 import { Wallpaper } from "./wallpaper";
+import { SoundControl } from "./sound-control";
+import { useSound } from "./sound-provider";
+import { useWorkspaceSounds } from "./use-workspace-sounds";
 import { experience } from "../lib/content";
 import { rowsThatFit } from "../lib/fit-rows";
 import { filterProductLinks, indexProductLinks, productLinks, searchProductLinks, type Marketplace } from "../lib/product-links";
@@ -20,12 +23,6 @@ import { scenarios, type ScenarioSlug } from "../lib/scenarios";
 
 function appForRoute(pathname: string): PortfolioAppId | null {
   return decodeWorkspaceRoute(pathname).app;
-}
-
-function SystemGlyph({ name }: { name: "back" | "home" | "overview" }) {
-  if (name === "back") return <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M15.5 5 8.5 12l7 7" /></svg>;
-  if (name === "home") return <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="5" width="5" height="5" /><rect x="14" y="5" width="5" height="5" /><rect x="5" y="14" width="5" height="5" /><rect x="14" y="14" width="5" height="5" /></svg>;
-  return <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="7" width="11" height="12" /><path d="M8 4h11v12" /></svg>;
 }
 
 /** `small` uses the 16-unit drawing for taskbar-sized marks; it is redrawn, not shrunk. */
@@ -95,6 +92,8 @@ export function SystemShell() {
   const pathname = usePathname();
   const router = useRouter();
   const workspace = useWorkspaceManager();
+  const { play } = useSound();
+  useWorkspaceSounds(workspace);
   const [clock, setClock] = useState({ date: "", shortDate: "", time: "--:--", utc: "UTC" });
   const runningApps = useMemo(
     () => workspace.recentApps.filter((app) => workspace.isAppOpen(app)),
@@ -246,13 +245,17 @@ export function SystemShell() {
         <div className="system-active-app" aria-live="polite">
           {workspace.surface === "home" ? workspace.mode === "computer" ? "Desktop" : "Home" : workspace.surface === "recents" ? "Recents" : activeEntry?.label ?? "Desktop"}
         </div>
-        <div className="system-status" role="group" aria-label={`Local time ${clock.time}, ${clock.utc}`}>
-          <time>
-            {/* Tablet shows the date beside the time, as its status bar does; other modes hide it. */}
-            <span className="system-status-date">{clock.shortDate}</span>
-            <span>{clock.time}</span>
-            <small>{clock.utc}</small>
-          </time>
+        {/* The tray: the sound level beside the clock, in the bar's last slot. */}
+        <div className="system-tray">
+          <SoundControl />
+          <div className="system-status" role="group" aria-label={`Local time ${clock.time}, ${clock.utc}`}>
+            <time>
+              {/* Tablet shows the date beside the time, as its status bar does; other modes hide it. */}
+              <span className="system-status-date">{clock.shortDate}</span>
+              <span>{clock.time}</span>
+              <small>{clock.utc}</small>
+            </time>
+          </div>
         </div>
       </header>
 
@@ -267,7 +270,7 @@ export function SystemShell() {
               <p className="home-identity-focus">{portfolioIdentity.focus}</p>
             </div>
             <div className="home-identity-actions">
-              <a className="home-action" href={portfolioIdentity.cv} download>CV <DownloadIcon /></a>
+              <a className="home-action" href={portfolioIdentity.cv} download onClick={() => play("ui.download")}>CV <DownloadIcon /></a>
               <button className="home-action" onClick={(event) => { noteLaunchOrigin(event.currentTarget); launchApp("contact"); }} type="button">Contact</button>
             </div>
           </div>
@@ -347,6 +350,8 @@ export function SystemShell() {
             <h2>Recents</h2>
             <p>{runningApps.length ? `${runningApps.length} ${runningApps.length === 1 ? "app" : "apps"} open` : "No apps open."}</p>
           </div>
+          {/* A landscape phone hides the status bar, so its sound level lives here instead. */}
+          <SoundControl className="sound-control-recents" />
           <button onClick={workspace.goHome} type="button">Return home</button>
         </header>
         {runningApps.length ? null : <p className="system-recents-empty">Nothing is running. Open an app from Home and it will wait here.</p>}
@@ -377,7 +382,7 @@ export function SystemShell() {
       </section>
 
       {workspace.mode === "computer" ? <nav className="desktop-taskbar" aria-label="System taskbar">
-        <button className="taskbar-home" data-active={workspace.surface === "home"} data-label="Desktop" onClick={workspace.goHome} type="button" aria-label="Show desktop"><SystemGlyph name="home" /></button>
+        <button className="taskbar-home" data-active={workspace.surface === "home"} data-label="Desktop" onClick={workspace.goHome} type="button" aria-label="Show desktop"><SystemIcon name="home" /></button>
         <div className="taskbar-apps">
           {portfolioApps.map((app) => {
             const running = workspace.isAppOpen(app.id);
@@ -409,14 +414,14 @@ export function SystemShell() {
             </button>
           )})}
         </div>
-        <button className="taskbar-overview" data-active={workspace.surface === "recents"} data-label="Overview" onClick={workspace.openRecents} type="button" aria-label="Application overview"><SystemGlyph name="overview" /></button>
+        <button className="taskbar-overview" data-active={workspace.surface === "recents"} data-label="Overview" onClick={workspace.openRecents} type="button" aria-label="Application overview"><SystemIcon name="overview" /></button>
       </nav> : null}
 
       {workspace.mode === "tablet" ? <nav className="tablet-shelf" aria-label="Tablet application shelf">
         <div className="tablet-shelf-group" data-group="system">
           {/* Home has nothing behind it, so Back rests disabled there instead of doing nothing. */}
-          <button disabled={workspace.surface === "home"} onClick={workspace.requestBack} type="button" aria-label="Back"><SystemGlyph name="back" /><span className="tablet-app-label" aria-hidden="true">Back</span></button>
-          <button data-active={workspace.surface === "home"} onClick={workspace.goHome} type="button" aria-label="Home"><SystemGlyph name="home" /><span className="tablet-app-label" aria-hidden="true">Home</span></button>
+          <button disabled={workspace.surface === "home"} onClick={workspace.requestBack} type="button" aria-label="Back"><SystemIcon name="back" /><span className="tablet-app-label" aria-hidden="true">Back</span></button>
+          <button data-active={workspace.surface === "home"} onClick={workspace.goHome} type="button" aria-label="Home"><SystemIcon name="home" /><span className="tablet-app-label" aria-hidden="true">Home</span></button>
         </div>
         <div className="tablet-shelf-group" data-group="apps">
         {portfolioApps.map((app) => {
@@ -443,7 +448,7 @@ export function SystemShell() {
         })}
         </div>
         <div className="tablet-shelf-group" data-group="system">
-        <button data-active={workspace.surface === "recents"} onClick={workspace.surface === "recents" ? workspace.dismissRecents : workspace.openRecents} type="button" aria-label="Recents"><SystemGlyph name="overview" /><span className="tablet-app-label" aria-hidden="true">Recents</span></button>
+        <button data-active={workspace.surface === "recents"} onClick={workspace.surface === "recents" ? workspace.dismissRecents : workspace.openRecents} type="button" aria-label="Recents"><SystemIcon name="overview" /><span className="tablet-app-label" aria-hidden="true">Recents</span></button>
         {workspace.capabilities.pairingEligible && workspace.isAppOpen("work") && workspace.isAppOpen("experience") ? <button className="tablet-pair-control" aria-label="Pair Projects and Experience" aria-pressed={workspace.paired} onClick={() => {
           workspace.setPaired(!workspace.paired);
           // Projects ends up focused, so its launcher also rewrites the address to the visible document.
@@ -455,9 +460,9 @@ export function SystemShell() {
 
       {workspace.mode === "phone" ? <nav className="phone-system-navigation" aria-label="Phone system navigation">
         {/* Home is the bottom of the phone's stack, so Back rests disabled there, as on the tablet shelf. */}
-        <button disabled={workspace.surface === "home"} onClick={workspace.requestBack} type="button" aria-label="Back"><SystemGlyph name="back" /><span>Back</span></button>
-        <button data-active={workspace.surface === "home"} onClick={workspace.goHome} type="button" aria-label="Home"><SystemGlyph name="home" /><span>Home</span></button>
-        <button data-active={workspace.surface === "recents"} onClick={workspace.surface === "recents" ? workspace.dismissRecents : workspace.openRecents} type="button" aria-label="Recents"><SystemGlyph name="overview" /><span>Recents</span></button>
+        <button disabled={workspace.surface === "home"} onClick={workspace.requestBack} type="button" aria-label="Back"><SystemIcon name="back" /><span>Back</span></button>
+        <button data-active={workspace.surface === "home"} onClick={workspace.goHome} type="button" aria-label="Home"><SystemIcon name="home" /><span>Home</span></button>
+        <button data-active={workspace.surface === "recents"} onClick={workspace.surface === "recents" ? workspace.dismissRecents : workspace.openRecents} type="button" aria-label="Recents"><SystemIcon name="overview" /><span>Recents</span></button>
       </nav> : null}
     </>
   );

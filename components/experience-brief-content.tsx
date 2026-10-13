@@ -5,6 +5,7 @@ import type { MouseEvent } from "react";
 import { ArrowIcon, ChevronIcon, DownloadIcon } from "./icons";
 import { OwnerMark } from "./app-icons";
 import { SiteShowcase } from "./site-showcase";
+import { useSound } from "./sound-provider";
 import { experience, principles, systemScope } from "../lib/content";
 import { portfolioIdentity } from "../lib/portfolio-identity";
 
@@ -15,11 +16,12 @@ export function ExperienceBriefContent({
   onOpenWork: (event: MouseEvent<HTMLAnchorElement>) => void;
   onOpenContact: (event: MouseEvent<HTMLAnchorElement>) => void;
 }) {
+  const { play } = useSound();
   return (
     <article className="brief-page experience-brief-content">
       <header className="experience-brief-utility">
         <nav className="experience-brief-actions" aria-label="Experience actions">
-          <a className="experience-brief-action is-primary" href={portfolioIdentity.cv} download>
+          <a className="experience-brief-action is-primary" href={portfolioIdentity.cv} download onClick={() => play("ui.download")}>
             Download CV <DownloadIcon />
           </a>
           <a className="experience-brief-action" href={portfolioIdentity.github} target="_blank" rel="noopener noreferrer">
