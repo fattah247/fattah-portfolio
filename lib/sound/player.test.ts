@@ -3,24 +3,31 @@ import { createSoundPlayer } from "./player";
 
 /** Just enough of an AudioContext to see what would play, when, and how loud. */
 function fakeContext() {
-  const started: Array<{ buffer: unknown; when: number; source: { onended: null | (() => void) } }> = [];
+  const started: Array<{ buffer: unknown; when: number; offset: number; output: unknown; source: { onended: null | (() => void) } }> = [];
   const gain = { value: 1, cancelScheduledValues: vi.fn(), setValueAtTime: vi.fn((value: number) => { gain.value = value; }) };
+  const master = { gain, connect: vi.fn(), disconnect: vi.fn() };
+  let gains = 0;
   const context = {
     state: "running",
     currentTime: 10,
+    outputLatency: 0,
+    baseLatency: 0,
     destination: {},
     started,
     gain,
+    master,
     resume: vi.fn(() => Promise.resolve()),
-    createGain: () => ({ gain, connect: vi.fn() }),
+    // The first gain is the master; any later one is a single voice's.
+    createGain: () => (gains++ === 0 ? master : { gain: { value: 1 }, connect: vi.fn(), disconnect: vi.fn() }),
     createBuffer: (_channels: number, length: number, sampleRate: number) => ({ length, sampleRate, copyToChannel: vi.fn() }),
     createBufferSource: () => {
       const source = {
         buffer: null as unknown,
+        output: null as unknown,
         onended: null as null | (() => void),
-        connect: vi.fn(),
+        connect: vi.fn((node: unknown) => { source.output = node; }),
         disconnect: vi.fn(),
-        start: (when: number) => started.push({ buffer: source.buffer, when, source }),
+        start: (when: number, offset = 0) => started.push({ buffer: source.buffer, when, offset, output: source.output, source }),
       };
       return source;
     },
@@ -104,5 +111,37 @@ describe("sound player", () => {
     now += 500;
     expect(player.play("pay.twice")).toBe(false);
     visibility.mockRestore();
+  });
+
+  it("makes up for the speaker's delay, so a landing is heard when it is seen", () => {
+    const { context, player } = unlocked();
+    context.outputLatency = 0.05;
+    context.baseLatency = 0.01;
+    // Scheduled ahead: it starts that much earlier.
+    player.play("pay.let-in", 0.32);
+    expect(context.started[0].when).toBeCloseTo(10.26);
+    expect(context.started[0].offset).toBe(0);
+    // Played at once, a cue with a run-up skips that much of it; a click has nothing to skip.
+    now += 300;
+    player.play("sys.minimize");
+    expect(context.started[1].when).toBeCloseTo(10);
+    expect(context.started[1].offset).toBeCloseTo(0.06);
+    now += 300;
+    player.play("ui.key-on");
+    expect(context.started[2].offset).toBe(0);
+  });
+
+  it("plays a cue pressed again within 600 ms 3 dB softer", () => {
+    const { context, player } = unlocked();
+    player.play("svc.minute-quick");
+    expect(context.started[0].output).toBe(context.master);
+    now += 200;
+    player.play("svc.minute-quick");
+    const softer = context.started[1].output as { gain: { value: number } };
+    expect(softer).not.toBe(context.master);
+    expect(softer.gain.value).toBeCloseTo(Math.pow(10, -3 / 20));
+    now += 700;
+    player.play("svc.minute-quick");
+    expect(context.started[2].output).toBe(context.master);
   });
 });

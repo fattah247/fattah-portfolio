@@ -8,8 +8,14 @@ import { cues, renderCue, SAMPLE_RATE, type CueId } from "./engine";
  * - the same cue within 80 ms plays once;
  * - window sounds (open, close, minimize, snap…) that land within 250 ms of each other are one
  *   action, so only the first plays;
+ * - the same cue again within 600 ms plays 3 dB softer, so a button pressed over and over recedes;
  * - at most four sounds overlap;
  * - nothing plays while the page is hidden, or at "off".
+ *
+ * A sound reaches the ear later than it is started: the browser and the speaker add their own delay,
+ * a few milliseconds on a laptop and a fifth of a second on Bluetooth. Late sound reads as out of
+ * step with what it lands on, so a cue scheduled ahead starts that much earlier, and a cue that leads
+ * into its landing (a message's fall, a window's air) skips that much of its lead.
  */
 
 export type SoundLevel = "on" | "quiet" | "off";
@@ -21,6 +27,8 @@ const TAKES = 3;
 const REPEAT_MS = 80;
 const ACTION_MS = 250;
 const MAX_VOICES = 4;
+const SOFTER_MS = 600;
+const SOFTER_GAIN = Math.pow(10, -3 / 20);
 
 type AudioSessionNavigator = Navigator & { audioSession?: { type: string } };
 
@@ -102,7 +110,8 @@ export function createSoundPlayer({ level: initial = "quiet", createContext = de
       if (level === "off" || !(id in cues) || !context || !master) return false;
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return false;
       const now = performance.now();
-      if (now - (lastPlayed.get(id) ?? -Infinity) < REPEAT_MS) return false;
+      const sincePlayed = now - (lastPlayed.get(id) ?? -Infinity);
+      if (sincePlayed < REPEAT_MS) return false;
       const windowSound = id.startsWith("sys.");
       if (windowSound && now - lastWindowSound < ACTION_MS) return false;
       if (voices >= MAX_VOICES) return false;
@@ -115,13 +124,24 @@ export function createSoundPlayer({ level: initial = "quiet", createContext = de
       lastTake.set(id, index);
       const source = context.createBufferSource();
       source.buffer = take(id, index, context);
-      source.connect(master);
+      let output: AudioNode = master;
+      if (sincePlayed < SOFTER_MS) {
+        const softer = context.createGain();
+        softer.gain.value = SOFTER_GAIN;
+        softer.connect(master);
+        output = softer;
+      }
+      source.connect(output);
       voices++;
       source.onended = () => {
         voices--;
         source.disconnect();
+        if (output !== master) output.disconnect();
       };
-      source.start(context.currentTime + Math.max(0, delaySeconds));
+      const latency = (context.outputLatency || 0) + (context.baseLatency || 0);
+      const early = Math.min(latency, delaySeconds);
+      const skip = Math.min(latency - early, (cues[id] as { lead?: number }).lead ?? 0);
+      source.start(context.currentTime + delaySeconds - early, skip);
       return true;
     },
     /** Renders one take of each cue ahead of use, one per idle moment, so a first press never waits. */
