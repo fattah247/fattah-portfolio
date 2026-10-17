@@ -21,13 +21,8 @@ export type DeviceMode = "computer" | "tablet" | "phone";
 export type PortfolioAppId = "work" | "experience" | "contact" | "products";
 export type SystemSurface = "home" | "application" | "recents";
 export type ProjectWindowId = "case-payflow" | "case-iyup" | "case-trustgate";
-export type EvidenceWindowId =
-  | "evidence-payflow-01"
-  | "evidence-payflow-02"
-  | "evidence-iyup-01"
-  | "evidence-iyup-02"
-  | "evidence-trustgate-01"
-  | "evidence-trustgate-02";
+/** One window per exhibit: a case shows two or four, so they fill the evidence grid's rows. */
+export type EvidenceWindowId = `evidence-${"payflow" | "iyup" | "trustgate"}-0${1 | 2 | 3 | 4}`;
 export type WorkspaceWindowId =
   | "work"
   | "experience"
