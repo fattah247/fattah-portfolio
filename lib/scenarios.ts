@@ -60,14 +60,14 @@ export const scenarios: Scenario[] = [
     number: "01",
     shortTitle: "A payment callback arrived twice",
     title: "The same payment callback arrived twice",
-    consequence: "The second delivery must not advance the payment again.",
+    consequence: "The second delivery must not move the payment again, and the books must still agree with the payout and the provider's report.",
     premise:
-      "The first delivery completes the payment. The second should be recorded without repeating the state change.",
+      "The first delivery completes the payment. The second should be recorded without repeating the change. A duplicate check alone isn't enough: retries need keys that refuse a changed request, every change needs a ledger entry, and every payout needs a verdict from the provider's report.",
     repo: "https://github.com/fattah247/payflow-reliability",
-    technology: "Spring Boot · PostgreSQL · REST · Docker",
+    technology: "Java 21 · Spring Boot · PostgreSQL · Flyway · Prometheus · Docker",
     baselineLabel: "Without a duplicate check",
     designedLabel: "With a duplicate check",
-    decision: "Check the callback ID before updating payment state.",
+    decision: "Check the callback ID before changing the payment, refuse a reused key with a different request, and reconcile every payout against the provider's report.",
     outcome: "Two deliveries are recorded. The payment changes once.",
     outcomeNodeId: "state",
     dependencies: {
@@ -109,20 +109,32 @@ export const scenarios: Scenario[] = [
     ],
     evidence: [
       {
-        src: "/projects/payflow/09-audit-trail.png",
-        alt: "Payflow audit-trail scenario output: one payment's events, each with its state transition, actor, and request",
-        caption: "One call explains what happened to a payment: every state change with the actor and the request that caused it.",
-        focus: "Each transition, its actor, and its request",
+        src: "/projects/payflow/05-duplicate-webhook-ignored.png",
+        alt: "Payflow duplicate-webhook scenario output: a redelivery, a restated status and a late authorization all absorbed, and ten parallel deliveries applied once with one transaction, one ledger journal and no review cases",
+        caption: "Ten parallel deliveries apply once: one provider transaction, one ledger journal, no review cases. A restated status under a new ID and a late authorization are absorbed too.",
+        focus: "Applied once; repeats acknowledged",
       },
       {
-        src: "/projects/payflow/05-duplicate-webhook-ignored.png",
-        alt: "Payflow duplicate-webhook scenario output: redeliveries answered HTTP 200 and ignored, ten parallel deliveries applied once",
-        caption: "Redeliveries are acknowledged and ignored: ten parallel deliveries apply once, leaving one provider transaction and no review cases.",
-        focus: "Applied once; repeats acknowledged",
+        src: "/projects/payflow/04-idempotency-replay.png",
+        alt: "Payflow idempotency scenario output: a retry replays the original payment, the same key with a different payload is rejected with HTTP 422, and eight parallel retries create one payment",
+        caption: "A retry with the same key replays the original payment. The same key with a changed body is refused, and eight parallel retries still create one payment.",
+        focus: "A reused key with a changed request is refused",
+      },
+      {
+        src: "/projects/payflow/07-settlement-batch.png",
+        alt: "Payflow settlement scenario output: four parallel settlement runs create one batch, captures minus refunds pay out 5,500 IDR net, a held payment waits, and the ledger owes nothing afterwards",
+        caption: "Four settlement runs race and exactly one batch pays out: captures minus refunds, 5,500 IDR net. A held payment waits for a decision, and afterwards the ledger owes the merchant nothing.",
+        focus: "Paid out once, net of refunds",
+      },
+      {
+        src: "/projects/payflow/08-reconciliation-mismatch.png",
+        alt: "Payflow reconciliation scenario output: each row of the provider's report gets a verdict, a payout missing from the report is flagged, only the clean match is reconciled, and re-importing opens no new cases",
+        caption: "The provider's report is checked both ways: every row gets a verdict, a payout the provider didn't report is flagged, only the clean match is reconciled, and re-importing the report opens no new cases.",
+        focus: "Every payout gets a verdict",
       },
     ],
     limitation:
-      "This public lab is built from common payment engineering practice. It does not represent the systems, code, or business rules of any employer, past or present.",
+      "This public lab is built from common payment engineering practice; it does not represent the systems, code, or business rules of any employer, past or present. The provider is simulated locally, and no bank statement closes the loop yet.",
   },
   {
     slug: "iyup",
@@ -137,10 +149,10 @@ export const scenarios: Scenario[] = [
     premise:
       "The health check still said “up.” Latency showed that users were already experiencing degradation.",
     repo: "https://github.com/fattah247/iYup",
-    technology: "Prometheus · Grafana · Alertmanager · Go",
+    technology: "Go · Prometheus · Alertmanager · Grafana · Python · Helm",
     baselineLabel: "Health check only",
     designedLabel: "Health, latency, and collection state",
-    decision: "Separate availability, performance, and collection state.",
+    decision: "Separate availability, performance, and collection state, and call an outage only when most regions see it.",
     outcome: "The operator can distinguish degradation from missing telemetry.",
     outcomeNodeId: "decision",
     dependencies: {
@@ -193,19 +205,31 @@ export const scenarios: Scenario[] = [
     evidence: [
       {
         src: "/projects/iyup/grafana-dashboard.png",
-        alt: "iYup Grafana dashboard showing health and latency",
-        caption: "Health, latency, and alert state are visible in one operating surface.",
-        focus: "Latency panel and active alert state",
+        alt: "iYup Grafana dashboard, Right now: 8 targets up, 3 down, 1 slow, none stale, 6 alerts firing, and a table of targets with their state, last result, failing regions, latency and error budget left",
+        caption: "The dashboard opens on right now: 8 up, 3 down, 1 slow, nothing stale. Each target shows its state, the reason for its last result, and how many regions see it failing.",
+        focus: "What is down or slow, and why",
+      },
+      {
+        src: "/projects/iyup/status-page.png",
+        alt: "iYup status page: a regional outage target still up while failing from one of two regions, and a slow page still up but marked slow at 1.57 seconds against a 1.00 second threshold",
+        caption: "A slow page stays up but is marked slow: 1.57 s against its 1.00 s threshold. A failure seen from one of two regions is a warning, not an outage.",
+        focus: "Slow is not down; one region is not an outage",
+      },
+      {
+        src: "/projects/iyup/status-api.png",
+        alt: "iYup status API output: overall status degraded with 7 up, 3 down, 0 unknown, 1 slow and 1 in maintenance, then each target's state, reason, and what each region saw",
+        caption: "The status API reports one verdict (degraded: 7 up, 3 down, 1 slow, 1 in maintenance) and, for each target, its state, its reason, and what each region saw.",
+        focus: "Each target's verdict, region by region",
       },
       {
         src: "/projects/iyup/prometheus-targets.png",
-        alt: "iYup Prometheus target collection status",
-        caption: "Collection failure is visible at the scrape boundary instead of being mistaken for a zero value.",
-        focus: "Target health at the collection edge",
+        alt: "Prometheus targets page: the API gateway and both regions' ping agents being scraped, all up",
+        caption: "Collection is visible at the scrape boundary: both regions' agents and the API are scraped, so missing data reads as unknown, never as down or as zero.",
+        focus: "Collection state at the scrape boundary",
       },
     ],
     limitation:
-      "The demonstration explains signal relationships; useful production thresholds still require real traffic history and service objectives.",
+      "The demo's two regions run on one machine, and useful production thresholds still require real traffic history and service objectives.",
   },
   {
     slug: "trustgate",
@@ -220,10 +244,10 @@ export const scenarios: Scenario[] = [
     premise:
       "A root signal changes confidence. The final decision also depends on other signals and the risk of the requested action.",
     repo: "https://github.com/fattah247/trustgate-android",
-    technology: "Kotlin · Android · Jetpack Compose · Jetpack Security",
+    technology: "Kotlin · Jetpack Compose · Android Keystore · BiometricPrompt",
     baselineLabel: "Block on any suspicious signal",
     designedLabel: "Evaluate signals against action risk",
-    decision: "Evaluate signal combinations against action sensitivity.",
+    decision: "Evaluate signal combinations against action sensitivity, and ask for a confirmation signed by a biometric-bound key when the risk is medium.",
     outcome: "Uncertainty can require confirmation instead of an automatic block.",
     outcomeNodeId: "decision",
     dependencies: {
@@ -281,6 +305,18 @@ export const scenarios: Scenario[] = [
         focus: "The points behind the verdict",
       },
       {
+        src: "/projects/trustgate/11-device-keys.png",
+        alt: "TrustGate Android Request signing screen: the device key and the step-up key, each with its attestation verified, where it lives, the boot state and the bootloader state",
+        caption: "Every request is signed by a P-256 key in Android Keystore. The step-up key signs only after biometrics or the screen lock, and the backend reads each key's attestation: where it lives and the device's boot state.",
+        focus: "Keys that never leave the device",
+      },
+      {
+        src: "/projects/trustgate/05-request-signing-reference.png",
+        alt: "TrustGate Android backend responses: a request sent after its time window rejected as too late, and a request edited after signing rejected for a signature mismatch",
+        caption: "The reference backend refuses a request that arrives too late or was edited after signing, so a held-back or tampered request can't get through.",
+        focus: "Late and edited requests refused",
+      },
+      {
         src: "/projects/trustgate/07-security-event-log.png",
         alt: "TrustGate Android Activity log: the reference verifier rejecting a late, an edited, and a replayed request, and the signals found",
         caption: "Device checks, gate decisions, and the verifier's reasons for accepting or rejecting each request leave a readable local trail.",
@@ -288,7 +324,7 @@ export const scenarios: Scenario[] = [
       },
     ],
     limitation:
-      "Client-side signals raise the cost of abuse but cannot prove device integrity alone; server-side controls remain necessary.",
+      "Client-side signals raise the cost of abuse but cannot prove device integrity alone. In this lab the server's part runs on the device as a reference backend; production needs it on a server.",
   },
 ];
 
