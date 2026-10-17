@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import { projectScenario, resolveScenarioConditions, scenarios } from "./scenarios";
 
 describe("selected work scenario contracts", () => {
-  it("keeps every project and both evidence entries available", () => {
+  it("keeps every project and its exhibits available, two or four so they fill the evidence grid", () => {
     expect(scenarios.map((scenario) => scenario.slug)).toEqual(["payflow", "iyup", "trustgate"]);
     for (const scenario of scenarios) {
-      expect(scenario.evidence).toHaveLength(2);
+      expect([2, 4]).toContain(scenario.evidence.length);
+      expect(new Set(scenario.evidence.map((item) => item.src)).size).toBe(scenario.evidence.length);
       expect(scenario.evidence.every((item) => item.src.startsWith(`/projects/${scenario.slug}/`))).toBe(true);
     }
   });
