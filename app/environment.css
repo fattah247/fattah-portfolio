@@ -4500,3 +4500,55 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 
 /* A glyph may step sideways on hover, but never turns: a rotation would smear it off the grid. */
 :is(.inline-link, .solid-link, .evidence-original):is(:hover, :focus-visible) svg.pixel-glyph { transform: translateX(2px) !important; }
+
+/* ------------------------------------------------- Repo-faithful simulators */
+
+/* The comparison beside each simulator: the same inputs through a simpler system. It is drawn
+ * quieter than the repo's own system (a dashed edge, the sunken ground, secondary ink) so it reads
+ * as a reference, and its tally turns adverse only when it counts something the repo prevented. */
+.sim-shadow { background: var(--doc-sunken); border: 1px dashed var(--doc-edge); display: grid; gap: 6px; padding: 10px 12px; }
+.sim-shadow-label { align-items: baseline; display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 0; }
+.sim-shadow-label span { color: var(--ink-secondary); font: var(--type-caption); }
+.sim-shadow-label strong { color: var(--ink); font: var(--type-label); font-weight: 600; }
+.sim-shadow-now { color: var(--ink-secondary); font: var(--type-body); font-size: .9rem; margin: 0; }
+.sim-shadow-now b { color: var(--ink); margin-inline-end: 4px; }
+.sim-shadow-tally { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0; }
+.sim-shadow-tally div { align-items: baseline; display: flex; gap: 8px; }
+.sim-shadow-tally dt { color: var(--ink-secondary); font: var(--type-caption); }
+.sim-shadow-tally dd { color: var(--ink); font: 700 .9rem var(--font-mono), monospace; margin: 0; }
+.sim-shadow-tally div[data-bad] dd { background: var(--adverse-wash); border: 1px solid var(--adverse); color: var(--adverse-ink); padding: 0 6px; }
+
+/* Each outcome says what it prevented, as a quieter second line. */
+.sim-journal li .sim-journal-contrast { color: var(--ink-secondary); font-size: .88rem; margin: 0; }
+/* With a contrast line a row has three parts beside its badge; keep them all in the text column. */
+.sim-journal li > :not(.sim-journal-badge) { grid-column: 2; }
+.sim-journal li > .sim-journal-badge { grid-row: 1 / span 3; }
+@container instrument (max-width: 36rem) {
+  .sim-journal li > :not(.sim-journal-badge) { grid-column: auto; }
+  .sim-journal li > .sim-journal-badge { grid-row: auto; }
+}
+.sim-journal-contrast span { color: var(--ink-secondary); font: var(--type-caption); font-weight: 600; margin-inline-end: 6px; }
+
+/* A rule a visitor removed reads as a fault, not a feature. */
+.sim-mutations .instrument-option[aria-pressed="true"] { background: var(--adverse-wash) !important; color: var(--adverse-ink) !important; }
+
+/* The monitor's chart: lab-a solid, lab-b dashed, a slow check red, a failed check a cross. */
+.sd-svc .sd-trace { stroke: var(--designed); stroke-width: 2.4; }
+.sd-svc .sd-legend-measured { stroke: var(--designed); stroke-width: 2.4; }
+.sd-svc .sd-point[data-region="lab-b"] { fill: var(--doc); }
+.sd-fail { fill: none; stroke: var(--adverse); stroke-width: 2.2; }
+.sd-region text { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
+.sd-region[data-state="down"] text { fill: var(--adverse-ink); }
+.sd-region[data-state="unknown"] text, .sd-region[data-slow] text { fill: var(--uncertain); }
+.sd-verdict { font-weight: 700; }
+.sd-verdict[data-verdict="up"] { fill: var(--confirmed); }
+.sd-verdict:is([data-verdict="slow"], [data-verdict="unknown"]) { fill: var(--uncertain); }
+.sd-verdict[data-verdict="down"] { fill: var(--adverse-ink); }
+.sd-pager[data-state="warning"] rect { fill: var(--uncertain); }
+.sd-pager[data-state="warning"] text { fill: var(--uncertain); }
+.sd-pager[data-state="pending"] rect { fill: var(--doc); }
+.sd-pager[data-state="pending"] text { fill: var(--ink-secondary); }
+
+/* Case 02's cover: the verdict is slow, so its line is amber. */
+.case-cover-iyup .case-cover-health { stroke: var(--uncertain); }
+.case-cover-iyup .case-cover-health-text { fill: var(--uncertain); }

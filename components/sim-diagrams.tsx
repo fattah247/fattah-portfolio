@@ -1,11 +1,10 @@
 "use client";
 
 import { Fragment, useId, type CSSProperties, type ReactNode } from "react";
-import { latencyThresholdMs } from "../lib/instruments";
 import { MEDIUM_SCORE_THRESHOLD, HIGH_SCORE_THRESHOLD, type DeviceAssessment, type GateDecision, type Signing } from "../lib/device-risk";
-import type { ProjectionMode } from "../lib/scenarios";
 import { BUZZ_AFTER_LANDING } from "../lib/sound/engine";
-import { paymentStateWord, type LiveSample, type PayEntry, type PayWorld } from "../lib/simulators";
+import { PAYMENT_AMOUNT, payoutWord, statusWord, type FlowEntry, type FlowWorld, type PaymentStatus } from "../lib/payment-flow";
+import { alertFor, alertSeverity, CHECK_INTERVAL_S, clockOf, DEGRADED_AFTER_MS, firing, type Region, type RegionView, type Tick } from "../lib/uptime";
 
 /** How long a message takes to reach the payment in the drawing (the packet's travel in environment.css). */
 export const messageTravelMs = 440;
@@ -96,92 +95,88 @@ function Note({ carry = false, joiner, joinerClass, max, parts, step, x, y }: { 
 /* ------------------------------------------------------------------ Payment */
 
 type Flow = "pass" | "stop" | "pass-bad";
-const flowOf = (entry: PayEntry): Flow => (entry.outcome === "duplicate" || entry.outcome === "stale" ? "stop" : entry.outcome === "applied" ? "pass" : "pass-bad");
+const flowOf = (entry: FlowEntry): Flow => (entry.outcome === "APPLIED" ? "pass" : entry.outcome === "SENT_TO_REVIEW" ? "pass-bad" : "stop");
 
-/** A message as the bank would say it: “paid”, “paid” again, late “pending”. */
-function messageLabel(entry: PayEntry) {
-  const says = `“${entry.message?.says}”`;
-  if (entry.outcome === "duplicate" || entry.outcome === "applied-again") return `${says} again`;
-  if (entry.outcome === "stale" || entry.outcome === "regressed") return `late ${says}`;
-  return says;
+/** The payment state's colour family in the drawing: waiting, paid, or held. */
+const stateFamily = (status: PaymentStatus) => (status === "MANUAL_REVIEW" ? "review" : status === "PENDING" || status === "AUTHORIZED" ? "pending" : "paid");
+
+/** An event as the provider would say it, or its id and status with technical details. */
+function eventLabel(entry: FlowEntry, technical: boolean) {
+  const event = entry.event!;
+  if (technical) return `${event.id} ${event.amount !== PAYMENT_AMOUNT ? event.amount : event.status}`;
+  if (entry.input.kind === "webhook" && entry.input.webhook === "again") return "“paid” again";
+  if (event.amount !== PAYMENT_AMOUNT) return "wrong amount";
+  if (event.status === "AUTHORIZED") return "late “authorized”";
+  return entry.input.kind === "webhook" && entry.input.webhook === "new-id" ? "“paid”, new id" : "“paid”";
 }
 
-function paymentNote(world: PayWorld, technical: boolean): Segment[] {
+function paymentNote(world: FlowWorld, technical: boolean): Segment[] {
+  const deliveries = world.entries.filter((entry) => entry.event).length;
+  const captures = world.journals.filter((journal) => journal === "CAPTURE").length;
   const parts: Segment[] = technical
-    ? [{ text: plural(world.deliveries, "delivery", "deliveries") }, { text: plural(world.updates, "state change", "state changes") }]
-    : [{ text: plural(world.deliveries, "message", "messages") }, { text: `payment changed ${plural(world.updates, "time", "times")}` }];
-  const bad = world.repeats ? (technical ? "ran twice" : "handled twice!") : world.state === "REVIEW" ? (technical ? "needs review" : "needs checking") : "";
+    ? [{ text: plural(deliveries, "delivery", "deliveries") }, { text: plural(captures, "CAPTURE journal", "CAPTURE journals") }]
+    : [{ text: plural(deliveries, "event", "events") }, { text: `money captured ${captures === 1 ? "once" : `${captures} times`}` }];
+  const bad = world.rulesBroken.length
+    ? (technical ? "rule removed: caught" : "a rule was removed!")
+    : world.status === "MANUAL_REVIEW" ? (technical ? "MANUAL_REVIEW" : "on hold")
+      : world.payout === "BROKEN" ? (technical ? "break MISSING_CREDIT" : "credit missing") : "";
   return bad ? [...parts, { text: bad, bad: true }] : parts;
 }
 
-export function PaymentDiagram({ checked, technical, world }: { checked: boolean; technical: boolean; world: PayWorld }) {
-  const deliveries = world.entries.filter((entry) => entry.message);
+export function PaymentDiagram({ technical, world }: { technical: boolean; world: FlowWorld }) {
+  const deliveries = world.entries.filter((entry) => entry.event);
   const latest = deliveries.at(-1);
-  const settlement = [...world.entries].reverse().find((entry) => entry.outcome === "matched" || entry.outcome === "mismatched");
   const note = paymentNote(world, technical);
   const audit = world.audit.slice(-16);
-  const lastAudit = audit.at(-1)?.n;
-  const says = new Map(deliveries.map((entry) => [entry.message!.id, entry.message!.says]));
-  const remembered = world.processed.map((id) => `“${says.get(id)}”`);
+  const lastEntry = world.entries.at(-1);
+  const inboxSize = Object.keys(world.inbox).length;
   const seen = (compact: boolean) => technical
-    ? (world.processed.length ? `seen ${world.processed.join(" ")}` : "seen –")
-    : !checked ? (compact ? "lets all messages in" : "lets every message through")
-      : !remembered.length ? (compact ? "remembers nothing" : "remembers nothing yet")
-        : compact && remembered.length > 1 ? `remembers ${remembered.length} messages` : `remembers ${remembered.join(" ")}`;
-  const settleText = settlement
-    ? (settlement.outcome === "matched" ? (technical ? "settled ✓" : "report matches ✓") : (technical ? "mismatch" : "report differs"))
-    : (technical ? "not settled" : "no report yet");
+    ? (inboxSize ? `inbox ${Object.keys(world.inbox).slice(compact ? -2 : -3).join(" ")}` : "inbox –")
+    : !inboxSize ? (compact ? "nothing yet" : "nothing recorded yet") : `remembers ${plural(inboxSize, "event", "events")}`;
+  const payoutText = technical ? `payout ${world.payout === "NONE" ? "–" : world.payout}` : `payout: ${payoutWord[world.payout]}`;
+  const reportText = technical
+    ? (world.reportMatched ? "report MATCHED" : world.reviewCases.includes("REPORT_MISMATCH") ? "report MISMATCH" : "report –")
+    : (world.reportMatched ? "report matches" : world.reviewCases.includes("REPORT_MISMATCH") ? "report differs" : "no report yet");
   const words = technical
-    ? { source: "provider", gate: "id check", state: "state", book: "audit", online: "online", offline: "offline", empty: "no records", pass: "applied", stop: "ignored" }
-    : { source: "bank", gate: "repeat check", state: "payment", book: "record book", online: "available", offline: "unavailable", empty: "nothing yet", pass: "let in", stop: "stopped" };
-  const stateText = technical ? world.state : paymentStateWord[world.state];
+    ? { source: "provider", gate: "inbox", state: "payment", book: "audit", empty: "no events", pass: "in", stop: "stop", held: "held" }
+    : { source: "provider", gate: "inbox", state: "payment", book: "audit trail", empty: "nothing yet", pass: "in", stop: "stop", held: "held" };
+  const stateText = technical ? world.status : statusWord[world.status];
 
-  // The parts every composition shares, placed by it.
-  // The payment answers what just reached it: a knock when a message lands on it, a jolt (in time
-  // with the buzz) when one is handled twice or overwrites newer news.
-  const lastOutcome = world.entries.at(-1)?.outcome;
-  const hit = lastOutcome === "applied" ? "land" : lastOutcome === "applied-again" || lastOutcome === "regressed" ? "bad" : undefined;
-  const hitDelay = messageTravelMs + (hit === "bad" ? BUZZ_AFTER_LANDING * 1000 : 0);
+  // The payment answers what just reached it: a knock when an event is applied or money lands, a
+  // jolt (in time with the buzz) when a removed rule lets something through.
+  const hit = lastEntry?.outcome === "APPLIED" || lastEntry?.outcome === "LANDED" || lastEntry?.outcome === "RECONCILED" ? "land" : lastEntry?.outcome === "RULE_BROKEN" ? "bad" : undefined;
+  const hitDelay = (lastEntry?.event ? messageTravelMs : 0) + (hit === "bad" ? BUZZ_AFTER_LANDING * 1000 : 0);
   const stateBox = (x: number, y: number, w: number, h: number) => (
-    <>
-      <g className="sd-state" data-hit={hit} data-state={world.state.toLowerCase()} key={`state-${world.state}-${world.updates}`} style={{ "--hit-delay": `${hitDelay}ms` } as CSSProperties}>
-        <rect height={h} width={w} x={x} y={y} />
-        <text textAnchor="middle" x={x + w / 2} y={y + h / 2 + 5}>{stateText}</text>
-      </g>
-      {world.repeats ? (
-        <g className="sd-badge" key={`badge-${world.repeats}`}>
-          <rect height="18" width="32" x={x + w - 20} y={y - 10} />
-          <text textAnchor="middle" x={x + w - 4} y={y + 3}>×{world.repeats + 1}</text>
-        </g>
-      ) : null}
-    </>
-  );
-  const settleChip = (x: number, y: number, w: number, h: number) => (
-    <g className="sd-settle" data-outcome={settlement?.outcome ?? "none"}>
+    <g className="sd-state" data-hit={hit} data-state={stateFamily(world.status)} key={`state-${world.status}-${world.entries.length}`} style={{ "--hit-delay": `${hitDelay}ms` } as CSSProperties}>
       <rect height={h} width={w} x={x} y={y} />
-      <text textAnchor="middle" x={x + w / 2} y={y + h / 2 + 4}>{settleText}</text>
+      <text textAnchor="middle" x={x + w / 2} y={y + h / 2 + 5}>{stateText}</text>
     </g>
   );
-  const book = (place: (index: number) => { x: number; y: number }, empty: { x: number; y: number }, store: { x: number; y: number }) => (
+  const chip = (text: string, outcome: string, x: number, y: number, w: number, h: number) => (
+    <g className="sd-settle" data-outcome={outcome}>
+      <rect height={h} width={w} x={x} y={y} />
+      <text textAnchor="middle" x={x + w / 2} y={y + h / 2 + 4}>{text}</text>
+    </g>
+  );
+  const payoutOutcome = world.payout === "LANDED" ? "matched" : world.payout === "BROKEN" ? "mismatched" : "none";
+  const reportOutcome = world.reportMatched ? "matched" : world.reviewCases.includes("REPORT_MISMATCH") ? "mismatched" : "none";
+  const book = (place: (index: number) => { x: number; y: number }, empty: { x: number; y: number }) => (
     <>
       {audit.map((record, index) => {
         const at = place(index);
-        return <rect className={`sd-record${record.n === lastAudit ? " sd-record-new" : ""}`} data-status={record.status} height="14" key={record.n} width="14" x={at.x} y={at.y} />;
+        return <rect className={`sd-record${index === audit.length - 1 ? " sd-record-new" : ""}`} data-status="written" height="14" key={`${index}-${record}`} width="14" x={at.x} y={at.y} />;
       })}
       {!audit.length ? <text className="sd-small" x={empty.x} y={empty.y}>{words.empty}</text> : null}
-      <g className="sd-store" data-online={world.storeOnline ? "true" : "false"}>
-        <rect height="10" width="10" x={store.x} y={store.y} />
-        <text x={store.x + 16} y={store.y + 9}>{world.storeOnline ? words.online : words.offline}</text>
-      </g>
     </>
   );
   const svg = (layout: Layout, w: number, h: number, children: ReactNode) => (
-    <svg className={`sd-svg sd-${layout}`} data-check={checked ? "on" : "off"} data-technical={technical || undefined} focusable="false" key={layout} viewBox={`0 0 ${w} ${h}`}>
+    <svg className={`sd-svg sd-${layout}`} data-technical={technical || undefined} focusable="false" key={layout} viewBox={`0 0 ${w} ${h}`}>
       <rect className="sd-ground" height="100%" width="100%" />
       {children}
     </svg>
   );
-  const gateRect = (x: number, y: number, w: number, h: number) => <rect className="sd-gate" data-check={checked ? "on" : "off"} height={h} key={`gate-${latest?.n ?? 0}`} width={w} x={x} y={y} />;
+  const gateRect = (x: number, y: number, w: number, h: number) => <rect className="sd-gate" height={h} key={`gate-${latest?.n ?? 0}`} width={w} x={x} y={y} />;
+  const tag = (flow: Flow) => (flow === "stop" ? words.stop : flow === "pass-bad" ? words.held : words.pass);
 
   return (
     <Variants
@@ -195,7 +190,7 @@ export function PaymentDiagram({ checked, technical, world }: { checked: boolean
             <text className="sd-label" textAnchor="middle" x="462" y="20">{words.state}</text>
             <text className="sd-label" x="540" y="20">{words.book}</text>
             <path className="sd-rule" d="M16 30H624" />
-            {!rows.length ? <text className="sd-hint" x="16" y="66">no messages yet: send one from the bank</text> : null}
+            {!rows.length ? <text className="sd-hint" x="16" y="66">no events yet: send one from the provider</text> : null}
             {rows.map((entry, index) => {
               const flow = flowOf(entry);
               const isNew = entry.n === latest?.n;
@@ -203,37 +198,37 @@ export function PaymentDiagram({ checked, technical, world }: { checked: boolean
               const end = flow === "stop" ? 278 : 300;
               return (
                 <g className={`sd-row${isNew ? " sd-row-new" : ""}`} data-flow={flow} key={entry.n}>
-                  <path className="sd-flow" d={`M134 ${y}H${end}`} />
+                  <path className="sd-flow" d={`M152 ${y}H${end}`} />
                   {flow === "stop" ? <path className="sd-stop" d={`M${end + 7} ${y - 12}v24`} /> : <path className="sd-arrow" d={`m${end - 7} ${y - 5} 6 5-6 5`} />}
                   <g className="sd-event">
-                    <rect height="26" width="118" x="16" y={y - 13} />
-                    <text x="24" y={y + 4}>{technical ? entry.message!.id : messageLabel(entry)}</text>
-                    {technical ? <text className="sd-event-seq" textAnchor="end" x="127" y={y + 4}>s{entry.message!.seq}</text> : null}
+                    <rect height="26" width="136" x="16" y={y - 13} />
+                    <text x="24" y={y + 4}>{eventLabel(entry, technical)}</text>
                   </g>
-                  {isNew ? <circle className="sd-packet" cx="134" cy={y} r="5" style={leg(end - 134, 0)} /> : null}
+                  {technical && entry.http ? <text className="sd-event-seq" x="160" y={y - 4}>{entry.http}</text> : null}
+                  {isNew ? <circle className="sd-packet" cx="152" cy={y} r="5" style={leg(end - 152, 0)} /> : null}
                 </g>
               );
             })}
             {gateRect(300, 44, 40, 150)}
-            <text className="sd-gate-text" textAnchor="middle" x="320" y="123">{checked ? "on" : "off"}</text>
+            <text className="sd-gate-text" textAnchor="middle" x="320" y="123">{inboxSize}</text>
             <text className="sd-small" textAnchor="middle" x="320" y="214">{seen(false)}</text>
             <path className="sd-flow sd-flow-out" d="M340 119H394" />
             <path className="sd-arrow sd-arrow-out" d="m388 114 6 5-6 5" />
-            {latest?.passed ? <circle className="sd-packet sd-packet-out" cx="340" cy="119" key={`out-${latest.n}`} r="5" style={leg(54, 0, 440)} /> : null}
+            {latest && latest.outcome !== "PAYMENT_ON_HOLD" && latest.n === lastEntry?.n && flowOf(latest) !== "stop" ? <circle className="sd-packet sd-packet-out" cx="340" cy="119" key={`out-${latest.n}`} r="5" style={leg(54, 0, 440)} /> : null}
             {stateBox(400, 96, 124, 46)}
-            {settleChip(400, 154, 124, 26)}
-            <path className="sd-flow sd-flow-faint" d="M524 119H536" />
-            {book((index) => ({ x: 540 + (index % 4) * 19, y: 44 + Math.floor(index / 4) * 19 }), { x: 540, y: 56 }, { x: 540, y: 134 })}
+            {chip(payoutText, payoutOutcome, 400, 154, 224, 24)}
+            {chip(reportText, reportOutcome, 400, 184, 224, 24)}
+            {book((index) => ({ x: 540 + (index % 4) * 19, y: 44 + Math.floor(index / 4) * 19 }), { x: 540, y: 56 })}
             <Note joiner=" · " max={76} parts={note} step={18} x={16} y={248} />
           </>);
         }
 
         if (layout === "medium") {
           const rows = deliveries.slice(-2);
-          return svg("medium", 320, 498, <>
+          return svg("medium", 320, 500, <>
             <text className="sd-label" x="16" y="20">{words.source}</text>
             <path className="sd-rule" d="M16 30H304" />
-            {!rows.length ? <text className="sd-hint" x="16" y="62">no messages yet</text> : null}
+            {!rows.length ? <text className="sd-hint" x="16" y="62">no events yet</text> : null}
             {rows.map((entry, index) => {
               const flow = flowOf(entry);
               const isNew = entry.n === latest?.n;
@@ -246,33 +241,32 @@ export function PaymentDiagram({ checked, technical, world }: { checked: boolean
                   {flow === "stop" ? <path className="sd-stop" d={`M${cx - 13} ${end + 7}h26`} /> : <path className="sd-arrow" d={`m${cx - 5} ${end - 7} 5 6 5-6`} />}
                   <g className="sd-event">
                     <rect height="26" width="136" x={x} y="44" />
-                    <text x={x + 8} y="61">{technical ? entry.message!.id : messageLabel(entry)}</text>
-                    {technical ? <text className="sd-event-seq" textAnchor="end" x={x + 128} y="61">s{entry.message!.seq}</text> : null}
+                    <text x={x + 8} y="61">{eventLabel(entry, technical)}</text>
                   </g>
                   {isNew ? <circle className="sd-packet" cx={cx} cy="70" r="5" style={leg(0, end - 70)} /> : null}
                 </g>
               );
             })}
             {gateRect(16, 176, 288, 48)}
-            <text className="sd-gate-text" textAnchor="middle" x="160" y="195">{words.gate} · {checked ? "on" : "off"}</text>
+            <text className="sd-gate-text" textAnchor="middle" x="160" y="195">{words.gate} · {inboxSize}</text>
             <text className="sd-small" textAnchor="middle" x="160" y="214">{seen(false)}</text>
             <path className="sd-flow sd-flow-out" d="M160 224V251" />
             <path className="sd-arrow sd-arrow-out" d="m155 245 5 6 5-6" />
-            {latest?.passed ? <circle className="sd-packet sd-packet-out" cx="160" cy="224" key={`out-${latest.n}`} r="5" style={leg(0, 27, 440)} /> : null}
             {stateBox(90, 258, 140, 46)}
-            {settleChip(90, 316, 140, 26)}
-            <text className="sd-label" x="16" y="372">{words.book}</text>
-            {book((index) => ({ x: 16 + index * 18, y: 382 }), { x: 16, y: 394 }, { x: 16, y: 410 })}
-            <Note joiner=" · " max={36} parts={note} step={18} x={16} y={448} />
+            {chip(payoutText, payoutOutcome, 50, 316, 220, 24)}
+            {chip(reportText, reportOutcome, 50, 346, 220, 24)}
+            <text className="sd-label" x="16" y="396">{words.book}</text>
+            {book((index) => ({ x: 16 + index * 18, y: 406 }), { x: 16, y: 418 })}
+            <Note joiner=" · " max={36} parts={note} step={18} x={16} y={452} />
           </>);
         }
 
-        // Compact: the latest three messages as a list; only the newest travels on to the check.
+        // Compact: the latest three events as a list; only the newest travels on to the inbox.
         const rows = deliveries.slice(-3);
-        return svg("compact", 200, 434, <>
+        return svg("compact", 200, 444, <>
           <text className="sd-label" x="10" y="18">{words.source}</text>
           <path className="sd-rule" d="M10 26H190" />
-          {!rows.length ? <text className="sd-hint" x="10" y="50">no messages yet</text> : null}
+          {!rows.length ? <text className="sd-hint" x="10" y="50">no events yet</text> : null}
           {rows.map((entry, index) => {
             const flow = flowOf(entry);
             const isNew = entry.n === latest?.n;
@@ -286,24 +280,24 @@ export function PaymentDiagram({ checked, technical, world }: { checked: boolean
                 </> : null}
                 <g className="sd-event">
                   <rect height="24" width="180" x="10" y={y} />
-                  <text x="17" y={y + 16}>{technical ? `${entry.message!.id} s${entry.message!.seq}` : messageLabel(entry)}</text>
-                  <text className="sd-event-tag" textAnchor="end" x="183" y={y + 16}>{flow === "stop" ? words.stop : words.pass}</text>
+                  <text x="17" y={y + 16}>{eventLabel(entry, technical)}</text>
+                  <text className="sd-event-tag" textAnchor="end" x="183" y={y + 16}>{tag(flow)}</text>
                 </g>
                 {isNew ? <circle className="sd-packet" cx="100" cy={y + 24} r="5" style={leg(0, end - (y + 24))} /> : null}
               </g>
             );
           })}
           {gateRect(10, 140, 180, 46)}
-          <text className="sd-gate-text" textAnchor="middle" x="100" y="159">{words.gate} · {checked ? "on" : "off"}</text>
+          <text className="sd-gate-text" textAnchor="middle" x="100" y="159">{words.gate} · {inboxSize}</text>
           <text className="sd-small" textAnchor="middle" x="100" y="177">{seen(true)}</text>
           <path className="sd-flow sd-flow-out" d="M100 186V207" />
           <path className="sd-arrow sd-arrow-out" d="m95 201 5 6 5-6" />
-          {latest?.passed ? <circle className="sd-packet sd-packet-out" cx="100" cy="186" key={`out-${latest.n}`} r="5" style={leg(0, 21, 440)} /> : null}
           {stateBox(40, 210, 120, 40)}
-          {settleChip(10, 258, 180, 24)}
-          <text className="sd-label" x="10" y="304">{words.book}</text>
-          {book((index) => ({ x: 10 + (index % 9) * 20, y: 312 + Math.floor(index / 9) * 20 }), { x: 10, y: 324 }, { x: 10, y: 354 })}
-          <Note joiner=" · " max={25} parts={note} step={16} x={10} y={390} />
+          {chip(payoutText, payoutOutcome, 10, 258, 180, 24)}
+          {chip(reportText, reportOutcome, 10, 288, 180, 24)}
+          <text className="sd-label" x="10" y="334">{words.book}</text>
+          {book((index) => ({ x: 10 + (index % 9) * 20, y: 342 + Math.floor(index / 9) * 20 }), { x: 10, y: 354 })}
+          <Note joiner=" · " max={25} parts={note} step={16} x={10} y={404} />
         </>);
       }}
     />
@@ -312,73 +306,73 @@ export function PaymentDiagram({ checked, technical, world }: { checked: boolean
 
 /* ------------------------------------------------------------------ Service */
 
-type Sample = LiveSample & { mode: ProjectionMode };
-type PagerState = "paging" | "nodata" | "silent" | "off" | "quiet";
+/** The drawing's scale tops out at 2 s; the page's own limit is the 1 s line. */
+const chartTopMs = 2000;
+type AlertLamp = "paging" | "warning" | "pending" | "quiet";
 
-const pagerWords: Record<"plain" | "technical", Record<PagerState, string>> = {
-  plain: { paging: "alarm: ringing", nodata: "alarm: can't tell", silent: "alarm: not set up", off: "alarm: not watching speed", quiet: "alarm: quiet" },
-  technical: { paging: "pager: paging", nodata: "pager: no data", silent: "pager: silent", off: "pager: not watching latency", quiet: "pager: quiet" },
-};
-/** Shorter words where the compact drawing has no room for the long ones. */
-const pagerOffCompact = { plain: "alarm: ignores speed", technical: "pager: no latency rule" };
-
-const pagerFor = (title: string, mode: ProjectionMode): PagerState =>
-  title === "Paging on-call" || title === "Outage" ? "paging"
-    : title === "Investigate collection" ? "nodata"
-      : title === "Breach, nobody paged" ? "silent"
-        : mode === "baseline" ? "off"
-          : "quiet";
-
-function serviceNote(title: string, over: boolean, technical: boolean) {
-  if (technical) {
-    return title === "Outage" ? "down" : title === "Paging on-call" ? "up,|but slower" : title === "Investigate collection" ? "up,|but blind"
-      : title === "Breach, nobody paged" ? "slower,|nobody told" : title === "Looks fine" && over ? "up, but slower,|and unseen" : "up and quick";
+function alertLamp(tick: Tick): { state: AlertLamp; plain: string; technical: string; compact: string } {
+  const active = firing(tick);
+  const top = active[0];
+  if (top && alertSeverity[top.name] === "critical") return { state: "paging", plain: "alarm: engineers paged", technical: `${top.name}: page`, compact: "paged" };
+  if (top) return { state: "warning", plain: "warning: engineers told", technical: `${top.name}: notify`, compact: "warning sent" };
+  const waiting = tick.alerts.filter((alert) => alert.pendingFor > 0).sort((a, b) => (alertFor[a.name] - a.pendingFor) - (alertFor[b.name] - b.pendingFor))[0];
+  if (waiting) {
+    const left = (alertFor[waiting.name] - waiting.pendingFor) * CHECK_INTERVAL_S;
+    const wait = left >= 60 ? `${Math.round(left / 60)} min` : `${left} s`;
+    return { state: "pending", plain: `waiting ${wait} before a warning`, technical: `${waiting.name}: in ${wait}`, compact: `alert in ${wait}` };
   }
-  return title === "Outage" ? "the site is down" : title === "Paging on-call" ? "working,|but slower" : title === "Investigate collection" ? "working,|but unmeasured"
-    : title === "Breach, nobody paged" ? "slower,|and nobody told" : title === "Looks fine" && over ? "slower,|and nobody noticed" : "working and quick";
+  return { state: "quiet", plain: "no alert", technical: "no alert pending", compact: "no alert" };
 }
 
-export function ServiceDiagram({ samples, statusTitle, technical, window: slots }: { samples: Sample[]; statusTitle: string; technical: boolean; window: number }) {
+function serviceNote(tick: Tick, technical: boolean): string {
+  const down = tick.views.filter((view) => view.state === "down");
+  const unknown = tick.views.filter((view) => view.state === "unknown");
+  if (tick.verdict === "unknown") return technical ? "no fresh region: unknown" : "no fresh checks:|can't tell";
+  if (tick.verdict === "down") return technical ? `down in ${down.length} of ${tick.views.length}` : "down in|both regions";
+  if (tick.verdict === "slow") return technical ? "up, but slow|(majority)" : "working,|but slow";
+  if (down.length) return technical ? `up · ${down[0].region} failing (minority)` : `up · fails in|${down[0].region} only`;
+  if (unknown.length) return technical ? `up · ${unknown[0].region} unknown` : `up · ${unknown[0].region}|has gone quiet`;
+  return technical ? "up and quick" : "working and quick";
+}
+
+export function ServiceDiagram({ technical, ticks, window: slots }: { technical: boolean; ticks: Tick[]; window: number }) {
   const id = useId().replace(/:/g, "");
-  const now = samples.at(-1)!;
-  const pager = pagerFor(statusTitle, now.mode);
-  const note = serviceNote(statusTitle, now.actualLatency > latencyThresholdMs, technical);
-  const padded = Array.from({ length: slots }, (_, index) => samples[index - (slots - samples.length)] ?? null);
-  const voice = technical ? "technical" : "plain";
+  const now = ticks.at(-1)!;
+  const lamp = alertLamp(now);
+  const note = serviceNote(now, technical);
+  const padded = Array.from({ length: slots }, (_, index) => ticks[index - (slots - ticks.length)] ?? null);
   const words = technical
-    ? { title: "p95 latency", top: "1000", mid: String(latencyThresholdMs), line: "threshold", health: "health", pass: "PASS", fail: "FAIL", measured: "observed", actual: "actual", blind: { wide: "latency not collected here", medium: "latency not collected", compact: "p95 not collected" } }
-    : { title: "page load time", top: "1 s", mid: `${latencyThresholdMs / 1000} s`, line: "too slow", health: "site answers", pass: "YES", fail: "NO", measured: "measured", actual: "actual wait", blind: { wide: "this dashboard doesn't measure speed", medium: "speed not measured here", compact: "speed not measured" } };
+    ? { title: "check time per region", top: "2 s", mid: `${DEGRADED_AFTER_MS / 1000} s`, line: "degraded_after", verdict: "verdict" }
+    : { title: "how long each check takes", top: "2 s", mid: "1 s", line: "too slow", verdict: "verdict" };
+  const regionText = (view: RegionView) => {
+    if (view.state === "unknown") return technical ? `${view.region} unknown${view.stale ? " (stale)" : " (pending)"}` : `${view.region}: no fresh result`;
+    if (view.state === "down") return technical ? `${view.region} down · ${view.reason}` : `${view.region}: down (${view.reason === "http_5xx" ? "error 503" : "wrong content"})`;
+    return technical ? `${view.region} up${view.slow ? " · slow" : ""} · ${view.latencyMs} ms` : `${view.region}: up${view.slow ? ", slow" : ""} · ${((view.latencyMs ?? 0) / 1000).toFixed(2)} s`;
+  };
 
   return (
     <Variants
       className="sd-svc"
       render={(layout) => {
         const g = layout === "wide"
-          ? { w: 640, h: 296, margin: 16, x0: 56, x1: 624, top: 44, bottom: 200, health: 230, pager: 250, legend: { x: 400, y: 260, rows: false }, note: 284, max: 76, step: 18 }
+          ? { w: 640, h: 300, margin: 16, x0: 56, x1: 624, top: 44, bottom: 176, regions: 202, verdict: 248, pager: 262, note: 290, max: 76, step: 18 }
           : layout === "medium"
-            ? { w: 320, h: 300, margin: 16, x0: 52, x1: 304, top: 44, bottom: 176, health: 202, pager: 216, legend: { x: 16, y: 250, rows: false }, note: 276, max: 36, step: 18 }
-            : { w: 200, h: 290, margin: 10, x0: 44, x1: 190, top: 38, bottom: 148, health: 172, pager: 186, legend: { x: 10, y: 218, rows: true }, note: 262, max: 25, step: 16 };
+            ? { w: 320, h: 316, margin: 16, x0: 52, x1: 304, top: 44, bottom: 166, regions: 192, verdict: 238, pager: 252, note: 292, max: 36, step: 18 }
+            : { w: 200, h: 312, margin: 10, x0: 44, x1: 190, top: 38, bottom: 140, regions: 164, verdict: 210, pager: 222, note: 268, max: 25, step: 16 };
         const slot = (g.x1 - g.x0) / slots;
         const x = (index: number) => g.x0 + (index + .5) * slot;
-        const y = (ms: number) => g.bottom - (Math.min(ms, 1000) / 1000) * (g.bottom - g.top);
-        const ghost = padded.flatMap((sample, index) => (sample ? [`${x(index)},${y(sample.actualLatency)}`] : [])).join(" ");
-        const runs: string[] = [];
-        let run: string[] = [];
-        padded.forEach((sample, index) => {
-          if (sample?.observedLatency != null) run.push(`${x(index)},${y(sample.observedLatency)}`);
-          else { if (run.length) runs.push(run.join(" ")); run = []; }
-        });
-        if (run.length) runs.push(run.join(" "));
-        let breach = -1;
-        padded.forEach((sample, index) => {
-          const previous = padded[index - 1];
-          if (sample?.observedLatency != null && sample.observedLatency > latencyThresholdMs && !(previous?.observedLatency != null && previous.observedLatency > latencyThresholdMs)) breach = index;
-        });
-        const healthStart = g.margin + words.health.length * 7.7 + 8;
-        const blind = words.blind[layout];
-        const blindX = layout === "compact" ? g.x0 : g.x0 + 8;
-        const pagerText = layout === "compact" && pager === "off" ? pagerOffCompact[voice] : pagerWords[voice][pager];
-        const actual = g.legend.rows ? { x: g.legend.x, y: g.legend.y + 18 } : { x: g.legend.x + 104, y: g.legend.y };
+        const y = (ms: number) => g.bottom - (Math.min(ms, chartTopMs) / chartTopMs) * (g.bottom - g.top);
+        const trace = (region: Region) => {
+          const runs: string[] = [];
+          let run: string[] = [];
+          padded.forEach((tick, index) => {
+            const result = tick?.results.find((item) => item.region === region);
+            if (result?.up) run.push(`${x(index)},${y(result.latencyMs)}`);
+            else { if (run.length) runs.push(run.join(" ")); run = []; }
+          });
+          if (run.length) runs.push(run.join(" "));
+          return runs;
+        };
         return (
           <svg className={`sd-svg sd-${layout}`} focusable="false" key={layout} viewBox={`0 0 ${g.w} ${g.h}`}>
             <defs>
@@ -389,51 +383,39 @@ export function ServiceDiagram({ samples, statusTitle, technical, window: slots 
               <clipPath id={`${id}-${layout}-plot`}><rect height={g.bottom - g.top + 8} width={g.x1 - g.x0} x={g.x0} y={g.top - 4} /></clipPath>
             </defs>
             <rect className="sd-ground" height="100%" width="100%" />
-            <text className="sd-label" x={g.margin} y={layout === "compact" ? 18 : 20}>{words.title}</text>
-            <text className="sd-clock" textAnchor="end" x={g.x1} y={layout === "compact" ? 18 : 20}>{now.time}</text>
+            <text className="sd-label" x={g.margin} y={layout === "compact" ? 18 : 20}>{layout === "compact" ? "check time" : words.title}</text>
+            <text className="sd-clock" textAnchor="end" x={g.x1} y={layout === "compact" ? 18 : 20}>{clockOf(now.n)}</text>
             <path className="sd-rule" d={`M${g.margin} ${layout === "compact" ? 26 : 30}H${g.x1}`} />
             <text className="sd-axis" textAnchor="end" x={g.x0 - 6} y={g.top + 4}>{words.top}</text>
-            <text className="sd-axis" textAnchor="end" x={g.x0 - 6} y={y(latencyThresholdMs) + 4}>{words.mid}</text>
+            <text className="sd-axis" textAnchor="end" x={g.x0 - 6} y={y(DEGRADED_AFTER_MS) + 4}>{words.mid}</text>
             <text className="sd-axis" textAnchor="end" x={g.x0 - 6} y={g.bottom + 4}>0</text>
             <path className="sd-baseline-axis" d={`M${g.x0} ${g.top}V${g.bottom}H${g.x1}`} />
 
             <g clipPath={`url(#${id}-${layout}-plot)`}>
-              <g className="sd-scroll" key={now.minute} style={{ "--slot": `${slot}px` } as CSSProperties}>
-                {padded.map((sample, index) => (sample && sample.mode === "designed" && !sample.collected
-                  ? <rect className="svc-gap sd-gap" fill={`url(#${id}-${layout}-hatch)`} height={g.bottom - g.top} key={sample.minute} width={slot} x={x(index) - slot / 2} y={g.top} />
+              <g className="sd-scroll" key={now.n} style={{ "--slot": `${slot}px` } as CSSProperties}>
+                {padded.map((tick, index) => (tick && !tick.results.some((result) => result.region === "lab-b")
+                  ? <rect className="svc-gap sd-gap" fill={`url(#${id}-${layout}-hatch)`} height={g.bottom - g.top} key={`gap-${tick.n}`} width={slot} x={x(index) - slot / 2} y={g.top} />
                   : null))}
-                <polyline className="sd-ghost" points={ghost} />
-                {runs.map((points) => <polyline className="sd-trace" key={points} points={points} />)}
-                {padded.map((sample, index) => (sample?.observedLatency != null ? (
-                  <rect className="sd-point" data-over={sample.observedLatency > latencyThresholdMs || undefined} height="8" key={sample.minute} width="8" x={x(index) - 4} y={y(sample.observedLatency) - 4} />
-                ) : null))}
-                {breach >= 0 && padded[breach]?.observedLatency != null ? (
-                  <circle className="sd-breach" cx={x(breach)} cy={y(padded[breach]!.observedLatency!)} data-firing={pager === "paging" || undefined} r="7" />
-                ) : null}
+                {trace("lab-b").map((points) => <polyline className="sd-ghost" key={`b-${points}`} points={points} />)}
+                {trace("lab-a").map((points) => <polyline className="sd-trace" key={`a-${points}`} points={points} />)}
+                {padded.flatMap((tick, index) => (tick ? tick.results.map((result) => (result.up
+                  ? <rect className="sd-point" data-over={result.slow || undefined} data-region={result.region} height="8" key={`${tick.n}-${result.region}`} width="8" x={x(index) - 4} y={y(result.latencyMs) - 4} />
+                  : <path className="sd-fail" d={`M${x(index) - 4} ${g.bottom - 12}l8 8m0 -8l-8 8`} key={`${tick.n}-${result.region}`} />)) : []))}
               </g>
             </g>
-            <path className="sd-threshold" d={`M${g.x0} ${y(latencyThresholdMs)}H${g.x1}`} />
-            <text className="sd-threshold-label" textAnchor="end" x={g.x1 - 4} y={y(latencyThresholdMs) + 16}>{words.line}</text>
-            {now.mode === "baseline" ? (
-              <g className="sd-overlay">
-                <rect height="24" width={Math.round(blind.length * 7.2 + 16)} x={blindX} y={g.top + 8} />
-                <text x={blindX + 8} y={g.top + 24}>{blind}</text>
+            <path className="sd-threshold" d={`M${g.x0} ${y(DEGRADED_AFTER_MS)}H${g.x1}`} />
+            <text className="sd-threshold-label" textAnchor="end" x={g.x1 - 4} y={y(DEGRADED_AFTER_MS) - 6}>{words.line}</text>
+
+            {now.views.map((view, index) => (
+              <g className="sd-region" data-state={view.state} data-slow={view.slow || undefined} key={view.region}>
+                <path className={view.region === "lab-a" ? "sd-legend-measured" : "sd-legend-actual"} d={`M${g.margin} ${g.regions + index * 18 - 4}h14`} />
+                <text x={g.margin + 20} y={g.regions + index * 18}>{layout === "compact" ? `${view.region} ${view.state === "unknown" ? "?" : view.state === "down" ? "down" : view.slow ? "slow" : "up"}` : regionText(view)}</text>
               </g>
-            ) : null}
-
-            <text className="sd-label" x={g.margin} y={g.health + 4}>{words.health}</text>
-            <path className="sd-health" d={`M${healthStart} ${g.health}H${g.x1 - (layout === "compact" ? 40 : 50)}`} data-state={now.health} />
-            <text className="sd-health-text" data-state={now.health} textAnchor="end" x={g.x1} y={g.health + 4}>{now.health === "pass" ? words.pass : words.fail}</text>
-
-            <g className="sd-pager" data-state={pager}>
+            ))}
+            <text className="sd-label" x={g.margin} y={g.verdict - 4}>{words.verdict}: <tspan className="sd-verdict" data-verdict={now.verdict}>{technical ? now.verdict : now.headline}</tspan></text>
+            <g className="sd-pager" data-state={lamp.state === "paging" ? "paging" : lamp.state === "warning" ? "warning" : lamp.state === "pending" ? "pending" : "quiet"}>
               <rect height="11" width="11" x={g.margin} y={g.pager} />
-              <text x={g.margin + 18} y={g.pager + 10}>{pagerText}</text>
-            </g>
-            <g className="sd-legend">
-              <path className="sd-legend-measured" d={`M${g.legend.x} ${g.legend.y - 4}h18`} />
-              <text x={g.legend.x + 24} y={g.legend.y}>{words.measured}</text>
-              <path className="sd-legend-actual" d={`M${actual.x} ${actual.y - 4}h18`} />
-              <text x={actual.x + 24} y={actual.y}>{words.actual}</text>
+              <text x={g.margin + 18} y={g.pager + 10}>{layout === "compact" ? lamp.compact : technical ? lamp.technical : lamp.plain}</text>
             </g>
             <Note joiner=" " max={g.max} parts={[{ text: note }]} step={g.step} x={g.margin} y={g.note} />
           </svg>

@@ -96,3 +96,13 @@ export function assessDevice(conditions: Record<string, string>): DeviceAssessme
   const signing: Signing = decision === "BLOCK" ? "NOTHING SIGNED" : decision === "ALLOW" ? "DEVICE KEY" : screenLock ? "STEP-UP KEY" : "SIGNED TAP";
   return { checks, found, score, level, reason, decision, signing, screenLock };
 }
+
+/* ------------------------------------------------------------- Comparison */
+
+/**
+ * A gate that blocks on any suspicious signal, the way a simple root check does. It is a comparison
+ * for the site, not code from the repo: TrustGate weighs the signals instead.
+ */
+export function blockOnAnySignal(conditions: Record<string, string>): GateDecision {
+  return deviceChecks.some((check) => conditions[check.id] === "found") ? "BLOCK" : "ALLOW";
+}
