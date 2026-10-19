@@ -1,3 +1,5 @@
+import { assessDevice, deviceChecks, deviceProfiles, HIGH_SCORE_THRESHOLD, MEDIUM_SCORE_THRESHOLD, SCREEN_LOCK } from "./device-risk";
+
 export type ScenarioSlug = "payflow" | "iyup" | "trustgate";
 export type ProjectionMode = "baseline" | "designed";
 export type NodeTone = "neutral" | "designed" | "confirmed" | "uncertain" | "adverse";
@@ -38,8 +40,12 @@ export type Scenario = {
   premise: string;
   repo: string;
   technology: string;
-  baselineLabel: string;
-  designedLabel: string;
+  /**
+   * A case that compares an old handling with the designed one names both; a case that shows one
+   * system as it is (case 03, the repo's own scoring) leaves them out and has no approach toggle.
+   */
+  baselineLabel?: string;
+  designedLabel?: string;
   decision: string;
   outcome: string;
   outcomeNodeId: string;
@@ -235,65 +241,42 @@ export const scenarios: Scenario[] = [
     slug: "trustgate",
     category: "Android device trust",
     shortcutLabel: "Device case",
-    indexTechnology: "Kotlin · Jetpack Compose",
-    indexResult: "Suspicion became confirmation, not an automatic block",
+    indexTechnology: "Kotlin · Android Keystore",
+    indexResult: "3 points: confirmed first, not blocked",
     number: "03",
-    shortTitle: "One device signal looked suspicious",
-    title: "One device signal looked suspicious, but it was not a verdict",
-    consequence: "The action still needed context before allow, confirm, or block.",
+    shortTitle: "A phone looked suspicious, but not enough to block",
+    title: "The phone looked suspicious, but not enough to block the payment",
+    consequence: "Two weak signals asked for a confirmation; one strong signal would have blocked the payment.",
     premise:
-      "A root signal changes confidence. The final decision also depends on other signals and the risk of the requested action.",
+      "Each device check adds points by how serious it is: 1, 2, or 3. From 2 points the payment must be confirmed first; from 5, or on any single high-severity check, it is blocked.",
     repo: "https://github.com/fattah247/trustgate-android",
-    technology: "Kotlin · Jetpack Compose · Android Keystore · BiometricPrompt",
-    baselineLabel: "Block on any suspicious signal",
-    designedLabel: "Evaluate signals against action risk",
-    decision: "Evaluate signal combinations against action sensitivity, and ask for a confirmation signed by a biometric-bound key when the risk is medium.",
-    outcome: "Uncertainty can require confirmation instead of an automatic block.",
+    technology: "Kotlin · Android Keystore · BiometricPrompt · Jetpack Compose",
+    decision: "Score every check, and let the server decide from the risk level.",
+    outcome: "Weak signals require a confirmation before the payment is signed; strong ones block it before anything is signed.",
     outcomeNodeId: "decision",
-    dependencies: {
-      root: ["environment", "policy", "decision", "event"],
-      emulator: ["environment", "policy", "decision", "event"],
-      signature: ["signature", "policy", "decision", "event"],
-      sensitivity: ["action", "policy", "decision", "event"],
-    },
+    dependencies: Object.fromEntries([
+      ...deviceChecks.map((check) => [check.id, ["checks", "score", "level", "decision", "signing", "event"]]),
+      [SCREEN_LOCK, ["signing", "event"]],
+    ]),
     defaults: {
-      root: "suspected",
-      emulator: "clear",
-      signature: "valid",
-      sensitivity: "high",
+      ...Object.fromEntries(deviceChecks.map((check) => [check.id, deviceProfiles.MEDIUM.includes(check.id) ? "found" : "clear"])),
+      [SCREEN_LOCK]: "set",
     },
     controls: [
-      {
-        key: "root",
-        label: "Root signal",
+      ...deviceChecks.map((check) => ({
+        key: check.id,
+        label: check.name,
         options: [
-          { label: "No root signal", value: "clear" },
-          { label: "Possible root signal", value: "suspected" },
-          { label: "Root detected", value: "detected" },
+          { label: "Not found", value: "clear" },
+          { label: "Found", value: "found" },
         ],
-      },
+      })),
       {
-        key: "emulator",
-        label: "Emulator",
+        key: SCREEN_LOCK,
+        label: "Screen lock",
         options: [
-          { label: "Clear", value: "clear" },
-          { label: "Detected", value: "detected" },
-        ],
-      },
-      {
-        key: "signature",
-        label: "Request signature",
-        options: [
-          { label: "Valid", value: "valid" },
-          { label: "Invalid", value: "invalid" },
-        ],
-      },
-      {
-        key: "sensitivity",
-        label: "Action sensitivity",
-        options: [
-          { label: "Low", value: "low" },
-          { label: "High", value: "high" },
+          { label: "Set", value: "set" },
+          { label: "None", value: "none" },
         ],
       },
     ],
@@ -324,7 +307,7 @@ export const scenarios: Scenario[] = [
       },
     ],
     limitation:
-      "Client-side signals raise the cost of abuse but cannot prove device integrity alone. In this lab the server's part runs on the device as a reference backend; production needs it on a server.",
+      "Client-side checks raise the cost of abuse but cannot prove device integrity. The demo's backend runs inside the app; a production server would decide from a Play Integrity verdict.",
   },
 ];
 
@@ -486,43 +469,48 @@ export function projectScenario(
     ];
   }
 
-  const suspicious = resolvedConditions.root !== "clear" || resolvedConditions.emulator === "detected";
-  const invalidSignature = resolvedConditions.signature === "invalid";
-  const highSensitivity = resolvedConditions.sensitivity === "high";
-  const designed = mode === "designed";
-  const designedDecision = invalidSignature || (resolvedConditions.root === "detected" && highSensitivity)
-    ? "BLOCK"
-    : suspicious && highSensitivity
-      ? "REQUIRE CONFIRMATION"
-      : "ALLOW";
-  const baselineDecision = suspicious ? "BLOCK" : "ALLOW";
-  const decision = designed ? designedDecision : baselineDecision;
-
+  // Case 03 shows the repo's one system as it is: the projection is the same in either mode.
+  const device = assessDevice(resolvedConditions);
+  const levelTone = device.level === "HIGH" ? "adverse" : device.level === "MEDIUM" ? "uncertain" : "confirmed";
+  const reason = device.reason.kind === "severe"
+    ? "A high-severity check makes the risk high on its own, whatever the total."
+    : device.reason.kind === "score"
+      ? `${device.score} points reach the ${device.reason.threshold === HIGH_SCORE_THRESHOLD ? "high" : "medium"} threshold of ${device.reason.threshold}.`
+      : `${device.score} ${device.score === 1 ? "point stays" : "points stay"} under the medium threshold of ${MEDIUM_SCORE_THRESHOLD}.`;
   return [
-    node("action", "Sensitive action", resolvedConditions.sensitivity.toUpperCase(), "The policy starts with what the user is trying to do."),
-    node("environment", "Environment signals", suspicious ? "SUSPICIOUS" : "CLEAR", "Root and emulator indicators are collected as evidence.", suspicious ? "uncertain" : "neutral"),
-    node("signature", "Request signature", resolvedConditions.signature.toUpperCase(), "Request integrity contributes a separate signal.", invalidSignature ? "adverse" : "neutral"),
-    node(
-      "policy",
-      "Policy",
-      designed ? "CONTEXTUAL" : "STRICT ENVIRONMENT",
-      designed ? "Signal combinations and action sensitivity are evaluated explicitly." : "Environmental suspicion is decisive, minimizing false negatives at the cost of more false positives.",
-      designed ? "designed" : suspicious ? "uncertain" : "neutral",
-    ),
+    node("checks", "Device checks", `${device.found.length} OF ${device.checks.length} FOUND`, device.found.length ? device.found.map((check) => `${check.name} +${check.points}`).join(", ") : "No check found anything.", device.found.length ? "uncertain" : "neutral"),
+    node("score", "Risk score", `${device.score} ${device.score === 1 ? "POINT" : "POINTS"}`, "A found check adds 1, 2, or 3 points by its severity."),
+    node("level", "Risk level", device.level, reason, levelTone),
     node(
       "decision",
-      "Action decision",
-      decision,
-      decision === "ALLOW"
-        ? "The action can continue."
-        : decision === "REQUIRE CONFIRMATION"
-          ? "Uncertainty triggers an additional user decision."
-          : "The action is stopped and recorded.",
-      decision === "BLOCK" ? "adverse" : decision === "REQUIRE CONFIRMATION" ? "uncertain" : "confirmed",
+      "Server's decision",
+      device.decision,
+      device.decision === "ALLOW"
+        ? "The payment is signed and sent."
+        : device.decision === "REQUIRE CONFIRMATION"
+          ? "The payment needs a confirmation before it can be signed."
+          : "No challenge is issued, so nothing can be signed.",
+      device.decision === "BLOCK" ? "adverse" : device.decision === "REQUIRE CONFIRMATION" ? "uncertain" : "confirmed",
     ),
-    node("event", "Security event", "WRITTEN", "The inputs, policy result, and action remain inspectable.", designed ? "confirmed" : "neutral"),
+    node(
+      "signing",
+      "Signed by",
+      device.signing,
+      device.signing === "STEP-UP KEY"
+        ? "A key that only signs after the screen lock or biometrics."
+        : device.signing === "SIGNED TAP"
+          ? "No screen lock, so no step-up key: a tap confirmation is signed into the request."
+          : device.signing === "DEVICE KEY"
+            ? "The phone's hardware-backed key signs it."
+            : "The payment stops here.",
+      device.signing === "NOTHING SIGNED" ? "adverse" : "designed",
+    ),
+    node("event", "Activity log", "WRITTEN", "The phone records the decision and the reason for it.", "confirmed"),
   ];
 }
+
+/** Whether a case compares an old handling with the designed one. */
+export const hasComparison = (scenario: Scenario) => Boolean(scenario.baselineLabel && scenario.designedLabel);
 
 export function explainScenario(
   scenario: Scenario,
@@ -549,7 +537,9 @@ export function explainScenario(
     },
     {
       label: "Outcome",
-      text: `${scenario.baselineLabel}: ${finalBaseline?.value.toLowerCase()}. ${scenario.designedLabel}: ${finalDesigned?.value.toLowerCase()}.`,
+      text: hasComparison(scenario)
+        ? `${scenario.baselineLabel}: ${finalBaseline?.value.toLowerCase()}. ${scenario.designedLabel}: ${finalDesigned?.value.toLowerCase()}.`
+        : `${finalDesigned?.label}: ${finalDesigned?.value.toLowerCase()}.`,
     },
   ];
 }

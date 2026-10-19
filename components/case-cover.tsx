@@ -2,7 +2,7 @@ import type { ScenarioSlug } from "../lib/scenarios";
 
 /**
  * Cover schematics for the three case files. Each one draws the shape of its own problem
- * (a repeated callback, a latency trace crossing a threshold, signals feeding a policy)
+ * (a repeated callback, a latency trace crossing a threshold, device checks adding up to a decision)
  * rather than a generic illustration. They are schematic, not measurements.
  */
 export function CaseCover({ slug, className = "" }: { slug: ScenarioSlug; className?: string }) {
@@ -58,29 +58,37 @@ function ServiceCover() {
 }
 
 function DeviceCover() {
+  // The story's own phone: two weak checks found (+2, +1) and two strong ones clear; three points
+  // pass the confirm mark (2) but not the block mark (5).
   return (
     <g>
-      <text className="case-cover-label" x="16" y="24">signals</text>
-      <text className="case-cover-label" x="104" y="24">action</text>
-      <text className="case-cover-label" x="168" y="24">decision</text>
+      <text className="case-cover-label" x="16" y="24">checks</text>
+      <text className="case-cover-label" x="114" y="24">points</text>
+      <text className="case-cover-label" x="186" y="24">decision</text>
       <path className="case-cover-rule" d="M16 34h208" />
       <g className="case-cover-signals">
-        <rect className="case-cover-signal case-cover-signal-suspect" height="14" width="58" x="16" y="48" />
-        <text className="case-cover-signal-text" x="22" y="59">root ?</text>
-        <rect className="case-cover-signal" height="14" width="58" x="16" y="70" />
-        <text className="case-cover-signal-text" x="22" y="81">emulator</text>
-        <rect className="case-cover-signal" height="14" width="58" x="16" y="92" />
-        <text className="case-cover-signal-text" x="22" y="103">signature</text>
+        <rect className="case-cover-signal case-cover-signal-suspect" height="14" width="86" x="16" y="44" />
+        <text className="case-cover-signal-text" x="22" y="55">+2 test build</text>
+        <rect className="case-cover-signal case-cover-signal-suspect" height="14" width="86" x="16" y="62" />
+        <text className="case-cover-signal-text" x="22" y="73">+1 installer</text>
+        <rect className="case-cover-signal" height="14" width="86" x="16" y="80" />
+        <text className="case-cover-signal-text case-cover-signal-clear" x="22" y="91">· root app</text>
+        <rect className="case-cover-signal" height="14" width="86" x="16" y="98" />
+        <text className="case-cover-signal-text case-cover-signal-clear" x="22" y="109">· debugger</text>
       </g>
-      <path className="case-cover-flow" d="M74 55h22M74 77h22M74 99h22M96 55v44M96 77h8" />
-      <rect className="case-cover-boundary" height="26" width="44" x="104" y="64" />
-      <text className="case-cover-signal-text" x="112" y="81">high</text>
-      <path className="case-cover-flow case-cover-flow-designed" d="M148 77h20" />
-      <rect className="case-cover-decision" height="26" width="56" x="168" y="64" />
-      <text className="case-cover-decision-text" x="173" y="81">CONFIRM</text>
-      <text className="case-cover-note" x="16" y="138">suspicion</text>
-      <path className="case-cover-arrow" d="M76 134h16m-5-4 5 4-5 4" />
-      <text className="case-cover-note" x="98" y="138">confirmation</text>
+      <path className="case-cover-flow" d="M102 51h6M102 69h6M108 51v18M108 60h6" />
+      {[0, 1, 2, 3, 4, 5].map((index) => (
+        <rect className={index < 3 ? "case-cover-cell case-cover-cell-on" : "case-cover-cell"} height="14" key={index} width="10" x={114 + index * 10} y="53" />
+      ))}
+      <path className="case-cover-mark" d="M134 48v24M164 48v24" />
+      <text className="case-cover-signal-text" textAnchor="middle" x="134" y="82">2</text>
+      <text className="case-cover-signal-text" textAnchor="middle" x="164" y="82">5</text>
+      <path className="case-cover-flow case-cover-flow-designed" d="M174 60h10" />
+      <rect className="case-cover-decision" height="26" width="46" x="184" y="47" />
+      <text className="case-cover-decision-text" x="188" y="64">CONFIRM</text>
+      <text className="case-cover-note" x="16" y="138">3 points</text>
+      <path className="case-cover-arrow" d="M70 134h16m-5-4 5 4-5 4" />
+      <text className="case-cover-note" x="92" y="138">confirm first</text>
     </g>
   );
 }

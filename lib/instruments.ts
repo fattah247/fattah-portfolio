@@ -163,63 +163,7 @@ export function simulateSignals(conditions: Conditions, mode: ProjectionMode): S
 
 /* ------------------------------------------------------------- Device trust */
 
-export type PolicyCondition = { label: string; met: boolean };
-export type PolicyRule = {
-  id: string;
-  when: string;
-  conditions: PolicyCondition[];
-  result: "ALLOW" | "REQUIRE CONFIRMATION" | "BLOCK";
-  status: "matched" | "not met" | "not reached";
-};
-
-export type PolicyRun = {
-  environment: "suspicious" | "clear";
-  environmentReasons: string[];
-  signatureValid: boolean;
-  sensitivity: "high" | "low";
-  rules: PolicyRule[];
-  decision: PolicyRule["result"];
-};
-
-export function evaluatePolicy(conditions: Conditions, mode: ProjectionMode): PolicyRun {
-  const c = resolveScenarioConditions("trustgate", conditions);
-  const reasons = [
-    c.root === "detected" ? "Root detected" : c.root === "suspected" ? "Possible root signal" : null,
-    c.emulator === "detected" ? "Emulator detected" : null,
-  ].filter((reason): reason is string => Boolean(reason));
-  const suspicious = reasons.length > 0;
-  const signatureValid = c.signature === "valid";
-  const high = c.sensitivity === "high";
-
-  const definitions: Array<Omit<PolicyRule, "status">> = mode === "designed"
-    ? [
-        { id: "signature", when: "Request signature is invalid", conditions: [{ label: "Signature invalid", met: !signatureValid }], result: "BLOCK" },
-        { id: "root-sensitive", when: "Root detected on a sensitive action", conditions: [{ label: "Root detected", met: c.root === "detected" }, { label: "Sensitivity high", met: high }], result: "BLOCK" },
-        { id: "suspicious-sensitive", when: "Suspicious environment on a sensitive action", conditions: [{ label: "Environment suspicious", met: suspicious }, { label: "Sensitivity high", met: high }], result: "REQUIRE CONFIRMATION" },
-        { id: "default", when: "Otherwise", conditions: [], result: "ALLOW" },
-      ]
-    : [
-        { id: "any-suspicious", when: "Any suspicious environment signal", conditions: [{ label: "Environment suspicious", met: suspicious }], result: "BLOCK" },
-        { id: "default", when: "Otherwise", conditions: [], result: "ALLOW" },
-      ];
-
-  let matched = false;
-  const rules = definitions.map((rule): PolicyRule => {
-    if (matched) return { ...rule, status: "not reached" };
-    const hit = rule.conditions.every((condition) => condition.met);
-    if (hit) matched = true;
-    return { ...rule, status: hit ? "matched" : "not met" };
-  });
-  const decision = rules.find((rule) => rule.status === "matched")?.result ?? "ALLOW";
-  return {
-    environment: suspicious ? "suspicious" : "clear",
-    environmentReasons: reasons,
-    signatureValid,
-    sensitivity: high ? "high" : "low",
-    rules,
-    decision,
-  };
-}
+// Case 03's instrument is the repo's own scorer and gate: see `assessDevice` in ./device-risk.
 
 /** Plain-language label for a projected outcome value. */
 export function readableOutcome(slug: ScenarioSlug, value: string) {
@@ -236,9 +180,9 @@ export function readableOutcome(slug: ScenarioSlug, value: string) {
     "iyup:ACTIONABLE": "Degradation visible before outage",
     "iyup:INVESTIGATE COLLECTION": "Telemetry collection needs investigation",
     "iyup:QUIET": "No warning raised",
-    "trustgate:ALLOW": "Allow action",
-    "trustgate:BLOCK": "Block action",
-    "trustgate:REQUIRE CONFIRMATION": "Ask for confirmation",
+    "trustgate:ALLOW": "Payment allowed",
+    "trustgate:BLOCK": "Blocked, nothing signed",
+    "trustgate:REQUIRE CONFIRMATION": "Confirmation required",
   };
   return labels[`${slug}:${value}`] ?? value.toLowerCase().replaceAll("_", " ");
 }

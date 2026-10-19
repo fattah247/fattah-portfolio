@@ -37,15 +37,22 @@ describe("selected work scenario contracts", () => {
     expect(() => projectScenario(scenario.slug, incomplete, "designed")).not.toThrow();
   });
 
-  it("keeps a suspicious device signal visible when a low-risk action is allowed", () => {
-    const projection = projectScenario("trustgate", {
-      root: "suspected",
-      emulator: "clear",
-      signature: "valid",
-      sensitivity: "low",
-    }, "designed");
+  it("keeps a weak device check visible when the payment is allowed", () => {
+    const onlyInstaller = Object.fromEntries(scenarios[2].controls.map((control) => [control.key, control.key === "installer_source_unknown" ? "found" : control.options[0].value]));
+    const projection = projectScenario("trustgate", onlyInstaller, "designed");
 
-    expect(projection.find((node) => node.id === "environment")?.value).toBe("SUSPICIOUS");
+    expect(projection.find((node) => node.id === "checks")?.value).toBe("1 OF 8 FOUND");
+    expect(projection.find((node) => node.id === "level")?.value).toBe("LOW");
     expect(projection.find((node) => node.id === "decision")?.value).toBe("ALLOW");
+  });
+
+  it("starts case 03 on the repo's medium-risk test phone, confirmed rather than blocked", () => {
+    const projection = projectScenario("trustgate", scenarios[2].defaults, "designed");
+
+    expect(projection.find((node) => node.id === "score")?.value).toBe("3 POINTS");
+    expect(projection.find((node) => node.id === "decision")?.value).toBe("REQUIRE CONFIRMATION");
+    expect(projection.find((node) => node.id === "signing")?.value).toBe("STEP-UP KEY");
+    // Case 03 shows one system, so both modes project the same.
+    expect(projectScenario("trustgate", scenarios[2].defaults, "baseline")).toEqual(projection);
   });
 });
