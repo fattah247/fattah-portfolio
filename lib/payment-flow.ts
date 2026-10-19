@@ -8,7 +8,8 @@
  *   AMOUNT_MISMATCH, and a holdable payment goes to MANUAL_REVIEW), a status already recorded under
  *   a new event id (→ DUPLICATE_IGNORED), AUTHORIZED after capture (→ STALE_IGNORED), and
  *   otherwise APPLIED, with a CAPTURE journal when the payment succeeds;
- * - an operator's RELEASE_PAYMENT returns a held payment to the state it was held from;
+ * - an operator's RELEASE_PAYMENT returns a held payment to the state it was held from and resolves
+ *   its review case (`ReviewWorkflowService`; no second operator is needed to release);
  * - settlement pays out captures net of the provider's fee (`payout-fee-bps: 30`), skips held
  *   payments (→ 409 NOTHING_TO_SETTLE), and sends the payout under its derived key `payout-<batch>`;
  * - a payout lands only on a bank credit whose reference is the payout's (PFB…), whose amount is
@@ -91,6 +92,7 @@ export type FlowWorld = {
   nextEvent: number;
   journals: string[];
   audit: string[];
+  /** Review cases still open for a person. */
   reviewCases: string[];
   breaks: string[];
   payout: PayoutStatus;
@@ -172,6 +174,12 @@ function eventFor(world: FlowWorld, kind: WebhookKind): ProviderEvent | null {
 function reconcile(world: FlowWorld): FlowWorld {
   if (world.status !== "SETTLED" || !world.reportMatched || world.payout !== "LANDED") return world;
   return { ...world, status: "RECONCILED", audit: [...world.audit, "PAYMENT_RECONCILED"] };
+}
+
+/** The open review cases once one is resolved: only the first case of that reason closes. */
+function resolveCase(cases: string[], reason: string) {
+  const index = cases.indexOf(reason);
+  return index < 0 ? cases : [...cases.slice(0, index), ...cases.slice(index + 1)];
 }
 
 type Step = Omit<FlowEntry, "n" | "input">;
@@ -263,7 +271,7 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
       outcome: "RELEASED", tone: "neutral",
       plain: `A person checked it and released the payment back to ${statusWord[world.heldFrom].toLowerCase()}. The provider's next delivery can now be applied.`,
       hood: `review case resolved: RELEASE_PAYMENT → MANUAL_REVIEW → ${world.heldFrom} · audit PAYMENT_STATE_CHANGED`,
-    }, { status: world.heldFrom, heldFrom: null, audit: [...world.audit, "PAYMENT_STATE_CHANGED"] });
+    }, { status: world.heldFrom, heldFrom: null, reviewCases: resolveCase(world.reviewCases, "AMOUNT_MISMATCH"), audit: [...world.audit, "PAYMENT_STATE_CHANGED"] });
   }
 
   if (input.kind === "settle") {
@@ -296,7 +304,7 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
       return record(world, input, {
         outcome: "MISMATCH", tone: "uncertain",
         plain: "The provider's daily report disagrees with our records. A review case is opened for a person; the payment itself keeps its state.",
-        hood: "report row ≠ payment → MISMATCH · review case AMOUNT_MISMATCH · audit RECONCILIATION_MISMATCH_FOUND · no hold",
+        hood: "report row ≠ payment → MISMATCH · review case REPORT_MISMATCH · audit RECONCILIATION_MISMATCH_FOUND · no hold",
       }, { reviewCases: [...world.reviewCases, "REPORT_MISMATCH"], audit: [...world.audit, "RECONCILIATION_MISMATCH_FOUND"] });
     }
     if (world.status === "RECONCILED") return record(world, input, { outcome: "ALREADY_RECONCILED", tone: "neutral", plain: "The report matches, and the payment was already reconciled.", hood: "report row → ALREADY_RECONCILED" }, {});

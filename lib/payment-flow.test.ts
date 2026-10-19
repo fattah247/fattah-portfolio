@@ -18,7 +18,9 @@ describe("payment flow (Payflow's ProviderWebhookService, settlement and bank le
     const world = playFlow([send("wrong-amount"), send("success"), { kind: "release" }, send("again")]);
     expect(world.entries.map((entry) => [entry.outcome, entry.http].filter(Boolean).join(" "))).toEqual(["SENT_TO_REVIEW 202", "PAYMENT_ON_HOLD 409", "RELEASED", "APPLIED 200"]);
     expect(world.status).toBe("SUCCESS");
-    expect(world.reviewCases).toEqual(["AMOUNT_MISMATCH"]);
+    // RELEASE_PAYMENT resolves the review case it answered, so nothing is left waiting for a person.
+    expect(world.reviewCases).toEqual([]);
+    expect(playFlow([send("wrong-amount")]).reviewCases).toEqual(["AMOUNT_MISMATCH"]);
     // The deferred event left no inbox row, which is why its redelivery could be applied.
     expect(world.journals).toEqual(["CAPTURE"]);
   });
