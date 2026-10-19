@@ -1,30 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PlayIcon, ResetIcon, StartOverIcon } from "./icons";
-import { answerDelayMs, DeviceDiagram, messageTravelMs, PaymentDiagram, ruleStepMs, ServiceDiagram, toRulesMs } from "./sim-diagrams";
+import { PlayIcon, ResetIcon } from "./icons";
+import { answerDelayMs, DeviceDiagram, ruleStepMs, ServiceDiagram, toRulesMs } from "./sim-diagrams";
+import { MailRoom } from "./mail-room";
 import { useSound } from "./sound-provider";
-import { LANDING, type CueId } from "../lib/sound/engine";
+import { type CueId } from "../lib/sound/engine";
 import { assessDevice, blockOnAnySignal, deviceChecks, deviceProfiles, HIGH_SCORE_THRESHOLD, MEDIUM_SCORE_THRESHOLD, SCREEN_LOCK, type DeviceAssessment, type GateDecision, type RiskLevel } from "../lib/device-risk";
 import { type Conditions, type ProjectionMode, type Scenario } from "../lib/scenarios";
-import {
-  emptyFlow,
-  emptyNaive,
-  flowStep,
-  mutations,
-  naiveStep,
-  paymentStory,
-  PAYOUT_NET,
-  payoutWord,
-  statusWord,
-  type FlowInput,
-  type FlowOutcome,
-  type FlowTone,
-  type FlowWorld,
-  type MutationId,
-  type NaiveWorld,
-  type PaymentStatus,
-} from "../lib/payment-flow";
+import { type FlowTone } from "../lib/payment-flow";
 import { alertFor, alertSeverity, clockOf, DEGRADED_AFTER_MS, firing, naiveTally, naiveView, runUptime, STORY_CHECKS, toUptimeConditions, type Tick } from "../lib/uptime";
 
 type Phase = "rest" | "rewind" | "reconstruct";
@@ -44,42 +28,18 @@ function useOnChange<T>(value: T, effect: (next: T, previous: T) => void) {
   }, [value]);
 }
 
-/** Every payment outcome has its sound, so a manual send and the played example sound alike. */
-const payCue: Record<FlowOutcome, CueId> = {
-  APPLIED: "pay.let-in",
-  DUPLICATE_IGNORED: "pay.stopped",
-  STALE_IGNORED: "pay.stopped",
-  PAYMENT_ON_HOLD: "pay.stopped",
-  SENT_TO_REVIEW: "pay.report-differs",
-  RELEASED: "pay.check-on",
-  BATCH_CREATED: "pay.book-back",
-  NOTHING_TO_SETTLE: "pay.check-off",
-  MATCHED_AWAITING_BANK: "sys.file-open",
-  MATCHED_NO_ACTION: "sys.file-open",
-  ALREADY_RECONCILED: "sys.file-open",
-  RECONCILED: "pay.report-matches",
-  MISMATCH: "pay.report-differs",
-  LANDED: "pay.let-in",
-  MISSING_CREDIT: "pay.book-down",
-  UNMATCHED_CREDIT: "pay.report-differs",
-  ALREADY_IMPORTED: "pay.stopped",
-  NO_PAYOUT_YET: "pay.check-off",
-  RULE_REMOVED: "pay.check-off",
-  RULE_RESTORED: "pay.check-on",
-  RULE_BROKEN: "pay.twice",
-};
-/** A message's cue starts early enough that its knock lands as the packet reaches the payment. */
-const landingDelay = messageTravelMs / 1000 - LANDING;
-
 /** Each simulator has a name, like a small piece of equipment. */
 const simName: Record<Scenario["slug"], string> = {
-  payflow: "Payment desk",
+  payflow: "Mail room",
   iyup: "Website monitor",
   trustgate: "Payment gate",
 };
 
+/** The cases whose "Try it" is a toy rather than a simulator panel. */
+const toys = new Set<Scenario["slug"]>(["payflow"]);
+
 const howTo: Record<Scenario["slug"], string> = {
-  payflow: "You run Payflow, a shop's payment system. Send the provider's messages, then follow the money to the bank. Under it, a simpler system gets the same messages, for comparison.",
+  payflow: "You're the payment provider's courier: drop envelopes on Payflow's desk, or press one to throw it.",
   iyup: "iYup watches a page from two regions, one check every 30 seconds; here a second is one check. Slow the page, break it in one region, or silence an agent, and see what iYup says and when it alerts.",
   trustgate: "You're sending a payment. Switch on what the phone's checks find: each adds points by how serious it is. The server decides from the total, and the phone writes the decision to its log.",
 };
@@ -160,19 +120,23 @@ export function CaseInstrument({
   const [technical, setTechnical] = useState(false);
   const { play } = useSound();
   const shared = { approach, conditions, isDefault, onApproachChange, onChange, onReset, scenario, selectedConditions, technical };
+  const technicalKey = (
+    <button aria-pressed={technical} className="instrument-technical" onClick={() => { play(technical ? "ui.key-off" : "ui.key-on"); setTechnical((value) => !value); }} type="button">
+      <i aria-hidden="true" />Technical details
+    </button>
+  );
   return (
     <section aria-labelledby={titleId} className="instrument" data-approach={approach} data-instrument={scenario.slug} data-phase={phase} data-technical={technical || undefined} id="replay">
       <header className="instrument-plate">
         <h2 className="interaction-title" id={titleId}>Test the decision</h2>
         <p className="instrument-plate-name"><span>{simName[scenario.slug]}</span> <small>Simulated</small></p>
       </header>
-      <div className="instrument-intro">
+      {/* The toys keep the key with their own actions, so the instruction stays one short line. */}
+      <div className="instrument-intro" data-key={toys.has(scenario.slug) ? "with-actions" : undefined}>
         <p className="instrument-instruction">{howTo[scenario.slug]}</p>
-        <button aria-pressed={technical} className="instrument-technical" onClick={() => { play(technical ? "ui.key-off" : "ui.key-on"); setTechnical((value) => !value); }} type="button">
-          <i aria-hidden="true" />Technical details
-        </button>
+        {toys.has(scenario.slug) ? null : technicalKey}
       </div>
-      {scenario.slug === "payflow" ? <PaymentSim {...shared} /> : null}
+      {scenario.slug === "payflow" ? <MailRoom conditions={conditions} isDefault={isDefault} onChange={onChange} onReset={onReset} technical={technical} technicalKey={technicalKey} /> : null}
       {scenario.slug === "iyup" ? <ServiceSim {...shared} foreground={foreground} /> : null}
       {scenario.slug === "trustgate" ? <DeviceSim {...shared} /> : null}
     </section>
@@ -276,170 +240,6 @@ function ShadowLane({ last, name, says, tally }: { last: string; name: string; s
         ))}
       </dl>
     </section>
-  );
-}
-
-/* ------------------------------------------------------------------ Payment */
-
-const storyStepDelay = 800;
-const idr = (amount: number) => `${amount.toLocaleString("en-US")} IDR`;
-
-/** The examples a visitor can watch, each a set of the case's conditions. */
-const paymentExamples: Array<{ value: string; label: string; conditions: Conditions }> = [
-  { value: "twice", label: "The provider sends it twice", conditions: { delivery: "duplicate", amount: "matches", bank: "landed" } },
-  { value: "late", label: "A late “authorized”", conditions: { delivery: "out-of-order", amount: "matches", bank: "landed" } },
-  { value: "wrong", label: "A wrong amount", conditions: { delivery: "once", amount: "differs", bank: "landed" } },
-  { value: "no-credit", label: "The bank never pays", conditions: { delivery: "once", amount: "matches", bank: "missing" } },
-];
-
-type PayState = { flow: FlowWorld; naive: NaiveWorld };
-const emptyPay: PayState = { flow: emptyFlow, naive: emptyNaive };
-const stepBoth = (state: PayState, input: FlowInput): PayState => ({ flow: flowStep(state.flow, input), naive: naiveStep(state.naive, input, state.flow) });
-
-const payStates: PaymentStatus[] = ["PENDING", "AUTHORIZED", "SUCCESS", "SETTLED", "RECONCILED", "MANUAL_REVIEW"];
-
-function PaymentSim({ conditions, isDefault, onChange, onReset, selectedConditions, technical }: SimProps) {
-  const [state, setState] = useState<PayState>(emptyPay);
-  const [story, setStory] = useState<number | null>(null);
-  const timers = useRef<number[]>([]);
-  const { flow, naive } = state;
-  const latest = flow.entries.at(-1);
-  const captures = flow.journals.filter((journal) => journal === "CAPTURE").length;
-  const marks = useChangeMarks({ state: flow.status, captures: String(captures), payout: flow.payout });
-  const { play } = useSound();
-  useOnChange(flow.entries.length, (count, before) => {
-    const entry = flow.entries.at(-1);
-    // A landing that completes the reconciliation rings the bells rather than the knock.
-    const cue = entry?.outcome === "LANDED" && flow.status === "RECONCILED" ? "pay.report-matches" : entry ? payCue[entry.outcome] : null;
-    if (count > before && cue) play(cue, entry?.event ? landingDelay : 0);
-  });
-
-  useEffect(() => () => timers.current.forEach(window.clearTimeout), []);
-
-  const stopStory = () => { timers.current.forEach(window.clearTimeout); timers.current = []; setStory(null); };
-  const send = (input: FlowInput) => { stopStory(); setState((current) => stepBoth(current, input)); };
-  const playStory = (example: Conditions = conditions) => {
-    stopStory();
-    const script = paymentStory(example);
-    const reduced = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced) { setState(script.reduce(stepBoth, emptyPay)); return; }
-    setState(emptyPay);
-    setStory(0);
-    script.forEach((input, index) => {
-      timers.current.push(window.setTimeout(() => {
-        setState((current) => stepBoth(current, input));
-        setStory(index + 1 < script.length ? index + 1 : null);
-      }, (index + 1) * storyStepDelay));
-    });
-  };
-  const example = paymentExamples.find((item) => Object.entries(item.conditions).every(([key, value]) => selectedConditions[key] === value))?.value ?? "";
-  const watch = (value: string) => {
-    const next = paymentExamples.find((item) => item.value === value)!.conditions;
-    for (const [key, item] of Object.entries(next)) if (selectedConditions[key] !== item) onChange(key, item);
-    playStory({ ...conditions, ...next });
-  };
-  const toggleRule = (id: MutationId) => send({ kind: "mutate", mutation: id, removed: !flow.removed.includes(id) });
-
-  const journal: JournalEntry[] = [...flow.entries].reverse().slice(0, 6).map((entry) => ({
-    key: String(entry.n),
-    badge: entry.http ? `#${entry.n} · ${entry.http}` : `#${entry.n}`,
-    tone: entry.tone,
-    plain: entry.plain,
-    contrast: entry.contrast,
-    hood: entry.hood,
-  }));
-  const sub = (plain: string, code: string) => <small>{technical ? <code>{code}</code> : plain}</small>;
-  const held = flow.status === "MANUAL_REVIEW";
-
-  return (
-    <div className="sim" data-sim="payflow">
-      <PaymentDiagram technical={technical} world={flow} />
-      <Wire technical={technical}>{`inbox [${Object.keys(flow.inbox).join(", ")}] · ${flow.status} · journals ${flow.journals.join(" ") || "–"} · payout ${flow.payout}${latest ? ` · last: ${latest.hood}` : ""}`}</Wire>
-
-      <div className="sim-controls">
-        <div aria-label="The provider sends" className="sim-group" role="group">
-          <p className="sim-group-label">The provider sends</p>
-          <div className="sim-buttons">
-            <button className="sim-send" onClick={() => send({ kind: "webhook", webhook: "success" })} type="button">“Paid”{sub("the payment went through", "new event · SUCCESS")}</button>
-            <button className="sim-send" disabled={!flow.lastEvent} onClick={() => send({ kind: "webhook", webhook: "again" })} type="button">The same event again{sub("providers resend when unsure", `redeliver ${flow.lastEvent?.id ?? "–"}`)}</button>
-            <button className="sim-send" onClick={() => send({ kind: "webhook", webhook: "new-id" })} type="button">“Paid”, new id{sub("the same news, restated", "new event · SUCCESS, restated")}</button>
-            <button className="sim-send" onClick={() => send({ kind: "webhook", webhook: "late-authorized" })} type="button">Late “authorized”{sub("an older status, delivered late", "new event · AUTHORIZED")}</button>
-            <button className="sim-send" onClick={() => send({ kind: "webhook", webhook: "wrong-amount" })} type="button">“Paid”, wrong amount{sub("740,000 for a 750,000 payment", "new event · SUCCESS 740000")}</button>
-          </div>
-        </div>
-        <div aria-label="Then the money" className="sim-group" role="group">
-          <p className="sim-group-label">Then the money</p>
-          <div className="sim-buttons">
-            <button className="sim-send" disabled={!held} onClick={() => send({ kind: "release" })} type="button">A person releases it{sub("after checking the hold", "RELEASE_PAYMENT")}</button>
-            <button className="sim-send" onClick={() => send({ kind: "settle" })} type="button">Pay out{sub("the day's settlement run", "settlement batch")}</button>
-            <button className="sim-send" onClick={() => send({ kind: "report", matches: true })} type="button">Provider&rsquo;s report matches{sub("its word, not the money", "report row matches")}</button>
-            <button className="sim-send" onClick={() => send({ kind: "report", matches: false })} type="button">Report disagrees{sub("its numbers differ", "report row MISMATCH")}</button>
-          </div>
-        </div>
-        <div aria-label="The bank's statement" className="sim-group" role="group">
-          <p className="sim-group-label">The bank&rsquo;s statement</p>
-          <div className="sim-buttons">
-            <button className="sim-send" onClick={() => send({ kind: "statement", statement: "credit" })} type="button">Credit arrives{sub(`${idr(PAYOUT_NET)}, with the payout's reference`, "camt.053 credit, EndToEndId = payout reference")}</button>
-            <button className="sim-send" onClick={() => send({ kind: "statement", statement: "no-credit" })} type="button">No credit{sub("the value date passes", "no credit by value date + 2 days")}</button>
-            <button className="sim-send" onClick={() => send({ kind: "statement", statement: "no-reference" })} type="button">Credit, no reference{sub("the amount fits, nothing else", "credit without EndToEndId")}</button>
-            <button className="sim-send" onClick={() => send({ kind: "statement", statement: "reimport" })} type="button">Same statement again{sub("the bank resends it", "statement re-imported")}</button>
-          </div>
-        </div>
-        <fieldset className="instrument-control sim-mutations">
-          <legend>Remove a rule, as the repo&rsquo;s tests do<small>each is a deliberate break the repo&rsquo;s own tests make, and catch</small></legend>
-          <div className="instrument-keys" data-count="3">
-            {(Object.keys(mutations) as MutationId[]).map((id) => (
-              <button aria-pressed={flow.removed.includes(id)} className="instrument-option" key={id} onClick={() => toggleRule(id)} type="button">
-                {technical ? mutations[id].technical : mutations[id].plain}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        <Keys hint="it plays through the desk" label="Or watch an example" onSelect={watch} options={paymentExamples.map(({ label, value }) => ({ label, value }))} selected={example} />
-      </div>
-
-      <div className="sim-readout">
-        <ol aria-label="Payment state" className="pay-states">
-          {payStates.map((status) => (
-            <li data-changed={status === flow.status ? marks.state : undefined} data-current={status === flow.status || undefined} data-state={status === "MANUAL_REVIEW" ? "review" : status === "PENDING" || status === "AUTHORIZED" ? "pending" : "paid"} key={status}>
-              <i aria-hidden="true" />{technical ? status : statusWord[status]}{status === flow.status ? <span className="sr-only"> (current)</span> : null}
-            </li>
-          ))}
-        </ol>
-        <dl className="sim-counts">
-          <div><dt>Events received</dt><dd>{flow.entries.filter((entry) => entry.event).length}</dd></div>
-          <div data-changed={marks.captures}><dt>Money captured</dt><dd>{captures === 1 ? "once" : `${captures}×`}</dd></div>
-          <div data-changed={marks.payout} data-tone={flow.payout === "BROKEN" ? "adverse" : undefined}><dt>Payout</dt><dd>{technical ? flow.payout : payoutWord[flow.payout]}</dd></div>
-          <div><dt>Waiting for a person</dt><dd>{flow.reviewCases.length + flow.breaks.length}</dd></div>
-          {flow.rulesBroken.length ? <div data-tone="adverse"><dt>Rules broken</dt><dd>{flow.rulesBroken.length}</dd></div> : null}
-        </dl>
-        <ol aria-label="Audit trail" className="sr-only">
-          {flow.audit.length ? flow.audit.map((record, index) => <li key={index}>{record}</li>) : <li>no records yet</li>}
-        </ol>
-      </div>
-
-      <ShadowLane
-        last={naive.last}
-        name="Without an event inbox, trusting the provider"
-        says={technical ? naive.status : statusWord[naive.status]}
-        tally={[
-          { label: "Charged twice", value: Math.max(0, naive.captures - 1) },
-          { label: "Newer news overwritten", value: naive.overwritten },
-          { label: "Wrong amount taken", value: naive.wrongAmount },
-          { label: "Reconciled with no money in the bank", value: naive.reconciledWithoutBank },
-        ]}
-      />
-
-      <div className="sim-actions">
-        <button className="sim-primary" disabled={story !== null} onClick={() => playStory()} type="button"><PlayIcon />{story !== null ? "Playing the example…" : "Play the example"}</button>
-        <button className="sim-secondary" onClick={() => { stopStory(); setState(emptyPay); play("pay.start-over"); }} type="button"><StartOverIcon />Start over</button>
-        <StoryReset isDefault={isDefault} onReset={onReset} />
-        <p className="sim-compare">Every event gets one outcome, and the money counts only when the bank says so.</p>
-      </div>
-
-      <Journal empty="Nothing yet. Send a message from the provider." entries={journal} technical={technical} />
-      <p aria-live="polite" className="sr-only">{latest ? latest.plain : ""}</p>
-    </div>
   );
 }
 

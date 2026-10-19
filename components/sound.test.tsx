@@ -81,34 +81,43 @@ describe("sound", () => {
     expect(screen.queryByRole("group", { name: "Sound" })).toBeNull();
   });
 
-  it("plays the payment's own outcomes, timed to the event landing, and marks the knock and the jolt", () => {
+  it("plays the mail room's own outcomes, timed to the envelope landing, and marks the knock and the jolt", () => {
     const { play, cues } = withSound(caseOf(0));
     expect(cues()).toEqual(["sys.file-open"]);
-    const state = () => document.querySelector(".sd-pay .sd-wide .sd-state")?.getAttribute("data-hit");
+    const thing = (label: string) => screen.getByRole("button", { name: new RegExp(`^${label}`) });
+    const hit = (selector: string) => document.querySelector(selector)?.getAttribute("data-hit");
 
-    fireEvent.click(screen.getByRole("button", { name: /^“Paid”the payment/ }));
+    // A thrown envelope's knock lands as it reaches the desk.
+    fireEvent.click(thing("“Paid”"));
     expect(play).toHaveBeenLastCalledWith("pay.let-in", expect.closeTo(0.32, 3));
-    expect(state()).toBe("land");
-    fireEvent.click(screen.getByRole("button", { name: /The same event again/ }));
+    expect(hit(".mr-landing")).toBe("land");
+    fireEvent.click(thing("“Paid”, again"));
     expect(play).toHaveBeenLastCalledWith("pay.stopped", expect.closeTo(0.32, 3));
-    fireEvent.click(screen.getByRole("button", { name: /^“Paid”, wrong amount/ }));
-    expect(cues().at(-1)).toBe("pay.report-differs");
-    fireEvent.click(screen.getByRole("button", { name: /A person releases it/ }));
-    expect(cues().at(-1)).toBe("pay.check-on");
-    fireEvent.click(screen.getByRole("button", { name: /the day's settlement run/ }));
-    expect(cues().at(-1)).toBe("pay.book-back");
-    fireEvent.click(screen.getByRole("button", { name: /Provider’s report matches/ }));
-    expect(cues().at(-1)).toBe("sys.file-open");
-    fireEvent.click(screen.getByRole("button", { name: /^Credit arrives/ }));
-    expect(play).toHaveBeenLastCalledWith("pay.report-matches", 0);
-    // A removed rule that lets something through lands sour, with the buzz and the jolt.
-    fireEvent.click(screen.getByRole("button", { name: "Accept a statement twice" }));
-    expect(cues().at(-1)).toBe("pay.check-off");
-    fireEvent.click(screen.getByRole("button", { name: /Same statement again/ }));
-    expect(cues().at(-1)).toBe("pay.twice");
-    expect(state()).toBe("bad");
     fireEvent.click(screen.getByRole("button", { name: "Start over" }));
     expect(cues().at(-1)).toBe("pay.start-over");
+    fireEvent.click(thing("A short “paid”"));
+    expect(cues().at(-1)).toBe("pay.report-differs");
+    // The corrected “paid” is sent back while the payment is held.
+    fireEvent.click(thing("“Paid”"));
+    expect(cues().at(-1)).toBe("pay.stopped");
+    fireEvent.click(thing("Release it"));
+    expect(play).toHaveBeenLastCalledWith("pay.check-on", 0);
+    fireEvent.click(thing("“Paid”, again"));
+    expect(cues().at(-1)).toBe("pay.let-in");
+    fireEvent.click(thing("Pay out"));
+    expect(play).toHaveBeenLastCalledWith("pay.book-back", expect.closeTo(0.32, 3));
+    fireEvent.click(thing("The report: it matches"));
+    expect(cues().at(-1)).toBe("sys.file-open");
+    fireEvent.click(thing("Pays, with reference"));
+    expect(play).toHaveBeenLastCalledWith("pay.report-matches", 0);
+    fireEvent.click(thing("Sends the statement again"));
+    expect(cues().at(-1)).toBe("pay.stopped");
+    // A torn-out rule that lets something through lands sour, with the buzz and the jolt.
+    fireEvent.click(thing("Tear out “accept a statement twice”"));
+    expect(cues().at(-1)).toBe("pay.check-off");
+    fireEvent.click(thing("Sends the statement again"));
+    expect(cues().at(-1)).toBe("pay.twice");
+    expect(hit(".mr-bank-answer")).toBe("bad");
     fireEvent.click(screen.getByRole("button", { name: "Technical details" }));
     expect(cues().at(-1)).toBe("ui.key-on");
   });

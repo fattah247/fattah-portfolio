@@ -23,6 +23,15 @@ function installBrowserStubs() {
 /** A key inside one control group; several groups share "Yes" and "No". */
 const key = (group: string, option: string) => within(screen.getByRole("group", { name: new RegExp(`^${group.replace(/[?]/g, "\\?")}`) })).getByRole("button", { name: option });
 
+/** Watches the payment desk's first story to the end, then the next one, which changes its conditions. */
+function watchNext() {
+  fireEvent.click(screen.getByRole("button", { name: "Watch it: the provider sends it twice" }));
+  act(() => vi.advanceTimersByTime(2_400 * 7));
+  fireEvent.click(screen.getByRole("button", { name: "Watch next: a late “authorized”" }));
+  act(() => vi.advanceTimersByTime(2_400 * 6));
+  act(() => vi.advanceTimersByTime(900));
+}
+
 function ScenarioRoundTripHost() {
   const [slug, setSlug] = useState(scenarios[0].slug);
   const scenario = scenarios.find((item) => item.slug === slug) ?? scenarios[0];
@@ -82,76 +91,90 @@ describe("DebuggerWorkspace", () => {
     expect(screen.getByRole("navigation", { name: "Case chapters" }).querySelector('a[href="#evidence"]')?.getAttribute("aria-current")).toBe("step");
   });
 
+  /** The mail room: the courier's things are buttons named by their label, and the desk is read back from what it draws. */
+  const thing = (label: string) => screen.getByRole("button", { name: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`) });
+  const deskStamp = () => document.querySelector(".mr-landing .mr-stamp")?.textContent;
+  const bankStamp = () => document.querySelector(".mr-bank-answer .mr-stamp")?.textContent;
+  const card = () => document.querySelector(".mr-card strong")?.textContent;
+  const clerk = () => document.querySelector(".mr-speech-line")?.textContent ?? "";
+  const nextDoor = () => Array.from(document.querySelectorAll(".mr-next-door .mr-stamp"), (item) => item.textContent);
+
   it.each([
-    ["the provider sending it twice", { delivery: "duplicate", amount: "matches", bank: "landed" }, { state: "Reconciled", payout: "in the bank", shadow: ["Charged twice", "2"] }],
-    ["a late “authorized”", { delivery: "out-of-order", amount: "matches", bank: "landed" }, { state: "Reconciled", payout: "in the bank", shadow: ["Newer news overwritten", "1"] }],
-    ["a wrong amount", { delivery: "once", amount: "differs", bank: "landed" }, { state: "Reconciled", payout: "in the bank", shadow: ["Wrong amount taken", "1"] }],
-    ["a credit that never arrives", { delivery: "once", amount: "matches", bank: "missing" }, { state: "Paid out", payout: "credit missing", shadow: ["Reconciled with no money in the bank", "1"] }],
-  ] as const)("plays the payment story through Payflow's rules, with the comparison beside it, for %s", (_name, initialConditions, expected) => {
+    ["the provider sends it twice", { delivery: "duplicate", amount: "matches", bank: "landed" }, 6, { card: "Reconciled", nextDoor: "Charged 3 times" }],
+    ["a late “authorized”", { delivery: "out-of-order", amount: "matches", bank: "landed" }, 5, { card: "Reconciled", nextDoor: "Old news won" }],
+    ["a short amount", { delivery: "once", amount: "differs", bank: "landed" }, 7, { card: "Reconciled", nextDoor: "Took the short amount" }],
+    ["the bank never pays", { delivery: "once", amount: "matches", bank: "missing" }, 4, { card: "Paid out", nextDoor: "Reconciled, no money" }],
+  ] as const)("plays the story of %s through Payflow's rules, with the desk next door beside it", (story, initialConditions, steps, expected) => {
     render(
       <WorkspaceManagerProvider>
         <DebuggerWorkspace scenario={scenarios[0]} initialConditions={initialConditions} onClose={vi.fn()} />
       </WorkspaceManagerProvider>,
     );
-    const current = () => screen.getByRole("list", { name: "Payment state" }).querySelector("[data-current]")?.firstChild?.nextSibling?.textContent;
-    const count = (label: string) => screen.getByText(label).nextElementSibling?.textContent;
-    fireEvent.click(screen.getByRole("button", { name: "Play the example" }));
-    expect(screen.getByRole("button", { name: "Playing the example…" }).hasAttribute("disabled")).toBe(true);
-    act(() => vi.advanceTimersByTime(8_000));
+    fireEvent.click(screen.getByRole("button", { name: `Watch it: ${story}` }));
+    expect(screen.getByRole("button", { name: "Stop" })).toBeTruthy();
+    // One thing every 2.4 s, slow enough to read the clerk's line for each.
+    act(() => vi.advanceTimersByTime(2_400));
+    expect(document.querySelector(".mr-speech-try")?.textContent).toBe(`Watching: step 2 of ${steps}`);
+    act(() => vi.advanceTimersByTime(2_400 * steps));
 
-    expect(current()).toBe(expected.state);
-    expect(count("Money captured")).toBe("once");
-    expect(count("Payout")).toBe(expected.payout);
-    expect(within(document.querySelector<HTMLElement>(".sim-shadow")!).getByText(expected.shadow[0]).nextElementSibling?.textContent).toBe(expected.shadow[1]);
+    expect(card()).toBe(expected.card);
+    expect(document.querySelector(".mr-card-coins")?.getAttribute("aria-label")).toBe("Money captured: once");
+    expect(nextDoor()).toContain(expected.nextDoor);
+    expect(document.querySelector(".mr-next-door-label")?.textContent).toBe("For comparison, not in the repoA desk with no inbox, trusting the provider");
     // The Result chapter reports the story's own conditions: the comparison, then Payflow.
     expect(Array.from(document.querySelectorAll(".mobile-outcome-strip strong")).map((item) => item.textContent)).toEqual(["Charged twice", "Captured once, reconciled at the bank"]);
     // There is no switch that turns Payflow's rules off.
     expect(screen.queryByRole("button", { name: "Off" })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Watch next:/ })).toBeTruthy();
   });
 
-  it("runs the provider's events through the inbox, holds a wrong amount for a person, and lets a removed rule fail as the repo's tests do", () => {
+  it("stamps each envelope by the inbox, holds a short amount for a person, and lets a torn-out rule fail as the repo's tests do", () => {
     render(
       <WorkspaceManagerProvider>
         <DebuggerWorkspace scenario={scenarios[0]} initialConditions={scenarios[0].defaults} onClose={vi.fn()} />
       </WorkspaceManagerProvider>,
     );
-    const current = () => screen.getByRole("list", { name: "Payment state" }).querySelector("[data-current]")?.firstChild?.nextSibling?.textContent;
-    const count = (label: string) => screen.getByText(label).nextElementSibling?.textContent;
-    const journal = () => document.querySelector(".sim-journal li p")?.textContent ?? "";
-    const paid = () => screen.getByRole("button", { name: /^“Paid”the payment/ });
-    // Payment state is an indicator panel, never a set of controls.
-    expect(screen.getByRole("list", { name: "Payment state" }).querySelectorAll("button")).toHaveLength(0);
-    expect(screen.getByRole("button", { name: /The same event again/ }).hasAttribute("disabled")).toBe(true);
+    // A fresh desk offers only what does something: no money to pay out, no bank to answer yet.
+    expect(screen.queryByRole("button", { name: /^Pay out/ })).toBeNull();
+    expect(screen.queryByRole("group", { name: "What the bank does" })).toBeNull();
+    expect(document.querySelector(".mr-speech-try")?.textContent).toBe("Try: Drop “paid” on the desk.");
 
-    fireEvent.click(paid());
-    fireEvent.click(screen.getByRole("button", { name: /The same event again/ }));
-    fireEvent.click(screen.getByRole("button", { name: /The same event again/ }));
-    expect(current()).toBe("Paid");
-    expect([count("Events received"), count("Money captured")]).toEqual(["3", "once"]);
-    expect(journal()).toMatch(/already in the inbox/);
-    expect(document.querySelector(".sim-journal-contrast")?.textContent).toMatch(/captured again/);
-    fireEvent.click(screen.getByRole("button", { name: /^“Paid”, new id/ }));
-    expect(journal()).toMatch(/already recorded/);
-    expect(within(document.querySelector<HTMLElement>(".sim-shadow")!).getByText("Charged twice").nextElementSibling?.textContent).toBe("3");
+    fireEvent.click(thing("“Paid”"));
+    expect([deskStamp(), card()]).toEqual(["In", "Paid"]);
+    expect(clerk()).toMatch(/captured, once/);
+    fireEvent.click(thing("“Paid”, again"));
+    fireEvent.click(thing("“Paid”, again"));
+    expect([deskStamp(), card()]).toEqual(["Seen", "Paid"]);
+    expect(document.querySelector(".mr-ledger b")?.textContent).toBe("1");
+    expect(document.querySelector(".mr-card-coins")?.getAttribute("aria-label")).toBe("Money captured: once");
+    expect(nextDoor()).toEqual(["Charged 3 times"]);
+    fireEvent.click(thing("“Paid”, a new envelope"));
+    expect(clerk()).toMatch(/already paid/);
 
-    // A wrong amount waits for a person; the corrected event is deferred (409) until release.
+    // A short amount waits in a person's tray; the corrected “paid” is sent back (409) until release.
     fireEvent.click(screen.getByRole("button", { name: "Start over" }));
-    fireEvent.click(screen.getByRole("button", { name: /^“Paid”, wrong amount/ }));
-    expect(current()).toBe("On hold");
-    expect(count("Waiting for a person")).toBe("1");
-    fireEvent.click(paid());
-    expect(document.querySelector(".sim-journal-badge")?.textContent).toMatch(/409/);
-    fireEvent.click(screen.getByRole("button", { name: /A person releases it/ }));
-    expect(current()).toBe("Waiting");
-    fireEvent.click(screen.getByRole("button", { name: /The same event again/ }));
-    expect(current()).toBe("Paid");
+    fireEvent.click(thing("A short “paid”"));
+    expect([deskStamp(), card()]).toEqual(["Hold", "On hold"]);
+    fireEvent.click(thing("“Paid”"));
+    expect(deskStamp()).toBe("Try later");
+    fireEvent.click(thing("Release it"));
+    expect(clerk()).toMatch(/released/);
+    expect(document.querySelector(".mr-tray")).toBeNull();
+    fireEvent.click(thing("“Paid”, again"));
+    expect(card()).toBe("Paid");
 
-    // Removing a rule, as the repo's mutation tests do, lets the step through and names what catches it.
-    fireEvent.click(screen.getByRole("button", { name: /the day's settlement run/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Match a credit by amount alone" }));
-    fireEvent.click(screen.getByRole("button", { name: /Credit, no reference/ }));
-    expect(journal()).toMatch(/every landed payout carries its reference/);
-    expect(count("Rules broken")).toBe("1");
+    // The money: paid out net of the fee, then a credit with no reference waits in suspense...
+    fireEvent.click(thing("Pay out 747,750 IDR"));
+    expect([bankStamp(), card()]).toEqual(["Paid out", "Paid out"]);
+    fireEvent.click(thing("Pays, no reference"));
+    expect(bankStamp()).toBe("Suspense");
+    // ...until the rule that guards it is torn out, as the repo's mutation tests do.
+    fireEvent.click(thing("Tear out “match a credit by amount alone”"));
+    fireEvent.click(thing("Pays, no reference"));
+    expect(bankStamp()).toBe("Broke a rule");
+    expect(clerk()).toMatch(/a landing needs its reference/);
+    fireEvent.click(thing("Put the rule back"));
+    expect(clerk()).toMatch(/back in the book/);
   });
 
   it("speaks in everyday words until the visitor asks for technical details", () => {
@@ -160,23 +183,21 @@ describe("DebuggerWorkspace", () => {
         <DebuggerWorkspace scenario={scenarios[0]} initialConditions={scenarios[0].defaults} onClose={vi.fn()} />
       </WorkspaceManagerProvider>,
     );
-    const drawing = () => document.querySelector(".sd-pay .sd-wide")?.textContent ?? "";
+    const room = () => document.querySelector(".mr-room")?.textContent ?? "";
     const toggle = screen.getByRole("button", { name: "Technical details" });
-    fireEvent.click(screen.getByRole("button", { name: /^“Paid”the payment/ }));
+    fireEvent.click(thing("“Paid”"));
 
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
-    expect(drawing()).toContain("“paid”");
-    expect(drawing()).toContain("Paid");
-    expect(drawing()).not.toMatch(/evt\d|SUCCESS/);
-    expect(document.querySelector(".sim-wire")).toBeNull();
-    expect(document.querySelector(".sim-journal code")).toBeNull();
+    expect(room()).toContain("Paid");
+    expect(room()).not.toMatch(/evt\d|SUCCESS|APPLIED|\b200\b/);
+    expect(document.querySelector(".mr-tape")).toBeNull();
 
     fireEvent.click(toggle);
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
-    expect(drawing()).toContain("evt1");
-    expect(drawing()).toContain("SUCCESS");
-    expect(document.querySelector(".sim-wire")?.textContent).toMatch(/inbox \[evt1\]/);
-    expect(document.querySelector(".sim-journal code")?.textContent).toMatch(/evt1 new/);
+    expect(deskStamp()).toBe("APPLIED 200");
+    expect(room()).toContain("inbox: evt1");
+    expect(card()).toBe("SUCCESS");
+    expect(document.querySelector(".mr-tape code")?.textContent).toMatch(/evt1 new/);
   });
 
   it("replays a condition, opens and closes evidence, and switches projects", () => {
@@ -192,7 +213,10 @@ describe("DebuggerWorkspace", () => {
       </WorkspaceManagerProvider>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "A late “authorized”" }));
+    // Watching the next story sets its conditions, and the workspace reports the result.
+    fireEvent.click(screen.getByRole("button", { name: "Watch it: the provider sends it twice" }));
+    act(() => vi.advanceTimersByTime(2_400 * 7));
+    fireEvent.click(screen.getByRole("button", { name: "Watch next: a late “authorized”" }));
     act(() => vi.advanceTimersByTime(900));
     expect(screen.getByRole("status").textContent).toMatch(/Result:/);
 
@@ -336,9 +360,9 @@ describe("DebuggerWorkspace", () => {
   it("round-trips non-default controls with their owning scenario only", () => {
     render(<ScenarioRoundTripHost />);
 
-    fireEvent.click(screen.getByRole("button", { name: "A late “authorized”" }));
-    act(() => vi.advanceTimersByTime(900));
-    expect(screen.getByRole("button", { name: "A late “authorized”" }).getAttribute("aria-pressed")).toBe("true");
+    watchNext();
+    // The late “authorized” story is now the case's setting, so the next one on offer is the short amount.
+    expect(screen.getByRole("button", { name: "Watch next: a short amount" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Next: Detect degradation" }));
     act(() => vi.advanceTimersByTime(0));
@@ -348,20 +372,19 @@ describe("DebuggerWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Previous" }));
     act(() => vi.advanceTimersByTime(0));
     expect(screen.getByRole("heading", { name: scenarios[0].title })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "A late “authorized”" }).getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByRole("button", { name: "The provider sends it twice" }).getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("button", { name: /^Watch it: a late “authorized”/ })).toBeTruthy();
   });
 
   it("persists reset controls when a case is reopened after switching scenarios", () => {
     render(<ScenarioRoundTripHost />);
 
-    fireEvent.click(screen.getByRole("button", { name: "A late “authorized”" }));
-    act(() => vi.advanceTimersByTime(900));
-    expect(screen.getByRole("button", { name: "A late “authorized”" }).getAttribute("aria-pressed")).toBe("true");
+    watchNext();
+    // The late “authorized” story is now the case's setting, so the next one on offer is the short amount.
+    expect(screen.getByRole("button", { name: "Watch next: a short amount" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Reset" }));
     act(() => vi.advanceTimersByTime(900));
-    expect(screen.getByRole("button", { name: "The provider sends it twice" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: /^Watch it( on a fresh desk)?: the provider sends it twice/ })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Reset" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Next: Detect degradation" }));
@@ -369,8 +392,7 @@ describe("DebuggerWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Previous" }));
     act(() => vi.advanceTimersByTime(0));
 
-    expect(screen.getByRole("button", { name: "The provider sends it twice" }).getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByRole("button", { name: "A late “authorized”" }).getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("button", { name: /^Watch it: the provider sends it twice/ })).toBeTruthy();
   });
 
   it.each(scenarios)("renders the complete $slug chapter and evidence journey", (scenario) => {

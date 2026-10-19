@@ -4552,3 +4552,214 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 /* Case 02's cover: the verdict is slow, so its line is amber. */
 .case-cover-iyup .case-cover-health { stroke: var(--uncertain); }
 .case-cover-iyup .case-cover-health-text { fill: var(--uncertain); }
+
+/* ================================================================ Case toys */
+
+/* The pixel objects the toys are drawn with (components/pixel-objects): whole multiples of their
+ * 16-pixel drawings, crisp, never stroked by the legacy svg rules. A comparison's ghost is the
+ * same object in graphite ink only. */
+.pixel-object { display: block; flex: none; image-rendering: pixelated; }
+.pixel-object path { stroke: none !important; }
+.pixel-object[data-ghost] { color: #59616d; }
+
+/* ---------------------------------------------------------------- Mail room */
+
+/* Case 01: the visitor is the payment provider's courier and Payflow the clerk at the desk. The
+ * room is one white floor with three places on it (the courier's bag, the desk, the bank); the
+ * things the visitor can use are raised keys, everything else is drawn. Narrow rooms stack the
+ * desk first, then the payment and the bank, then the bag, so a press and its stamp share one
+ * phone screen. */
+.mail-room { container: mailroom / inline-size; display: grid; gap: 12px; min-inline-size: 0; padding: 12px var(--instrument-pad) var(--instrument-pad); position: relative; }
+.instrument[data-phase="rewind"] .mail-room { opacity: .7; }
+
+.mr-room {
+  background: #ffffff;
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--object-shadow);
+  display: grid;
+  gap: 12px 16px;
+  grid-template-areas: "desk" "bag" "bank";
+  grid-template-columns: minmax(0, 1fr);
+  padding: 12px;
+}
+@container mailroom (min-width: 34rem) {
+  .mr-room { grid-template-areas: "desk bank" "bag bag"; grid-template-columns: minmax(0, 1fr) minmax(12.5rem, 15rem); }
+}
+@container mailroom (min-width: 54rem) {
+  .mr-room { grid-template-areas: "bag desk bank"; grid-template-columns: minmax(12rem, 14rem) minmax(0, 1fr) minmax(12.5rem, 15rem); }
+}
+
+.mr-bag { display: grid; gap: 8px; grid-area: bag; align-content: start; min-inline-size: 0; }
+.mr-desk { align-content: start; display: grid; gap: 10px; grid-area: desk; min-inline-size: 0; outline: 2px dashed transparent; outline-offset: 4px; }
+.mr-bank { align-content: start; display: grid; gap: 10px; grid-area: bank; min-inline-size: 0; }
+
+.mr-desk[data-drop-over], .mr-vault[data-drop-over] { outline-color: var(--accent); }
+
+/* A place's name: its object, then what it is. */
+.mr-place { align-items: center; display: flex; gap: 8px; margin: 0; min-inline-size: 0; }
+.mr-place span, .mr-item span, .mr-key span, .mr-ledger span, .mr-tray > span { display: grid; gap: 1px; min-inline-size: 0; }
+.mr-place b, .mr-ledger b, .mr-tray b { color: var(--ink); font: var(--type-label); font-weight: 600; }
+.mr-place small, .mr-ledger small, .mr-tray small, .mr-item small { color: var(--ink-secondary); font: var(--type-caption); }
+
+/* The things the visitor can use: the one key family, with the object they are. */
+.mr-bag-items { display: grid; gap: 6px; grid-template-columns: minmax(0, 1fr); }
+@container mailroom (max-width: 53.99rem) {
+  .mr-bag-items { grid-template-columns: repeat(auto-fill, minmax(min(100%, 10.5rem), 1fr)); }
+}
+.mr-item, .mr-key {
+  align-items: center;
+  background: var(--raised);
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--bevel-raised);
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  min-block-size: 44px;
+  min-inline-size: 0;
+  padding: 4px 10px 4px 6px;
+  position: relative;
+  text-align: start;
+  touch-action: manipulation;
+}
+.mr-item b, .mr-key b { font: var(--type-label); font-weight: 600; overflow-wrap: anywhere; }
+.mr-key { padding-inline-start: 10px; }
+.mr-key .pixel-object { display: none; }
+.mr-key small { color: var(--ink-secondary); font: var(--type-caption); }
+.mr-item:hover, .mr-key:hover { background: #ffffff; }
+.mr-item:active, .mr-key:active { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
+.mr-item:focus-visible, .mr-key:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* What the clerk suggests trying carries a small accent lamp. */
+.mr-item[data-nudged]::after, .mr-key[data-nudged]::after { background: var(--accent); block-size: 8px; border: 1px solid var(--line-ink); content: ""; inline-size: 8px; inset-block-start: 5px; inset-inline-end: 5px; position: absolute; }
+html[data-system-mode="computer"] .mr-item, html[data-system-mode="computer"] .mr-key { min-block-size: 40px; }
+.mail-room[data-carrying] .mr-item, .mail-room[data-carrying] .mr-key { cursor: grabbing; }
+
+/* The clerk and what they say. */
+.mr-clerk { align-items: start; display: grid; gap: 10px; grid-template-columns: auto minmax(0, 1fr); }
+.mr-speech { background: #ffffff; border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); display: grid; gap: 4px; margin-block-start: 2px; min-inline-size: 0; padding: 8px 10px; position: relative; }
+.mr-speech::before { background: #ffffff; block-size: 10px; border-block-end: 1px solid var(--line-ink); border-inline-start: 1px solid var(--line-ink); content: ""; inline-size: 10px; inset-block-start: 14px; inset-inline-start: -6px; position: absolute; rotate: 45deg; }
+.mr-speech p { margin: 0; }
+.mr-speech-line { color: var(--ink); font: var(--type-body); font-size: .95rem; line-height: 1.4; }
+.mr-speech-next { color: var(--ink-secondary); font: var(--type-caption); font-size: .8rem; }
+.mr-speech-try { color: var(--accent-deep); font: var(--type-caption); font-size: .8rem; }
+.mr-speech-next span, .mr-speech-try span { font-weight: 700; }
+
+.mr-desk-top { align-items: center; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.mr-ledger { align-items: center; display: flex; gap: 8px; min-inline-size: 0; }
+.mr-ledger b { font-family: var(--font-mono), monospace; font-size: 1.1rem; }
+.mr-landing { align-items: end; display: flex; gap: 10px; min-block-size: 56px; min-inline-size: 0; }
+.mr-tray-stack { block-size: 48px; display: block; flex: none; inline-size: 48px; position: relative; }
+.mr-tray-stack .mr-in-tray { inset: 0; position: absolute; }
+.mr-tray-stack .mr-landed { inset-block-start: 6px; inset-inline-start: 8px; position: absolute; }
+.mr-landing .mr-stamp { margin-block-end: 8px; }
+/* Something that went wrong jolts where it landed, in time with the buzz. */
+.mr-landing[data-hit="bad"], .mr-bank-answer[data-hit="bad"] { animation: mr-jolt 255ms steps(6, end) calc(var(--arrive, 0ms) + 100ms); }
+.mr-landing > small { color: var(--ink-secondary); font: var(--type-caption); }
+.mr-landed { animation: mr-appear 1ms var(--arrive, 0ms) backwards, mr-knock 150ms steps(3, end) var(--arrive, 0ms); }
+
+/* A stamp: a framed word in its meaning colour, landing as the thing arrives. */
+.mr-stamp {
+  animation: mr-stamp 300ms steps(3, end) var(--arrive, 0ms) backwards;
+  border: 2px solid currentColor;
+  box-shadow: inset 0 0 0 1px #ffffff, inset 0 0 0 2px currentColor;
+  color: var(--ink-secondary);
+  display: inline-block;
+  font: 700 .78rem/1.2 var(--font-mono), monospace;
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+.mr-stamp[data-tone="confirmed"] { color: var(--confirmed); }
+.mr-stamp[data-tone="uncertain"] { color: var(--uncertain); }
+.mr-stamp[data-tone="adverse"] { color: var(--adverse-ink); }
+.mail-room[data-technical] .mr-stamp { font-size: .72rem; white-space: normal; overflow-wrap: anywhere; }
+
+/* A held payment waits in a person's tray. */
+.mr-tray { align-items: center; background: var(--uncertain-wash); border: 1px solid var(--uncertain); display: grid; gap: 4px 8px; grid-template-columns: auto minmax(0, 1fr); padding: 6px 8px; }
+.mr-tray .mr-key { grid-column: 1 / -1; justify-content: center; }
+@container mailroom (min-width: 34rem) {
+  .mr-tray { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .mr-tray .mr-key { grid-column: auto; }
+}
+.mr-money .pixel-object { margin-block: -4px; }
+.mr-book { display: grid; gap: 6px; }
+.mr-page b { color: var(--adverse-ink); }
+
+/* The payment card on the desk: its state, the money captured, and the two proofs. */
+.mr-card { background: var(--paper-raised); border: 1px solid var(--line-ink); display: grid; gap: 4px; padding: 8px 10px; animation: mr-knock 150ms steps(3, end) var(--arrive, 0ms); }
+.mr-card > span { color: var(--ink-secondary); font: var(--type-caption); }
+.mr-card strong { color: var(--ink-secondary); font: 700 1.15rem/1.2 var(--font-body), system-ui, sans-serif; }
+.mail-room[data-technical] .mr-card strong { font-family: var(--font-mono), monospace; font-size: .95rem; }
+.mr-card:is([data-state="success"], [data-state="settled"], [data-state="reconciled"]) strong { color: var(--confirmed); }
+.mr-card[data-state="manual_review"] strong { color: var(--uncertain); }
+.mr-card-coins { align-items: center; display: flex; gap: 0; min-block-size: 32px; }
+.mr-card-coins small { color: var(--ink-secondary); font: var(--type-caption); }
+.mr-card-ticks { display: flex; flex-wrap: wrap; gap: 4px 12px; list-style: none; margin: 0; padding: 0; }
+.mr-card-ticks li { align-items: center; color: var(--ink-secondary); display: flex; font: var(--type-caption); gap: 4px; }
+.mr-card-ticks li[data-done] { color: var(--confirmed); font-weight: 600; }
+.mr-card-ticks i { block-size: 10px; border: 1px solid var(--line-ink); display: block; inline-size: 10px; margin: 3px; }
+
+.mr-vault { align-content: start; display: grid; gap: 6px; justify-items: start; min-inline-size: 0; outline: 2px dashed transparent; outline-offset: 4px; }
+.mr-bank-keys { display: grid; gap: 4px; inline-size: 100%; }
+.mr-bank-answer { align-items: center; display: flex; gap: 8px; margin: 0; }
+
+/* Next door: the comparison, sketched in the same objects, never part of the repo. */
+.mr-next-door { background: var(--doc-sunken); border: 1px dashed var(--doc-edge); display: grid; gap: 6px; padding: 8px 12px; }
+.mr-next-door-label { display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 0; }
+.mr-next-door-label span { color: var(--ink-secondary); font: var(--type-caption); }
+.mr-next-door-label b { color: var(--ink); font: var(--type-label); font-weight: 600; }
+.mr-next-door-desk { align-items: center; display: flex; flex-wrap: wrap; gap: 6px 10px; }
+.mr-next-door-desk strong { color: var(--ink-secondary); font: var(--type-label); font-weight: 600; }
+.mr-next-door-coins { align-items: center; display: flex; }
+.mr-next-door-coins small { color: var(--ink-secondary); font: 600 .78rem var(--font-mono), monospace; }
+.mr-next-door-now { color: var(--ink-secondary); font: var(--type-caption); margin: 0; }
+.mr-next-door .mr-stamp { animation: none; }
+
+.mr-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.mr-actions .instrument-technical { margin-inline-start: auto; }
+
+/* Narrow rooms: the bag's keys drop their hints, the payment card lies flat, and the bank sits
+ * beside it, so the desk, the bag and the money fit one phone screen. */
+@container mailroom (max-width: 33.99rem) {
+  .mr-room { gap: 10px; padding: 10px; }
+  .mr-bag { gap: 4px; }
+  .mr-bag .mr-place { display: none; }
+  .mr-bag-items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mr-bag-items .mr-item small { display: none; }
+  .mr-bag-items .mr-item { padding-inline-end: 14px; }
+  .mr-card { align-items: center; column-gap: 6px; grid-template-columns: minmax(0, 1fr) auto; padding: 6px 8px; row-gap: 2px; }
+  .mr-card > span { grid-column: 1 / -1; }
+  .mr-card strong { font-size: 1rem; }
+  .mr-card-coins { min-block-size: 0; }
+  .mr-card-coins .pixel-object { block-size: 24px; inline-size: 24px; margin-block: -4px; }
+  .mr-card-coins small { display: none; }
+  .mr-card-ticks { grid-column: 1 / -1; }
+  .mr-desk-top { min-block-size: 0; }
+  .mr-landing { min-block-size: 48px; }
+  .mr-next-door { gap: 4px; padding: 6px 10px; }
+  .mr-vault { align-items: center; column-gap: 10px; grid-template-columns: auto minmax(0, 1fr); }
+  .mr-vault .mr-place .pixel-object { block-size: 32px; inline-size: 32px; }
+  .mr-bank-keys { grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .mr-bank-keys .mr-key { padding-inline: 6px; }
+  .mr-bank-keys .mr-key small { display: none; }
+  .mr-speech-line { font-size: .9rem; }
+}
+.mr-tape { display: grid; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.mr-tape li { color: var(--ink-secondary); font: var(--type-caption); }
+.mr-tape b { color: var(--ink); font-family: var(--font-mono), monospace; }
+.mr-tape code { font-size: .72rem; overflow-wrap: anywhere; }
+
+/* An envelope thrown to the desk, and one being carried there. */
+.mr-flight, .mr-carry { inset-block-start: 0; inset-inline-start: 0; pointer-events: none; position: absolute; z-index: 5; }
+.mr-flight { animation: mr-fly 440ms steps(8, end) forwards; transform: translate(var(--fx), var(--fy)) translate(-50%, -50%); }
+.mr-carry { filter: drop-shadow(5px 7px 0 rgb(37 43 52 / 18%)); transform: translate(var(--cx), var(--cy)) translate(-50%, -60%); }
+
+@keyframes mr-fly { to { transform: translate(var(--tx), var(--ty)) translate(-50%, -50%); } }
+@keyframes mr-appear { from { visibility: hidden; } }
+@keyframes mr-stamp { 0% { opacity: 0; transform: scale(1.3); } 67% { opacity: 1; } 100% { transform: none; } }
+@keyframes mr-knock { 0%, 100% { translate: 0 0; } 34% { translate: 0 2px; } }
+@keyframes mr-jolt { 0%, 100% { translate: 0 0; } 17%, 50% { translate: -2px 0; } 33%, 67% { translate: 2px 0; } 83% { translate: -1px 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mail-room *, .mail-room *::before { animation: none !important; }
+  .mr-flight { display: none; }
+}
