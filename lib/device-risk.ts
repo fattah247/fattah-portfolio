@@ -14,6 +14,11 @@
  *
  * The server is told the level on every payment and decides; the phone writes each decision to
  * its own activity log (`TrustGateSecurityService.recordGateDecision`).
+ *
+ * A payment that needs a confirmation waits for the person (`TrustGateViewModel`): they confirm with
+ * the screen lock or biometrics (the step-up key signs), or with a tap when the phone has no screen
+ * lock (the device key signs the tap), or they back out. Before signing, the phone checks itself
+ * again; if it turned high risk while it waited, the app stops the payment itself.
  */
 
 export type Severity = "LOW" | "MEDIUM" | "HIGH";
@@ -95,6 +100,52 @@ export function assessDevice(conditions: Record<string, string>): DeviceAssessme
   const screenLock = conditions[SCREEN_LOCK] !== "none";
   const signing: Signing = decision === "BLOCK" ? "NOTHING SIGNED" : decision === "ALLOW" ? "DEVICE KEY" : screenLock ? "STEP-UP KEY" : "SIGNED TAP";
   return { checks, found, score, level, reason, decision, signing, screenLock };
+}
+
+/* ----------------------------------------------------------- Confirmation */
+
+/** The phone's activity log entries for a payment (`SecurityEventType`). */
+export type SecurityEventType =
+  | "SENSITIVE_ACTION_ALLOWED"
+  | "SENSITIVE_ACTION_REQUIRES_CONFIRMATION"
+  | "SENSITIVE_ACTION_BLOCKED"
+  | "SENSITIVE_ACTION_ALLOWED_AFTER_CONFIRMATION"
+  | "SENSITIVE_ACTION_CANCELLED";
+
+/** The entry the phone logs for the server's decision (`recordGateDecision`). */
+export const decisionEvent: Record<GateDecision, SecurityEventType> = {
+  ALLOW: "SENSITIVE_ACTION_ALLOWED",
+  "REQUIRE CONFIRMATION": "SENSITIVE_ACTION_REQUIRES_CONFIRMATION",
+  BLOCK: "SENSITIVE_ACTION_BLOCKED",
+};
+
+/** How the person confirms (`ConfirmationMethod`): the screen lock or biometrics, or a tap. */
+export type ConfirmationMethod = "DEVICE_CREDENTIAL" | "TAP";
+export const confirmationMethod = (pending: DeviceAssessment): ConfirmationMethod => (pending.screenLock ? "DEVICE_CREDENTIAL" : "TAP");
+
+export type ConfirmationResult = {
+  outcome: "SENT" | "BLOCKED" | "CANCELLED";
+  event: SecurityEventType;
+  method: ConfirmationMethod;
+  signing: Signing;
+  /** Who stopped it, when it is stopped after the confirmation: the app itself. */
+  decidedBy?: "app";
+};
+
+/**
+ * The person confirmed a payment that was waiting (`TrustGateViewModel.confirm`). The phone checks
+ * itself again first: still low or medium, the payment is signed the way the waiting decision said;
+ * high now, the app blocks it before anything is signed.
+ */
+export function confirmPayment(pending: DeviceAssessment, now: DeviceAssessment): ConfirmationResult {
+  const method = confirmationMethod(pending);
+  if (now.level === "HIGH") return { outcome: "BLOCKED", event: "SENSITIVE_ACTION_BLOCKED", method, signing: "NOTHING SIGNED", decidedBy: "app" };
+  return { outcome: "SENT", event: "SENSITIVE_ACTION_ALLOWED_AFTER_CONFIRMATION", method, signing: method === "DEVICE_CREDENTIAL" ? "STEP-UP KEY" : "SIGNED TAP" };
+}
+
+/** The person backed out at the confirmation (`dismissConfirmation`): nothing is signed. */
+export function cancelPayment(pending: DeviceAssessment): ConfirmationResult {
+  return { outcome: "CANCELLED", event: "SENSITIVE_ACTION_CANCELLED", method: confirmationMethod(pending), signing: "NOTHING SIGNED" };
 }
 
 /* ------------------------------------------------------------- Comparison */
