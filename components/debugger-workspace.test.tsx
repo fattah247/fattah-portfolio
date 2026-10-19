@@ -92,6 +92,11 @@ describe("DebuggerWorkspace", () => {
   });
 
   /** The mail room: the courier's things are buttons named by their label, and the desk is read back from what it draws. */
+  const press = (label: string) => {
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`) }));
+    // The room shows a delivery on its beats: the flight, the stamp, then where the envelope goes.
+    act(() => vi.advanceTimersByTime(1_500));
+  };
   const thing = (label: string) => screen.getByRole("button", { name: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`) });
   const deskStamp = () => document.querySelector(".mr-landing .mr-stamp")?.textContent;
   const bankStamp = () => document.querySelector(".mr-bank-answer .mr-stamp")?.textContent;
@@ -116,11 +121,13 @@ describe("DebuggerWorkspace", () => {
     act(() => vi.advanceTimersByTime(2_400));
     expect(document.querySelector(".mr-speech-try")?.textContent).toBe(`Watching: step 2 of ${steps}`);
     act(() => vi.advanceTimersByTime(2_400 * steps));
+    // One act holds every render until it ends, so the last delivery's beats run after it.
+    act(() => vi.advanceTimersByTime(1_500));
 
     expect(card()).toBe(expected.card);
     expect(document.querySelector(".mr-card-coins")?.getAttribute("aria-label")).toBe("Money captured: once");
     expect(nextDoor()).toContain(expected.nextDoor);
-    expect(document.querySelector(".mr-next-door-label")?.textContent).toBe("For comparison, not in the repoA desk with no inbox, trusting the provider");
+    expect(document.querySelector(".mr-next-door-label")?.textContent).toBe("For comparison, not in the repoNext door: a desk with no inbox, trusting the provider");
     // The Result chapter reports the story's own conditions: the comparison, then Payflow.
     expect(Array.from(document.querySelectorAll(".mobile-outcome-strip strong")).map((item) => item.textContent)).toEqual(["Charged twice", "Captured once, reconciled at the bank"]);
     // There is no switch that turns Payflow's rules off.
@@ -128,52 +135,61 @@ describe("DebuggerWorkspace", () => {
     expect(screen.getByRole("button", { name: /^Watch next:/ })).toBeTruthy();
   });
 
-  it("stamps each envelope by the inbox, holds a short amount for a person, and lets a torn-out rule fail as the repo's tests do", () => {
+  it("introduces one thing at a time, stamps each envelope by the inbox, holds a short amount for a person, and lets a torn-out rule fail as the repo's tests do", () => {
     render(
       <WorkspaceManagerProvider>
         <DebuggerWorkspace scenario={scenarios[0]} initialConditions={scenarios[0].defaults} onClose={vi.fn()} />
       </WorkspaceManagerProvider>,
     );
-    // A fresh desk offers only what does something: no money to pay out, no bank to answer yet.
+    // A first visit starts with one envelope, a hand on it, and a path to the in-tray.
+    expect(Array.from(document.querySelectorAll(".mr-bag-items button"), (key) => key.querySelector("b")?.textContent)).toEqual(["“Paid”"]);
     expect(screen.queryByRole("button", { name: /^Pay out/ })).toBeNull();
-    expect(screen.queryByRole("group", { name: "What the bank does" })).toBeNull();
-    expect(document.querySelector(".mr-speech-try")?.textContent).toBe("Try: Drop “paid” on the desk.");
+    expect(document.querySelector(".mr-speech-try")?.textContent).toBe("Try: Drag “paid” into my in-tray, or tap it.");
+    expect(thing("“Paid”").querySelector(".mr-point")).toBeTruthy();
+    expect(document.querySelector(".mr-coach-label")?.textContent).toBe("Drag it here, or tap it");
 
     fireEvent.click(thing("“Paid”"));
+    // The stamp waits for the envelope to land.
+    expect(deskStamp()).toBeUndefined();
+    act(() => vi.advanceTimersByTime(1_500));
     expect([deskStamp(), card()]).toEqual(["In", "Paid"]);
     expect(clerk()).toMatch(/captured, once/);
-    fireEvent.click(thing("“Paid”, again"));
-    fireEvent.click(thing("“Paid”, again"));
+    expect(thing("“Paid”, again").getAttribute("data-new")).toBe("true");
+    press("“Paid”, again");
+    press("“Paid”, again");
     expect([deskStamp(), card()]).toEqual(["Seen", "Paid"]);
     expect(document.querySelector(".mr-ledger b")?.textContent).toBe("1");
     expect(document.querySelector(".mr-card-coins")?.getAttribute("aria-label")).toBe("Money captured: once");
     expect(nextDoor()).toEqual(["Charged 3 times"]);
-    fireEvent.click(thing("“Paid”, a new envelope"));
+    press("“Paid”, a new envelope");
     expect(clerk()).toMatch(/already paid/);
+    press("Late “authorized”");
+    expect(deskStamp()).toBe("Old news");
+    press("Pay out 747,750 IDR");
+    expect([bankStamp(), card()]).toEqual(["Paid out", "Paid out"]);
 
-    // A short amount waits in a person's tray; the corrected “paid” is sent back (409) until release.
+    // What the visitor has met stays in the room after Start over, and the short amount has joined.
     fireEvent.click(screen.getByRole("button", { name: "Start over" }));
-    fireEvent.click(thing("A short “paid”"));
+    press("A short “paid”");
     expect([deskStamp(), card()]).toEqual(["Hold", "On hold"]);
-    fireEvent.click(thing("“Paid”"));
+    press("“Paid”");
     expect(deskStamp()).toBe("Try later");
-    fireEvent.click(thing("Release it"));
+    press("Release it");
     expect(clerk()).toMatch(/released/);
     expect(document.querySelector(".mr-tray")).toBeNull();
-    fireEvent.click(thing("“Paid”, again"));
+    press("“Paid”, again");
     expect(card()).toBe("Paid");
 
     // The money: paid out net of the fee, then a credit with no reference waits in suspense...
-    fireEvent.click(thing("Pay out 747,750 IDR"));
-    expect([bankStamp(), card()]).toEqual(["Paid out", "Paid out"]);
-    fireEvent.click(thing("Pays, no reference"));
+    press("Pay out 747,750 IDR");
+    press("Pays, no reference");
     expect(bankStamp()).toBe("Suspense");
     // ...until the rule that guards it is torn out, as the repo's mutation tests do.
-    fireEvent.click(thing("Tear out “match a credit by amount alone”"));
-    fireEvent.click(thing("Pays, no reference"));
+    press("Tear out “match a credit by amount alone”");
+    press("Pays, no reference");
     expect(bankStamp()).toBe("Broke a rule");
     expect(clerk()).toMatch(/a landing needs its reference/);
-    fireEvent.click(thing("Put the rule back"));
+    press("Put the rule back");
     expect(clerk()).toMatch(/back in the book/);
   });
 
@@ -185,7 +201,7 @@ describe("DebuggerWorkspace", () => {
     );
     const room = () => document.querySelector(".mr-room")?.textContent ?? "";
     const toggle = screen.getByRole("button", { name: "Technical details" });
-    fireEvent.click(thing("“Paid”"));
+    press("“Paid”");
 
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
     expect(room()).toContain("Paid");

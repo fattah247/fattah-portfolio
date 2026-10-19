@@ -77,8 +77,28 @@ const objectOf = (event: ProviderEvent): DeskItem["object"] => (event.status ===
 const captured = (flow: FlowWorld) => flow.journals.includes("CAPTURE");
 const held = (flow: FlowWorld) => flow.status === "MANUAL_REVIEW";
 
+/**
+ * The order new things join the room. The first visit starts with one envelope; each next one joins
+ * once the one before it has been used, so there is always one new thing to try and never a wall of
+ * choices. What the visitor has met stays in the room after Start over.
+ */
+export const introductions = ["paid", "again", "late", "pay-out", "short"] as const;
+
+/** The things introduced so far, given everything the visitor has used (all of them when unknown). */
+export function introduced(used?: readonly string[]): Set<string> {
+  if (!used) return new Set(introductions);
+  const next = introductions.findIndex((id) => !used.includes(id));
+  return new Set(next < 0 ? introductions : introductions.slice(0, next + 1));
+}
+
+/** Whether a thing is in the room yet: the gated ones once introduced, the rest whenever they apply. */
+const present = (item: DeskItem, used?: readonly string[]) => !(introductions as readonly string[]).includes(item.id) || introduced(used).has(item.id);
+
+/** Something the visitor hasn't used yet that has just joined the room. */
+export const isNew = (item: DeskItem, used?: readonly string[]) => !!used && (introductions as readonly string[]).includes(item.id) && !used.includes(item.id);
+
 /** The envelopes in the courier's bag: at most four, each of which gets a stamp. */
-export function bagItems(desk: Desk): DeskItem[] {
+export function bagItems(desk: Desk, used?: readonly string[]): DeskItem[] {
   if (desk.frozen) return [];
   const { flow } = desk;
   const items: DeskItem[] = [];
@@ -111,7 +131,7 @@ export function bagItems(desk: Desk): DeskItem[] {
     if (againItem) items.push(againItem);
     else items.push(late);
   }
-  return items.slice(0, 4);
+  return items.filter((item) => present(item, used)).slice(0, 4);
 }
 
 /** The person's tray: a held payment waits here until someone releases it. */
@@ -121,9 +141,9 @@ export function trayItem(desk: Desk): DeskItem | null {
 }
 
 /** The money bag on the desk: there to carry to the bank once the payment is paid (or to show a hold refuses it). */
-export function moneyItem(desk: Desk): DeskItem | null {
+export function moneyItem(desk: Desk, used?: readonly string[]): DeskItem | null {
   const { flow } = desk;
-  if (desk.frozen || flow.payout !== "NONE" || !captured(flow)) return null;
+  if (desk.frozen || flow.payout !== "NONE" || !captured(flow) || !introduced(used).has("pay-out")) return null;
   if (flow.status !== "SUCCESS" && !held(flow)) return null;
   return {
     id: "pay-out",
@@ -179,7 +199,37 @@ function guardStillMatters(id: MutationId, flow: FlowWorld) {
 }
 
 /** Everything the visitor can use right now. */
-export const deskItems = (desk: Desk) => [...bagItems(desk), ...[trayItem(desk), moneyItem(desk)].filter((item): item is DeskItem => item !== null), ...bankItems(desk), ...ruleItems(desk)];
+export const deskItems = (desk: Desk, used?: readonly string[]) => [...bagItems(desk, used), ...[trayItem(desk), moneyItem(desk, used)].filter((item): item is DeskItem => item !== null), ...bankItems(desk), ...ruleItems(desk)];
+
+/**
+ * Where a delivered thing goes once it is stamped, so the room can show it going there: into the
+ * ledger, back to the courier's bag, into a person's tray, into the bank, or back onto the desk.
+ */
+export type Fate = "filed" | "bounced" | "held" | "returned" | "banked" | "refused" | "answered" | "released" | "page";
+
+export function fateOf(entry: FlowEntry): Fate {
+  switch (entry.outcome) {
+    case "DUPLICATE_IGNORED":
+      return entry.input.kind === "webhook" && entry.input.webhook === "again" ? "bounced" : "filed";
+    case "SENT_TO_REVIEW":
+      return "held";
+    case "PAYMENT_ON_HOLD":
+      return "returned";
+    case "BATCH_CREATED":
+      return "banked";
+    case "NOTHING_TO_SETTLE":
+      return "refused";
+    case "RULE_BROKEN":
+      return entry.input.kind === "settle" ? "banked" : "answered";
+    case "RELEASED":
+      return "released";
+    case "RULE_REMOVED":
+    case "RULE_RESTORED":
+      return "page";
+    default:
+      return entry.input.kind === "statement" ? "answered" : "filed";
+  }
+}
 
 /** One thing delivered: the comparison takes it first (it reads the repo's last event), then Payflow. */
 export function deskStep(desk: Desk, item: DeskItem): Desk {
@@ -243,7 +293,7 @@ export function stampFor(entry: FlowEntry): Stamp {
 /** What the clerk says about the latest thing on the desk: short, in the clerk's voice. */
 export function clerkLine(desk: Desk): string {
   const entry = desk.flow.entries.at(-1);
-  if (!entry) return "Morning. Drop the provider's envelopes on my desk and I'll stamp each one.";
+  if (!entry) return "I'm Payflow's clerk. The provider sends me news about a 750,000 IDR payment, and I stamp every envelope.";
   const input = entry.input;
   switch (entry.outcome) {
     case "APPLIED":
@@ -311,8 +361,8 @@ export function nextDoorFlags(naive: NaiveWorld) {
 export const nextDoorStatus = (naive: NaiveWorld) => statusWord[naive.status];
 
 /** One suggestion, naming something on the desk the visitor hasn't tried. */
-export function nudge(desk: Desk): { item: string; text: string } | null {
-  const items = deskItems(desk);
+export function nudge(desk: Desk, used?: readonly string[]): { item: string; text: string } | null {
+  const items = deskItems(desk, used);
   const offered = (id: string) => items.some((item) => item.id === id);
   const fresh = (id: string) => offered(id) && !desk.tried.includes(id);
   const { flow } = desk;
@@ -323,13 +373,13 @@ export function nudge(desk: Desk): { item: string; text: string } | null {
     [removed.includes("settle-held") && offered("pay-out"), "pay-out", "Try the money bag now."],
     [removed.includes("match-by-amount") && offered("bank-no-ref"), "bank-no-ref", "Have the bank pay with no reference."],
     [removed.includes("accept-reimport") && offered("bank-again"), "bank-again", "Have the bank send its statement again."],
-    [!flow.lastEvent && offered("paid"), "paid", "Drop “paid” on the desk."],
+    [!flow.lastEvent && offered("paid"), "paid", "Drag “paid” into my in-tray, or tap it."],
     [!moneyLeft && fresh("again") && flow.lastEvent?.status === "SUCCESS" && flow.lastEvent.amount === PAYMENT_AMOUNT, "again", "Couriers resend when unsure: try the same envelope again."],
     [fresh("release"), "release", "Be the person: check it, and release it."],
     [held(flow) && fresh("pay-out"), "pay-out", "Try paying it out while it's on hold."],
     [fresh("rule:settle-held"), "rule:settle-held", "Tear that rule out, as the repo's tests do."],
     [!moneyLeft && fresh("late") && captured(flow), "late", "Old news arrives late too. Try a late “authorized”."],
-    [fresh("pay-out"), "pay-out", "Carry the money bag to the bank."],
+    [fresh("pay-out"), "pay-out", "Now take the money bag to the bank."],
     [fresh("report-matches"), "report-matches", "Bring the provider's report: it matches."],
     [fresh("bank-none") && !flow.reportMatched, "bank-none", "What if the bank never pays?"],
     [fresh("bank-credit"), "bank-credit", "Now let the bank pay, with the reference."],

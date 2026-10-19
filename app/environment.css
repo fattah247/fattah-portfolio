@@ -4624,13 +4624,13 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 }
 .mr-item b, .mr-key b { font: var(--type-label); font-weight: 600; overflow-wrap: anywhere; }
 .mr-key { padding-inline-start: 10px; }
-.mr-key .pixel-object { display: none; }
+.mr-key > .pixel-object:not(.mr-point) { display: none; }
 .mr-key small { color: var(--ink-secondary); font: var(--type-caption); }
 .mr-item:hover, .mr-key:hover { background: #ffffff; }
 .mr-item:active, .mr-key:active { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
 .mr-item:focus-visible, .mr-key:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-/* What the clerk suggests trying carries a small accent lamp. */
-.mr-item[data-nudged]::after, .mr-key[data-nudged]::after { background: var(--accent); block-size: 8px; border: 1px solid var(--line-ink); content: ""; inline-size: 8px; inset-block-start: 5px; inset-inline-end: 5px; position: absolute; }
+/* What the clerk suggests trying is outlined in accent, with the guide's hand on it. */
+.mr-key[data-nudged] { background: #ffffff; outline: 2px solid var(--accent); outline-offset: 2px; }
 html[data-system-mode="computer"] .mr-item, html[data-system-mode="computer"] .mr-key { min-block-size: 40px; }
 .mail-room[data-carrying] .mr-item, .mail-room[data-carrying] .mr-key { cursor: grabbing; }
 
@@ -4647,19 +4647,16 @@ html[data-system-mode="computer"] .mr-item, html[data-system-mode="computer"] .m
 .mr-desk-top { align-items: center; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .mr-ledger { align-items: center; display: flex; gap: 8px; min-inline-size: 0; }
 .mr-ledger b { font-family: var(--font-mono), monospace; font-size: 1.1rem; }
-.mr-landing { align-items: end; display: flex; gap: 10px; min-block-size: 56px; min-inline-size: 0; }
-.mr-tray-stack { block-size: 48px; display: block; flex: none; inline-size: 48px; position: relative; }
-.mr-tray-stack .mr-in-tray { inset: 0; position: absolute; }
-.mr-tray-stack .mr-landed { inset-block-start: 6px; inset-inline-start: 8px; position: absolute; }
-.mr-landing .mr-stamp { margin-block-end: 8px; }
+.mr-landing { align-items: end; display: flex; gap: 10px; min-block-size: 64px; min-inline-size: 0; }
+.mr-landing > small { color: var(--ink-secondary); font: var(--type-caption); margin-block-end: 14px; }
+.mr-landing .mr-stamp { margin-block-end: 14px; }
 /* Something that went wrong jolts where it landed, in time with the buzz. */
-.mr-landing[data-hit="bad"], .mr-bank-answer[data-hit="bad"] { animation: mr-jolt 255ms steps(6, end) calc(var(--arrive, 0ms) + 100ms); }
-.mr-landing > small { color: var(--ink-secondary); font: var(--type-caption); }
-.mr-landed { animation: mr-appear 1ms var(--arrive, 0ms) backwards, mr-knock 150ms steps(3, end) var(--arrive, 0ms); }
+.mr-landing[data-hit="land"], .mr-bank-answer[data-hit="land"] { animation: mr-knock 150ms steps(3, end) 120ms; }
+.mr-landing[data-hit="bad"], .mr-bank-answer[data-hit="bad"] { animation: mr-jolt 255ms steps(6, end) 100ms; }
 
 /* A stamp: a framed word in its meaning colour, landing as the thing arrives. */
 .mr-stamp {
-  animation: mr-stamp 300ms steps(3, end) var(--arrive, 0ms) backwards;
+  animation: mr-stamp 200ms steps(3, end) backwards;
   border: 2px solid currentColor;
   box-shadow: inset 0 0 0 1px #ffffff, inset 0 0 0 2px currentColor;
   color: var(--ink-secondary);
@@ -4685,7 +4682,7 @@ html[data-system-mode="computer"] .mr-item, html[data-system-mode="computer"] .m
 .mr-page b { color: var(--adverse-ink); }
 
 /* The payment card on the desk: its state, the money captured, and the two proofs. */
-.mr-card { background: var(--paper-raised); border: 1px solid var(--line-ink); display: grid; gap: 4px; padding: 8px 10px; animation: mr-knock 150ms steps(3, end) var(--arrive, 0ms); }
+.mr-card { animation: mr-knock 150ms steps(3, end); background: var(--paper-raised); border: 1px solid var(--line-ink); display: grid; gap: 4px; padding: 8px 10px; }
 .mr-card > span { color: var(--ink-secondary); font: var(--type-caption); }
 .mr-card strong { color: var(--ink-secondary); font: 700 1.15rem/1.2 var(--font-body), system-ui, sans-serif; }
 .mail-room[data-technical] .mr-card strong { font-family: var(--font-mono), monospace; font-size: .95rem; }
@@ -4725,6 +4722,9 @@ html[data-system-mode="computer"] .mr-item, html[data-system-mode="computer"] .m
   .mr-bag .mr-place { display: none; }
   .mr-bag-items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mr-bag-items .mr-item small { display: none; }
+  .mr-bag-items .mr-item > .pixel-object:first-child { block-size: 32px; inline-size: 32px; }
+  .mr-bag-items .mr-new { padding-inline: 3px; }
+  .mr-bag-items .mr-item[data-nudged] .mr-new { display: none; }
   .mr-bag-items .mr-item { padding-inline-end: 14px; }
   .mr-card { align-items: center; column-gap: 6px; grid-template-columns: minmax(0, 1fr) auto; padding: 6px 8px; row-gap: 2px; }
   .mr-card > span { grid-column: 1 / -1; }
@@ -4748,18 +4748,53 @@ html[data-system-mode="computer"] .mr-item, html[data-system-mode="computer"] .m
 .mr-tape b { color: var(--ink); font-family: var(--font-mono), monospace; }
 .mr-tape code { font-size: .72rem; overflow-wrap: anywhere; }
 
-/* An envelope thrown to the desk, and one being carried there. */
-.mr-flight, .mr-carry { inset-block-start: 0; inset-inline-start: 0; pointer-events: none; position: absolute; z-index: 5; }
-.mr-flight { animation: mr-fly 440ms steps(8, end) forwards; transform: translate(var(--fx), var(--fy)) translate(-50%, -50%); }
-.mr-carry { filter: drop-shadow(5px 7px 0 rgb(37 43 52 / 18%)); transform: translate(var(--cx), var(--cy)) translate(-50%, -60%); }
+/* What crosses the room on a delivery (an envelope, the money bag, a slip, a coin), and what is
+ * being carried. Their paths are stepped in JS (components/mail-room), so they read as pixels. */
+.mr-move, .mr-carry { inset-block-start: 0; inset-inline-start: 0; pointer-events: none; position: absolute; z-index: 6; }
+.mr-move:not([data-ghost]), .mr-carry { filter: drop-shadow(3px 4px 0 rgb(37 43 52 / 18%)); }
+.mr-carry { filter: drop-shadow(5px 7px 0 rgb(37 43 52 / 18%)); }
 
-@keyframes mr-fly { to { transform: translate(var(--tx), var(--ty)) translate(-50%, -50%); } }
+/* The guide: a hand on what to try, a dashed path to where it goes, and what to do, in words. */
+.mr-coach { inset: 0; pointer-events: none; position: absolute; z-index: 5; }
+.mr-coach-path { inset: 0; overflow: visible; position: absolute; }
+.mr-coach-path polyline { stroke: var(--accent); stroke-dasharray: 6 4; stroke-width: 2; animation: mr-draw 420ms steps(6, end) both; }
+.mr-coach-path rect { fill: var(--accent); stroke: var(--line-ink); stroke-width: 1; }
+/* The hand rides on the key the clerk suggests, pointing at it from its end. */
+.mr-point { animation: mr-appear 1ms 200ms backwards; inset-block-end: -14px; inset-inline-end: -10px; position: absolute; z-index: 2; }
+.mr-item > span, .mr-key > span { flex: 1 1 auto; min-inline-size: 4.5rem; }
+.mr-new { flex: none; }
+.mr-actions .sim-secondary[data-nudged] { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mr-coach-label {
+  animation: mr-appear 1ms 300ms backwards;
+  background: #ffffff;
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--object-shadow);
+  color: var(--accent-deep);
+  font: var(--type-label);
+  font-weight: 600;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  padding: 3px 8px;
+  position: absolute;
+  white-space: nowrap;
+}
+/* A thing that has just joined the room says so. */
+.mr-new { background: var(--accent-soft); border: 1px solid var(--accent-deep); color: var(--accent-deep); font: 700 .7rem/1.2 var(--font-mono), monospace; font-style: normal; margin-inline-start: auto; padding: 1px 5px; }
+.mr-item[data-nudged] { background: #ffffff; outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@keyframes mr-draw { from { stroke-dashoffset: 120; opacity: 0; } 20% { opacity: 1; } to { stroke-dashoffset: 0; } }
 @keyframes mr-appear { from { visibility: hidden; } }
-@keyframes mr-stamp { 0% { opacity: 0; transform: scale(1.3); } 67% { opacity: 1; } 100% { transform: none; } }
+@keyframes mr-stamp { 0% { opacity: 0; transform: scale(1.6); } 67% { opacity: 1; } 100% { transform: none; } }
+@keyframes mr-pop { 0% { transform: scale(1.25); } 100% { transform: none; } }
 @keyframes mr-knock { 0%, 100% { translate: 0 0; } 34% { translate: 0 2px; } }
 @keyframes mr-jolt { 0%, 100% { translate: 0 0; } 17%, 50% { translate: -2px 0; } 33%, 67% { translate: 2px 0; } 83% { translate: -1px 0; } }
 
+/* The clerk, the count and the coins react on their beat. */
+.mr-clerk-figure { animation: mr-knock 150ms steps(3, end); }
+.mr-ledger b { animation: mr-pop 200ms steps(3, end); display: inline-block; }
+.mr-speech-line { animation: mr-appear 1ms backwards; }
+
 @media (prefers-reduced-motion: reduce) {
   .mail-room *, .mail-room *::before { animation: none !important; }
-  .mr-flight { display: none; }
+  .mr-move { display: none; }
 }
