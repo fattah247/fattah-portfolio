@@ -81,53 +81,53 @@ describe("sound", () => {
     expect(screen.queryByRole("group", { name: "Sound" })).toBeNull();
   });
 
-  it("plays the mail room's own outcomes, timed to the stamp landing, and marks the knock and the jolt", () => {
+  it("plays the shop counter's own outcomes, timed to the stamp landing, and marks the knock and the jolt", () => {
     const { play, cues } = withSound(caseOf(0));
     expect(cues()).toEqual(["sys.file-open"]);
     const press = (label: string) => {
-      fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${label}`) }));
-      act(() => vi.advanceTimersByTime(1_500));
+      fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${label.replace(/[()]/g, "\\$&")}`) }));
+      act(() => vi.advanceTimersByTime(1_600));
     };
     const hit = (selector: string) => document.querySelector(selector)?.getAttribute("data-hit");
-    // A thrown envelope flies 560 ms and is looked up for 140 ms: its knock lands with the stamp.
-    const thrown = 0.7 - 0.12;
-    // A release, a bank's answer or a rule page happens where it is: 160 ms, then the stamp.
+    // A receipt or the day's money crosses the counter in 560 ms and is looked at for 140 ms: the knock lands with the stamp.
+    const crosses = 0.7 - 0.12;
+    // A release or a bank's answer happens where it is: 160 ms, then the stamp.
     const inPlace = 0.3 - 0.12;
 
-    press("“Paid”");
-    expect(play).toHaveBeenLastCalledWith("pay.let-in", expect.closeTo(thrown, 3));
-    expect(hit(".mr-landing")).toBe("land");
-    press("“Paid”, again");
-    expect(play).toHaveBeenLastCalledWith("pay.stopped", expect.closeTo(thrown, 3));
-    press("Late “authorized”");
-    press("Pay out");
-    expect(play).toHaveBeenLastCalledWith("pay.book-back", expect.closeTo(thrown, 3));
+    press("Send “paid”");
+    expect(play).toHaveBeenLastCalledWith("pay.let-in", expect.closeTo(crosses, 3));
+    expect(hit('[data-object="till"] .sc-stamp')).toBe("land");
+    press("Send that again");
+    expect(play).toHaveBeenLastCalledWith("pay.stopped", expect.closeTo(crosses, 3));
+    press("Send an old “authorized”");
+    press("Close the day");
+    expect(play).toHaveBeenLastCalledWith("pay.book-back", expect.closeTo(crosses, 3));
     fireEvent.click(screen.getByRole("button", { name: "Start over" }));
     expect(cues().at(-1)).toBe("pay.start-over");
-    press("A short “paid”");
+    press("Send “paid 740,000”");
     expect(cues().at(-1)).toBe("pay.report-differs");
     // The corrected “paid” is sent back while the payment is held.
-    press("“Paid”");
+    press("Send “paid”");
     expect(cues().at(-1)).toBe("pay.stopped");
-    press("Release it");
+    press("Manager");
     expect(play).toHaveBeenLastCalledWith("pay.check-on", expect.closeTo(inPlace, 3));
-    press("“Paid”, again");
+    press("Send that again");
     expect(cues().at(-1)).toBe("pay.let-in");
-    press("Pay out");
-    press("The report: it matches");
+    press("Close the day");
+    press("Daily report: it matches");
     expect(cues().at(-1)).toBe("sys.file-open");
-    press("Pays, with reference");
+    press("Money arrives");
     expect(play).toHaveBeenLastCalledWith("pay.report-matches", expect.closeTo(inPlace, 3));
     press("Sends the statement again");
     expect(cues().at(-1)).toBe("pay.stopped");
-    // A torn-out rule that lets something through lands sour, with the buzz and the jolt.
-    press("Tear out “accept a statement twice”");
-    expect(cues().at(-1)).toBe("pay.check-off");
-    press("Sends the statement again");
-    expect(cues().at(-1)).toBe("pay.twice");
-    expect(hit(".mr-bank-answer")).toBe("bad");
+    // A broken rule that lets something through lands sour, with the buzz and the jolt.
     fireEvent.click(screen.getByRole("button", { name: "Technical details" }));
     expect(cues().at(-1)).toBe("ui.key-on");
+    press("mutation: accept a re-imported statement");
+    expect(cues().at(-1)).toBe("pay.check-off");
+    press("statement re-imported");
+    expect(cues().at(-1)).toBe("pay.twice");
+    expect(hit(".sc-bank-answer")).toBe("bad");
   });
 
   it("keeps the live monitor silent, lands stepped checks, and sounds iYup's verdicts and alerts once", () => {
