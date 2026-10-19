@@ -81,52 +81,57 @@ describe("sound", () => {
     expect(screen.queryByRole("group", { name: "Sound" })).toBeNull();
   });
 
-  it("plays the payment's own outcomes, timed to the message landing, and marks the knock and the jolt", () => {
+  it("plays the payment's own outcomes, timed to the event landing, and marks the knock and the jolt", () => {
     const { play, cues } = withSound(caseOf(0));
     expect(cues()).toEqual(["sys.file-open"]);
     const state = () => document.querySelector(".sd-pay .sd-wide .sd-state")?.getAttribute("data-hit");
 
-    fireEvent.click(screen.getByRole("button", { name: /Bank sends “paid”/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^“Paid”the payment/ }));
     expect(play).toHaveBeenLastCalledWith("pay.let-in", expect.closeTo(0.32, 3));
     expect(state()).toBe("land");
-    fireEvent.click(screen.getByRole("button", { name: /Bank sends it again/ }));
+    fireEvent.click(screen.getByRole("button", { name: /The same event again/ }));
     expect(play).toHaveBeenLastCalledWith("pay.stopped", expect.closeTo(0.32, 3));
-
-    fireEvent.click(key("Repeat check", "Off"));
+    fireEvent.click(screen.getByRole("button", { name: /^“Paid”, wrong amount/ }));
+    expect(cues().at(-1)).toBe("pay.report-differs");
+    fireEvent.click(screen.getByRole("button", { name: /A person releases it/ }));
+    expect(cues().at(-1)).toBe("pay.check-on");
+    fireEvent.click(screen.getByRole("button", { name: /the day's settlement run/ }));
+    expect(cues().at(-1)).toBe("pay.book-back");
+    fireEvent.click(screen.getByRole("button", { name: /Provider’s report matches/ }));
+    expect(cues().at(-1)).toBe("sys.file-open");
+    fireEvent.click(screen.getByRole("button", { name: /^Credit arrives/ }));
+    expect(play).toHaveBeenLastCalledWith("pay.report-matches", 0);
+    // A removed rule that lets something through lands sour, with the buzz and the jolt.
+    fireEvent.click(screen.getByRole("button", { name: "Accept a statement twice" }));
     expect(cues().at(-1)).toBe("pay.check-off");
-    fireEvent.click(screen.getByRole("button", { name: /Bank sends it again/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Same statement again/ }));
     expect(cues().at(-1)).toBe("pay.twice");
     expect(state()).toBe("bad");
-    fireEvent.click(screen.getByRole("button", { name: /Late “pending” update/ }));
-    expect(cues().at(-1)).toBe("pay.overwritten");
-    fireEvent.click(screen.getByRole("button", { name: /Doesn’t match/ }));
-    expect(play).toHaveBeenLastCalledWith("pay.report-differs", 0);
-    fireEvent.click(key("Record book", "Unavailable"));
-    expect(cues().at(-1)).toBe("pay.book-down");
-    fireEvent.click(key("Record book", "Available"));
-    expect(cues().at(-1)).toBe("pay.book-back");
     fireEvent.click(screen.getByRole("button", { name: "Start over" }));
     expect(cues().at(-1)).toBe("pay.start-over");
     fireEvent.click(screen.getByRole("button", { name: "Technical details" }));
     expect(cues().at(-1)).toBe("ui.key-on");
   });
 
-  it("keeps the live monitor silent, lands stepped minutes, and sounds a change of status once", () => {
+  it("keeps the live monitor silent, lands stepped checks, and sounds iYup's verdicts and alerts once", () => {
     const { cues } = withSound(caseOf(1));
     act(() => vi.advanceTimersByTime(3_500));
     expect(cues()).toEqual(["sys.file-open"]);
 
     fireEvent.click(screen.getByRole("button", { name: "Pause" }));
     expect(cues().at(-1)).toBe("ui.key-off");
-    fireEvent.click(screen.getByRole("button", { name: "Next minute" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next check" }));
     expect(cues().at(-1)).toMatch(/^svc\.minute-/);
 
-    fireEvent.click(key("Does the site answer?", "No"));
+    fireEvent.click(key("The page", "Answers 503"));
     expect(cues().at(-1)).toBe("ui.key-on");
     act(() => vi.advanceTimersByTime(400));
-    fireEvent.click(screen.getByRole("button", { name: "Next minute" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next check" }));
     expect(cues()).toContain("svc.down");
     expect(document.querySelector(".svc-status")?.hasAttribute("data-jolt")).toBe(true);
+    // TargetDown pages after a minute down: the alarm bell, once.
+    fireEvent.click(screen.getByRole("button", { name: "Next check" }));
+    expect(cues().filter((cue) => cue === "svc.alarm")).toHaveLength(1);
   });
 
   it("ticks once for each found check, then lands the server's answer, in time with the drawing", () => {

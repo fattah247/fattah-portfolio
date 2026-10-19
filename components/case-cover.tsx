@@ -2,7 +2,7 @@ import type { ScenarioSlug } from "../lib/scenarios";
 
 /**
  * Cover schematics for the three case files. Each one draws the shape of its own problem
- * (a repeated callback, a latency trace crossing a threshold, device checks adding up to a decision)
+ * (a repeated event stopped at the inbox, check times crossing the page's limit, device checks adding up to a decision)
  * rather than a generic illustration. They are schematic, not measurements.
  */
 export function CaseCover({ slug, className = "" }: { slug: ScenarioSlug; className?: string }) {
@@ -18,7 +18,7 @@ function PaymentCover() {
   return (
     <g>
       <text className="case-cover-label" x="16" y="24">provider</text>
-      <text className="case-cover-label" x="112" y="24">id check</text>
+      <text className="case-cover-label" x="118" y="24">inbox</text>
       <text className="case-cover-label" x="182" y="24">state</text>
       <path className="case-cover-rule" d="M16 34h208" />
       {/* First delivery passes the boundary and changes state once. */}
@@ -34,7 +34,7 @@ function PaymentCover() {
       <rect className="case-cover-boundary" height="70" width="30" x="124" y="46" />
       <path className="case-cover-flow case-cover-flow-designed" d="M154 62h28" />
       <rect className="case-cover-state" height="26" width="44" x="182" y="49" />
-      <text className="case-cover-state-text" x="190" y="66">PAID</text>
+      <text className="case-cover-state-text" x="186" y="66">SUCCESS</text>
       <text className="case-cover-note" x="16" y="138">2 deliveries · 1 state change</text>
     </g>
   );
@@ -43,16 +43,16 @@ function PaymentCover() {
 function ServiceCover() {
   return (
     <g>
-      <text className="case-cover-label" x="16" y="24">p95 latency</text>
+      <text className="case-cover-label" x="16" y="24">check time</text>
       <path className="case-cover-rule" d="M16 34h208" />
       <path className="case-cover-threshold" d="M16 74h208" />
-      <text className="case-cover-label case-cover-threshold-label" x="168" y="69">threshold</text>
+      <text className="case-cover-label case-cover-threshold-label" x="182" y="69">1 s limit</text>
       <path className="case-cover-trace" d="M16 112 46 108 76 110 106 100 136 86 166 66 196 52 224 44" />
       <circle className="case-cover-breach" cx="152" cy="76" r="4" />
-      <text className="case-cover-label" x="16" y="128">health</text>
+      <text className="case-cover-label" x="16" y="128">verdict</text>
       <path className="case-cover-health" d="M58 125h166" />
-      <text className="case-cover-health-text" x="188" y="121">PASS</text>
-      <text className="case-cover-note" x="16" y="144">up, but slower</text>
+      <text className="case-cover-health-text" x="192" y="121">SLOW</text>
+      <text className="case-cover-note" x="16" y="144">up, but slow · 2 regions agree</text>
     </g>
   );
 }

@@ -5,25 +5,27 @@ import { PlayIcon, ResetIcon, StartOverIcon } from "./icons";
 import { answerDelayMs, DeviceDiagram, messageTravelMs, PaymentDiagram, ruleStepMs, ServiceDiagram, toRulesMs } from "./sim-diagrams";
 import { useSound } from "./sound-provider";
 import { LANDING, type CueId } from "../lib/sound/engine";
-import { latencyThresholdMs } from "../lib/instruments";
-import { assessDevice, deviceChecks, deviceProfiles, HIGH_SCORE_THRESHOLD, MEDIUM_SCORE_THRESHOLD, SCREEN_LOCK, type DeviceAssessment, type GateDecision, type RiskLevel } from "../lib/device-risk";
+import { assessDevice, blockOnAnySignal, deviceChecks, deviceProfiles, HIGH_SCORE_THRESHOLD, MEDIUM_SCORE_THRESHOLD, SCREEN_LOCK, type DeviceAssessment, type GateDecision, type RiskLevel } from "../lib/device-risk";
 import { type Conditions, type ProjectionMode, type Scenario } from "../lib/scenarios";
 import {
-  emptyPayWorld,
-  lateMessage,
-  liveSample,
-  liveWindow,
-  onCallStatus,
-  paidMessage,
-  paymentStateWord,
-  payStep,
-  paymentScript,
-  type LiveSample,
-  type PayInput,
-  type PayOutcome,
-  type PayTone,
-  type PayWorld,
-} from "../lib/simulators";
+  emptyFlow,
+  emptyNaive,
+  flowStep,
+  mutations,
+  naiveStep,
+  paymentStory,
+  PAYOUT_NET,
+  payoutWord,
+  statusWord,
+  type FlowInput,
+  type FlowOutcome,
+  type FlowTone,
+  type FlowWorld,
+  type MutationId,
+  type NaiveWorld,
+  type PaymentStatus,
+} from "../lib/payment-flow";
+import { alertFor, alertSeverity, clockOf, DEGRADED_AFTER_MS, firing, naiveTally, naiveView, runUptime, STORY_CHECKS, toUptimeConditions, type Tick } from "../lib/uptime";
 
 type Phase = "rest" | "rewind" | "reconstruct";
 
@@ -43,16 +45,28 @@ function useOnChange<T>(value: T, effect: (next: T, previous: T) => void) {
 }
 
 /** Every payment outcome has its sound, so a manual send and the played example sound alike. */
-const payCue: Record<PayOutcome, CueId> = {
-  applied: "pay.let-in",
-  duplicate: "pay.stopped",
-  stale: "pay.stopped",
-  "applied-again": "pay.twice",
-  regressed: "pay.overwritten",
-  matched: "pay.report-matches",
-  mismatched: "pay.report-differs",
-  "store-down": "pay.book-down",
-  "store-up": "pay.book-back",
+const payCue: Record<FlowOutcome, CueId> = {
+  APPLIED: "pay.let-in",
+  DUPLICATE_IGNORED: "pay.stopped",
+  STALE_IGNORED: "pay.stopped",
+  PAYMENT_ON_HOLD: "pay.stopped",
+  SENT_TO_REVIEW: "pay.report-differs",
+  RELEASED: "pay.check-on",
+  BATCH_CREATED: "pay.book-back",
+  NOTHING_TO_SETTLE: "pay.check-off",
+  MATCHED_AWAITING_BANK: "sys.file-open",
+  MATCHED_NO_ACTION: "sys.file-open",
+  ALREADY_RECONCILED: "sys.file-open",
+  RECONCILED: "pay.report-matches",
+  MISMATCH: "pay.report-differs",
+  LANDED: "pay.let-in",
+  MISSING_CREDIT: "pay.book-down",
+  UNMATCHED_CREDIT: "pay.report-differs",
+  ALREADY_IMPORTED: "pay.stopped",
+  NO_PAYOUT_YET: "pay.check-off",
+  RULE_REMOVED: "pay.check-off",
+  RULE_RESTORED: "pay.check-on",
+  RULE_BROKEN: "pay.twice",
 };
 /** A message's cue starts early enough that its knock lands as the packet reaches the payment. */
 const landingDelay = messageTravelMs / 1000 - LANDING;
@@ -65,8 +79,8 @@ const simName: Record<Scenario["slug"], string> = {
 };
 
 const howTo: Record<Scenario["slug"], string> = {
-  payflow: "You run a shop's payment system. Press “Bank sends paid”, then “Bank sends it again”, as banks sometimes do. Then switch the repeat check off and try it again.",
-  iyup: "A website runs live here: one second is one minute. Slow it down, stop the speed measurements, or switch to the old dashboard, and see who notices.",
+  payflow: "You run Payflow, a shop's payment system. Send the provider's messages, then follow the money to the bank. Under it, a simpler system gets the same messages, for comparison.",
+  iyup: "iYup watches a page from two regions, one check every 30 seconds; here a second is one check. Slow the page, break it in one region, or silence an agent, and see what iYup says and when it alerts.",
   trustgate: "You're sending a payment. Switch on what the phone's checks find: each adds points by how serious it is. The server decides from the total, and the phone writes the decision to its log.",
 };
 
@@ -75,11 +89,9 @@ const howTo: Record<Scenario["slug"], string> = {
  * names stay in the model; engineers get them back with "Technical details".
  */
 const plainControls: Record<string, { label: string; hint?: string; options: Record<string, string> }> = {
-  delivery: { label: "Or watch an example", hint: "it plays through the desk", options: { once: "The bank sends it once", duplicate: "The bank sends it twice", "out-of-order": "An old message arrives late" } },
-  latency: { label: "Site speed", options: { normal: "Normal", degraded: "Getting slower", severe: "Very slow" } },
-  health: { label: "Does the site answer?", hint: "the basic “are you up?” check", options: { pass: "Yes", fail: "No" } },
-  scrape: { label: "Speed measurements", hint: "the tool that times every page", options: { available: "Collected", missing: "Stopped" } },
-  alert: { label: "Alarm when too slow", options: { present: "Set up", absent: "Not set up" } },
+  page: { label: "The page", hint: "what every check finds", options: { quick: "Quick", slow: "Slow (1.2–1.8 s)", error: "Answers 503", "wrong-content": "Wrong content" } },
+  scope: { label: "Where", hint: "which regions see it", options: { both: "Both regions", "lab-b": "Only lab-b" } },
+  agent: { label: "lab-b's agent", hint: "the program that runs lab-b's checks", options: { reporting: "Reporting", stopped: "Stopped" } },
   [SCREEN_LOCK]: { label: "Screen lock", hint: "a confirmation needs it to sign", options: { set: "Set", none: "None" } },
 };
 
@@ -93,12 +105,6 @@ const plainCheck: Record<string, string> = {
   debugger_connected: "Debugger attached",
   app_debuggable: "App is a debug build",
   installer_source_unknown: "Installed from outside the store",
-};
-
-/** Only the cases that compare an old handling with the designed one have an approach toggle. */
-const plainApproach: Partial<Record<Scenario["slug"], { label: string; hint?: string; designed: string; baseline: string }>> = {
-  payflow: { label: "Repeat check", hint: "remembers which messages it already handled", designed: "On", baseline: "Off" },
-  iyup: { label: "Dashboard shows", designed: "Speed and health", baseline: "Only “is it up?”" },
 };
 
 /**
@@ -226,26 +232,12 @@ function ConditionKeys({ control, onChange, scenario, selectedConditions, onSele
   );
 }
 
-function ApproachKeys({ approach, onApproachChange, scenario }: Pick<SimProps, "approach" | "onApproachChange" | "scenario">) {
-  const plain = plainApproach[scenario.slug];
-  if (!plain) return null;
-  return (
-    <Keys
-      hint={plain.hint}
-      label={plain.label}
-      onSelect={(value) => onApproachChange(value as ProjectionMode)}
-      options={[{ label: plain.designed, value: "designed" }, { label: plain.baseline, value: "baseline" }]}
-      selected={approach}
-    />
-  );
-}
-
 /** The engineering layer, shown only with "Technical details": one line of raw values. */
 function Wire({ children, technical }: { children: string; technical: boolean }) {
   return technical ? <code className="sim-wire">{children}</code> : null;
 }
 
-type JournalEntry = { key: string; badge: string; tone: PayTone; plain: string; hood: string };
+type JournalEntry = { key: string; badge: string; tone: FlowTone; plain: string; contrast?: string; hood: string };
 
 /** What just happened, newest first: plain words, and the mechanism with "Technical details". */
 function Journal({ entries, empty, technical }: { entries: JournalEntry[]; empty: string; technical: boolean }) {
@@ -258,6 +250,7 @@ function Journal({ entries, empty, technical }: { entries: JournalEntry[]; empty
             <li data-tone={entry.tone} key={entry.key}>
               <span className="sim-journal-badge"><i aria-hidden="true" />{entry.badge}</span>
               <p>{entry.plain}</p>
+              {entry.contrast ? <p className="sim-journal-contrast"><span>For comparison</span>{entry.contrast}</p> : null}
               {technical ? <code>{entry.hood}</code> : null}
             </li>
           ))}
@@ -267,107 +260,184 @@ function Journal({ entries, empty, technical }: { entries: JournalEntry[]; empty
   );
 }
 
+/**
+ * The comparison beside every simulator: the same inputs through a simpler system, labelled as a
+ * comparison and never as a mode of the repo. It keeps a running tally of what the repo's rules
+ * prevented; a visitor only ever operates the repo's system.
+ */
+function ShadowLane({ last, name, says, tally }: { last: string; name: string; says: string; tally: Array<{ label: string; value: number }> }) {
+  return (
+    <section aria-label={`For comparison: ${name}`} className="sim-shadow">
+      <p className="sim-shadow-label"><span>For comparison, not in the repo</span><strong>{name}</strong></p>
+      <p className="sim-shadow-now"><b>{says}</b>{last ? ` ${last}` : ""}</p>
+      <dl className="sim-shadow-tally">
+        {tally.map((item) => (
+          <div data-bad={item.value > 0 || undefined} key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 /* ------------------------------------------------------------------ Payment */
 
 const storyStepDelay = 800;
+const idr = (amount: number) => `${amount.toLocaleString("en-US")} IDR`;
 
-function PaymentSim({ approach, conditions, isDefault, onApproachChange, onChange, onReset, scenario, selectedConditions, technical }: SimProps) {
-  const [world, setWorld] = useState<PayWorld>(emptyPayWorld);
+/** The examples a visitor can watch, each a set of the case's conditions. */
+const paymentExamples: Array<{ value: string; label: string; conditions: Conditions }> = [
+  { value: "twice", label: "The provider sends it twice", conditions: { delivery: "duplicate", amount: "matches", bank: "landed" } },
+  { value: "late", label: "A late “authorized”", conditions: { delivery: "out-of-order", amount: "matches", bank: "landed" } },
+  { value: "wrong", label: "A wrong amount", conditions: { delivery: "once", amount: "differs", bank: "landed" } },
+  { value: "no-credit", label: "The bank never pays", conditions: { delivery: "once", amount: "matches", bank: "missing" } },
+];
+
+type PayState = { flow: FlowWorld; naive: NaiveWorld };
+const emptyPay: PayState = { flow: emptyFlow, naive: emptyNaive };
+const stepBoth = (state: PayState, input: FlowInput): PayState => ({ flow: flowStep(state.flow, input), naive: naiveStep(state.naive, input, state.flow) });
+
+const payStates: PaymentStatus[] = ["PENDING", "AUTHORIZED", "SUCCESS", "SETTLED", "RECONCILED", "MANUAL_REVIEW"];
+
+function PaymentSim({ conditions, isDefault, onChange, onReset, selectedConditions, technical }: SimProps) {
+  const [state, setState] = useState<PayState>(emptyPay);
   const [story, setStory] = useState<number | null>(null);
   const timers = useRef<number[]>([]);
-  const checked = approach === "designed";
-  const latest = world.entries.at(-1);
-  const marks = useChangeMarks({ state: world.state, updates: String(world.updates), repeats: String(world.repeats) });
+  const { flow, naive } = state;
+  const latest = flow.entries.at(-1);
+  const captures = flow.journals.filter((journal) => journal === "CAPTURE").length;
+  const marks = useChangeMarks({ state: flow.status, captures: String(captures), payout: flow.payout });
   const { play } = useSound();
-  useOnChange(world.entries.length, (count, before) => {
-    const entry = world.entries.at(-1);
-    if (count > before && entry) play(payCue[entry.outcome], entry.message ? landingDelay : 0);
+  useOnChange(flow.entries.length, (count, before) => {
+    const entry = flow.entries.at(-1);
+    // A landing that completes the reconciliation rings the bells rather than the knock.
+    const cue = entry?.outcome === "LANDED" && flow.status === "RECONCILED" ? "pay.report-matches" : entry ? payCue[entry.outcome] : null;
+    if (count > before && cue) play(cue, entry?.event ? landingDelay : 0);
   });
-  useOnChange(checked, (on) => play(on ? "pay.check-on" : "pay.check-off"));
 
   useEffect(() => () => timers.current.forEach(window.clearTimeout), []);
 
   const stopStory = () => { timers.current.forEach(window.clearTimeout); timers.current = []; setStory(null); };
-  const send = (input: PayInput) => { stopStory(); setWorld((current) => payStep(current, input, checked)); };
+  const send = (input: FlowInput) => { stopStory(); setState((current) => stepBoth(current, input)); };
   const playStory = (example: Conditions = conditions) => {
     stopStory();
-    const script = paymentScript(example);
+    const script = paymentStory(example);
     const reduced = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced) { setWorld(script.reduce((current, input) => payStep(current, input, checked), emptyPayWorld)); return; }
-    setWorld(emptyPayWorld);
+    if (reduced) { setState(script.reduce(stepBoth, emptyPay)); return; }
+    setState(emptyPay);
     setStory(0);
     script.forEach((input, index) => {
       timers.current.push(window.setTimeout(() => {
-        setWorld((current) => payStep(current, input, checked));
+        setState((current) => stepBoth(current, input));
         setStory(index + 1 < script.length ? index + 1 : null);
       }, (index + 1) * storyStepDelay));
     });
   };
+  const example = paymentExamples.find((item) => Object.entries(item.conditions).every(([key, value]) => selectedConditions[key] === value))?.value ?? "";
+  const watch = (value: string) => {
+    const next = paymentExamples.find((item) => item.value === value)!.conditions;
+    for (const [key, item] of Object.entries(next)) if (selectedConditions[key] !== item) onChange(key, item);
+    playStory({ ...conditions, ...next });
+  };
+  const toggleRule = (id: MutationId) => send({ kind: "mutate", mutation: id, removed: !flow.removed.includes(id) });
 
-  const journal: JournalEntry[] = [...world.entries].reverse().slice(0, 6).map((entry) => ({ key: String(entry.n), badge: `#${entry.n}`, tone: entry.tone, plain: entry.plain, hood: entry.hood }));
+  const journal: JournalEntry[] = [...flow.entries].reverse().slice(0, 6).map((entry) => ({
+    key: String(entry.n),
+    badge: entry.http ? `#${entry.n} · ${entry.http}` : `#${entry.n}`,
+    tone: entry.tone,
+    plain: entry.plain,
+    contrast: entry.contrast,
+    hood: entry.hood,
+  }));
   const sub = (plain: string, code: string) => <small>{technical ? <code>{code}</code> : plain}</small>;
+  const held = flow.status === "MANUAL_REVIEW";
 
   return (
     <div className="sim" data-sim="payflow">
-      <PaymentDiagram checked={checked} technical={technical} world={world} />
-      <Wire technical={technical}>{`processed IDs [${world.processed.join(", ")}] · last seq ${world.lastSeq || "–"} · state ${world.state} · state writes ${world.updates}${latest ? ` · last: ${latest.hood}` : ""}`}</Wire>
+      <PaymentDiagram technical={technical} world={flow} />
+      <Wire technical={technical}>{`inbox [${Object.keys(flow.inbox).join(", ")}] · ${flow.status} · journals ${flow.journals.join(" ") || "–"} · payout ${flow.payout}${latest ? ` · last: ${latest.hood}` : ""}`}</Wire>
 
       <div className="sim-controls">
-        <div aria-label="The bank sends" className="sim-group" role="group">
-          <p className="sim-group-label">The bank sends</p>
+        <div aria-label="The provider sends" className="sim-group" role="group">
+          <p className="sim-group-label">The provider sends</p>
           <div className="sim-buttons">
-            <button className="sim-send" onClick={() => send({ kind: "deliver", message: paidMessage })} type="button">
-              Bank sends “paid”{sub("the payment went through", `${paidMessage.id} · seq ${paidMessage.seq}`)}
-            </button>
-            <button className="sim-send" disabled={!world.lastMessage} onClick={() => world.lastMessage && send({ kind: "deliver", message: world.lastMessage })} type="button">
-              Bank sends it again{sub("banks resend when they're unsure", `retry ${world.lastMessage?.id ?? "–"}`)}
-            </button>
-            <button className="sim-send" onClick={() => send({ kind: "deliver", message: lateMessage })} type="button">
-              Late “pending” update{sub("an older message, delivered late", `${lateMessage.id} · seq ${lateMessage.seq}`)}
-            </button>
+            <button className="sim-send" onClick={() => send({ kind: "webhook", webhook: "success" })} type="button">“Paid”{sub("the payment went through", "new event · SUCCESS")}</button>
+            <button className="sim-send" disabled={!flow.lastEvent} onClick={() => send({ kind: "webhook", webhook: "again" })} type="button">The same event again{sub("providers resend when unsure", `redeliver ${flow.lastEvent?.id ?? "–"}`)}</button>
+            <button className="sim-send" onClick={() => send({ kind: "webhook", webhook: "new-id" })} type="button">“Paid”, new id{sub("the same news, restated", "new event · SUCCESS, restated")}</button>
+            <button className="sim-send" onClick={() => send({ kind: "webhook", webhook: "late-authorized" })} type="button">Late “authorized”{sub("an older status, delivered late", "new event · AUTHORIZED")}</button>
+            <button className="sim-send" onClick={() => send({ kind: "webhook", webhook: "wrong-amount" })} type="button">“Paid”, wrong amount{sub("740,000 for a 750,000 payment", "new event · SUCCESS 740000")}</button>
           </div>
         </div>
-        <ApproachKeys approach={approach} onApproachChange={onApproachChange} scenario={scenario} />
-        <div aria-label="Bank's daily report" className="sim-group" role="group">
-          <p className="sim-group-label">Bank&rsquo;s daily report</p>
-          <div className="sim-buttons sim-buttons-pair">
-            <button className="sim-send" onClick={() => send({ kind: "settle", matched: true })} type="button">Matches our records{sub("everything adds up", "settlement ok")}</button>
-            <button className="sim-send" onClick={() => send({ kind: "settle", matched: false })} type="button">Doesn&rsquo;t match{sub("something's off", "settlement mismatch")}</button>
+        <div aria-label="Then the money" className="sim-group" role="group">
+          <p className="sim-group-label">Then the money</p>
+          <div className="sim-buttons">
+            <button className="sim-send" disabled={!held} onClick={() => send({ kind: "release" })} type="button">A person releases it{sub("after checking the hold", "RELEASE_PAYMENT")}</button>
+            <button className="sim-send" onClick={() => send({ kind: "settle" })} type="button">Pay out{sub("the day's settlement run", "settlement batch")}</button>
+            <button className="sim-send" onClick={() => send({ kind: "report", matches: true })} type="button">Provider&rsquo;s report matches{sub("its word, not the money", "report row matches")}</button>
+            <button className="sim-send" onClick={() => send({ kind: "report", matches: false })} type="button">Report disagrees{sub("its numbers differ", "report row MISMATCH")}</button>
           </div>
         </div>
-        <Keys hint="where every change is written down" label="Record book" onSelect={(value) => send({ kind: "store", online: value === "online" })} options={[{ label: "Available", value: "online" }, { label: "Unavailable", value: "offline" }]} selected={world.storeOnline ? "online" : "offline"} />
-        <ConditionKeys control="delivery" onChange={onChange} onSelect={(value) => { onChange("delivery", value); playStory({ ...conditions, delivery: value }); }} scenario={scenario} selectedConditions={selectedConditions} />
+        <div aria-label="The bank's statement" className="sim-group" role="group">
+          <p className="sim-group-label">The bank&rsquo;s statement</p>
+          <div className="sim-buttons">
+            <button className="sim-send" onClick={() => send({ kind: "statement", statement: "credit" })} type="button">Credit arrives{sub(`${idr(PAYOUT_NET)}, with the payout's reference`, "camt.053 credit, EndToEndId = payout reference")}</button>
+            <button className="sim-send" onClick={() => send({ kind: "statement", statement: "no-credit" })} type="button">No credit{sub("the value date passes", "no credit by value date + 2 days")}</button>
+            <button className="sim-send" onClick={() => send({ kind: "statement", statement: "no-reference" })} type="button">Credit, no reference{sub("the amount fits, nothing else", "credit without EndToEndId")}</button>
+            <button className="sim-send" onClick={() => send({ kind: "statement", statement: "reimport" })} type="button">Same statement again{sub("the bank resends it", "statement re-imported")}</button>
+          </div>
+        </div>
+        <fieldset className="instrument-control sim-mutations">
+          <legend>Remove a rule, as the repo&rsquo;s tests do<small>each is a deliberate break the repo&rsquo;s own tests make, and catch</small></legend>
+          <div className="instrument-keys" data-count="3">
+            {(Object.keys(mutations) as MutationId[]).map((id) => (
+              <button aria-pressed={flow.removed.includes(id)} className="instrument-option" key={id} onClick={() => toggleRule(id)} type="button">
+                {technical ? mutations[id].technical : mutations[id].plain}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        <Keys hint="it plays through the desk" label="Or watch an example" onSelect={watch} options={paymentExamples.map(({ label, value }) => ({ label, value }))} selected={example} />
       </div>
 
       <div className="sim-readout">
         <ol aria-label="Payment state" className="pay-states">
-          {(["PENDING", "PAID", "REVIEW"] as const).map((state) => (
-            <li data-changed={state === world.state ? marks.state : undefined} data-current={state === world.state || undefined} data-state={state.toLowerCase()} key={state}>
-              <i aria-hidden="true" />{paymentStateWord[state]}{state === world.state ? <span className="sr-only"> (current)</span> : null}
+          {payStates.map((status) => (
+            <li data-changed={status === flow.status ? marks.state : undefined} data-current={status === flow.status || undefined} data-state={status === "MANUAL_REVIEW" ? "review" : status === "PENDING" || status === "AUTHORIZED" ? "pending" : "paid"} key={status}>
+              <i aria-hidden="true" />{technical ? status : statusWord[status]}{status === flow.status ? <span className="sr-only"> (current)</span> : null}
             </li>
           ))}
         </ol>
         <dl className="sim-counts">
-          <div><dt>Messages received</dt><dd>{world.deliveries}</dd></div>
-          <div data-changed={marks.updates}><dt>Times the payment changed</dt><dd>{world.updates}</dd></div>
-          <div data-changed={marks.repeats} data-tone={world.repeats ? "adverse" : undefined}><dt>Handled twice</dt><dd>{world.repeats}</dd></div>
+          <div><dt>Events received</dt><dd>{flow.entries.filter((entry) => entry.event).length}</dd></div>
+          <div data-changed={marks.captures}><dt>Money captured</dt><dd>{captures === 1 ? "once" : `${captures}×`}</dd></div>
+          <div data-changed={marks.payout} data-tone={flow.payout === "BROKEN" ? "adverse" : undefined}><dt>Payout</dt><dd>{technical ? flow.payout : payoutWord[flow.payout]}</dd></div>
+          <div><dt>Waiting for a person</dt><dd>{flow.reviewCases.length + flow.breaks.length}</dd></div>
+          {flow.rulesBroken.length ? <div data-tone="adverse"><dt>Rules broken</dt><dd>{flow.rulesBroken.length}</dd></div> : null}
         </dl>
-        <ul aria-label="Processed IDs" className="sr-only">
-          {world.processed.length ? world.processed.map((id) => <li key={id}>{id}</li>) : <li>none yet</li>}
-        </ul>
-        <ol aria-label="Audit records" className="sr-only">
-          {world.audit.length ? world.audit.map((record) => <li key={record.n}>#{record.n} {record.change}: {record.status}</li>) : <li>no records yet</li>}
+        <ol aria-label="Audit trail" className="sr-only">
+          {flow.audit.length ? flow.audit.map((record, index) => <li key={index}>{record}</li>) : <li>no records yet</li>}
         </ol>
       </div>
 
+      <ShadowLane
+        last={naive.last}
+        name="Without an event inbox, trusting the provider"
+        says={technical ? naive.status : statusWord[naive.status]}
+        tally={[
+          { label: "Charged twice", value: Math.max(0, naive.captures - 1) },
+          { label: "Newer news overwritten", value: naive.overwritten },
+          { label: "Wrong amount taken", value: naive.wrongAmount },
+          { label: "Reconciled with no money in the bank", value: naive.reconciledWithoutBank },
+        ]}
+      />
+
       <div className="sim-actions">
         <button className="sim-primary" disabled={story !== null} onClick={() => playStory()} type="button"><PlayIcon />{story !== null ? "Playing the example…" : "Play the example"}</button>
-        <button className="sim-secondary" onClick={() => { stopStory(); setWorld(emptyPayWorld); play("pay.start-over"); }} type="button"><StartOverIcon />Start over</button>
+        <button className="sim-secondary" onClick={() => { stopStory(); setState(emptyPay); play("pay.start-over"); }} type="button"><StartOverIcon />Start over</button>
         <StoryReset isDefault={isDefault} onReset={onReset} />
-        <p className="sim-compare">{checked ? "Repeat check on: each message can change the payment only once." : "Repeat check off: every message is processed as it arrives."}</p>
+        <p className="sim-compare">Every event gets one outcome, and the money counts only when the bank says so.</p>
       </div>
 
-      <Journal empty="Nothing yet. Send a message from the bank." entries={journal} technical={technical} />
+      <Journal empty="Nothing yet. Send a message from the provider." entries={journal} technical={technical} />
       <p aria-live="polite" className="sr-only">{latest ? latest.plain : ""}</p>
     </div>
   );
@@ -375,70 +445,66 @@ function PaymentSim({ approach, conditions, isDefault, onApproachChange, onChang
 
 /* ------------------------------------------------------------------ Service */
 
-type Sample = LiveSample & { mode: ProjectionMode };
-type ServiceState = { samples: Sample[]; minute: number; since: number; profile: string };
-const minuteMs = 1100;
+const checkMs = 1000;
+const liveWindow = 12;
 
 /** Milliseconds as everyday seconds. */
 export const seconds = (ms: number) => `${(ms / 1000).toFixed(2)} s`;
-const limit = seconds(latencyThresholdMs);
+const limit = seconds(DEGRADED_AFTER_MS);
 
-/** The on-call screen in everyday words; the model's own titles stay for engineers. */
-function plainStatus(sample: Sample, title: string) {
-  const wait = seconds(sample.observedLatency ?? sample.actualLatency);
-  if (title === "Outage") return { title: "The site is down", detail: "The site isn't answering at all." };
-  if (title === "Looks fine") return { title: "Looks fine", detail: "This dashboard only checks that the site answers, and it does." };
-  if (title === "Paging on-call") return { title: "Alarm: engineers alerted", detail: `Pages take ${wait}, over the ${limit} limit, so the alarm went off.` };
-  if (title === "Investigate collection") return { title: "Can't tell: measurements stopped", detail: "Speed measurements stopped arriving. No news isn't good news." };
-  if (title === "Breach, nobody paged") return { title: "Too slow, and no alarm", detail: `Pages take ${wait}, over the limit, but no alarm is set up to tell anyone.` };
-  return { title: "All good", detail: `Pages load in ${wait}, under the ${limit} limit.` };
+/** What the status page says, with the reason under it, in everyday words. */
+function plainVerdict(tick: Tick) {
+  const down = tick.views.filter((view) => view.state === "down");
+  const unknown = tick.views.filter((view) => view.state === "unknown");
+  const slowest = Math.max(...tick.views.map((view) => view.latencyMs ?? 0));
+  if (tick.verdict === "unknown") return "No region has a fresh result, so iYup won't guess: unknown is not down.";
+  if (tick.verdict === "down") return `Down in ${down.length === tick.views.length ? "both regions" : "most regions"}: ${down[0].reason === "http_5xx" ? "the page answers with error 503" : "the page answers, but not with the expected text"}.`;
+  if (tick.verdict === "slow") return `Up, but slow: checks take ${seconds(slowest)}, over the page's ${limit} limit, in most regions.`;
+  if (down.length) return `Up: only ${down[0].region} fails (1 of 2 regions), so it's a warning, not an outage.`;
+  if (unknown.length) return `Up: ${unknown[0].region} has gone quiet, so the verdict comes from the region that still reports.`;
+  const slow = tick.views.filter((view) => view.slow);
+  if (slow.length) return `Up: only ${slow[0].region} is slow (1 of 2 regions), so the page isn't marked slow.`;
+  return `Up: checks take ${seconds(slowest)}, under the ${limit} limit.`;
 }
 
-const statusHood = (sample: Sample, title: string) => {
-  if (title === "Outage") return "health = FAIL → service contract broken; page regardless of latency";
-  if (title === "Looks fine") return `dashboard collects health only → p95 not observed (actual ${sample.actualLatency} ms)`;
-  if (title === "Paging on-call") return `p95 ${sample.observedLatency} ms > ${latencyThresholdMs} ms threshold → alert rule fires`;
-  if (title === "Investigate collection") return "scrape target missing → sample = null, not 0 → alert: no data";
-  if (title === "Breach, nobody paged") return `p95 ${sample.observedLatency} ms > ${latencyThresholdMs} ms, no alert rule → nothing fires`;
-  return `p95 ${sample.observedLatency} ms ≤ ${latencyThresholdMs} ms · health PASS → quiet`;
-};
-
-const troubled = new Set(["Outage", "Paging on-call", "Investigate collection", "Breach, nobody paged"]);
+const verdictTone = { up: "confirmed", slow: "uncertain", down: "adverse", unknown: "uncertain" } as const;
 
 /**
- * What the monitor sounds like as its status changes. "Too slow, and no alarm" is silent: nobody
- * was told, and that silence is the point. "Back to normal" plays only when visitors are really
- * served quickly again, never when a dashboard simply stops looking.
+ * What the monitor sounds like as it changes: the buzz when the page goes down, the alarm bell when
+ * iYup pages, a softer ask when it sends a warning, a relay when a region goes quiet, and two soft
+ * bells only when the page is really up and quick again.
  */
-function statusCue(title: string, before: string, sample: Sample): CueId | null {
-  if (title === "Paging on-call") return "svc.alarm";
-  if (title === "Outage") return "svc.down";
-  if (title === "Investigate collection") return "svc.blind";
-  if (troubled.has(before) && !troubled.has(title) && sample.health === "pass" && sample.actualLatency <= latencyThresholdMs) return "svc.recovered";
+function tickCue(tick: Tick, before: Tick | undefined): CueId | null {
+  if (!before) return null;
+  const now = firing(tick).map((alert) => alert.name);
+  const was = firing(before).map((alert) => alert.name);
+  const fresh = now.filter((name) => !was.includes(name));
+  if (fresh.some((name) => alertSeverity[name] === "critical")) return "svc.alarm";
+  if (tick.verdict === "down" && before.verdict !== "down") return "svc.down";
+  if (fresh.length) return "pay.report-differs";
+  if (tick.views.some((view) => view.state === "unknown") && !before.views.some((view) => view.state === "unknown")) return "svc.blind";
+  if (tick.verdict === "up" && before.verdict !== "up" && !tick.views.some((view) => view.state !== "up" || view.slow)) return "svc.recovered";
   return null;
 }
 
-/** A stepped minute lands as a block pitched to its page time, rising D, F♯, A, and sour past the line. */
-function minuteCue(ms: number | null): CueId | null {
-  if (ms === null) return null;
-  if (ms <= 250) return "svc.minute-quick";
-  if (ms <= 400) return "svc.minute-slower";
-  if (ms <= latencyThresholdMs) return "svc.minute-slow";
+/** A stepped check lands as a block pitched to its time, rising D, F♯, A, and sour past the limit. */
+function checkCue(tick: Tick): CueId | null {
+  const times = tick.results.filter((result) => result.up).map((result) => result.latencyMs);
+  if (!times.length) return null;
+  const ms = Math.max(...times);
+  if (ms <= 300) return "svc.minute-quick";
+  if (ms <= 600) return "svc.minute-slower";
+  if (ms <= DEGRADED_AFTER_MS) return "svc.minute-slow";
   return "svc.minute-too-slow";
 }
 
-function ServiceSim({ approach, conditions, foreground, isDefault, onApproachChange, onChange, onReset, scenario, selectedConditions, technical }: SimProps & { foreground: boolean }) {
-  const [sim, setSim] = useState<ServiceState>(() => ({
-    // The chart opens on the case's own four minutes, then keeps running.
-    samples: [0, 1, 2, 3].map((minute) => ({ ...liveSample(conditions, approach, minute, minute), mode: approach })),
-    minute: 4,
-    since: 4,
-    profile: conditions.latency,
-  }));
+function ServiceSim({ conditions, foreground, isDefault, onChange, onReset, scenario, selectedConditions, technical }: SimProps & { foreground: boolean }) {
+  // The chart opens on the case's own first checks, then keeps running.
+  const [ticks, setTicks] = useState<Tick[]>(() => runUptime(toUptimeConditions(conditions), 4));
   const [running, setRunning] = useState(true);
   const [pageVisible, setPageVisible] = useState(true);
-  const latest = useRef({ approach, conditions });
-  useEffect(() => { latest.current = { approach, conditions }; });
+  const latestConditions = useRef(conditions);
+  useEffect(() => { latestConditions.current = conditions; });
 
   useEffect(() => {
     const update = () => setPageVisible(document.visibilityState !== "hidden");
@@ -447,93 +513,107 @@ function ServiceSim({ approach, conditions, foreground, isDefault, onApproachCha
     return () => document.removeEventListener("visibilitychange", update);
   }, []);
 
-  const advance = () => setSim((current) => {
-    const { approach: mode, conditions: now } = latest.current;
-    const since = now.latency === current.profile ? current.since : 0;
-    const sample = { ...liveSample(now, mode, since, current.minute), mode };
-    return { samples: [...current.samples, sample].slice(-liveWindow), minute: current.minute + 1, since: since + 1, profile: now.latency };
-  });
-
+  const advance = () => setTicks((current) => runUptime(toUptimeConditions(latestConditions.current), 1, current).slice(-(STORY_CHECKS * 4)));
   const live = running && foreground && pageVisible;
   useEffect(() => {
     if (!live) return;
-    const timer = window.setInterval(advance, minuteMs);
+    const timer = window.setInterval(advance, checkMs);
     return () => window.clearInterval(timer);
   }, [live]);
 
-  const now = sim.samples.at(-1)!;
-  const model = onCallStatus(now, now.mode);
-  const status = plainStatus(now, model.title);
-  const statusMark = useChangeMarks({ status: model.title }).status;
+  const now = ticks.at(-1)!;
+  const before = ticks.at(-2);
+  const active = firing(now);
+  const statusMark = useChangeMarks({ verdict: now.verdict, alerts: active.map((alert) => alert.name).join() }).verdict;
   const { play } = useSound();
   const lever = (key: string, value: string) => {
     play("ui.key-on");
     onChange(key, value);
   };
-  useOnChange(model.title, (title, before) => {
-    const cue = statusCue(title, before, now);
-    if (cue) play(cue);
-  });
-  // Stepping through minutes by hand lands each one; the running chart stays silent.
-  useOnChange(sim.minute, () => {
-    const cue = running ? null : minuteCue(now.observedLatency);
+  useOnChange(now.n, () => {
+    const cue = tickCue(now, before) ?? (running ? null : checkCue(now));
     if (cue) play(cue);
   });
 
+  const naive = naiveView(now);
+  const tally = naiveTally(ticks);
+  const pending = now.alerts.filter((alert) => alert.pendingFor > 0 && !alert.firing);
+
   const journal: JournalEntry[] = [];
-  sim.samples.forEach((sample, index) => {
-    const current = onCallStatus(sample, sample.mode);
-    const previous = index ? onCallStatus(sim.samples[index - 1], sim.samples[index - 1].mode).title : null;
-    if (current.title === previous) return;
-    const plain = plainStatus(sample, current.title);
-    journal.unshift({ key: `${sample.minute}`, badge: sample.time, tone: current.tone, plain: `${plain.title}. ${plain.detail}`, hood: statusHood(sample, current.title) });
+  ticks.forEach((tick, index) => {
+    const previous = ticks[index - 1];
+    const fired = firing(tick).map((alert) => alert.name).filter((name) => !previous || !firing(previous).some((alert) => alert.name === name));
+    if (previous && previous.verdict === tick.verdict && !fired.length) return;
+    const comparison = naiveView(tick);
+    const plain = fired.length
+      ? `${fired.map((name) => (alertSeverity[name] === "critical" ? "Engineers paged" : "Warning sent")).join(", ")}: ${plainVerdict(tick)}`
+      : `${tick.headline} ${plainVerdict(tick)}`;
+    journal.unshift({
+      key: String(tick.n),
+      badge: clockOf(tick.n).slice(0, 5),
+      tone: verdictTone[tick.verdict],
+      plain,
+      contrast: comparison.says === (tick.verdict === "down" ? "down" : "up") && tick.verdict !== "slow" ? undefined : comparison.why,
+      hood: `${tick.views.map((view) => `${view.region} ${view.state}${view.slow ? "/slow" : ""} ${view.reason}${view.latencyMs !== null ? ` ${view.latencyMs}ms` : ""}`).join(" · ")} → ${tick.verdict}${fired.length ? ` · ${fired.join(", ")} firing` : ""}`,
+    });
   });
 
   return (
     <div className="sim" data-sim="iyup">
       <div className="svc-screen">
-        <div className="svc-status" data-changed={statusMark} data-jolt={model.title === "Outage" ? statusMark : undefined} data-tone={model.tone}>
-          <span><i aria-hidden="true" />what the dashboard says</span>
-          <strong>{status.title}</strong>
-          <p>{status.detail}</p>
+        <div className="svc-status" data-changed={statusMark} data-jolt={now.verdict === "down" ? statusMark : undefined} data-tone={verdictTone[now.verdict]}>
+          <span><i aria-hidden="true" />{technical ? `verdict: ${now.verdict}` : "the status page says"}</span>
+          <strong>{now.headline}</strong>
+          <p>{plainVerdict(now)}</p>
         </div>
-        <div className="svc-users" data-over={now.actualLatency > latencyThresholdMs || undefined}>
-          <span>What visitors actually wait</span>
-          <strong>{technical ? `${now.actualLatency} ms` : seconds(now.actualLatency)}</strong>
-          <small>the real speed, measured or not</small>
+        <div className="svc-users" data-over={active.length > 0 || undefined}>
+          <span>Alerts</span>
+          <strong>{active.length ? active.map((alert) => (technical ? alert.name : alertSeverity[alert.name] === "critical" ? "Paged" : "Warning")).join(", ") : pending.length ? (technical ? `${pending[0].name} pending` : "Waiting") : "None"}</strong>
+          <small>{active.length
+            ? active.map((alert) => `${alert.name}, ${alertSeverity[alert.name] === "critical" ? "pages on-call" : "notifies"}`).join("; ")
+            : pending.length ? `${pending[0].name} fires after ${alertFor[pending[0].name] / 2 >= 1 ? `${alertFor[pending[0].name] / 2} min` : "30 s"}; ${pending[0].pendingFor} of ${alertFor[pending[0].name]} checks so far` : "every alert waits for its condition to hold"}</small>
         </div>
       </div>
 
-      <ServiceDiagram samples={sim.samples} statusTitle={model.title} technical={technical} window={liveWindow} />
-      <p className="sr-only">{`Page load time over the last ${sim.samples.length} minutes. Latest: ${now.time}, visitors wait ${seconds(now.actualLatency)}, the dashboard sees ${now.observedLatency === null ? "nothing" : seconds(now.observedLatency)}. The site ${now.health === "pass" ? "answers" : "does not answer"}.`}</p>
-      <Wire technical={technical}>{`p95 = ${now.observedLatency === null ? "null (no sample)" : `${now.observedLatency} ms`} · actual ${now.actualLatency} ms · threshold ${latencyThresholdMs} ms · health ${now.health.toUpperCase()} · alert ${now.alert} · status ${model.title}`}</Wire>
+      <ServiceDiagram technical={technical} ticks={ticks} window={liveWindow} />
+      <p className="sr-only">{`Checks over the last ${Math.min(ticks.length, liveWindow)} intervals. Latest at ${clockOf(now.n)}: ${now.views.map((view) => `${view.region} ${view.state}${view.slow ? ", slow" : ""}`).join("; ")}. ${now.headline}`}</p>
+      <Wire technical={technical}>{`${now.views.map((view) => `${view.region} ${view.state}${view.slow ? "/slow" : ""} ${view.reason}${view.latencyMs !== null ? ` ${view.latencyMs}ms` : ""}`).join(" · ")} · degraded_after ${DEGRADED_AFTER_MS}ms · verdict ${now.verdict} · ${now.alerts.map((alert) => `${alert.name} ${alert.firing ? (alert.muted ? "muted" : "firing") : `${alert.pendingFor}/${alertFor[alert.name]}`}`).join(" ")}`}</Wire>
 
       <div className="svc-lamps">
-        <p className="svc-clock"><time>{now.time}</time><small>1 second here = 1 minute</small></p>
+        <p className="svc-clock"><time>{clockOf(now.n)}</time><small>1 second here = one 30-second check</small></p>
         <div className="svc-transport">
           <button className="sim-secondary" onClick={() => { play(running ? "ui.key-off" : "ui.key-on"); setRunning((value) => !value); }} type="button"><PlayIcon paused={running} />{running ? "Pause" : "Run"}</button>
-          <button className="sim-secondary" disabled={running} onClick={advance} type="button">Next minute</button>
+          <button className="sim-secondary" disabled={running} onClick={advance} type="button">Next check</button>
           <StoryReset isDefault={isDefault} onReset={onReset} />
         </div>
       </div>
 
       <div className="sim-controls">
-        <ConditionKeys control="latency" onChange={lever} scenario={scenario} selectedConditions={selectedConditions} />
-        <ConditionKeys control="health" onChange={lever} scenario={scenario} selectedConditions={selectedConditions} />
-        <ConditionKeys control="scrape" onChange={lever} scenario={scenario} selectedConditions={selectedConditions} />
-        <ConditionKeys control="alert" onChange={lever} scenario={scenario} selectedConditions={selectedConditions} />
-        <ApproachKeys approach={approach} onApproachChange={(mode) => { play("ui.key-on"); onApproachChange(mode); }} scenario={scenario} />
+        <ConditionKeys control="page" onChange={lever} scenario={scenario} selectedConditions={selectedConditions} />
+        <ConditionKeys control="scope" onChange={lever} scenario={scenario} selectedConditions={selectedConditions} />
+        <ConditionKeys control="agent" onChange={lever} scenario={scenario} selectedConditions={selectedConditions} />
       </div>
 
-      <Journal empty="Waiting for the first minute." entries={journal.slice(0, 6)} technical={technical} />
-      <p aria-live="polite" className="sr-only">{`${status.title}. ${status.detail}`}</p>
+      <ShadowLane
+        last={naive.why}
+        name="A health-only monitor in one region (lab-b)"
+        says={naive.says === "up" ? "Says up." : naive.pages ? "Pages: down." : "Says down."}
+        tally={[
+          { label: "Checks visitors waited, unseen", value: tally.unseenSlow },
+          { label: "False pages", value: tally.falsePages },
+          { label: "Missing data called down", value: tally.missingAsDown },
+        ]}
+      />
+
+      <Journal empty="Waiting for the first check." entries={journal.slice(0, 6)} technical={technical} />
+      <p aria-live="polite" className="sr-only">{`${now.headline} ${plainVerdict(now)}`}</p>
     </div>
   );
 }
 
 /* ------------------------------------------------------------- Device trust */
 
-const decisionTone = { ALLOW: "confirmed", "REQUIRE CONFIRMATION": "uncertain", BLOCK: "adverse" } as const satisfies Record<GateDecision, PayTone>;
+const decisionTone = { ALLOW: "confirmed", "REQUIRE CONFIRMATION": "uncertain", BLOCK: "adverse" } as const satisfies Record<GateDecision, FlowTone>;
 const decisionCue = { ALLOW: "pol.let-through", "REQUIRE CONFIRMATION": "pol.ask-to-confirm", BLOCK: "pol.block" } as const satisfies Record<GateDecision, CueId>;
 /** The server's answer in everyday words, which depends on how a confirmation can be signed. */
 export function plainAnswer(run: DeviceAssessment) {
@@ -549,10 +629,12 @@ const logEvent: Record<GateDecision, string> = {
 };
 const profileLabel: Record<RiskLevel, string> = { LOW: "Clean phone", MEDIUM: "A few weak signals", HIGH: "Rooted, debugger on" };
 
-type PaymentRecord = { n: number; run: DeviceAssessment; hood: string };
+type PaymentRecord = { n: number; run: DeviceAssessment; naive: GateDecision; hood: string };
 
 const pointsText = (run: DeviceAssessment) => `${run.score} ${run.score === 1 ? "point" : "points"}`;
-const foundText = (run: DeviceAssessment) => run.found.map((check) => `${plainCheck[check.id].toLowerCase()} +${check.points}`).join(", ");
+/** A check's everyday name mid-sentence: only its first letter lowered, so "Android" keeps its capital. */
+const midSentence = (text: string) => `${text.charAt(0).toLowerCase()}${text.slice(1)}`;
+const foundText = (run: DeviceAssessment) => run.found.map((check) => `${midSentence(plainCheck[check.id])} +${check.points}`).join(", ");
 
 /** Why the server answered as it did, in everyday words. */
 function plainReason(run: DeviceAssessment) {
@@ -596,10 +678,12 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
   useEffect(() => {
     if (lastKey.current === requestKey) return;
     lastKey.current = requestKey;
-    setHistory((current) => [{ n: (current[0]?.n ?? 0) + 1, run, hood }, ...current].slice(0, 5));
-  }, [hood, requestKey, run]);
+    setHistory((current) => [{ n: (current[0]?.n ?? 0) + 1, run, naive: blockOnAnySignal(conditions), hood }, ...current].slice(0, 5));
+  }, [conditions, hood, requestKey, run]);
 
   const reason = plainReason(run);
+  const naive = blockOnAnySignal(conditions);
+  const overBlocked = (record: PaymentRecord) => record.naive === "BLOCK" && record.run.decision !== "BLOCK";
   const profile = (Object.keys(deviceProfiles) as RiskLevel[]).find((level) => deviceChecks.every((check) => (selectedConditions[check.id] === "found") === deviceProfiles[level].includes(check.id)));
   const applyProfile = (level: string) => {
     for (const check of deviceChecks) {
@@ -638,6 +722,16 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
         <p>{reason}</p>
       </div>
 
+      <ShadowLane
+        last={naive === "BLOCK" ? (run.decision === "BLOCK" ? "It blocks this one too." : run.decision === "REQUIRE CONFIRMATION" ? "It blocks a payment that only needed a confirmation." : "It blocks a low-risk payment over one weak signal.") : "Nothing was found, so it lets the payment through."}
+        name="A gate that blocks on any signal"
+        says={naive === "BLOCK" ? "Blocked." : "Sent."}
+        tally={[
+          { label: "Blocked, though a confirmation was enough", value: history.filter((record) => overBlocked(record) && record.run.decision === "REQUIRE CONFIRMATION").length },
+          { label: "Blocked, though it was low risk", value: history.filter((record) => overBlocked(record) && record.run.decision === "ALLOW").length },
+        ]}
+      />
+
       <div className="sim-actions">
         <button className="sim-primary" onClick={() => setSends((value) => value + 1)} type="button"><PlayIcon />Send the payment again</button>
         <StoryReset isDefault={isDefault} onReset={onReset} />
@@ -651,6 +745,7 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
           badge: `#${record.n}`,
           tone: decisionTone[record.run.decision],
           plain: `${record.run.found.length ? foundText(record.run) : "Nothing found"} = ${pointsText(record.run)}: ${plainAnswer(record.run).toLowerCase()}.`,
+          contrast: overBlocked(record) ? "A gate that blocks on any signal would have blocked this payment." : undefined,
           hood: record.hood,
         }))}
         technical={technical}
