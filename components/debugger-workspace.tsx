@@ -451,6 +451,8 @@ export function DebuggerWorkspace({
       requestWorkspaceClose();
       return;
     }
+    // The standalone case page leaves for the workspace's own route, which reads its hash on load.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.assign("/#selected-work");
   }, [onClose, requestWorkspaceClose]);
 
