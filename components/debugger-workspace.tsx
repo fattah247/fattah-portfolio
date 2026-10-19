@@ -16,6 +16,7 @@ import { WindowChrome } from "./window-chrome";
 import { isWorkspaceTraversal, workspaceHistory, workspaceStackOf } from "../lib/workspace-navigation";
 import { useWorkspaceManager, type WorkspaceWindowId } from "./workspace-manager";
 import {
+  hasComparison,
   projectScenario,
   resolveScenarioConditions,
   scenarios,
@@ -569,12 +570,26 @@ export function DebuggerWorkspace({
 
   // The Result chapter reports the story's own conditions; the simulator below it reports
   // whatever the visitor sets, so the two never contradict each other.
-  const storyOutcome = useMemo(() => {
-    const read = (mode: "baseline" | "designed") => readableOutcome(scenario.slug, projectScenario(scenario.slug, scenario.defaults, mode).find((item) => item.id === scenario.outcomeNodeId)?.value ?? "Unknown");
-    return { baseline: read("baseline"), designed: read("designed") };
+  // A comparing case reports the old and the designed handling; a single-system case (case 03)
+  // reports the risk it found and the decision it reached.
+  const storyRows = useMemo(() => {
+    const project = (mode: ProjectionMode) => projectScenario(scenario.slug, scenario.defaults, mode);
+    const read = (mode: ProjectionMode) => readableOutcome(scenario.slug, project(mode).find((item) => item.id === scenario.outcomeNodeId)?.value ?? "Unknown");
+    if (hasComparison(scenario)) {
+      return [
+        { path: "baseline", label: scenario.baselineLabel!, value: read("baseline") },
+        { path: "designed", label: scenario.designedLabel!, value: read("designed") },
+      ];
+    }
+    const nodes = project("designed");
+    const level = nodes.find((item) => item.id === "level");
+    const score = nodes.find((item) => item.id === "score");
+    const decision = nodes.find((item) => item.id === scenario.outcomeNodeId);
+    return [
+      { path: "baseline", label: level?.label ?? "Risk", value: `${level?.value.toLowerCase()} · ${score?.value.toLowerCase()}`, tone: level?.tone },
+      { path: "designed", label: decision?.label ?? "Decision", value: read("designed"), tone: decision?.tone },
+    ];
   }, [scenario]);
-  const baselineOutcomeLabel = storyOutcome.baseline;
-  const designedOutcomeLabel = storyOutcome.designed;
   const isDefault = scenario.controls.every((control) => resolvedSelectedConditions[control.key] === scenario.defaults[control.key]);
   const caseCategory = scenario.category;
   const scenarioIndex = Math.max(0, scenarios.findIndex((item) => item.slug === scenario.slug));
@@ -635,7 +650,7 @@ export function DebuggerWorkspace({
   function changeApproach(mode: ProjectionMode) {
     if (mode === approach) return;
     setApproach(mode);
-    setStatusMessage(`${mode === "designed" ? scenario.designedLabel : scenario.baselineLabel}. Result: ${resultFor(targetConditions.current, mode)}.`);
+    setStatusMessage(`${(mode === "designed" ? scenario.designedLabel : scenario.baselineLabel) ?? "Approach changed"}. Result: ${resultFor(targetConditions.current, mode)}.`);
   }
 
   function reset() {
@@ -759,8 +774,9 @@ export function DebuggerWorkspace({
 
         <div className="mobile-outcome-strip case-result" id="decision" role="group" aria-label="Outcome comparison">
           <p className="case-result-note">{scenario.outcome}</p>
-          <div data-path="baseline"><span>{scenario.baselineLabel}</span><strong>{baselineOutcomeLabel}</strong></div>
-          <div data-path="designed"><span>{scenario.designedLabel}</span><strong>{designedOutcomeLabel}</strong></div>
+          {storyRows.map((row) => (
+            <div data-path={row.path} data-tone={"tone" in row ? row.tone : undefined} key={row.path}><span>{row.label}</span><strong>{row.value}</strong></div>
+          ))}
           <p className="case-limits"><span>Limits</span>{scenario.limitation}</p>
         </div>
 

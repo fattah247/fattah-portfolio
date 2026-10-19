@@ -1,8 +1,9 @@
 "use client";
 
 import { Fragment, useId, type CSSProperties, type ReactNode } from "react";
-import { latencyThresholdMs, type PolicyRun } from "../lib/instruments";
-import type { Conditions, ProjectionMode } from "../lib/scenarios";
+import { latencyThresholdMs } from "../lib/instruments";
+import { MEDIUM_SCORE_THRESHOLD, HIGH_SCORE_THRESHOLD, type DeviceAssessment, type GateDecision, type Signing } from "../lib/device-risk";
+import type { ProjectionMode } from "../lib/scenarios";
 import { BUZZ_AFTER_LANDING } from "../lib/sound/engine";
 import { paymentStateWord, type LiveSample, type PayEntry, type PayWorld } from "../lib/simulators";
 
@@ -444,193 +445,130 @@ export function ServiceDiagram({ samples, statusTitle, technical, window: slots 
 
 /* ------------------------------------------------------------- Device trust */
 
-const ruleName: Record<string, { plain: string; technical: string }> = {
-  signature: { plain: "tampered request", technical: "seal broken" },
-  "root-sensitive": { plain: "security off + money", technical: "rooted + high" },
-  "suspicious-sensitive": { plain: "odd phone + money", technical: "suspicious + high" },
-  default: { plain: "everything else", technical: "otherwise" },
-  "any-suspicious": { plain: "anything odd", technical: "any suspicious" },
+/** A check's short name in the drawing, in both voices. */
+const checkName: Record<string, { plain: string; technical: string }> = {
+  root_su_path: { plain: "su file", technical: "su path" },
+  root_package: { plain: "root app", technical: "root package" },
+  test_keys: { plain: "test build", technical: "test-keys" },
+  system_partition_writable: { plain: "system writable", technical: "rw /system" },
+  emulator_fingerprint: { plain: "emulator", technical: "emulator build" },
+  debugger_connected: { plain: "debugger on", technical: "debugger" },
+  app_debuggable: { plain: "debug build", technical: "debuggable" },
+  installer_source_unknown: { plain: "unknown installer", technical: "installer ?" },
 };
-const decisionWord = {
-  plain: { ALLOW: "Let through", "REQUIRE CONFIRMATION": "Ask to confirm", BLOCK: "Block" },
+const answerWord: Record<"plain" | "technical", Record<GateDecision, string>> = {
+  plain: { ALLOW: "send", "REQUIRE CONFIRMATION": "confirm first", BLOCK: "blocked" },
   technical: { ALLOW: "ALLOW", "REQUIRE CONFIRMATION": "CONFIRM", BLOCK: "BLOCK" },
-} as const;
-const decisionTone = { ALLOW: "confirmed", "REQUIRE CONFIRMATION": "uncertain", BLOCK: "adverse" } as const;
-/** The checkpoint's walk: the first rule lights after `toRulesMs`, then one rule per `ruleStepMs`. */
+};
+const signingWord: Record<"plain" | "technical", Record<Signing, string>> = {
+  plain: { "DEVICE KEY": "signed and sent", "STEP-UP KEY": "screen lock signs it", "SIGNED TAP": "a tap confirms it", "NOTHING SIGNED": "nothing signed" },
+  technical: { "DEVICE KEY": "device key", "STEP-UP KEY": "step-up key", "SIGNED TAP": "signed tap", "NOTHING SIGNED": "no challenge" },
+};
+const answerTone = { ALLOW: "confirmed", "REQUIRE CONFIRMATION": "uncertain", BLOCK: "adverse" } as const;
+const levelTone = { LOW: "confirmed", MEDIUM: "uncertain", HIGH: "adverse" } as const;
+/** The scoring walk: the first found check lights after `toRulesMs`, then one per `ruleStepMs`; the answer lands after the last. */
 export const ruleStepMs = 280;
 export const toRulesMs = 320;
+/** When the level and the answer land, for a run with `found` checks lit. */
+export const answerDelayMs = (found: number) => toRulesMs + found * ruleStepMs;
+/** The points track shows ten points; a higher total reads as "+N" past its end. */
+const trackPoints = 10;
 
-function policyNote(conditions: Conditions, run: PolicyRun, technical: boolean): Segment[] {
-  if (technical) {
-    const before = conditions.signature === "invalid" ? "tampered" : conditions.root === "detected" ? "rooted" : run.environment === "suspicious" ? "suspicion" : "clean";
-    const after = run.decision === "REQUIRE CONFIRMATION" ? "confirmation" : run.decision === "BLOCK" ? "blocked" : "allowed";
-    return [{ text: before }, { text: after }];
-  }
-  const before = conditions.signature === "invalid" ? "tampered request" : conditions.root === "detected" ? "security off" : run.environment === "suspicious" ? "something's off" : "all clear";
-  const after = run.decision === "REQUIRE CONFIRMATION" ? "ask to confirm" : run.decision === "BLOCK" ? "blocked" : "let through";
-  return [{ text: before }, { text: after }];
+function deviceNote(run: DeviceAssessment, technical: boolean): Segment[] {
+  const voice = technical ? "technical" : "plain";
+  const before = run.reason.kind === "severe"
+    ? (technical ? `${run.reason.checks.length} high-severity` : `${checkName[run.reason.checks[0]].plain} found`)
+    : technical ? `score ${run.score} → ${run.level}` : `${run.score} ${run.score === 1 ? "point" : "points"}`;
+  return [{ text: before }, { text: signingWord[voice][run.signing], bad: run.signing === "NOTHING SIGNED" }];
 }
 
-function signalsFor(conditions: Conditions, technical: boolean) {
-  const yes = (on: boolean) => (on ? "YES" : "no");
-  return [
-    {
-      key: "root",
-      text: technical
-        ? (conditions.root === "detected" ? "root !" : conditions.root === "suspected" ? "root ?" : "root –")
-        : `security off? ${conditions.root === "detected" ? "YES" : conditions.root === "suspected" ? "maybe" : "no"}`,
-      tone: conditions.root === "detected" ? "adverse" : conditions.root === "suspected" ? "uncertain" : undefined,
-    },
-    {
-      key: "emulator",
-      text: technical ? (conditions.emulator === "detected" ? "emulator !" : "emulator –") : `fake phone? ${yes(conditions.emulator === "detected")}`,
-      tone: conditions.emulator === "detected" ? "uncertain" : undefined,
-    },
-    {
-      key: "signature",
-      text: technical ? (conditions.signature === "invalid" ? "signature ✗" : "signature ✓") : `tampered? ${yes(conditions.signature === "invalid")}`,
-      tone: conditions.signature === "invalid" ? "adverse" : undefined,
-    },
-  ];
-}
-
-export function PolicyDiagram({ conditions, requestKey, run, technical }: { conditions: Conditions; requestKey: string; run: PolicyRun; technical: boolean }) {
-  const matched = Math.max(0, run.rules.findIndex((rule) => rule.status === "matched"));
-  const note = policyNote(conditions, run, technical);
-  const signals = signalsFor(conditions, technical);
-  const decisionDelay = toRulesMs + (matched + 1) * ruleStepMs;
-  const high = conditions.sensitivity === "high";
+export function DeviceDiagram({ requestKey, run, technical }: { requestKey: string; run: DeviceAssessment; technical: boolean }) {
+  const voice = technical ? "technical" : "plain";
+  const note = deviceNote(run, technical);
+  const lit = new Map(run.found.map((check, index) => [check.id, toRulesMs + index * ruleStepMs]));
+  // Each point of the track is filled when the check that brings it lights, in that check's tone.
+  const cells = run.found.flatMap((check) => Array.from({ length: check.points }, () => ({ d: lit.get(check.id)!, tone: check.severity === "HIGH" ? "adverse" : "uncertain" })));
+  const answerAt = answerDelayMs(run.found.length);
+  const levelText = technical
+    ? `${run.level} · score ${run.score}`
+    : `${run.level.toLowerCase()} risk · ${run.score} ${run.score === 1 ? "point" : "points"}`;
   const words = technical
-    ? { phone: "signals", wants: "action", rules: "policy", answer: "decision", rulesMedium: "policy · first match decides", rulesCompact: "policy, first match", main: high ? "high" : "low", sub: high ? "send money" : "view balance" }
-    : { phone: "their phone", wants: "wants to", rules: "bank's rules", answer: "answer", rulesMedium: "bank's rules, top to bottom", rulesCompact: "bank's rules, in order", main: high ? "send money" : "see balance", sub: high ? "sensitive" : "low risk" };
-  const decisionText = decisionWord[technical ? "technical" : "plain"][run.decision];
-  const status = (value: string) => (value === "matched" ? "✓" : value === "not met" ? "no" : "–");
+    ? { checks: "signals", points: "score", risk: "level", answer: "server", confirm: "confirm", block: "block" }
+    : { checks: "the phone's checks", points: "points", risk: "risk", answer: "the server's answer", confirm: "confirm", block: "block" };
 
   return (
     <Variants
-      className="sd-pol"
+      className="sd-dev"
       render={(layout) => {
-        if (layout === "compact") {
-          // Compact: everything stacks; the rules light in turn instead of a travelling packet.
-          const rule = (index: number) => ({ x: 10, y: 204 + index * 32, w: 180, h: 26 });
-          const lastRule = rule(run.rules.length - 1);
-          const decision = { x: 10, y: lastRule.y + lastRule.h + 30, w: 180, h: 40 };
-          return (
-            <svg className="sd-svg sd-compact" data-technical={technical || undefined} focusable="false" key={layout} viewBox={`0 0 200 ${decision.y + 96}`}>
-              <rect className="sd-ground" height="100%" width="100%" />
-              <text className="sd-label" x="10" y="18">{words.phone}</text>
-              <path className="sd-rule" d="M10 26H190" />
-              {signals.map((item, index) => {
-                const y = 34 + index * 28;
-                return (
-                  <g className="sd-signal" data-tone={item.tone} key={item.key}>
-                    <rect height="24" width="162" x="10" y={y} />
-                    <text x="17" y={y + 16}>{item.text}</text>
-                    <path className="sd-flow" d={`M172 ${y + 12}H182`} />
-                  </g>
-                );
-              })}
-              <path className="sd-flow" d="M182 46V120" />
-              <path className="sd-arrow" d="m177 120 5 6 5-6" />
-              <g className="sd-action" data-compact="true">
-                <rect height="44" width="180" x="10" y="126" />
-                <text textAnchor="start" x="17" y="161">{words.main}</text>
-                <text className="sd-action-sub" textAnchor="end" x="183" y="161">{words.sub}</text>
-              </g>
-              <text className="sd-label" x="17" y="142">{words.wants}</text>
-              <text className="sd-label" x="10" y="196">{words.rulesCompact}</text>
-              <g className="sd-walk" key={requestKey}>
-                {run.rules.map((item, index) => {
-                  const box = rule(index);
-                  return (
-                    <g className="sd-policy-rule" data-status={item.status} key={item.id} style={{ "--d": `${toRulesMs + index * ruleStepMs}ms` } as CSSProperties}>
-                      <rect height={box.h} width={box.w} x={box.x} y={box.y} />
-                      <text x={box.x + 7} y={box.y + 17}>{ruleName[item.id]?.[technical ? "technical" : "plain"] ?? item.when}</text>
-                      <text className="sd-rule-status" textAnchor="end" x={box.x + box.w - 7} y={box.y + 17}>{status(item.status)}</text>
-                    </g>
-                  );
-                })}
-                <circle className="sd-packet" cx="182" cy="102" r="5" style={leg(0, 24)} />
-                <path className="sd-flow sd-flow-out" d={`M100 ${lastRule.y + lastRule.h}V${decision.y}`} style={{ "--d": `${decisionDelay}ms` } as CSSProperties} />
-                <g className="sd-decision" data-tone={decisionTone[run.decision]} style={{ "--d": `${decisionDelay}ms` } as CSSProperties}>
-                  <rect height={decision.h} width={decision.w} x={decision.x} y={decision.y} />
-                  <text textAnchor="middle" x={decision.x + decision.w / 2} y={decision.y + decision.h / 2 + 5}>{decisionText}</text>
-                </g>
-              </g>
-              <text className="sd-label" x="10" y={decision.y - 8}>{words.answer}</text>
-              <Note carry joiner=" → " joinerClass="sd-note-arrow" max={25} parts={note} step={16} x={10} y={decision.y + decision.h + 28} />
-            </svg>
-          );
-        }
-
         const wide = layout === "wide";
-        const rule = (index: number) => (wide ? { x: 300, y: 44 + index * 36, w: 196, h: 28 } : { x: 16, y: 176 + index * 36, w: 288, h: 28 });
-        const ruleCenter = (index: number) => rule(index).y + 14;
-        const lastRule = rule(run.rules.length - 1);
-        const decision = wide ? { x: 504, y: ruleCenter(matched) - 22, w: 120, h: 44 } : { x: 16, y: lastRule.y + 52, w: 288, h: 46 };
-        const signal = { y: wide ? 48 : 44, w: wide ? 154 : 156 };
-        const junction = wide ? 178 : 182;
-        const action = wide ? { x: 188, y: 70, w: 98, h: 44 } : { x: 192, y: 58, w: 112, h: 60 };
-        const actionMid = action.x + action.w / 2;
-        const middle = action.y + action.h / 2;
-        const spine = wide ? 293 : actionMid;
-        const walkFrom = wide ? ruleCenter(0) : action.y + action.h;
-        const width = wide ? 640 : 320;
+        const compact = layout === "compact";
+        const width = wide ? 640 : compact ? 200 : 320;
+        const margin = compact ? 10 : 16;
+        const row = (index: number) => (wide ? { x: 16, y: 40 + index * 24, w: 256, h: 20 } : { x: margin, y: (compact ? 34 : 36) + index * 24, w: width - margin * 2, h: 20 });
+        const lastRow = row(run.checks.length - 1);
+        const cell = compact ? 16 : wide ? 28 : 26;
+        const track = wide ? { x: 296, y: 46 } : { x: margin, y: lastRow.y + lastRow.h + 32 };
+        const markX = (points: number) => track.x + points * cell;
+        const markLabelY = track.y + 22 + 18;
+        const level = wide ? { x: 296, y: 124, w: 328, h: 40 } : { x: margin, y: markLabelY + (compact ? 40 : 28), w: width - margin * 2, h: 36 };
+        const answer = wide ? { x: 296, y: 190, w: 328, h: 44 } : { x: margin, y: level.y + level.h + 30, w: width - margin * 2, h: compact ? 40 : 44 };
+        const noteY = wide ? 262 : answer.y + answer.h + 32;
+        const height = wide ? 280 : noteY + 40;
+        const extra = run.score - trackPoints;
         return (
-          <svg className={`sd-svg sd-${layout}`} data-technical={technical || undefined} focusable="false" key={layout} viewBox={wide ? "0 0 640 236" : `0 0 320 ${decision.y + 92}`}>
+          <svg className={`sd-svg sd-${layout}`} data-technical={technical || undefined} focusable="false" key={layout} viewBox={`0 0 ${width} ${height}`}>
             <rect className="sd-ground" height="100%" width="100%" />
-            <text className="sd-label" x="16" y="20">{words.phone}</text>
-            <text className="sd-label" textAnchor="middle" x={actionMid} y="20">{words.wants}</text>
+            <text className="sd-label" x={margin} y="20">{words.checks}</text>
             {wide ? <>
-              <text className="sd-label" textAnchor="middle" x={rule(0).x + rule(0).w / 2} y="20">{words.rules}</text>
-              <text className="sd-label" textAnchor="middle" x={decision.x + decision.w / 2} y="20">{words.answer}</text>
+              <text className="sd-label" x={track.x} y="20">{words.points}</text>
+              <text className="sd-label" x={level.x} y={level.y - 8}>{words.risk}</text>
+              <text className="sd-label" x={answer.x} y={answer.y - 8}>{words.answer}</text>
             </> : <>
-              <text className="sd-label" x="16" y="160">{words.rulesMedium}</text>
-              <text className="sd-label" x="16" y={decision.y - 8}>{words.answer}</text>
+              <text className="sd-label" x={margin} y={track.y - 8}>{words.points}</text>
+              <text className="sd-label" x={margin} y={level.y - 8}>{words.risk}</text>
+              <text className="sd-label" x={margin} y={answer.y - 8}>{words.answer}</text>
             </>}
-            <path className="sd-rule" d={`M16 30H${width - 16}`} />
+            <path className="sd-rule" d={`M${margin} ${compact ? 26 : 30}H${width - margin}`} />
 
-            {signals.map((item, index) => {
-              const y = signal.y + index * 32;
-              return (
-                <g className="sd-signal" data-tone={item.tone} key={item.key}>
-                  <rect height="24" width={signal.w} x="16" y={y} />
-                  <text x="24" y={y + 16}>{item.text}</text>
-                  <path className="sd-flow" d={`M${16 + signal.w} ${y + 12}H${junction}`} />
-                </g>
-              );
-            })}
-            <path className="sd-flow" d={`M${junction} ${signal.y + 12}V${signal.y + 76}M${junction} ${middle}H${action.x - 6}`} />
-            <path className="sd-arrow" d={`m${action.x - 6} ${middle - 5} 6 5-6 5`} />
-            <g className="sd-action">
-              <rect height={action.h} width={action.w} x={action.x} y={action.y} />
-              <text textAnchor="middle" x={actionMid} y={action.y + (wide ? 20 : 26)}>{words.main}</text>
-              <text className="sd-action-sub" textAnchor="middle" x={actionMid} y={action.y + (wide ? 36 : 46)}>{words.sub}</text>
-            </g>
-
-            <path className="sd-spine" d={wide ? `M${action.x + action.w} ${middle}H${spine}M${spine} ${ruleCenter(0)}V${ruleCenter(run.rules.length - 1)}` : `M${spine} ${action.y + action.h}V${rule(0).y}`} />
             <g className="sd-walk" key={requestKey}>
-              {run.rules.map((item, index) => {
-                const box = rule(index);
+              {run.checks.map((check, index) => {
+                const box = row(index);
+                const found = lit.get(check.id);
                 return (
-                  <g className="sd-policy-rule" data-status={item.status} key={item.id} style={{ "--d": `${toRulesMs + index * ruleStepMs}ms` } as CSSProperties}>
-                    {wide ? <path className="sd-tick" d={`M${spine} ${ruleCenter(index)}H${box.x}`} /> : null}
+                  <g className="sd-check" data-found={found !== undefined || undefined} data-tone={check.severity === "HIGH" ? "adverse" : "uncertain"} key={check.id} style={found !== undefined ? ({ "--d": `${found}ms` } as CSSProperties) : undefined}>
                     <rect height={box.h} width={box.w} x={box.x} y={box.y} />
-                    <text x={box.x + 9} y={box.y + 18}>{index + 1} {ruleName[item.id]?.[technical ? "technical" : "plain"] ?? item.when}</text>
-                    <text className="sd-rule-status" textAnchor="end" x={box.x + box.w - 8} y={box.y + 18}>{status(item.status)}</text>
+                    <text x={box.x + 7} y={box.y + 14}>{found !== undefined ? `+${check.points}` : "·"} {checkName[check.id][voice]}</text>
+                    {compact ? null : <text className="sd-check-status" textAnchor="end" x={box.x + box.w - 7} y={box.y + 14}>{found !== undefined ? (technical ? check.severity : "found") : "–"}</text>}
                   </g>
                 );
               })}
-              <circle className="sd-packet" cx={junction} cy={middle} r="5" style={leg(action.x - junction, 0)} />
-              <circle className="sd-packet sd-packet-walk" cx={spine} cy={walkFrom} r="5" style={{ ...leg(0, ruleCenter(matched) - walkFrom, toRulesMs), "--rules": matched + 1 } as CSSProperties} />
-              <path className="sd-flow sd-flow-out" d={wide ? `M${rule(matched).x + rule(matched).w} ${ruleCenter(matched)}H${decision.x}` : `M160 ${lastRule.y + lastRule.h}V${decision.y}`} style={{ "--d": `${decisionDelay}ms` } as CSSProperties} />
-              <g className="sd-decision" data-tone={decisionTone[run.decision]} style={{ "--d": `${decisionDelay}ms` } as CSSProperties}>
-                <rect height={decision.h} width={decision.w} x={decision.x} y={decision.y} />
-                <text textAnchor="middle" x={decision.x + decision.w / 2} y={decision.y + decision.h / 2 + 5}>{decisionText}</text>
+
+              {Array.from({ length: trackPoints }, (_, index) => (
+                <g className="sd-cell" data-tone={cells[index]?.tone} key={index} style={cells[index] ? ({ "--d": `${cells[index].d}ms` } as CSSProperties) : undefined}>
+                  <rect height="22" width={cell} x={track.x + index * cell} y={track.y} />
+                </g>
+              ))}
+              {extra > 0 ? <text className="sd-cell-more" x={track.x + trackPoints * cell + 4} y={track.y + 16}>+{extra}</text> : null}
+
+              <g className="sd-decision" data-tone={levelTone[run.level]} style={{ "--d": `${answerAt}ms` } as CSSProperties}>
+                <rect height={level.h} width={level.w} x={level.x} y={level.y} />
+                <text textAnchor="middle" x={level.x + level.w / 2} y={level.y + level.h / 2 + 5}>{levelText}</text>
+              </g>
+              <path className="sd-flow sd-flow-out" d={`M${answer.x + answer.w - 24} ${level.y + level.h}V${answer.y}`} style={{ "--d": `${answerAt}ms` } as CSSProperties} />
+              <g className="sd-decision" data-tone={answerTone[run.decision]} style={{ "--d": `${answerAt + ruleStepMs}ms` } as CSSProperties}>
+                <rect height={answer.h} width={answer.w} x={answer.x} y={answer.y} />
+                <text textAnchor="middle" x={answer.x + answer.w / 2} y={answer.y + answer.h / 2 + 5}>{answerWord[voice][run.decision]}</text>
               </g>
             </g>
 
-            <Note carry joiner=" → " joinerClass="sd-note-arrow" max={wide ? 76 : 36} parts={note} step={18} x={16} y={wide ? 222 : decision.y + decision.h + 34} />
+            {[[MEDIUM_SCORE_THRESHOLD, words.confirm], [HIGH_SCORE_THRESHOLD, words.block]].map(([points, label], index) => (
+              <g className="sd-mark" key={label}>
+                <path d={`M${markX(Number(points))} ${track.y - 6}V${track.y + 28}`} />
+                <text textAnchor={compact ? "start" : "middle"} x={compact ? markX(Number(points)) + 3 : markX(Number(points))} y={markLabelY + (compact ? index * 16 : 0)}>{points} {label}</text>
+              </g>
+            ))}
+
+            <Note carry joiner=" → " joinerClass="sd-note-arrow" max={wide ? 76 : compact ? 25 : 36} parts={note} step={compact ? 16 : 18} x={margin} y={noteY} />
           </svg>
         );
       }}

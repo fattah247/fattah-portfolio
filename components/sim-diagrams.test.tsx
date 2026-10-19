@@ -1,9 +1,9 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { evaluatePolicy } from "../lib/instruments";
+import { assessDevice, deviceChecks, deviceProfiles, SCREEN_LOCK } from "../lib/device-risk";
 import { scenarios } from "../lib/scenarios";
 import { lateMessage, liveSample, paidMessage, playPayment, type PayInput } from "../lib/simulators";
-import { PaymentDiagram, PolicyDiagram, ServiceDiagram } from "./sim-diagrams";
+import { DeviceDiagram, PaymentDiagram, ServiceDiagram } from "./sim-diagrams";
 
 afterEach(cleanup);
 
@@ -40,7 +40,7 @@ describe("simulator drawings", () => {
     const { container } = render(<>
       <PaymentDiagram checked={false} technical={false} world={world} />
       <ServiceDiagram samples={samples} statusTitle="Paging on-call" technical={false} window={12} />
-      <PolicyDiagram conditions={conditions} requestKey="a" run={evaluatePolicy(conditions, "designed")} technical={false} />
+      <DeviceDiagram requestKey="a" run={assessDevice(conditions)} technical={false} />
     </>);
 
     for (const drawing of container.querySelectorAll(".sd")) {
@@ -72,7 +72,7 @@ describe("simulator drawings", () => {
     expect(technical).toContain("PAID");
   });
 
-  it("wraps every service and policy note inside every composition", () => {
+  it("wraps every service and device note inside every composition", () => {
     const titles = ["Outage", "Looks fine", "Paging on-call", "Investigate collection", "Breach, nobody paged", "All quiet"];
     for (const technical of [false, true]) {
       for (const title of titles) {
@@ -81,24 +81,36 @@ describe("simulator drawings", () => {
         expectNotesFit(container);
         cleanup();
       }
-      for (const root of ["clear", "suspected", "detected"]) {
-        for (const signature of ["valid", "invalid"]) {
-          for (const mode of ["designed", "baseline"] as const) {
-            const conditions = { ...scenarios[2].defaults, root, signature };
-            const { container } = render(<PolicyDiagram conditions={conditions} requestKey="a" run={evaluatePolicy(conditions, mode)} technical={technical} />);
-            expectNotesFit(container);
-            cleanup();
-          }
+      // The repo's three test phones, every check alone, and every check at once, with and without a screen lock.
+      const phones = [
+        ...Object.values(deviceProfiles),
+        ...deviceChecks.map((check) => [check.id]),
+        deviceChecks.map((check) => check.id),
+      ];
+      for (const found of phones) {
+        for (const lock of ["set", "none"]) {
+          const conditions = { ...Object.fromEntries(deviceChecks.map((check) => [check.id, found.includes(check.id) ? "found" : "clear"])), [SCREEN_LOCK]: lock };
+          const { container } = render(<DeviceDiagram requestKey="a" run={assessDevice(conditions)} technical={technical} />);
+          expectNotesFit(container);
+          cleanup();
         }
       }
     }
   });
 
-  it("keeps the arrow at the end of a broken policy note", () => {
-    const conditions = scenarios[2].defaults;
-    const { container } = render(<PolicyDiagram conditions={conditions} requestKey="a" run={evaluatePolicy(conditions, "designed")} technical={false} />);
+  it("keeps the arrow at the end of a broken device note", () => {
+    const { container } = render(<DeviceDiagram requestKey="a" run={assessDevice(scenarios[2].defaults)} technical={false} />);
     const lines = Array.from(container.querySelectorAll(".sd-compact .sd-note > tspan")).map((line) => line.textContent);
-    expect(lines).toEqual(["something's off →", "ask to confirm"]);
-    expect(container.querySelector(".sd-wide .sd-note")?.textContent).toBe("something's off → ask to confirm");
+    expect(lines).toEqual(["3 points →", "screen lock signs it"]);
+    expect(container.querySelector(".sd-wide .sd-note")?.textContent).toBe("3 points → screen lock signs it");
+  });
+
+  it("lights only the found checks, fills one track cell per point, and lands the level and the answer", () => {
+    const { container } = render(<DeviceDiagram requestKey="a" run={assessDevice(scenarios[2].defaults)} technical={false} />);
+    const wide = container.querySelector(".sd-wide")!;
+    expect(wide.querySelectorAll(".sd-check")).toHaveLength(8);
+    expect(Array.from(wide.querySelectorAll(".sd-check[data-found] text:first-of-type")).map((text) => text.textContent)).toEqual(["+2 test build", "+1 unknown installer"]);
+    expect(wide.querySelectorAll(".sd-cell[data-tone]")).toHaveLength(3);
+    expect(Array.from(wide.querySelectorAll(".sd-decision text")).map((text) => text.textContent)).toEqual(["medium risk · 3 points", "confirm first"]);
   });
 });
