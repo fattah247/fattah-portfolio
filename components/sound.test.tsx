@@ -129,17 +129,23 @@ describe("sound", () => {
     expect(document.querySelector(".svc-status")?.hasAttribute("data-jolt")).toBe(true);
   });
 
-  it("reads the checkpoint's rules in order, then lands the answer, in time with the drawing", () => {
+  it("ticks once for each found check, then lands the server's answer, in time with the drawing", () => {
     const { cues } = withSound(caseOf(2));
     expect(cues()).toEqual(["sys.file-open"]);
-    fireEvent.click(key("Request tampered with?", "Yes"));
-    // The case settles the change first; the walk starts from the new request.
+    fireEvent.click(within(screen.getByRole("group", { name: /^What the phone/ })).getByRole("button", { name: /^Root app installed/ }));
+    // The case settles the change first; the walk starts from the new payment: root app, test build, installer.
     for (let waited = 0; waited < 2_000 && !cues().includes("pol.rule-1"); waited += 10) act(() => vi.advanceTimersByTime(10));
     expect(cues().slice(1)).toEqual(["pol.rule-1"]);
     act(() => vi.advanceTimersByTime(270));
     expect(cues().slice(1)).toEqual(["pol.rule-1"]);
     act(() => vi.advanceTimersByTime(20));
-    expect(cues().slice(1)).toEqual(["pol.rule-1", "pol.block"]);
+    expect(cues().slice(1)).toEqual(["pol.rule-1", "pol.rule-2"]);
+    act(() => vi.advanceTimersByTime(280));
+    expect(cues().slice(1)).toEqual(["pol.rule-1", "pol.rule-2", "pol.rule-3"]);
+    act(() => vi.advanceTimersByTime(540));
+    expect(cues().slice(1)).toEqual(["pol.rule-1", "pol.rule-2", "pol.rule-3"]);
+    act(() => vi.advanceTimersByTime(20));
+    expect(cues().slice(1)).toEqual(["pol.rule-1", "pol.rule-2", "pol.rule-3", "pol.block"]);
   });
 
   it("hears every way of opening and closing an app the same, from the workspace's own state", () => {

@@ -243,39 +243,48 @@ describe("DebuggerWorkspace", () => {
     expect(clock()).not.toBe(paused);
   });
 
-  it("names what the other policy would decide, and returns to the story on request", () => {
+  it("scores the story's phone as the repo does, with no old-rules toggle, and returns to the story on request", () => {
     render(
       <WorkspaceManagerProvider>
         <DebuggerWorkspace scenario={scenarios[2]} initialConditions={scenarios[2].defaults} onClose={vi.fn()} />
       </WorkspaceManagerProvider>,
     );
-    expect(document.querySelector(".sim-compare")?.textContent).toBe("With the old rules (block anything odd): Block (different)");
+    const check = (name: RegExp) => within(screen.getByRole("group", { name: /^What the phone/ })).getByRole("button", { name });
+    expect(document.querySelector(".pol-decision span")?.textContent).toBe("Payment #1: medium risk, 3 points. The server\u2019s answer");
+    expect(document.querySelector(".pol-decision strong")?.textContent).toBe("Confirm with the screen lock");
+    expect(screen.queryByRole("group", { name: /^Bank/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Reset" })).toBeNull();
 
-    fireEvent.click(key("Phone's security removed?", "No"));
+    // A root app is a high-severity check: it blocks on its own.
+    fireEvent.click(check(/^Root app installed/));
     act(() => vi.advanceTimersByTime(500));
-    expect(document.querySelector(".sim-compare")?.textContent).toBe("With the old rules (block anything odd): Let through (the same)");
+    expect(document.querySelector(".pol-decision strong")?.textContent).toBe("Blocked");
     expect(document.querySelectorAll(".sim-journal li")).toHaveLength(2);
 
     fireEvent.click(screen.getByRole("button", { name: "Reset" }));
     act(() => vi.advanceTimersByTime(500));
-    expect(key("Phone's security removed?", "Maybe").getAttribute("aria-pressed")).toBe("true");
+    expect(check(/^Root app installed/).getAttribute("aria-pressed")).toBe("false");
+    expect(check(/^Test build of Android/).getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("shows the policy's first matching rule for a device signal", () => {
+  it("confirms with a tap without a screen lock, and reaches high risk on points alone", () => {
     render(
       <WorkspaceManagerProvider>
         <DebuggerWorkspace scenario={scenarios[2]} initialConditions={scenarios[2].defaults} onClose={vi.fn()} />
       </WorkspaceManagerProvider>,
     );
-    const rules = () => Array.from(document.querySelectorAll<HTMLElement>(".pol-rules li")).map((rule) => rule.dataset.status);
-    expect(rules()).toEqual(["not met", "not met", "matched", "not reached"]);
-    expect(document.querySelector(".pol-decision strong")?.textContent).toBe("Ask to confirm");
-
-    fireEvent.click(key("Request tampered with?", "Yes"));
+    const check = (name: RegExp) => within(screen.getByRole("group", { name: /^What the phone/ })).getByRole("button", { name });
+    fireEvent.click(key("Screen lock", "None"));
     act(() => vi.advanceTimersByTime(500));
-    expect(rules()).toEqual(["matched", "not reached", "not reached", "not reached"]);
-    expect(document.querySelector(".pol-decision strong")?.textContent).toBe("Block");
+    expect(document.querySelector(".pol-decision strong")?.textContent).toBe("Confirm with a tap");
+
+    // Emulator +2, debug build +2, outside the store +1: 5 points, with no high-severity check.
+    fireEvent.click(check(/^Test build of Android/));
+    fireEvent.click(check(/^Looks like an emulator/));
+    fireEvent.click(check(/^App is a debug build/));
+    act(() => vi.advanceTimersByTime(500));
+    expect(document.querySelector(".pol-decision span")?.textContent).toMatch(/high risk, 5 points/);
+    expect(document.querySelector(".pol-decision strong")?.textContent).toBe("Blocked");
   });
 
   it("lets evidence switch between fit and actual pixels once the image has loaded", async () => {

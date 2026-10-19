@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { evaluatePolicy, latencyThresholdMs, simulatePayment, simulateSignals } from "./instruments";
+import { latencyThresholdMs, simulatePayment, simulateSignals } from "./instruments";
+import { assessDevice, deviceChecks, deviceProfiles, SCREEN_LOCK } from "./device-risk";
 import { projectScenario, scenarios, type Conditions, type ProjectionMode } from "./scenarios";
 
 /** Every combination of a case's control values. */
@@ -95,30 +96,43 @@ describe("observability instrument", () => {
   });
 });
 
-describe("device trust instrument", () => {
-  it("agrees with the case model and matches exactly one rule, first match wins", () => {
-    for (const conditions of combinations("trustgate")) for (const mode of modes) {
-      const run = evaluatePolicy(conditions, mode);
-      expect(run).toEqual(evaluatePolicy(conditions, mode));
-      expect(run.decision).toBe(projectScenario("trustgate", conditions, mode).find((node) => node.id === "decision")?.value);
-      expect(run.rules.filter((rule) => rule.status === "matched")).toHaveLength(1);
-      const matchedIndex = run.rules.findIndex((rule) => rule.status === "matched");
-      expect(run.rules.slice(0, matchedIndex).every((rule) => rule.status === "not met")).toBe(true);
-      expect(run.rules.slice(matchedIndex + 1).every((rule) => rule.status === "not reached")).toBe(true);
+describe("device trust instrument (TrustGate's RiskScorer and gate)", () => {
+  /** A phone with these checks found. */
+  const phone = (found: string[], lock = "set") => ({ ...Object.fromEntries(deviceChecks.map((check) => [check.id, found.includes(check.id) ? "found" : "clear"])), [SCREEN_LOCK]: lock });
+
+  it("agrees with the case model and is deterministic for every phone", () => {
+    for (const conditions of combinations("trustgate")) {
+      const run = assessDevice(conditions);
+      expect(run).toEqual(assessDevice(conditions));
+      expect(run.decision).toBe(projectScenario("trustgate", conditions, "designed").find((node) => node.id === "decision")?.value);
+      expect(run.score).toBe(run.found.reduce((total, check) => total + check.points, 0));
     }
   });
 
-  it("asks for confirmation on uncertainty for a sensitive action instead of blocking", () => {
-    const run = evaluatePolicy({ root: "suspected", emulator: "clear", signature: "valid", sensitivity: "high" }, "designed");
-    expect(run.decision).toBe("REQUIRE CONFIRMATION");
-    expect(run.environmentReasons).toEqual(["Possible root signal"]);
-    expect(evaluatePolicy({ root: "suspected", emulator: "clear", signature: "valid", sensitivity: "high" }, "baseline").decision).toBe("BLOCK");
+  it("scores the repo's three test phones to their own levels", () => {
+    expect(assessDevice(phone(deviceProfiles.LOW))).toMatchObject({ score: 0, level: "LOW", reason: { kind: "below", score: 0 }, decision: "ALLOW", signing: "DEVICE KEY" });
+    expect(assessDevice(phone(deviceProfiles.MEDIUM))).toMatchObject({ score: 3, level: "MEDIUM", reason: { kind: "score", score: 3, threshold: 2 }, decision: "REQUIRE CONFIRMATION", signing: "STEP-UP KEY" });
+    expect(assessDevice(phone(deviceProfiles.HIGH))).toMatchObject({ score: 6, level: "HIGH", reason: { kind: "severe", checks: ["root_package", "debugger_connected"] }, decision: "BLOCK", signing: "NOTHING SIGNED" });
   });
 
-  it("keeps request integrity separate from device environment", () => {
-    const run = evaluatePolicy({ root: "clear", emulator: "clear", signature: "invalid", sensitivity: "low" }, "designed");
-    expect(run.environment).toBe("clear");
-    expect(run.decision).toBe("BLOCK");
-    expect(run.rules[0]).toMatchObject({ id: "signature", status: "matched" });
+  it("makes one high-severity check high risk on its own, whatever the total", () => {
+    const run = assessDevice(phone(["root_su_path"]));
+    expect(run.score).toBe(3);
+    expect(run).toMatchObject({ level: "HIGH", reason: { kind: "severe", checks: ["root_su_path"] }, decision: "BLOCK" });
+  });
+
+  it("reaches high risk on points alone, as the Signals screenshot shows (2 + 2 + 1)", () => {
+    const run = assessDevice(phone(["emulator_fingerprint", "app_debuggable", "installer_source_unknown"]));
+    expect(run).toMatchObject({ score: 5, level: "HIGH", reason: { kind: "score", score: 5, threshold: 5 }, decision: "BLOCK" });
+  });
+
+  it("lets a single weak check through, below the medium threshold", () => {
+    expect(assessDevice(phone(["installer_source_unknown"]))).toMatchObject({ score: 1, level: "LOW", decision: "ALLOW" });
+  });
+
+  it("signs a confirmation with the step-up key, or with a signed tap when there is no screen lock", () => {
+    expect(assessDevice(phone(deviceProfiles.MEDIUM, "set")).signing).toBe("STEP-UP KEY");
+    expect(assessDevice(phone(deviceProfiles.MEDIUM, "none")).signing).toBe("SIGNED TAP");
+    expect(assessDevice(phone(deviceProfiles.HIGH, "none")).signing).toBe("NOTHING SIGNED");
   });
 });

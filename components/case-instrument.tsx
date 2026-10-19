@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PlayIcon, ResetIcon, StartOverIcon } from "./icons";
-import { messageTravelMs, PaymentDiagram, PolicyDiagram, ruleStepMs, ServiceDiagram, toRulesMs } from "./sim-diagrams";
+import { answerDelayMs, DeviceDiagram, messageTravelMs, PaymentDiagram, ruleStepMs, ServiceDiagram, toRulesMs } from "./sim-diagrams";
 import { useSound } from "./sound-provider";
 import { LANDING, type CueId } from "../lib/sound/engine";
-import { evaluatePolicy, latencyThresholdMs, type PolicyRun } from "../lib/instruments";
+import { latencyThresholdMs } from "../lib/instruments";
+import { assessDevice, deviceChecks, deviceProfiles, HIGH_SCORE_THRESHOLD, MEDIUM_SCORE_THRESHOLD, SCREEN_LOCK, type DeviceAssessment, type GateDecision, type RiskLevel } from "../lib/device-risk";
 import { type Conditions, type ProjectionMode, type Scenario } from "../lib/scenarios";
 import {
   emptyPayWorld,
@@ -60,13 +61,13 @@ const landingDelay = messageTravelMs / 1000 - LANDING;
 const simName: Record<Scenario["slug"], string> = {
   payflow: "Payment desk",
   iyup: "Website monitor",
-  trustgate: "Security checkpoint",
+  trustgate: "Payment gate",
 };
 
 const howTo: Record<Scenario["slug"], string> = {
   payflow: "You run a shop's payment system. Press “Bank sends paid”, then “Bank sends it again”, as banks sometimes do. Then switch the repeat check off and try it again.",
   iyup: "A website runs live here: one second is one minute. Slow it down, stop the speed measurements, or switch to the old dashboard, and see who notices.",
-  trustgate: "Someone asks a banking app to do something. Change what their phone looks like and what they want; the bank's rules are read from the top, and the first one that fits decides.",
+  trustgate: "You're sending a payment. Switch on what the phone's checks find: each adds points by how serious it is. The server decides from the total, and the phone writes the decision to its log.",
 };
 
 /**
@@ -79,16 +80,25 @@ const plainControls: Record<string, { label: string; hint?: string; options: Rec
   health: { label: "Does the site answer?", hint: "the basic “are you up?” check", options: { pass: "Yes", fail: "No" } },
   scrape: { label: "Speed measurements", hint: "the tool that times every page", options: { available: "Collected", missing: "Stopped" } },
   alert: { label: "Alarm when too slow", options: { present: "Set up", absent: "Not set up" } },
-  root: { label: "Phone's security removed?", hint: "a “rooted” phone", options: { clear: "No", suspected: "Maybe", detected: "Yes" } },
-  emulator: { label: "A fake phone?", hint: "an emulator running on a computer", options: { clear: "No", detected: "Yes" } },
-  signature: { label: "Request tampered with?", hint: "changed on its way to the bank", options: { valid: "No", invalid: "Yes" } },
-  sensitivity: { label: "They want to", options: { low: "Check balance", high: "Send money" } },
+  [SCREEN_LOCK]: { label: "Screen lock", hint: "a confirmation needs it to sign", options: { set: "Set", none: "None" } },
 };
 
-const plainApproach: Record<Scenario["slug"], { label: string; hint?: string; designed: string; baseline: string }> = {
+/** The phone's checks in everyday words; "Technical details" shows the repo's own names. */
+const plainCheck: Record<string, string> = {
+  root_su_path: "Superuser file found",
+  root_package: "Root app installed",
+  test_keys: "Test build of Android",
+  system_partition_writable: "System files writable",
+  emulator_fingerprint: "Looks like an emulator",
+  debugger_connected: "Debugger attached",
+  app_debuggable: "App is a debug build",
+  installer_source_unknown: "Installed from outside the store",
+};
+
+/** Only the cases that compare an old handling with the designed one have an approach toggle. */
+const plainApproach: Partial<Record<Scenario["slug"], { label: string; hint?: string; designed: string; baseline: string }>> = {
   payflow: { label: "Repeat check", hint: "remembers which messages it already handled", designed: "On", baseline: "Off" },
   iyup: { label: "Dashboard shows", designed: "Speed and health", baseline: "Only “is it up?”" },
-  trustgate: { label: "Bank's rules", hint: "new rules weigh the risk; old ones block anything odd", designed: "Weigh the risk", baseline: "Block anything odd" },
 };
 
 /**
@@ -158,7 +168,7 @@ export function CaseInstrument({
       </div>
       {scenario.slug === "payflow" ? <PaymentSim {...shared} /> : null}
       {scenario.slug === "iyup" ? <ServiceSim {...shared} foreground={foreground} /> : null}
-      {scenario.slug === "trustgate" ? <PolicySim {...shared} /> : null}
+      {scenario.slug === "trustgate" ? <DeviceSim {...shared} /> : null}
     </section>
   );
 }
@@ -218,6 +228,7 @@ function ConditionKeys({ control, onChange, scenario, selectedConditions, onSele
 
 function ApproachKeys({ approach, onApproachChange, scenario }: Pick<SimProps, "approach" | "onApproachChange" | "scenario">) {
   const plain = plainApproach[scenario.slug];
+  if (!plain) return null;
   return (
     <Keys
       hint={plain.hint}
@@ -522,115 +533,129 @@ function ServiceSim({ approach, conditions, foreground, isDefault, onApproachCha
 
 /* ------------------------------------------------------------- Device trust */
 
-const decisionTone = { ALLOW: "confirmed", "REQUIRE CONFIRMATION": "uncertain", BLOCK: "adverse" } as const;
-const decisionCue = { ALLOW: "pol.let-through", "REQUIRE CONFIRMATION": "pol.ask-to-confirm", BLOCK: "pol.block" } as const satisfies Record<keyof typeof decisionTone, CueId>;
-export const plainDecision = { ALLOW: "Let through", "REQUIRE CONFIRMATION": "Ask to confirm", BLOCK: "Block" } as const;
-type Decision = keyof typeof decisionTone;
-
-type RequestRecord = { n: number; summary: string; decision: Decision; other: Decision; mode: ProjectionMode; hood: string };
-
-function requestSummary(conditions: Conditions) {
-  const phone = [
-    conditions.root === "detected" ? "security removed" : conditions.root === "suspected" ? "security maybe removed" : null,
-    conditions.emulator === "detected" ? "fake phone" : null,
-    conditions.signature === "invalid" ? "tampered request" : null,
-  ].filter(Boolean);
-  return `${phone.length ? phone.join(", ") : "Normal phone"}, wants to ${conditions.sensitivity === "high" ? "send money" : "check their balance"}`;
+const decisionTone = { ALLOW: "confirmed", "REQUIRE CONFIRMATION": "uncertain", BLOCK: "adverse" } as const satisfies Record<GateDecision, PayTone>;
+const decisionCue = { ALLOW: "pol.let-through", "REQUIRE CONFIRMATION": "pol.ask-to-confirm", BLOCK: "pol.block" } as const satisfies Record<GateDecision, CueId>;
+/** The server's answer in everyday words, which depends on how a confirmation can be signed. */
+export function plainAnswer(run: DeviceAssessment) {
+  if (run.decision === "ALLOW") return "Sent";
+  if (run.decision === "BLOCK") return "Blocked";
+  return run.screenLock ? "Confirm with the screen lock" : "Confirm with a tap";
 }
+/** The repo's own log entry for a decision (`SecurityEventType`). */
+const logEvent: Record<GateDecision, string> = {
+  ALLOW: "SENSITIVE_ACTION_ALLOWED",
+  "REQUIRE CONFIRMATION": "SENSITIVE_ACTION_REQUIRES_CONFIRMATION",
+  BLOCK: "SENSITIVE_ACTION_BLOCKED",
+};
+const profileLabel: Record<RiskLevel, string> = { LOW: "Clean phone", MEDIUM: "A few weak signals", HIGH: "Rooted, debugger on" };
 
-/** Why the bank decided as it did, in everyday words. */
-function plainReason(run: PolicyRun, conditions: Conditions, approach: ProjectionMode) {
-  const rule = run.rules.find((item) => item.status === "matched");
-  if (approach === "baseline") {
-    return rule?.id === "any-suspicious"
-      ? "The old rule blocks anything that looks odd, even if they only want to check their balance."
-      : conditions.signature === "invalid"
-        ? "The old rule only looks at the phone, so it lets this tampered request through."
-        : "The old rule saw nothing odd about the phone, so it lets the request through.";
+type PaymentRecord = { n: number; run: DeviceAssessment; hood: string };
+
+const pointsText = (run: DeviceAssessment) => `${run.score} ${run.score === 1 ? "point" : "points"}`;
+const foundText = (run: DeviceAssessment) => run.found.map((check) => `${plainCheck[check.id].toLowerCase()} +${check.points}`).join(", ");
+
+/** Why the server answered as it did, in everyday words. */
+function plainReason(run: DeviceAssessment) {
+  if (run.reason.kind === "severe") {
+    const strong = run.found.filter((check) => check.severity === "HIGH").map((check) => plainCheck[check.id].toLowerCase());
+    const named = strong.join(" and ");
+    return `${named.charAt(0).toUpperCase()}${named.slice(1)}: a high-severity check blocks on its own, whatever the total. The server issues no challenge, so nothing can be signed.`;
   }
-  if (rule?.id === "signature") return "The request was changed on its way to the bank, so it's blocked, whatever the phone looks like.";
-  if (rule?.id === "root-sensitive") return "The phone's security is removed and they want to move money: too risky to allow.";
-  if (rule?.id === "suspicious-sensitive") return "Something about the phone looks off and they want to move money, so they're asked to confirm it's really them.";
-  return "Nothing here is risky enough for what they want to do, so it goes through. Any warning is still noted.";
+  if (run.level === "HIGH") return `${pointsText(run)} reach the block mark of ${HIGH_SCORE_THRESHOLD}. The server issues no challenge, so nothing can be signed.`;
+  if (run.level === "MEDIUM") {
+    return `${pointsText(run)}: past the confirm mark of ${MEDIUM_SCORE_THRESHOLD}, under the block mark of ${HIGH_SCORE_THRESHOLD}. ${run.screenLock
+      ? "The payment is signed only after the screen lock or a fingerprint unlocks the confirmation key."
+      : "With no screen lock there's no confirmation key, so a tap confirmation is signed into the request."}`;
+  }
+  return run.score
+    ? `${pointsText(run)}: under the confirm mark of ${MEDIUM_SCORE_THRESHOLD}, so it's sent. The check stays in the log.`
+    : "No check found anything, so the payment is signed and sent.";
 }
 
-function PolicySim({ approach, conditions, isDefault, onApproachChange, onChange, onReset, scenario, selectedConditions, technical }: SimProps) {
-  const run = useMemo(() => evaluatePolicy(conditions, approach), [approach, conditions]);
-  const other = useMemo(() => evaluatePolicy(conditions, approach === "designed" ? "baseline" : "designed"), [approach, conditions]);
-  const matched = run.rules.findIndex((rule) => rule.status === "matched");
+function DeviceSim({ conditions, isDefault, onChange, onReset, selectedConditions, technical }: SimProps) {
+  const run = useMemo(() => assessDevice(conditions), [conditions]);
   const [sends, setSends] = useState(0);
-  const [history, setHistory] = useState<RequestRecord[]>([]);
-  const requestKey = `${JSON.stringify(conditions)}:${approach}:${sends}`;
+  const [history, setHistory] = useState<PaymentRecord[]>([]);
+  const requestKey = `${JSON.stringify(conditions)}:${sends}`;
   const lastKey = useRef<string | null>(null);
   const { play } = useSound();
   const walk = useRef<number[]>([]);
   useEffect(() => () => walk.current.forEach(window.clearTimeout), []);
-  // Each new request is heard as the drawing shows it: a quiet tick as each rule is read, in order,
-  // then the answer landing as the first rule that fits decides.
+  // Each payment is heard as the drawing shows it: a quiet tick as each found check adds its
+  // points, in order, then the server's answer landing.
   useOnChange(requestKey, () => {
     walk.current.forEach(window.clearTimeout);
-    const read = Math.max(0, matched);
-    const steps: Array<[number, CueId]> = Array.from({ length: read + 1 }, (_, index) => [toRulesMs + index * ruleStepMs, `pol.rule-${Math.min(4, index + 1)}` as CueId]);
-    steps.push([toRulesMs + (read + 1) * ruleStepMs, decisionCue[run.decision]]);
+    const steps: Array<[number, CueId]> = run.found.map((_, index) => [toRulesMs + index * ruleStepMs, `pol.rule-${Math.min(4, index + 1)}` as CueId]);
+    steps.push([answerDelayMs(run.found.length) + ruleStepMs, decisionCue[run.decision]]);
     walk.current = steps.map(([at, id]) => window.setTimeout(() => play(id), at));
   });
-  const hood = `root: ${conditions.root} · emulator: ${conditions.emulator} · signature: ${conditions.signature} · sensitivity: ${conditions.sensitivity} → rule ${matched + 1} "${run.rules[matched]?.when.toLowerCase()}" → ${run.decision}`;
+  const reasonId = run.reason.kind === "severe" ? `SevereSignal(${run.reason.checks.join(", ")})` : run.reason.kind === "score" ? `ScoreThreshold(${run.reason.score}, ${run.reason.threshold})` : `BelowThresholds(${run.reason.score})`;
+  const hood = `${run.found.length ? run.found.map((check) => `${check.id} ${check.severity}(${check.points})`).join(" + ") : "no signals"} = ${run.score} → ${reasonId} → ${run.level} → beginPayment: ${run.decision.replace(" ", "_")} · ${run.signing.toLowerCase()} · ${logEvent[run.decision]}`;
 
-  // Every new request (a changed signal, policy, or "Send again") is logged once.
+  // Every new payment (a changed check, the screen lock, or "Send again") is logged once, as the phone does.
   useEffect(() => {
     if (lastKey.current === requestKey) return;
     lastKey.current = requestKey;
-    setHistory((current) => [{ n: (current[0]?.n ?? 0) + 1, summary: requestSummary(conditions), decision: run.decision, other: other.decision, mode: approach, hood }, ...current].slice(0, 5));
-  }, [approach, conditions, hood, other.decision, requestKey, run.decision]);
+    setHistory((current) => [{ n: (current[0]?.n ?? 0) + 1, run, hood }, ...current].slice(0, 5));
+  }, [hood, requestKey, run]);
 
-  const reason = plainReason(run, conditions, approach);
-  const otherRules = approach === "designed" ? "the old rules (block anything odd)" : "the new rules (weigh the risk)";
+  const reason = plainReason(run);
+  const profile = (Object.keys(deviceProfiles) as RiskLevel[]).find((level) => deviceChecks.every((check) => (selectedConditions[check.id] === "found") === deviceProfiles[level].includes(check.id)));
+  const applyProfile = (level: string) => {
+    for (const check of deviceChecks) {
+      const value = deviceProfiles[level as RiskLevel].includes(check.id) ? "found" : "clear";
+      if (selectedConditions[check.id] !== value) onChange(check.id, value);
+    }
+  };
 
   return (
     <div className="sim" data-sim="trustgate">
-      <PolicyDiagram conditions={conditions} requestKey={requestKey} run={run} technical={technical} />
+      <DeviceDiagram requestKey={requestKey} run={run} technical={technical} />
       <Wire technical={technical}>{hood}</Wire>
 
       <div className="sim-controls">
-        <ConditionKeys control="root" onChange={onChange} scenario={scenario} selectedConditions={selectedConditions} />
-        <ConditionKeys control="emulator" onChange={onChange} scenario={scenario} selectedConditions={selectedConditions} />
-        <ConditionKeys control="signature" onChange={onChange} scenario={scenario} selectedConditions={selectedConditions} />
-        <ConditionKeys control="sensitivity" onChange={onChange} scenario={scenario} selectedConditions={selectedConditions} />
-        <ApproachKeys approach={approach} onApproachChange={onApproachChange} scenario={scenario} />
+        <Keys hint="the repo's three test phones" label="Try a phone" onSelect={applyProfile} options={(Object.keys(deviceProfiles) as RiskLevel[]).map((level) => ({ label: profileLabel[level], value: level }))} selected={profile ?? ""} />
+        <fieldset className="instrument-control dev-checks">
+          <legend>What the phone&rsquo;s checks find<small>each adds 1, 2, or 3 points by how serious it is</small></legend>
+          <div className="dev-check-keys">
+            {deviceChecks.map((check) => {
+              const found = selectedConditions[check.id] === "found";
+              return (
+                <button aria-pressed={found} className="instrument-option dev-check" data-severity={check.severity.toLowerCase()} key={check.id} onClick={() => onChange(check.id, found ? "clear" : "found")} type="button">
+                  <span>{technical ? <code>{check.id}</code> : plainCheck[check.id]}</span>
+                  <b>+{check.severity === "HIGH" ? 3 : check.severity === "MEDIUM" ? 2 : 1}</b>
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+        <Keys hint={plainControls[SCREEN_LOCK].hint} label={plainControls[SCREEN_LOCK].label} onSelect={(value) => onChange(SCREEN_LOCK, value)} options={[{ label: "Set", value: "set" }, { label: "None", value: "none" }]} selected={selectedConditions[SCREEN_LOCK]} />
       </div>
 
       <div className="pol-decision" data-tone={decisionTone[run.decision]}>
-        <span>Request #{history[0]?.n ?? 1}: the bank&rsquo;s answer</span>
-        <strong>{plainDecision[run.decision]}</strong>
+        <span>Payment #{history[0]?.n ?? 1}: {run.level.toLowerCase()} risk, {pointsText(run)}. The server&rsquo;s answer</span>
+        <strong>{plainAnswer(run)}</strong>
         <p>{reason}</p>
       </div>
-      <ol aria-label="Rulebook, first match decides" className="pol-rules sr-only">
-        {run.rules.map((rule, index) => (
-          <li data-status={rule.status} key={rule.id}>{index + 1}. {rule.when}: {plainDecision[rule.result]}, {rule.status}.</li>
-        ))}
-      </ol>
 
       <div className="sim-actions">
-        <button className="sim-primary" onClick={() => setSends((value) => value + 1)} type="button"><PlayIcon />Send the request again</button>
+        <button className="sim-primary" onClick={() => setSends((value) => value + 1)} type="button"><PlayIcon />Send the payment again</button>
         <StoryReset isDefault={isDefault} onReset={onReset} />
-        <p className="sim-compare" data-tone={other.decision !== run.decision ? "adverse" : undefined}>
-          With {otherRules}: <b>{plainDecision[other.decision]}</b>
-          {other.decision !== run.decision ? " (different)" : " (the same)"}
-        </p>
+        <p className="sim-compare">Confirm from {MEDIUM_SCORE_THRESHOLD} points, block from {HIGH_SCORE_THRESHOLD} or on any high-severity check.</p>
       </div>
 
       <Journal
-        empty="Each request you make is listed here."
+        empty="Each payment you make is listed here, as the phone logs it."
         entries={history.map((record) => ({
           key: String(record.n),
           badge: `#${record.n}`,
-          tone: decisionTone[record.decision],
-          plain: `${record.summary}: ${plainDecision[record.decision]}.`,
-          hood: `${record.mode === "designed" ? "risk-based policy" : "block-any-signal policy"} · ${record.hood} · other policy → ${record.other}`,
+          tone: decisionTone[record.run.decision],
+          plain: `${record.run.found.length ? foundText(record.run) : "Nothing found"} = ${pointsText(record.run)}: ${plainAnswer(record.run).toLowerCase()}.`,
+          hood: record.hood,
         }))}
         technical={technical}
       />
-      <p aria-live="polite" className="sr-only">{`${plainDecision[run.decision]}. ${reason}`}</p>
+      <p aria-live="polite" className="sr-only">{`${plainAnswer(run)}. ${reason}`}</p>
     </div>
   );
 }
