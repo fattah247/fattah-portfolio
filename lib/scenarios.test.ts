@@ -11,17 +11,19 @@ describe("selected work scenario contracts", () => {
     }
   });
 
-  it("does not describe a failed health contract as quiet", () => {
-    const projection = projectScenario("iyup", {
-      health: "fail",
-      latency: "normal",
-      scrape: "available",
-      alert: "absent",
-    }, "designed");
-    const decision = projection.find((node) => node.id === "decision");
+  it("never calls missing data down: a silent region leaves the verdict to the one that reports", () => {
+    const projection = projectScenario("iyup", { page: "quick", scope: "both", agent: "stopped" }, "designed");
+    expect(projection.find((node) => node.id === "verdict")?.value).toBe("UP");
+    expect(projection.find((node) => node.id === "alert")?.value).toBe("PingAgentDown · NOTIFY");
+    // The comparison counts the silence as an outage and pages.
+    expect(projectScenario("iyup", { page: "quick", scope: "both", agent: "stopped" }, "baseline").find((node) => node.id === "alert")?.value).toBe("FALSE PAGE");
+  });
 
-    expect(decision?.value).toBe("INCOMPLETE");
-    expect(decision?.detail).toContain("unavailable");
+  it("names the repo's system and a labelled comparison for every case, never an old mode of the repo", () => {
+    for (const scenario of scenarios) {
+      expect(scenario.designedLabel, scenario.slug).toBeTruthy();
+      expect(scenario.baselineLabel, scenario.slug).toMatch(/comparison/);
+    }
   });
 
   it.each(scenarios)("falls back to $slug defaults for missing or invalid condition values", (scenario) => {
@@ -52,7 +54,7 @@ describe("selected work scenario contracts", () => {
     expect(projection.find((node) => node.id === "score")?.value).toBe("3 POINTS");
     expect(projection.find((node) => node.id === "decision")?.value).toBe("REQUIRE CONFIRMATION");
     expect(projection.find((node) => node.id === "signing")?.value).toBe("STEP-UP KEY");
-    // Case 03 shows one system, so both modes project the same.
-    expect(projectScenario("trustgate", scenarios[2].defaults, "baseline")).toEqual(projection);
+    // The comparison, a gate that blocks on any signal, blocks the same phone outright.
+    expect(projectScenario("trustgate", scenarios[2].defaults, "baseline").find((node) => node.id === "decision")?.value).toBe("BLOCK");
   });
 });

@@ -306,7 +306,8 @@ export function DebuggerWorkspace({
   const [selectedConditions, setSelectedConditions] = useState<Conditions>(() => resolveScenarioConditions(scenario, (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.conditions as Conditions) ?? initialConditions));
   const [phase, setPhase] = useState<MotionPhase>("rest");
   const [statusMessage, setStatusMessage] = useState("Replay ready.");
-  const [approach, setApproach] = useState<ProjectionMode>(() => (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.approach as ProjectionMode) === "baseline" ? "baseline" : "designed");
+  // The simulators run only the repo's rules; the comparison is drawn beside them, never switched to.
+  const [approach, setApproach] = useState<ProjectionMode>("designed");
   const [evidence, setEvidence] = useState<Evidence | null>(null);
   const [activeSection, setActiveSection] = useState<CaseSectionId>("context");
   const [isClosing, setIsClosing] = useState(false);

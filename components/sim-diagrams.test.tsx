@@ -2,7 +2,8 @@ import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { assessDevice, deviceChecks, deviceProfiles, SCREEN_LOCK } from "../lib/device-risk";
 import { scenarios } from "../lib/scenarios";
-import { lateMessage, liveSample, paidMessage, playPayment, type PayInput } from "../lib/simulators";
+import { playFlow, type FlowInput } from "../lib/payment-flow";
+import { runUptime, type UptimeConditions } from "../lib/uptime";
 import { DeviceDiagram, PaymentDiagram, ServiceDiagram } from "./sim-diagrams";
 
 afterEach(cleanup);
@@ -25,21 +26,35 @@ function expectNotesFit(container: HTMLElement) {
   }
 }
 
-const busyPayment: PayInput[] = [
-  { kind: "store", online: false },
-  ...Array.from({ length: 15 }, () => ({ kind: "deliver" as const, message: paidMessage })),
-  { kind: "deliver", message: lateMessage },
-  { kind: "settle", matched: false },
+/** A long, busy run: every webhook outcome, a hold, the money's path, and a broken rule. */
+const busyPayment: FlowInput[] = [
+  ...Array.from({ length: 6 }, () => ({ kind: "webhook" as const, webhook: "again" as const })),
+  { kind: "webhook", webhook: "success" },
+  ...Array.from({ length: 8 }, () => ({ kind: "webhook" as const, webhook: "again" as const })),
+  { kind: "webhook", webhook: "new-id" },
+  { kind: "webhook", webhook: "late-authorized" },
+  { kind: "webhook", webhook: "wrong-amount" },
+  { kind: "mutate", mutation: "settle-held", removed: true },
+  { kind: "settle" },
+  { kind: "report", matches: false },
+  { kind: "statement", statement: "no-credit" },
+];
+const monitorRuns: UptimeConditions[] = [
+  { page: "slow", scope: "both", agent: "reporting" },
+  { page: "error", scope: "both", agent: "reporting" },
+  { page: "error", scope: "lab-b", agent: "reporting" },
+  { page: "wrong-content", scope: "both", agent: "stopped" },
+  { page: "quick", scope: "both", agent: "stopped" },
+  { page: "quick", scope: "both", agent: "reporting" },
 ];
 
 describe("simulator drawings", () => {
   it("draws every case in three compositions, each at its own width", () => {
-    const world = playPayment(busyPayment, false);
+    const world = playFlow(busyPayment);
     const conditions = scenarios[2].defaults;
-    const samples = [0, 1, 2, 3].map((minute) => ({ ...liveSample(scenarios[1].defaults, "designed", minute, minute), mode: "designed" as const }));
     const { container } = render(<>
-      <PaymentDiagram checked={false} technical={false} world={world} />
-      <ServiceDiagram samples={samples} statusTitle="Paging on-call" technical={false} window={12} />
+      <PaymentDiagram technical={false} world={world} />
+      <ServiceDiagram technical={false} ticks={runUptime(monitorRuns[0], 4)} window={12} />
       <DeviceDiagram requestKey="a" run={assessDevice(conditions)} technical={false} />
     </>);
 
@@ -53,33 +68,31 @@ describe("simulator drawings", () => {
 
   it("wraps the longest payment notes inside every composition, in both voices", () => {
     for (const technical of [false, true]) {
-      for (const checked of [false, true]) {
-        const { container } = render(<PaymentDiagram checked={checked} technical={technical} world={playPayment(busyPayment, checked)} />);
-        expectNotesFit(container);
-        cleanup();
-      }
+      const { container } = render(<PaymentDiagram technical={technical} world={playFlow(busyPayment)} />);
+      expectNotesFit(container);
+      cleanup();
     }
   });
 
-  it("keeps message IDs and raw states out of the everyday labels, and brings them back for engineers", () => {
-    const world = playPayment([{ kind: "deliver", message: paidMessage }, { kind: "deliver", message: paidMessage }], true);
-    const plain = render(<PaymentDiagram checked technical={false} world={world} />).container.textContent ?? "";
-    expect(plain).not.toMatch(/evt-|PAID|PENDING|REVIEW/);
+  it("keeps event ids and raw states out of the everyday labels, and brings them back for engineers", () => {
+    const world = playFlow([{ kind: "webhook", webhook: "success" }, { kind: "webhook", webhook: "again" }]);
+    const plain = render(<PaymentDiagram technical={false} world={world} />).container.textContent ?? "";
+    expect(plain).not.toMatch(/evt\d|SUCCESS|PENDING|MANUAL_REVIEW/);
     expect(plain).toContain("“paid” again");
     cleanup();
-    const technical = render(<PaymentDiagram checked technical world={world} />).container.textContent ?? "";
-    expect(technical).toContain("evt-02");
-    expect(technical).toContain("PAID");
+    const technical = render(<PaymentDiagram technical world={world} />).container.textContent ?? "";
+    expect(technical).toContain("evt1");
+    expect(technical).toContain("SUCCESS");
   });
 
   it("wraps every service and device note inside every composition", () => {
-    const titles = ["Outage", "Looks fine", "Paging on-call", "Investigate collection", "Breach, nobody paged", "All quiet"];
     for (const technical of [false, true]) {
-      for (const title of titles) {
-        const samples = [0, 1, 2, 3, 4, 5].map((minute) => ({ ...liveSample({ ...scenarios[1].defaults, latency: "severe" }, "baseline", minute, minute), mode: "baseline" as const }));
-        const { container } = render(<ServiceDiagram samples={samples} statusTitle={title} technical={technical} window={12} />);
-        expectNotesFit(container);
-        cleanup();
+      for (const run of monitorRuns) {
+        for (const length of [1, 3, 12]) {
+          const { container } = render(<ServiceDiagram technical={technical} ticks={runUptime(run, length)} window={12} />);
+          expectNotesFit(container);
+          cleanup();
+        }
       }
       // The repo's three test phones, every check alone, and every check at once, with and without a screen lock.
       const phones = [
