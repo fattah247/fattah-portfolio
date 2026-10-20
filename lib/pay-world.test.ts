@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { act, actSteps, actions, emptyWorld, nextDoorCharged, nudge, payflowLine, stampFor, storyActions, worldStories, type Action, type World } from "./pay-world";
+import { act, actSteps, actions, emptyWorld, nextDoorCharged, nudge, payflowLine, stampFor, storyActions, withoutInbox, worldStories, type Action, type World } from "./pay-world";
 import { paymentStory } from "./payment-flow";
 
 /** A small seeded generator, so every walk can be replayed. */
@@ -55,7 +55,8 @@ describe("pay world (a shop, Payflow's server and the bank, as a toy)", () => {
         if (next.flow.entries.at(-1)!.outcome === "RULE_BROKEN") expect(world.flow.removed.length).toBeGreaterThan(0);
         const line = payflowLine(next);
         expect(line).not.toMatch(raw);
-        expect(line.length).toBeLessThanOrEqual(130);
+        // Said in a bubble in the world: short.
+        expect(line.length).toBeLessThanOrEqual(70);
         world = next;
       }
     }
@@ -64,12 +65,12 @@ describe("pay world (a shop, Payflow's server and the bank, as a toy)", () => {
   it("starts with the customer, then lets each next actor join once the one before has acted", () => {
     const who = (world: World, used: string[]) => actions(world, used).map((action) => `${action.actor}:${action.id}`);
     expect(who(emptyWorld, [])).toEqual(["customer:pay"]);
-    expect(nudge(emptyWorld, [])).toEqual({ action: "pay", text: "Tap the customer: they pay 750,000 IDR by card." });
+    expect(nudge(emptyWorld, [])).toEqual({ action: "pay", text: "Tap me to pay 750,000." });
     const paid = doing(emptyWorld, "pay");
     expect(who(paid, ["pay"])).toEqual(["cashier:again"]);
     expect(who(paid, ["pay", "again"])).toEqual(["cashier:again", "signal:late"]);
     expect(who(paid, ["pay", "again", "late"])).toEqual(["cashier:again", "signal:late", "server:close"]);
-    expect(nudge(paid, ["pay"])?.text).toBe("The signal is weak. Tap the cashier: they tap the card machine again.");
+    expect(nudge(paid, ["pay"])?.text).toBe("Weak signal… did it go? Tap me to send it again.");
   });
 
   it("charges the customer once however often the cashier taps, while a server with no inbox charges every time", () => {
@@ -78,7 +79,8 @@ describe("pay world (a shop, Payflow's server and the bank, as a toy)", () => {
     expect(world.flow.journals.filter((journal) => journal === "CAPTURE")).toHaveLength(1);
     expect(world.flow.entries.slice(1).map((entry) => entry.outcome)).toEqual(["DUPLICATE_IGNORED", "DUPLICATE_IGNORED", "DUPLICATE_IGNORED"]);
     expect(nextDoorCharged(world.naive)).toBe(3_000_000);
-    expect(payflowLine(world)).toBe("I have that receipt already. I answer “got it”, and no money moves.");
+    expect(payflowLine(world)).toBe("Same receipt. I already have it: no money moves.");
+    expect(withoutInbox(world)).toBe("With no inbox, the customer would have paid 3,000,000 IDR by now.");
   });
 
   it("closes the day with the payout and then the provider's daily report, so the bank's answer decides", () => {

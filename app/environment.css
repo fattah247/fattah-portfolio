@@ -4587,8 +4587,6 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 .pw-actor::after { content: ""; inset: -8px; position: absolute; }
 .pw-actor .pixel-sprite, .pw-prop .pixel-sprite { block-size: 100%; display: block; inline-size: 100%; }
 .pw-actor[data-actor="signal"] .pw-antenna { animation: pw-flicker 600ms steps(3, end); }
-/* The hand points at who to tap, from their right. */
-.pw-point { animation: pw-appear 1ms 200ms backwards; inset-block-start: 20%; inset-inline-start: calc(100% + 4px); position: absolute; z-index: 3; }
 
 .pw-tag, .pw-sign, .pw-label, .pw-stamp, .pw-emote { pointer-events: none; position: absolute; z-index: 3; }
 .pw-tag { color: var(--ink-secondary); font: 600 .72rem/1.2 var(--font-mono), monospace; }
@@ -4619,14 +4617,51 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 .pw-move { inset-block-start: 0; inset-inline-start: 0; pointer-events: none; position: absolute; z-index: 4; }
 .pw-move .pixel-sprite { display: block; inline-size: 100%; }
 
-/* The dialogue: who said what, the bank's choices, and what to try next. */
-.pw-dialog { background: #ffffff; border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); display: grid; gap: 6px; padding: 8px 12px; }
-.pw-say { align-items: start; animation: pw-appear 1ms backwards; display: flex; gap: 8px; margin: 0; }
-.pw-say span { color: var(--ink); display: grid; font: var(--type-body); font-size: .95rem; gap: 0; line-height: 1.35; }
-.pw-say b { color: var(--ink-secondary); font: var(--type-caption); font-weight: 700; }
-.pw-say[data-speaker="cashier"] span { color: var(--ink-secondary); font-size: .88rem; }
-.pw-choices { align-items: center; display: flex; flex-wrap: wrap; gap: 6px 8px; }
-.pw-choices p { color: var(--ink); font: var(--type-label); font-weight: 600; margin: 0; }
+/* What anything says is said in the world: a bubble over whoever speaks, the next one to tap
+ * inviting it in their own voice (the whole bubble is the tap), and the bank's answers as the
+ * choices in its bubble. The comparison is a quieter second line in Payflow's bubble. */
+.pw-goal { background: #ffffff; border: 1px solid var(--line-ink); color: var(--ink); font: var(--type-label); margin: 0; padding: 2px 8px; pointer-events: none; position: absolute; z-index: 3; }
+.pw-goal b { color: var(--accent-deep); }
+.pw-bubble {
+  animation: pw-appear 1ms backwards;
+  background: #ffffff;
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--object-shadow);
+  color: var(--ink);
+  display: grid;
+  font: 500 .85rem/1.3 var(--font-body), system-ui, sans-serif;
+  gap: 3px;
+  inline-size: max-content;
+  max-inline-size: min(15rem, 60vw);
+  padding: 6px 9px;
+  position: absolute;
+  text-align: start;
+  z-index: 5;
+}
+.pw-bubble[data-side="top"][data-align="center"] { transform: translate(-50%, calc(-100% - 9px)); }
+.pw-bubble[data-side="top"][data-align="start"] { transform: translate(-18px, calc(-100% - 9px)); }
+.pw-bubble[data-side="top"][data-align="end"] { transform: translate(calc(-100% + 18px), calc(-100% - 9px)); }
+.pw-bubble[data-side="right"] { transform: translate(9px, -50%); }
+.pw-bubble[data-side="left"] { transform: translate(calc(-100% - 9px), -50%); }
+/* The tail points at whoever speaks. */
+.pw-bubble::after { background: inherit; block-size: 8px; border-block-end: 1px solid var(--line-ink); border-inline-end: 1px solid var(--line-ink); content: ""; inline-size: 8px; position: absolute; rotate: 45deg; }
+.pw-bubble[data-side="top"]::after { inset-block-end: -5px; inset-inline-start: calc(50% - 4px); }
+.pw-bubble[data-side="top"][data-align="start"]::after { inset-inline-start: 14px; }
+.pw-bubble[data-side="top"][data-align="end"]::after { inset-inline-start: calc(100% - 22px); }
+.pw-bubble[data-side="right"]::after { inset-block-start: calc(50% - 4px); inset-inline-start: -5px; rotate: 135deg; }
+.pw-bubble[data-side="left"]::after { inset-block-start: calc(50% - 4px); inset-inline-end: -5px; inset-inline-start: auto; rotate: -45deg; }
+.pw-bubble[data-hint] { border-color: var(--accent); }
+.pw-bubble-say[data-tone="confirmed"] { color: var(--confirmed); font-weight: 600; }
+.pw-bubble-say[data-tone="uncertain"] { color: var(--uncertain); font-weight: 600; }
+.pw-bubble-say[data-tone="adverse"] { color: var(--adverse-ink); font-weight: 600; }
+.pw-bubble-aside { border-block-start: 1px dashed var(--doc-edge); color: var(--ink-secondary); font: var(--type-caption); padding-block-start: 3px; }
+.pw-bubble-hint { color: var(--accent-deep); font: 700 .82rem/1.3 var(--font-body), system-ui, sans-serif; }
+button.pw-bubble { cursor: pointer; padding-inline-end: 30px; }
+button.pw-bubble:hover { background: var(--accent-soft); }
+button.pw-bubble:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pw-bubble-hand { animation: pw-appear 1ms 200ms backwards; inset-block-end: -14px; inset-inline-end: -12px; position: absolute; }
+.pay-world[data-technical] .pw-bubble-say { font-family: var(--font-mono), monospace; font-size: .75rem; }
+.pw-bubble-choices { display: grid; gap: 4px; margin-block-start: 2px; }
 .pw-choice {
   align-items: center;
   background: var(--raised);
@@ -4639,25 +4674,20 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
   font-weight: 600;
   gap: 4px;
   min-block-size: 44px;
-  padding: 4px 12px;
+  padding: 4px 10px;
   position: relative;
+  text-align: start;
 }
-html[data-system-mode="computer"] .pw-choice { min-block-size: 36px; }
+html[data-system-mode="computer"] .pw-choice { min-block-size: 32px; }
 .pw-choice:hover { background: #ffffff; }
 .pw-choice:active { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
 .pw-choice:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pw-choice[data-nudged], .pw-actions .sim-secondary[data-nudged] { outline: 2px solid var(--accent); outline-offset: 2px; }
 .pw-choice-hand { inset-block-end: -14px; inset-inline-end: -12px; position: absolute; }
-.pw-try { color: var(--accent-deep); font: var(--type-label); margin: 0; }
-.pw-try b { font-weight: 700; }
 .pw-tech { border: 1px dashed var(--adverse); display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; }
 .pw-tech .pw-choice { font-family: var(--font-mono), monospace; font-size: .75rem; }
-
-/* The comparison: one quiet line, never animated, never part of the repo. */
-.pw-next-door { color: var(--ink-secondary); font: var(--type-caption); margin: 0; }
-.pw-next-door span { font-weight: 600; }
-.pw-next-door b { color: var(--ink); }
-.pw-next-door b[data-bad] { color: var(--adverse-ink); }
+/* What crosses a line says what it is. */
+.pw-move-tag { background: #ffffff; border: 1px solid var(--line-ink); color: var(--ink); font: 600 .7rem/1.3 var(--font-mono), monospace; inset-block-start: 50%; inset-inline-start: 100%; padding: 0 4px; position: absolute; transform: translate(4px, -50%); white-space: nowrap; }
 
 .pw-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
 .pw-actions .instrument-technical { margin-inline-start: auto; }

@@ -233,84 +233,99 @@ export function stampFor(entry: FlowEntry): Stamp {
 
 /* ------------------------------------------------------------------- Words */
 
-export type Line = { speaker: "payflow" | "cashier" | "customer"; text: string };
-
-/** What the server (Payflow) says about the latest thing it got. */
+/** What Payflow's server says, in a bubble over it, about the latest thing it got. Short: it's said in the world. */
 export function payflowLine(world: World): string {
   const entry = world.flow.entries.at(-1);
-  if (!entry) return "I'm Payflow, the shop's payment server. Every receipt from the card machine comes to me, and I decide whether money moves.";
+  if (!entry) return "I'm Payflow. Receipts come to me, and I decide if money moves.";
   const input = entry.input;
   switch (entry.outcome) {
     case "APPLIED":
-      return entry.event?.status === "AUTHORIZED" ? "Authorized: the card is good. The money moves when “paid” comes." : "Paid. I take the customer's 750,000 once, and keep the receipt in my inbox.";
+      return entry.event?.status === "AUTHORIZED" ? "Authorized. Money moves when “paid” comes." : "Got the receipt. I take the 750,000, once.";
     case "DUPLICATE_IGNORED":
-      return input.kind === "webhook" && input.webhook === "again" ? "I have that receipt already. I answer “got it”, and no money moves." : "Same news on a new receipt. It's already paid; no money moves.";
+      return input.kind === "webhook" && input.webhook === "again" ? "Same receipt. I already have it: no money moves." : "Same news, new receipt. Already paid.";
     case "STALE_IGNORED":
-      return "That message is older than what I know. It stays paid.";
+      return "That's an old message. It stays paid.";
     case "SENT_TO_REVIEW":
-      return `${WRONG_AMOUNT.toLocaleString("en-US")} for a ${PAYMENT_AMOUNT.toLocaleString("en-US")} price? I hold it until a person checks.`;
+      return `${WRONG_AMOUNT.toLocaleString("en-US")} for a ${PAYMENT_AMOUNT.toLocaleString("en-US")} price? I hold it for a person.`;
     case "PAYMENT_ON_HOLD":
-      return "It's on hold, so I record nothing yet. Send that again later.";
+      return "It's on hold: I take nothing until it's checked.";
     case "RELEASED":
-      return "Checked and released. The cashier's last receipt can come through now.";
+      return "Checked. Now send that receipt again.";
     case "BATCH_CREATED":
-      return `Day closed: ${idr(PAYOUT_NET)} goes to the bank, after the ${idr(PAYOUT_FEE)} fee.`;
+      return `Day closed: ${PAYOUT_NET.toLocaleString("en-US")} goes to the bank (${PAYOUT_FEE.toLocaleString("en-US")} fee).`;
     case "NOTHING_TO_SETTLE":
-      return "Not while it's on hold. The money waits for the person checking it.";
+      return "Not while it's on hold. The money waits.";
     case "MATCHED_AWAITING_BANK":
-      return "The card company's daily report agrees. That's its word, not money: I wait for the bank.";
+      return "The card company's report agrees. Now I wait for the bank.";
     case "RECONCILED":
-      return "The bank's settlement and the report agree: 747,750 is in the shop's bank. Reconciled.";
+      return "The bank and the report agree. Reconciled!";
     case "MISMATCH":
-      return "The daily report disagrees. A person will look; the payment stays as it is.";
+      return "The report disagrees. A person will look.";
     case "LANDED":
-      return /reconciled/.test(entry.plain) ? "The bank's settlement came back with its reference, and the report agreed. Reconciled." : "The bank's settlement came back with its reference. Now the report has to agree.";
+      return /reconciled/.test(entry.plain) ? "The bank and the report agree. Reconciled!" : "The money landed. Now the report must agree.";
     case "MISSING_CREDIT":
-      return "The value date passed and the bank never got it. Broken: treasury takes it.";
+      return "The bank never got it. Treasury takes over.";
     case "UNMATCHED_CREDIT":
-      return "Money arrived with no reference. The amount fits, but that proves nothing: suspense.";
+      return "Money with no reference: it waits in suspense.";
     case "ALREADY_IMPORTED":
-      return "I've booked that statement. Not twice.";
+      return "I've booked that statement already.";
     case "RULE_REMOVED":
-      return input.kind === "mutate" && input.mutation === "settle-held" ? "Rule off. Now close the day while it's on hold." : input.kind === "mutate" && input.mutation === "match-by-amount" ? "Rule off. Now let the money arrive with no reference." : "Rule off. Now have the bank send its statement again.";
+      return input.kind === "mutate" && input.mutation === "settle-held" ? "Rule off. Close the day while it's held." : input.kind === "mutate" && input.mutation === "match-by-amount" ? "Rule off. Send money with no reference." : "Rule off. Send the statement again.";
     case "RULE_RESTORED":
       return "The rule is back.";
     case "RULE_BROKEN":
       return input.kind === "settle"
-        ? "With that rule off, held money left. The repo's tests fail on exactly this."
+        ? "Rule off: held money left. The repo's tests catch this."
         : input.kind === "statement" && input.statement === "reimport"
-          ? "With that rule off, it's booked twice. The rule that a bank entry counts once catches it."
-          : "With that rule off, a guess landed the payout. The rule that a landing needs its reference catches it.";
+          ? "Rule off: booked twice. The repo's booked-once rule catches it."
+          : "Rule off: a guess landed it. The repo's landing rule catches it.";
     default:
       return entry.plain;
   }
 }
 
-/** What the cashier says as they do something, or as the settlement reaches them. */
+/**
+ * What a server with no inbox (and that trusts the provider) would have done by now, said quietly
+ * under Payflow's line at the moment it matters. A comparison for the site, not code from the repo.
+ */
+export function withoutInbox(world: World): string {
+  const entry = world.flow.entries.at(-1);
+  if (!entry) return "";
+  const input = entry.input;
+  switch (entry.outcome) {
+    case "DUPLICATE_IGNORED":
+      return `With no inbox, the customer would have paid ${idr(nextDoorCharged(world.naive))} by now.`;
+    case "STALE_IGNORED":
+      return "With no check, the old message would undo “paid”.";
+    case "SENT_TO_REVIEW":
+      return input.kind === "webhook" ? `With no check, ${WRONG_AMOUNT.toLocaleString("en-US")} would count as paid in full.` : "";
+    case "MATCHED_AWAITING_BANK":
+      return "Trusting the report, it would say “reconciled” already, with no money in the bank.";
+    case "MISSING_CREDIT":
+      return "Trusting the report, it would still say “reconciled”.";
+    default:
+      return "";
+  }
+}
+
+/** What the cashier says as they act, or as the settlement reaches them. */
 export function cashierLine(world: World, actionId: string, taps: number): string | null {
   const { flow } = world;
-  if (actionId === "again") return ["The signal's weak… did it go? Again!", "Come on… again!", "Still spinning. Again!"][(taps - 1) % 3];
+  if (actionId === "again") return ["Weak signal… did it go? Again!", "Come on… again!", "Still spinning. Again!"][(taps - 1) % 3];
   if (actionId === "typo") return `Oops, I typed ${WRONG_AMOUNT.toLocaleString("en-US")}.`;
-  if (actionId === "fix") return `The right amount this time: ${PAYMENT_AMOUNT.toLocaleString("en-US")}.`;
-  if (flow.status === "RECONCILED") return `Settled: ${PAYOUT_NET.toLocaleString("en-US")} is in our bank.`;
+  if (actionId === "fix") return `The right amount: ${PAYMENT_AMOUNT.toLocaleString("en-US")}.`;
+  if (flow.status === "RECONCILED") return `Settled! ${PAYOUT_NET.toLocaleString("en-US")} is in our bank.`;
   if (flow.payout === "BROKEN") return "The bank never got our money?";
   return null;
 }
 
-/** What the customer sees on their phone after the latest thing. */
+/** What the customer's phone shows: how much they've been charged. */
 export function customerLine(world: World): string {
   const { flow } = world;
   if (!flow.lastEvent) return `${PAYMENT_AMOUNT.toLocaleString("en-US")} IDR to pay`;
   if (captured(flow)) return `charged ${PAYMENT_AMOUNT.toLocaleString("en-US")} IDR, once`;
-  if (held(flow)) return "nothing charged yet: on hold";
-  return "nothing charged yet";
-}
-
-/** What a server with no inbox did with the same thing, if anything. */
-export function nextDoorLine(world: World) {
-  const entry = world.flow.entries.at(-1);
-  if (!entry || entry.input.kind === "release" || entry.input.kind === "mutate") return "";
-  return world.naive.last;
+  if (held(flow)) return "not charged: on hold";
+  return "not charged yet";
 }
 
 export function nextDoorFlags(naive: NaiveWorld) {
@@ -330,7 +345,10 @@ export function nextDoorCharged(naive: NaiveWorld) {
 
 export const nextDoorStatus = (naive: NaiveWorld) => statusWord[naive.status];
 
-/** One suggestion: who to tap next, and why. */
+/**
+ * Who to tap next, and what they say to invite it: the hint is a bubble over that actor in the
+ * world, in their own voice ("Tap me to pay 750,000."). The bank's answers are its bubble's choices.
+ */
 export function nudge(world: World, used?: readonly string[], technical = false): { action: string; text: string } | null {
   const list = actions(world, used, technical);
   const offered = (id: string) => list.some((action) => action.id === id);
@@ -339,26 +357,25 @@ export function nudge(world: World, used?: readonly string[], technical = false)
   const removed = flow.removed;
   const candidates: Array<[boolean, string, string]> = [
     [world.frozen, "", "Start over for a fresh payment."],
-    [removed.includes("settle-held") && offered("close"), "close", "Now tap the server to close the day."],
-    [removed.includes("match-by-amount") && offered("bank-no-ref"), "bank-no-ref", "Now let it arrive with no reference."],
-    [removed.includes("accept-reimport") && offered("bank-again"), "bank-again", "Now have the bank send its statement again."],
-    [!flow.lastEvent && offered("pay"), "pay", "Tap the customer: they pay 750,000 IDR by card."],
-    [fresh("again") && captured(flow) && flow.payout === "NONE", "again", "The signal is weak. Tap the cashier: they tap the card machine again."],
-    [fresh("fix"), "fix", "Tap the cashier: they type the right amount."],
-    [held(flow) && fresh("release") && world.tried.includes("fix"), "release", "Tap the person at the server: they check it and release it."],
-    [fresh("release") && world.tried.includes("fix"), "release", "Tap the person at the server: they check it and release it."],
-    [held(flow) && fresh("close"), "close", "Tap the server: try closing the day while it's on hold."],
+    [removed.includes("settle-held") && offered("close"), "close", "Tap me: close the day now."],
+    [removed.includes("match-by-amount") && offered("bank-no-ref"), "bank-no-ref", "Did the money arrive?"],
+    [removed.includes("accept-reimport") && offered("bank-again"), "bank-again", "Send the statement again?"],
+    [!flow.lastEvent && offered("pay"), "pay", "Tap me to pay 750,000."],
+    [fresh("again") && captured(flow) && flow.payout === "NONE", "again", "Weak signal… did it go? Tap me to send it again."],
+    [fresh("fix"), "fix", "Tap me to type the right amount."],
+    [fresh("release") && world.tried.includes("fix"), "release", "Tap me to check it and release it."],
+    [held(flow) && fresh("close"), "close", "Tap me: try closing the day while it's held."],
     [technical && fresh("rule:settle-held"), "rule:settle-held", "Break that rule, as the repo's tests do."],
-    [fresh("again") && !captured(flow) && !held(flow), "again", "Tap the cashier: they tap the card machine again."],
-    [fresh("late") && captured(flow), "late", "Tap the signal: a slow network delivers an old message."],
-    [fresh("close"), "close", "Tap the server: close the day and send the money to the bank."],
-    [fresh("bank-credit"), "bank-credit", "What does the bank do? Choose: the money arrives."],
+    [fresh("again") && !captured(flow) && !held(flow), "again", "Tap me to send it again."],
+    [fresh("late") && captured(flow), "late", "Tap me: a slow signal delivers an old message."],
+    [fresh("close"), "close", "Tap me to close the day and pay the bank."],
+    [fresh("bank-credit"), "bank-credit", "Did the 747,750 arrive?"],
     [technical && fresh("rule:match-by-amount"), "rule:match-by-amount", "Break that rule, as the repo's tests do."],
-    [technical && fresh("bank-again"), "bank-again", "Banks resend files. Have it send its statement again."],
+    [technical && fresh("bank-again"), "bank-again", "Banks resend files. Send the statement again?"],
     [technical && fresh("rule:accept-reimport"), "rule:accept-reimport", "Break that rule, as the repo's tests do."],
-    [fresh("typo") && !flow.lastEvent, "typo", "Try a mistake: tap the cashier to type 740,000."],
+    [fresh("typo") && !flow.lastEvent, "typo", "Tap me: I'll type 740,000 by mistake."],
     [(flow.status === "RECONCILED" || flow.payout === "BROKEN") && !used?.includes("typo"), "", "Start over, then try a mistake at the till."],
-    [fresh("again"), "again", "Tap the cashier: they tap again. Does any money move?"],
+    [fresh("again"), "again", "Tap me to send it again."],
   ];
   const found = candidates.find(([when]) => when);
   return found ? { action: found[1], text: found[2] } : null;
