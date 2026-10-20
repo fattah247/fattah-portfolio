@@ -23,14 +23,38 @@ function installBrowserStubs() {
 /** A key inside one control group; several groups share "Yes" and "No". */
 const key = (group: string, option: string) => within(screen.getByRole("group", { name: new RegExp(`^${group.replace(/[?]/g, "\\?")}`) })).getByRole("button", { name: option });
 
-/** Watches the payment desk's first story to the end, then the next one, which changes its conditions. */
+/** Lets the pay world play on its own until the story ends and the next one is on offer. */
+function untilWatched(name: RegExp = /^Watch next:/) {
+  for (let turn = 0; turn < 120 && !screen.queryByRole("button", { name }); turn += 1) act(() => vi.advanceTimersByTime(1_000));
+  // One act holds every render until it ends, so the last beat's render needs one more.
+  act(() => vi.advanceTimersByTime(0));
+}
+
+/** Watches the payment world's first story to the end, then the next one, which changes its conditions. */
 function watchNext() {
   fireEvent.click(screen.getByRole("button", { name: "Watch it: the cashier taps twice" }));
-  act(() => vi.advanceTimersByTime(3_200 * 7));
+  untilWatched();
   fireEvent.click(screen.getByRole("button", { name: "Watch next: an old message arrives late" }));
-  act(() => vi.advanceTimersByTime(3_200 * 6));
-  act(() => vi.advanceTimersByTime(3_500));
-  act(() => vi.advanceTimersByTime(900));
+  untilWatched();
+}
+
+/** The one line the pay world says now: who says it, the stamp on an answer, and the words. */
+function lineNow() {
+  const bubble = document.querySelector(".pw-bubble");
+  if (!bubble) return document.querySelector(".pw-narration")?.textContent ?? "";
+  const stamp = bubble.querySelector(".pw-bubble-stamp")?.textContent;
+  return `${bubble.querySelector(".pw-bubble-head b")?.textContent}${stamp ? ` [${stamp}]` : ""}: ${bubble.querySelector(".pw-bubble-text")?.textContent}`;
+}
+
+/** Plays the pay world's scene through, pressing Continue at each line that waits; returns those lines. */
+function playScene() {
+  const said: string[] = [];
+  for (let turn = 0; turn < 40 && document.querySelector(".pay-world[data-playing]"); turn += 1) {
+    act(() => vi.advanceTimersByTime(1_000));
+    const next = screen.queryByRole("button", { name: "Continue" });
+    if (next) { said.push(lineNow()); fireEvent.click(next); }
+  }
+  return said;
 }
 
 function ScenarioRoundTripHost() {
@@ -92,22 +116,23 @@ describe("DebuggerWorkspace", () => {
     expect(screen.getByRole("navigation", { name: "Case chapters" }).querySelector('a[href="#evidence"]')?.getAttribute("aria-current")).toBe("step");
   });
 
-  /** The pay world: tap someone, choose in the dialogue, and read the world back from what it shows. */
-  const settleWorld = () => act(() => vi.advanceTimersByTime(3_500));
+  /** The pay world: tap someone or choose what happens next, play the scene through, and read the world back. */
   const actorKey = (actor: string) => document.querySelector<HTMLButtonElement>(`.pw-actor[data-actor="${actor}"]`)!;
-  const tapActor = (actor: string) => { fireEvent.click(actorKey(actor)); settleWorld(); };
-  const choose = (label: string) => { fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`) })); settleWorld(); };
-  const reading = (label: string) => document.querySelector(`[data-label="${label}"] b`)?.textContent;
-  const stamp = (place: string) => document.querySelector(`.pw-stamp[data-place="${place}"]`)?.textContent;
-  const said = (speaker: string) => document.querySelector(`.pw-bubble[data-actor="${speaker === "payflow" ? "server" : speaker}"] .pw-bubble-say`)?.textContent ?? "";
-  const invite = (actor: string) => document.querySelector(`.pw-bubble[data-actor="${actor}"] .pw-bubble-hint`)?.textContent;
+  const tapActor = (actor: string) => { fireEvent.click(actorKey(actor)); return playScene(); };
+  const choose = (label: string) => {
+    fireEvent.click(within(screen.getByRole("group", { name: "What happens next" })).getByRole("button", { name: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`) }));
+    return playScene();
+  };
+  const options = () => Array.from(document.querySelectorAll(".pw-option"), (option) => option.textContent);
+  const chip = (name: string) => document.querySelector(`.pw-chip[data-chip="${name}"] b`)?.textContent;
+  const textOnScreen = () => document.querySelectorAll(".pw-bubble, .pw-narration").length;
 
   it.each([
-    ["the cashier taps twice", { delivery: "duplicate", amount: "matches", bank: "landed" }, 5, { server: "Reconciled" }],
-    ["an old message arrives late", { delivery: "out-of-order", amount: "matches", bank: "landed" }, 4, { server: "Reconciled" }],
-    ["the cashier mistypes the amount", { delivery: "once", amount: "differs", bank: "landed" }, 6, { server: "Reconciled" }],
-    ["the money never arrives", { delivery: "once", amount: "matches", bank: "missing" }, 3, { server: "Paid out" }],
-  ] as const)("plays the story of %s through Payflow's rules, with a server with no inbox for comparison", (story, initialConditions, steps, expected) => {
+    ["the cashier taps twice", { delivery: "duplicate", amount: "matches", bank: "landed" }, 5, "747,750, settled"],
+    ["an old message arrives late", { delivery: "out-of-order", amount: "matches", bank: "landed" }, 4, "747,750, settled"],
+    ["the cashier mistypes the amount", { delivery: "once", amount: "differs", bank: "landed" }, 6, "747,750, settled"],
+    ["the money never arrives", { delivery: "once", amount: "matches", bank: "missing" }, 3, "never arrived"],
+  ] as const)("plays the story of %s through Payflow's rules, one line at a time, with a server with no inbox for comparison", (story, initialConditions, steps, bank) => {
     render(
       <WorkspaceManagerProvider>
         <DebuggerWorkspace scenario={scenarios[0]} initialConditions={initialConditions} onClose={vi.fn()} />
@@ -115,15 +140,17 @@ describe("DebuggerWorkspace", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: `Watch it: ${story}` }));
     expect(screen.getByRole("button", { name: "Stop" })).toBeTruthy();
-    // One action every 3.2 s, slow enough to follow the receipt and the money and read what is said.
-    act(() => vi.advanceTimersByTime(3_200));
-    expect(invite("server")).toBe(`Watching: step 2 of ${steps}`);
-    act(() => vi.advanceTimersByTime(3_200 * steps));
-    // One act holds every render until it ends, so the last action's beats run after it.
-    act(() => vi.advanceTimersByTime(3_500));
-
-    expect(reading("server")).toBe(`Payflow: ${expected.server}`);
-    expect(reading("customer")).toBe("charged 750,000 IDR, once");
+    // Watching plays itself: no Continue, every line holds long enough to read, and never two at once.
+    const notes = new Set<string>();
+    for (let turn = 0; turn < 120 && !screen.queryByRole("button", { name: /^Watch next:/ }); turn += 1) {
+      act(() => vi.advanceTimersByTime(1_000));
+      expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
+      expect(textOnScreen()).toBeLessThanOrEqual(1);
+      notes.add(document.querySelector(".pw-band-note")?.textContent ?? "");
+    }
+    act(() => vi.advanceTimersByTime(0));
+    expect([...notes].filter((note) => note.startsWith("Watching"))).toEqual(Array.from({ length: steps }, (_, step) => `Watching: step ${step + 1} of ${steps}`));
+    expect([chip("charged"), chip("bank")]).toEqual(["750,000, once", bank]);
     // The Result chapter reports the story's own conditions: the comparison, then Payflow.
     expect(Array.from(document.querySelectorAll(".mobile-outcome-strip strong")).map((item) => item.textContent)).toEqual(["Charged twice", "Captured once, reconciled at the bank"]);
     // There is no switch that turns Payflow's rules off.
@@ -137,51 +164,48 @@ describe("DebuggerWorkspace", () => {
         <DebuggerWorkspace scenario={scenarios[0]} initialConditions={scenarios[0].defaults} onClose={vi.fn()} />
       </WorkspaceManagerProvider>,
     );
-    // A first visit starts with the customer, who invites the tap in a bubble with a hand on it; the goal is written in the world.
+    // A first visit starts with the customer: their bubble invites it, one option waits in the band with the hand on it, and the goal sits at the top.
     expect(Array.from(document.querySelectorAll(".pw-actor[data-can]"), (actor) => actor.getAttribute("data-actor"))).toEqual(["customer"]);
-    expect(invite("customer")).toBe("Tap me to pay 750,000.");
-    expect(document.querySelector('.pw-bubble[data-actor="customer"] .pw-bubble-hand')).toBeTruthy();
+    expect(lineNow()).toBe("Customer: Tap me to pay 750,000.");
+    expect(options()).toEqual(["The customer pays by card"]);
+    expect(document.querySelector(".pw-option[data-nudged] .pw-option-hand")).toBeTruthy();
     expect(document.querySelector(".pw-goal")?.textContent).toBe("Goal: the customer pays 750,000 once, and it reaches the shop’s bank.");
-    expect(said("payflow")).toBe("I'm Payflow. Receipts come to me, and I decide if money moves.");
 
+    // A scene plays one line at a time: the customer walks up and speaks, then the receipt crosses with nothing said.
     fireEvent.click(actorKey("customer"));
-    // The stamp waits for the receipt to reach the server.
-    expect(stamp("server")).toBeUndefined();
-    act(() => vi.advanceTimersByTime(3_500));
-    expect([stamp("server"), reading("server")]).toEqual(["Paid", "Payflow: Paid"]);
-    expect(reading("customer")).toBe("charged 750,000 IDR, once");
-    expect(said("payflow")).toBe("Got the receipt. I take the 750,000, once.");
-    expect(invite("cashier")).toBe("Weak signal… did it go? Tap me to send it again.");
-    tapActor("cashier");
-    tapActor("cashier");
-    expect([stamp("server"), reading("server")]).toEqual(["Seen it", "Payflow: Paid"]);
-    expect(said("cashier")).toBe("Come on… again!");
-    expect(said("payflow")).toBe("Same receipt. I already have it: no money moves.");
-    expect(reading("customer")).toBe("charged 750,000 IDR, once");
-    // The comparison is said quietly under Payflow's line, at the moment it matters.
-    expect(document.querySelector('.pw-bubble[data-actor="server"] .pw-bubble-aside')?.textContent).toBe("With no inbox, the customer would have paid 2,250,000 IDR by now.");
-    tapActor("signal");
-    expect(stamp("server")).toBe("Old news");
+    expect(textOnScreen()).toBe(0);
+    act(() => vi.advanceTimersByTime(1_200));
+    expect(lineNow()).toBe("Customer: Here's my card: 750,000.");
+    act(() => vi.advanceTimersByTime(1_500 + 900 + 360 + 900));
+    expect([textOnScreen(), document.querySelectorAll(".pw-move").length]).toEqual([0, 1]);
+    expect(chip("charged")).toBe("nothing yet");
+    expect(playScene()).toEqual(["Payflow [Paid]: Got the receipt. I take the 750,000, once."]);
+    expect(chip("charged")).toBe("750,000, once");
+    expect(lineNow()).toBe("Cashier: Weak signal… did it go? Tap me to send it again.");
+
+    // However often the cashier taps on a weak signal, the customer pays once; with no inbox they'd pay each time.
+    expect(tapActor("cashier")).toEqual(["Payflow [Seen it]: Same receipt. I already have it: no money moves.", "With no inbox, the customer would have paid 1,500,000 IDR by now."]);
+    expect(tapActor("cashier")).toEqual(["Payflow [Seen it]: Same receipt. I already have it: no money moves.", "With no inbox, the customer would have paid 2,250,000 IDR by now."]);
+    expect(chip("charged")).toBe("750,000, once");
+    expect(lineNow()).toBe("The signal is slow today: old messages can turn up late.");
+    expect(tapActor("signal")).toEqual(["Payflow [Old news]: That's an old message. It stays paid.", "With no check, the old message would undo “paid”."]);
 
     // Closing the day sends the money to the bank; the provider's daily report follows on its own.
-    tapActor("server");
-    expect([stamp("bank"), stamp("server")]).toEqual(["Paid out", "Report agrees"]);
-    expect(screen.getByRole("group", { name: "The bank: what happens?" })).toBeTruthy();
-    choose("The money arrives");
-    expect([stamp("server"), reading("server"), reading("bank")]).toEqual(["Reconciled", "Payflow: Reconciled", "Bank: 747,750 IDR"]);
-    expect(said("cashier")).toBe("Settled! 747,750 is in our bank.");
+    expect(tapActor("server")).toEqual(["Payflow [Report agrees]: The card company's report agrees. Now I wait for the bank.", "Trusting the report, it would say “reconciled” already, with no money in the bank."]);
+    expect(chip("bank")).toBe("on its way");
+    expect(lineNow()).toBe("Did the 747,750 arrive?");
+    expect(options()).toEqual(expect.arrayContaining(["The money arrives", "It never arrives", "It arrives with no reference"]));
+    expect(choose("The money arrives")).toEqual(["Payflow [Reconciled]: The bank and the report agree. Reconciled!", "Cashier: Settled! 747,750 is in our bank."]);
+    expect(chip("bank")).toBe("747,750, settled");
 
     // What the visitor has met stays after Start over, and a mistake at the till has joined.
     fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+    expect(choose("The cashier types 740,000 by mistake")).toEqual(["Payflow [On hold]: 740,000 for a 750,000 price? I hold it for a person.", "With no check, 740,000 would count as paid in full."]);
+    expect(chip("charged")).toBe("nothing: on hold");
+    expect(choose("The cashier types the right amount")).toEqual(["Payflow [Try later]: It's on hold: I take nothing until it's checked."]);
+    expect(tapActor("operator")).toEqual(["Payflow [Released]: Checked. Now send that receipt again."]);
     tapActor("cashier");
-    expect([stamp("server"), reading("server"), reading("operator")]).toEqual(["On hold", "Payflow: On hold", "On hold"]);
-    tapActor("cashier");
-    choose("The cashier types the right amount");
-    expect(stamp("server")).toBe("Try later");
-    tapActor("operator");
-    expect(said("payflow")).toBe("Checked. Now send that receipt again.");
-    tapActor("cashier");
-    expect(reading("server")).toBe("Payflow: Paid");
+    expect(chip("charged")).toBe("750,000, once");
   });
 
   it("lets a rule be broken, as the repo's tests do, only with technical details", () => {
@@ -191,16 +215,12 @@ describe("DebuggerWorkspace", () => {
       </WorkspaceManagerProvider>,
     );
     for (const actor of ["customer", "cashier", "signal", "server"]) tapActor(actor);
-    choose("It arrives with no reference");
-    expect(stamp("bank")).toBe("Suspense");
-    expect(document.querySelector(".pw-tech")).toBeNull();
+    expect(choose("It arrives with no reference")[0]).toBe("Payflow [Suspense]: Money with no reference: it waits in suspense.");
+    expect(options().some((option) => option?.startsWith("Break"))).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Technical details" }));
-    choose("mutation: match a bank credit by amount when the reference is missing");
-    choose("credit without EndToEndId");
-    expect(stamp("bank")).toBe("RULE_BROKEN");
-    expect(said("payflow")).toBe("RULE_BROKEN");
-    choose("revert mutation: match a bank credit by amount when the reference is missing");
-    expect(said("payflow")).toBe("RULE_RESTORED");
+    expect(choose("mutation: match a bank credit by amount when the reference is missing")).toEqual(["Payflow [RULE_REMOVED]: Rule off. Send money with no reference."]);
+    expect(choose("credit without EndToEndId")[0]).toBe("Payflow [RULE_BROKEN]: Rule off: a guess landed it. The repo's landing rule catches it.");
+    expect(choose("revert mutation: match a bank credit by amount when the reference is missing")).toEqual(["Payflow [RULE_RESTORED]: The rule is back."]);
   });
 
   it("speaks in everyday words until the visitor asks for technical details", () => {
@@ -209,21 +229,21 @@ describe("DebuggerWorkspace", () => {
         <DebuggerWorkspace scenario={scenarios[0]} initialConditions={scenarios[0].defaults} onClose={vi.fn()} />
       </WorkspaceManagerProvider>,
     );
-    const scene = () => document.querySelector(".pw-world")?.textContent ?? "";
+    const frame = () => document.querySelector(".pw-frame")?.textContent ?? "";
     const toggle = screen.getByRole("button", { name: "Technical details" });
-    tapActor("customer");
+    const plain = tapActor("customer");
 
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
-    expect(scene()).toContain("Paid");
-    expect(scene()).not.toMatch(/evt\d|SUCCESS|APPLIED|\b200\b/);
+    expect(plain.join(" ")).toContain("[Paid]");
+    expect(`${plain.join(" ")} ${frame()}`).not.toMatch(/evt\d|SUCCESS|APPLIED|\b200\b/);
     expect(document.querySelector(".pw-tape")).toBeNull();
 
     fireEvent.click(toggle);
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
-    expect(stamp("server")).toBe("APPLIED 200");
-    expect(scene()).toContain("inbox: evt1");
-    expect(reading("server")).toBe("Payflow: SUCCESS");
-    expect(document.querySelector(".pw-tape code")?.textContent).toMatch(/evt1 new/);
+    expect(chip("tech")).toBe("SUCCESS · evt1");
+    expect(options()).toContain("redeliver evt1");
+    expect(tapActor("cashier")[0]).toBe("Payflow [DUPLICATE_IGNORED 200]: Same receipt. I already have it: no money moves.");
+    expect(document.querySelector(".pw-tape code")?.textContent).toMatch(/evt1/);
   });
 
   it("replays a condition, opens and closes evidence, and switches projects", () => {
@@ -241,7 +261,7 @@ describe("DebuggerWorkspace", () => {
 
     // Watching the next story sets its conditions, and the workspace reports the result.
     fireEvent.click(screen.getByRole("button", { name: "Watch it: the cashier taps twice" }));
-    act(() => vi.advanceTimersByTime(3_200 * 7));
+    untilWatched();
     fireEvent.click(screen.getByRole("button", { name: "Watch next: an old message arrives late" }));
     act(() => vi.advanceTimersByTime(900));
     expect(screen.getByRole("status").textContent).toMatch(/Result:/);

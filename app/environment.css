@@ -4565,129 +4565,142 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 /* ------------------------------------------------------------- Pay world */
 
 /* Case 01: a small world from a shop to a bank, left to right, drawn in the pixel family on
- * checked tiles. The visitor taps who acts; receipts cross a dotted line to Payflow's server, the
- * money crosses a second one to the bank, and the bank's settlement comes back. The world fits its
- * box when it can; a narrow box shows part of it and the view follows the action. */
+ * checked tiles, played like a story in a language game. One frame holds three bands: the goal
+ * and then two readings at the top, the world in the middle, and at the bottom what can happen
+ * next, or Continue while a scene plays. Only one line is ever said at a time: a bubble over
+ * whoever speaks, or the narrator's card in the sky. */
 .pay-world { display: grid; gap: 10px; min-inline-size: 0; padding: 12px var(--instrument-pad) var(--instrument-pad); position: relative; }
 .instrument[data-phase="rewind"] .pay-world { opacity: .7; }
 
-.pw-view { border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); overflow: hidden; position: relative; }
+.pw-frame { background: var(--raised); border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); container-type: inline-size; display: grid; min-inline-size: 0; }
+.pw-hud { align-items: center; border-block-end: 1px solid var(--line-ink); display: flex; flex-wrap: wrap; gap: 6px 14px; min-block-size: 52px; padding: 6px 10px; }
+.pw-goal { color: var(--ink); font: var(--type-label); margin: 0; }
+.pw-goal b { color: var(--accent-deep); }
+.pw-chip { align-items: center; display: inline-flex; gap: 6px; min-inline-size: 0; }
+.pw-chip > span { display: grid; }
+.pw-chip small { color: var(--ink-secondary); font: var(--type-caption); }
+.pw-chip b { animation: pw-pop 240ms steps(3, end); color: var(--ink); font: 700 .84rem/1.25 var(--font-mono), monospace; transform-origin: 0 50%; }
+.pw-chip[data-chip="tech"] b { font-size: .75rem; overflow-wrap: anywhere; }
+@container (max-width: 359px) { .pw-chip .pixel-object { display: none; } }
+
+.pw-view { background: #ffffff; overflow: hidden; position: relative; }
 .pw-world { position: relative; transition: transform 420ms cubic-bezier(.3, .7, .3, 1); }
 .pw-ground { block-size: 100%; inline-size: 100%; inset: 0; position: absolute; }
 .pw-line { stroke: #8d98a7; stroke-dasharray: 2 3; stroke-linecap: square; stroke-width: 1.5; }
-.pay-world[data-busy] .pw-line { stroke: var(--accent); }
+.pay-world[data-playing] .pw-line { stroke: var(--accent); }
 
 .pw-actor, .pw-prop { background: none; border: 0; display: block; padding: 0; position: absolute; }
 .pw-actor { cursor: default; z-index: 2; }
 .pw-actor[data-can] { cursor: pointer; }
-.pw-actor:disabled { color: inherit; opacity: 1; }
-.pw-actor[data-can]:hover .pixel-sprite { filter: drop-shadow(0 0 0 #ffffff) drop-shadow(1px 1px 0 var(--accent)) drop-shadow(-1px -1px 0 var(--accent)); }
+/* A still actor lets a tap fall through to the world, which continues the scene. */
+.pw-actor:disabled { color: inherit; opacity: 1; pointer-events: none; }
+.pw-actor[data-can]:hover .pixel-sprite { filter: drop-shadow(1px 1px 0 var(--accent)) drop-shadow(-1px -1px 0 var(--accent)); }
 .pw-actor:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pw-actor[data-nudged] { outline: 2px dashed var(--accent); outline-offset: 3px; }
 .pw-actor::after { content: ""; inset: -8px; position: absolute; }
 .pw-actor .pixel-sprite, .pw-prop .pixel-sprite { block-size: 100%; display: block; inline-size: 100%; }
-.pw-actor[data-actor="signal"] .pw-antenna { animation: pw-flicker 600ms steps(3, end); }
-
-.pw-tag, .pw-sign, .pw-label, .pw-stamp, .pw-emote { pointer-events: none; position: absolute; z-index: 3; }
-.pw-tag { color: var(--ink-secondary); font: 600 .72rem/1.2 var(--font-mono), monospace; }
-.pw-sign { color: var(--ink); font: var(--type-label); font-weight: 700; }
-.pw-label { display: grid; justify-items: center; margin: 0; text-align: center; transform: translateX(-50%); white-space: nowrap; }
-.pw-label b { background: #ffffff; border: 1px solid var(--line-ink); color: var(--ink); font: var(--type-caption); font-weight: 700; padding: 0 4px; }
-.pw-label small { color: var(--ink-secondary); font: var(--type-caption); }
-.pw-label-held b { background: var(--uncertain-wash); border-color: var(--uncertain); color: var(--uncertain); }
-.pay-world[data-technical] .pw-label b { font-family: var(--font-mono), monospace; }
-
-.pw-stamp {
-  animation: pw-stamp 220ms steps(3, end) backwards;
-  background: #ffffff;
-  border: 2px solid currentColor;
-  box-shadow: inset 0 0 0 1px #ffffff, inset 0 0 0 2px currentColor;
-  color: var(--ink-secondary);
-  font: 700 .78rem/1.2 var(--font-mono), monospace;
-  padding: 2px 6px;
-  transform: translate(-50%, -100%);
-  white-space: nowrap;
-}
-.pw-stamp[data-tone="confirmed"] { color: var(--confirmed); }
-.pw-stamp[data-tone="uncertain"] { color: var(--uncertain); }
-.pw-stamp[data-tone="adverse"] { color: var(--adverse-ink); }
-.pw-stamp[data-hit="bad"] { animation: pw-stamp 220ms steps(3, end) backwards, pw-jolt 255ms steps(6, end) 100ms; }
-.pw-emote { animation: pw-pop 200ms steps(3, end); background: #ffffff; border: 1px solid var(--line-ink); color: var(--ink); font: 700 .85rem/1 var(--font-mono), monospace; padding: 2px 5px; transform: translate(-50%, -100%); }
 
 .pw-move { inset-block-start: 0; inset-inline-start: 0; pointer-events: none; position: absolute; z-index: 4; }
 .pw-move .pixel-sprite { display: block; inline-size: 100%; }
 
-/* What anything says is said in the world: a bubble over whoever speaks, the next one to tap
- * inviting it in their own voice (the whole bubble is the tap), and the bank's answers as the
- * choices in its bubble. The comparison is a quieter second line in Payflow's bubble. */
-.pw-goal { background: #ffffff; border: 1px solid var(--line-ink); color: var(--ink); font: var(--type-label); margin: 0; padding: 2px 8px; pointer-events: none; position: absolute; z-index: 3; }
-.pw-goal b { color: var(--accent-deep); }
+/* The one line: a bubble over whoever speaks, kept inside the view, its tail at the speaker. */
 .pw-bubble {
-  animation: pw-appear 1ms backwards;
+  animation: pw-pop 200ms steps(3, end);
   background: #ffffff;
   border: 1px solid var(--line-ink);
   box-shadow: var(--object-shadow);
   color: var(--ink);
   display: grid;
-  font: 500 .85rem/1.3 var(--font-body), system-ui, sans-serif;
-  gap: 3px;
+  gap: 2px;
   inline-size: max-content;
-  max-inline-size: min(15rem, 60vw);
-  padding: 6px 9px;
+  margin: 0;
+  max-inline-size: min(var(--most, 18rem), 18rem);
+  padding: 6px 10px 7px;
+  pointer-events: none;
   position: absolute;
-  text-align: start;
+  transform: translate(-50%, calc(-100% - 10px));
+  transform-origin: 50% 100%;
   z-index: 5;
 }
-.pw-bubble[data-side="top"][data-align="center"] { transform: translate(-50%, calc(-100% - 9px)); }
-.pw-bubble[data-side="top"][data-align="start"] { transform: translate(-18px, calc(-100% - 9px)); }
-.pw-bubble[data-side="top"][data-align="end"] { transform: translate(calc(-100% + 18px), calc(-100% - 9px)); }
-.pw-bubble[data-side="right"] { transform: translate(9px, -50%); }
-.pw-bubble[data-side="left"] { transform: translate(calc(-100% - 9px), -50%); }
-/* The tail points at whoever speaks. */
-.pw-bubble::after { background: inherit; block-size: 8px; border-block-end: 1px solid var(--line-ink); border-inline-end: 1px solid var(--line-ink); content: ""; inline-size: 8px; position: absolute; rotate: 45deg; }
-.pw-bubble[data-side="top"]::after { inset-block-end: -5px; inset-inline-start: calc(50% - 4px); }
-.pw-bubble[data-side="top"][data-align="start"]::after { inset-inline-start: 14px; }
-.pw-bubble[data-side="top"][data-align="end"]::after { inset-inline-start: calc(100% - 22px); }
-.pw-bubble[data-side="right"]::after { inset-block-start: calc(50% - 4px); inset-inline-start: -5px; rotate: 135deg; }
-.pw-bubble[data-side="left"]::after { inset-block-start: calc(50% - 4px); inset-inline-end: -5px; inset-inline-start: auto; rotate: -45deg; }
-.pw-bubble[data-hint] { border-color: var(--accent); }
-.pw-bubble-say[data-tone="confirmed"] { color: var(--confirmed); font-weight: 600; }
-.pw-bubble-say[data-tone="uncertain"] { color: var(--uncertain); font-weight: 600; }
-.pw-bubble-say[data-tone="adverse"] { color: var(--adverse-ink); font-weight: 600; }
-.pw-bubble-aside { border-block-start: 1px dashed var(--doc-edge); color: var(--ink-secondary); font: var(--type-caption); padding-block-start: 3px; }
-.pw-bubble-hint { color: var(--accent-deep); font: 700 .82rem/1.3 var(--font-body), system-ui, sans-serif; }
-button.pw-bubble { cursor: pointer; padding-inline-end: 30px; }
-button.pw-bubble:hover { background: var(--accent-soft); }
-button.pw-bubble:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.pw-bubble-hand { animation: pw-appear 1ms 200ms backwards; inset-block-end: -14px; inset-inline-end: -12px; position: absolute; }
-.pay-world[data-technical] .pw-bubble-say { font-family: var(--font-mono), monospace; font-size: .75rem; }
-.pw-bubble-choices { display: grid; gap: 4px; margin-block-start: 2px; }
-.pw-choice {
-  align-items: center;
+.pw-bubble::after { background: inherit; block-size: 9px; border-block-end: 1px solid var(--line-ink); border-inline-end: 1px solid var(--line-ink); content: ""; inline-size: 9px; inset-block-end: -6px; inset-inline-start: clamp(8px, calc(50% + var(--tail, 0px) - 5px), calc(100% - 17px)); position: absolute; rotate: 45deg; }
+.pw-bubble-head { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; }
+.pw-bubble-head b { color: var(--ink-secondary); font: 700 .72rem/1.3 var(--font-body), system-ui, sans-serif; letter-spacing: .02em; text-transform: uppercase; }
+.pw-bubble[data-speaker="server"] .pw-bubble-head b, .pw-bubble[data-speaker="operator"] .pw-bubble-head b { color: var(--accent-deep); }
+.pw-bubble-stamp { border: 1px solid currentColor; color: var(--ink-secondary); font: 700 .72rem/1.3 var(--font-mono), monospace; padding: 0 4px; }
+.pw-bubble-stamp[data-tone="confirmed"] { background: var(--confirmed-wash); color: var(--confirmed); }
+.pw-bubble-stamp[data-tone="uncertain"] { background: var(--uncertain-wash); color: var(--uncertain); }
+.pw-bubble-stamp[data-tone="adverse"] { background: var(--adverse-wash); color: var(--adverse-ink); }
+.pw-bubble-text { font: 500 .94rem/1.35 var(--font-body), system-ui, sans-serif; }
+/* A line whose speaker the view turns to, and an invitation to whoever is next, wait for the turn. */
+.pw-bubble:is([data-turn], [data-invite]) { animation: pw-appear 1ms 420ms backwards, pw-pop 200ms steps(3, end) 420ms backwards; }
+.pw-bubble[data-invite] { border-color: var(--accent); }
+.pw-bubble[data-invite] .pw-bubble-text { color: var(--accent-deep); font-weight: 700; }
+.pw-bubble[data-hit="bad"] { animation: pw-pop 200ms steps(3, end), pw-jolt 255ms steps(6, end) 200ms; }
+
+/* The narrator: what no one in the world says, on a card in the sky. */
+.pw-narration {
+  animation: pw-appear 1ms backwards;
   background: var(--raised);
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--object-shadow);
+  color: var(--ink);
+  font: 500 .86rem/1.35 var(--font-body), system-ui, sans-serif;
+  inline-size: max-content;
+  inset-block-start: 6px;
+  inset-inline-start: 50%;
+  margin: 0;
+  max-inline-size: min(26rem, calc(100% - 24px));
+  padding: 5px 10px;
+  pointer-events: none;
+  position: absolute;
+  text-align: center;
+  transform: translateX(-50%);
+  z-index: 5;
+}
+.pw-narration[data-invite] { border-color: var(--accent); color: var(--accent-deep); font-weight: 700; }
+
+/* The band: what can happen next, or Continue. Always there, so the frame keeps its height. */
+.pw-band { align-items: center; border-block-start: 1px solid var(--line-ink); display: flex; min-block-size: 64px; padding: 8px 10px; }
+.pw-band-note { color: var(--ink-secondary); font: var(--type-label); margin: 0; }
+.pw-continue {
+  background: var(--accent-action);
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--bevel-primary);
+  color: #ffffff;
+  cursor: pointer;
+  font: 700 .95rem/1 var(--font-body), system-ui, sans-serif;
+  inline-size: min(100%, 22rem);
+  letter-spacing: .02em;
+  margin-inline-start: auto;
+  min-block-size: 46px;
+  padding: 0 18px;
+}
+.pw-continue:hover { background: var(--accent-deep); }
+.pw-continue:active { box-shadow: var(--bevel-primary-inset); transform: translate(1px, 1px); }
+.pw-continue:focus-visible, .pw-option:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pw-options { display: grid; flex: 1; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); }
+.pw-option {
+  align-items: center;
+  background: #ffffff;
   border: 1px solid var(--line-ink);
   box-shadow: var(--bevel-raised);
   color: var(--ink);
   cursor: pointer;
-  display: inline-flex;
+  display: flex;
   font: var(--type-label);
   font-weight: 600;
-  gap: 4px;
-  min-block-size: 44px;
-  padding: 4px 10px;
+  gap: 8px;
+  min-block-size: 46px;
+  padding: 4px 12px 4px 6px;
   position: relative;
   text-align: start;
 }
-html[data-system-mode="computer"] .pw-choice { min-block-size: 32px; }
-.pw-choice:hover { background: #ffffff; }
-.pw-choice:active { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
-.pw-choice:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.pw-choice[data-nudged], .pw-actions .sim-secondary[data-nudged] { outline: 2px solid var(--accent); outline-offset: 2px; }
-.pw-choice-hand { inset-block-end: -14px; inset-inline-end: -12px; position: absolute; }
-.pw-tech { border: 1px dashed var(--adverse); display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; }
-.pw-tech .pw-choice { font-family: var(--font-mono), monospace; font-size: .75rem; }
-/* What crosses a line says what it is. */
-.pw-move-tag { background: #ffffff; border: 1px solid var(--line-ink); color: var(--ink); font: 600 .7rem/1.3 var(--font-mono), monospace; inset-block-start: 50%; inset-inline-start: 100%; padding: 0 4px; position: absolute; transform: translate(4px, -50%); white-space: nowrap; }
+.pw-option:hover { background: var(--accent-soft); }
+.pw-option:active { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
+.pw-option[data-nudged] { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pw-option-hand { animation: pw-appear 1ms 200ms backwards; inset-block-end: -14px; inset-inline-end: -10px; position: absolute; }
+.pay-world[data-technical] .pw-option { font-family: var(--font-mono), monospace; font-size: .75rem; }
+.pw-actions .sim-secondary[data-nudged] { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .pw-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
 .pw-actions .instrument-technical { margin-inline-start: auto; }
@@ -4697,13 +4710,11 @@ html[data-system-mode="computer"] .pw-choice { min-block-size: 32px; }
 .pw-tape code { font-size: .72rem; overflow-wrap: anywhere; }
 
 @keyframes pw-appear { from { visibility: hidden; } }
-@keyframes pw-stamp { 0% { opacity: 0; transform: translate(-50%, -100%) scale(1.6); } 67% { opacity: 1; } 100% { transform: translate(-50%, -100%); } }
-@keyframes pw-pop { 0% { transform: translate(-50%, -100%) scale(.4); } 100% { transform: translate(-50%, -100%); } }
+@keyframes pw-pop { 0% { scale: .6; } 100% { scale: 1; } }
 @keyframes pw-jolt { 0%, 100% { translate: 0 0; } 17%, 50% { translate: -2px 0; } 33%, 67% { translate: 2px 0; } 83% { translate: -1px 0; } }
-@keyframes pw-flicker { 0%, 100% { opacity: 1; } 34% { opacity: .3; } 67% { opacity: .7; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .pay-world *, .pay-world *::before { animation: none !important; }
+  .pay-world *, .pay-world *::before, .pay-world *::after { animation: none !important; }
   .pw-world { transition: none; }
   .pw-move { display: none; }
 }

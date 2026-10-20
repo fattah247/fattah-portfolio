@@ -308,6 +308,22 @@ export function withoutInbox(world: World): string {
   }
 }
 
+/** What the bank says as its statement goes back to Payflow. */
+export function bankLine(input: FlowInput): string {
+  if (input.kind !== "statement") return "";
+  if (input.statement === "credit") return `${PAYOUT_NET.toLocaleString("en-US")} arrived, with its reference.`;
+  if (input.statement === "no-credit") return "Nothing arrived by the value date.";
+  if (input.statement === "no-reference") return "Money arrived, but with no reference.";
+  return "Here's the same statement again.";
+}
+
+/** The narrator's line for what no one in the world says: a slow signal, the daily report. */
+export function narratorLine(input: FlowInput): string {
+  if (input.kind === "webhook" && input.webhook === "late-authorized") return "A slow signal delivers an old message: “authorized”.";
+  if (input.kind === "report") return "The card company's daily report arrives.";
+  return "";
+}
+
 /** What the cashier says as they act, or as the settlement reaches them. */
 export function cashierLine(world: World, actionId: string, taps: number): string | null {
   const { flow } = world;
