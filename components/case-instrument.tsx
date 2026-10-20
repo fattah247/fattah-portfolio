@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PlayIcon, ResetIcon } from "./icons";
 import { answerDelayMs, DeviceDiagram, ruleStepMs, ServiceDiagram, toRulesMs } from "./sim-diagrams";
-import { ShopCounter } from "./shop-counter";
+import { PayWorld } from "./pay-world";
 import { useSound } from "./sound-provider";
 import { type CueId } from "../lib/sound/engine";
 import { assessDevice, blockOnAnySignal, deviceChecks, deviceProfiles, HIGH_SCORE_THRESHOLD, MEDIUM_SCORE_THRESHOLD, SCREEN_LOCK, type DeviceAssessment, type GateDecision, type RiskLevel } from "../lib/device-risk";
@@ -30,7 +30,7 @@ function useOnChange<T>(value: T, effect: (next: T, previous: T) => void) {
 
 /** Each simulator has a name, like a small piece of equipment. */
 const simName: Record<Scenario["slug"], string> = {
-  payflow: "Shop counter",
+  payflow: "Shop to bank",
   iyup: "Website monitor",
   trustgate: "Payment gate",
 };
@@ -39,7 +39,7 @@ const simName: Record<Scenario["slug"], string> = {
 const toys = new Set<Scenario["slug"]>(["payflow"]);
 
 const howTo: Record<Scenario["slug"], string> = {
-  payflow: "A customer pays 750,000 IDR by card. Press the card machine's keys and watch where the money goes.",
+  payflow: "A customer pays 750,000 IDR at a shop. Tap who acts, and follow the receipt to Payflow's server and the money to the bank.",
   iyup: "iYup watches a page from two regions, one check every 30 seconds; here a second is one check. Slow the page, break it in one region, or silence an agent, and see what iYup says and when it alerts.",
   trustgate: "You're sending a payment. Switch on what the phone's checks find: each adds points by how serious it is. The server decides from the total, and the phone writes the decision to its log.",
 };
@@ -136,7 +136,7 @@ export function CaseInstrument({
         <p className="instrument-instruction">{howTo[scenario.slug]}</p>
         {toys.has(scenario.slug) ? null : technicalKey}
       </div>
-      {scenario.slug === "payflow" ? <ShopCounter conditions={conditions} isDefault={isDefault} onChange={onChange} onReset={onReset} technical={technical} technicalKey={technicalKey} /> : null}
+      {scenario.slug === "payflow" ? <PayWorld conditions={conditions} isDefault={isDefault} onChange={onChange} onReset={onReset} technical={technical} technicalKey={technicalKey} /> : null}
       {scenario.slug === "iyup" ? <ServiceSim {...shared} foreground={foreground} /> : null}
       {scenario.slug === "trustgate" ? <DeviceSim {...shared} /> : null}
     </section>

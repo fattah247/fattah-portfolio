@@ -4562,173 +4562,118 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 .pixel-object path { stroke: none !important; }
 .pixel-object[data-ghost] { color: #59616d; }
 
-/* ------------------------------------------------------------- Shop counter */
+/* ------------------------------------------------------------- Pay world */
 
-/* Case 01: a customer pays 750,000 IDR by card at a shop counter. Four things stand on one white
- * counter, left to right along the money's way: the customer, the card machine (the payment
- * provider, whose keys the visitor presses), Payflow's till, and the shop's bank. The flow along the
- * top says where the money is; the till next door, sketched, is the comparison. On a phone the four
- * stand in one row and their keys gather below it, so a press and what it does share one screen. */
-.shop-counter { container: counter / inline-size; display: grid; gap: 12px; min-inline-size: 0; padding: 12px var(--instrument-pad) var(--instrument-pad); position: relative; }
-.instrument[data-phase="rewind"] .shop-counter { opacity: .7; }
+/* Case 01: a small world from a shop to a bank, left to right, drawn in the pixel family on
+ * checked tiles. The visitor taps who acts; receipts cross a dotted line to Payflow's server, the
+ * money crosses a second one to the bank, and the bank's settlement comes back. The world fits its
+ * box when it can; a narrow box shows part of it and the view follows the action. */
+.pay-world { display: grid; gap: 10px; min-inline-size: 0; padding: 12px var(--instrument-pad) var(--instrument-pad); position: relative; }
+.instrument[data-phase="rewind"] .pay-world { opacity: .7; }
 
-/* Where the money is: four lamps joined by a line, lit as the payment moves along. */
-.sc-flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); list-style: none; margin: 0; padding: 0; }
-.sc-flow li { align-items: start; display: flex; gap: 6px; min-inline-size: 0; padding-inline-end: 8px; position: relative; }
-.sc-flow li:not(:last-child)::after { background: var(--doc-edge); block-size: 2px; content: ""; inset-block-start: 6px; inset-inline: 18px 4px; position: absolute; }
-.sc-flow li[data-state="done"]:not(:last-child)::after { background: var(--confirmed); }
-.sc-flow i { background: #ffffff; block-size: 14px; border: 1px solid var(--line-ink); display: block; flex: none; inline-size: 14px; position: relative; z-index: 1; }
-.sc-flow span { background: var(--surface, #f7f8f9); display: grid; gap: 1px; margin-block-start: 16px; margin-inline-start: -20px; min-inline-size: 0; padding-inline-end: 4px; }
-.sc-flow b { color: var(--ink-secondary); font: var(--type-label); font-weight: 600; }
-.sc-flow small { color: var(--ink-secondary); font: var(--type-caption); }
-.sc-flow li[data-state="done"] i { background: var(--confirmed); }
-.sc-flow li[data-state="done"] b { color: var(--confirmed); }
-.sc-flow li[data-state="now"] i { background: var(--accent); }
-.sc-flow li[data-state="now"] b { color: var(--ink); }
-.sc-flow li[data-state="held"] i { background: var(--uncertain); }
-.sc-flow li[data-state="held"] b { color: var(--uncertain); }
-.sc-flow li[data-state="broken"] i { background: var(--adverse); }
-.sc-flow li[data-state="broken"] b { color: var(--adverse-ink); }
+.pw-view { border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); overflow: hidden; position: relative; }
+.pw-world { position: relative; transition: transform 420ms cubic-bezier(.3, .7, .3, 1); }
+.pw-ground { block-size: 100%; inline-size: 100%; inset: 0; position: absolute; }
+.pw-line { stroke: #8d98a7; stroke-dasharray: 2 3; stroke-linecap: square; stroke-width: 1.5; }
+.pay-world[data-busy] .pw-line { stroke: var(--accent); }
 
-/* The counter: one white surface with the four things on it. */
-.sc-scene { background: #ffffff; border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); display: grid; gap: 12px 16px; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 12px; }
-.sc-object { align-content: start; display: grid; gap: 10px; min-inline-size: 0; }
-.sc-figure { align-content: start; display: grid; gap: 4px; justify-items: start; min-inline-size: 0; position: relative; }
-.sc-figure > p { display: grid; gap: 1px; margin: 0; }
-.sc-figure > p b { color: var(--ink); font: var(--type-label); font-weight: 600; }
-.sc-figure > p small { color: var(--ink-secondary); font: var(--type-caption); }
-.sc-figure > span { display: block; }
-.sc-wallet { inset-block-start: 20px; inset-inline-start: 44px; position: absolute; }
-.sc-till { align-items: end; display: flex; }
-.sc-till .sc-cashier { animation: sc-knock 150ms steps(3, end); }
+.pw-actor, .pw-prop { background: none; border: 0; display: block; padding: 0; position: absolute; }
+.pw-actor { cursor: default; z-index: 2; }
+.pw-actor[data-can] { cursor: pointer; }
+.pw-actor:disabled { color: inherit; opacity: 1; }
+.pw-actor[data-can]:hover .pixel-sprite { filter: drop-shadow(0 0 0 #ffffff) drop-shadow(1px 1px 0 var(--accent)) drop-shadow(-1px -1px 0 var(--accent)); }
+.pw-actor:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pw-actor[data-nudged] { outline: 2px dashed var(--accent); outline-offset: 3px; }
+.pw-actor::after { content: ""; inset: -8px; position: absolute; }
+.pw-actor .pixel-sprite, .pw-prop .pixel-sprite { block-size: 100%; display: block; inline-size: 100%; }
+.pw-actor[data-actor="signal"] .pw-antenna { animation: pw-flicker 600ms steps(3, end); }
+/* The hand points at who to tap, from their right. */
+.pw-point { animation: pw-appear 1ms 200ms backwards; inset-block-start: 20%; inset-inline-start: calc(100% + 4px); position: absolute; z-index: 3; }
 
-/* The till's display: the payment's state, the money in the drawer, and the two proofs. */
-.sc-display { animation: sc-knock 150ms steps(3, end); background: var(--paper-raised); border: 1px solid var(--line-ink); display: grid; gap: 2px; inline-size: 100%; padding: 4px 8px; }
-.sc-display strong { color: var(--ink-secondary); font: 700 1rem/1.2 var(--font-body), system-ui, sans-serif; }
-.shop-counter[data-technical] .sc-display strong { font-family: var(--font-mono), monospace; font-size: .85rem; }
-.sc-display:is([data-state="success"], [data-state="settled"], [data-state="reconciled"]) strong { color: var(--confirmed); }
-.sc-display[data-state="manual_review"] strong { color: var(--uncertain); }
-.sc-drawer { display: block; min-block-size: 32px; }
-.sc-readings { display: flex; flex-wrap: wrap; gap: 2px 10px; list-style: none; margin: 0; padding: 0; }
-.sc-readings li { align-items: center; color: var(--ink-secondary); display: flex; font: var(--type-caption); gap: 4px; }
-.sc-readings li[data-done] { color: var(--confirmed); font-weight: 600; }
-.sc-readings i { block-size: 10px; border: 1px solid var(--line-ink); display: block; inline-size: 10px; margin: 3px; }
-.sc-manager { align-items: center; background: var(--uncertain-wash); border: 1px solid var(--uncertain); display: flex; gap: 6px; inline-size: 100%; padding: 4px 6px; }
-.sc-manager small { color: var(--uncertain); font: var(--type-caption); font-weight: 600; }
-.sc-bank-answer { align-items: center; display: flex; gap: 6px; margin: 0; }
+.pw-tag, .pw-sign, .pw-label, .pw-stamp, .pw-emote { pointer-events: none; position: absolute; z-index: 3; }
+.pw-tag { color: var(--ink-secondary); font: 600 .72rem/1.2 var(--font-mono), monospace; }
+.pw-sign { color: var(--ink); font: var(--type-label); font-weight: 700; }
+.pw-label { display: grid; justify-items: center; margin: 0; text-align: center; transform: translateX(-50%); white-space: nowrap; }
+.pw-label b { background: #ffffff; border: 1px solid var(--line-ink); color: var(--ink); font: var(--type-caption); font-weight: 700; padding: 0 4px; }
+.pw-label small { color: var(--ink-secondary); font: var(--type-caption); }
+.pw-label-held b { background: var(--uncertain-wash); border-color: var(--uncertain); color: var(--uncertain); }
+.pay-world[data-technical] .pw-label b { font-family: var(--font-mono), monospace; }
 
-/* A stamp: a framed word in its meaning colour, coming down as the thing is looked at. */
-.sc-stamp {
-  animation: sc-stamp 200ms steps(3, end) backwards;
+.pw-stamp {
+  animation: pw-stamp 220ms steps(3, end) backwards;
+  background: #ffffff;
   border: 2px solid currentColor;
   box-shadow: inset 0 0 0 1px #ffffff, inset 0 0 0 2px currentColor;
   color: var(--ink-secondary);
-  display: inline-block;
   font: 700 .78rem/1.2 var(--font-mono), monospace;
-  padding: 3px 7px;
+  padding: 2px 6px;
+  transform: translate(-50%, -100%);
   white-space: nowrap;
 }
-.sc-stamp[data-tone="confirmed"] { color: var(--confirmed); }
-.sc-stamp[data-tone="uncertain"] { color: var(--uncertain); }
-.sc-stamp[data-tone="adverse"] { color: var(--adverse-ink); }
-.shop-counter[data-technical] .sc-stamp { font-size: .7rem; overflow-wrap: anywhere; white-space: normal; }
-.sc-stamp[data-hit="bad"], .sc-bank-answer[data-hit="bad"] { animation: sc-stamp 200ms steps(3, end) backwards, sc-jolt 255ms steps(6, end) 100ms; }
+.pw-stamp[data-tone="confirmed"] { color: var(--confirmed); }
+.pw-stamp[data-tone="uncertain"] { color: var(--uncertain); }
+.pw-stamp[data-tone="adverse"] { color: var(--adverse-ink); }
+.pw-stamp[data-hit="bad"] { animation: pw-stamp 220ms steps(3, end) backwards, pw-jolt 255ms steps(6, end) 100ms; }
+.pw-emote { animation: pw-pop 200ms steps(3, end); background: #ffffff; border: 1px solid var(--line-ink); color: var(--ink); font: 700 .85rem/1 var(--font-mono), monospace; padding: 2px 5px; transform: translate(-50%, -100%); }
 
-/* The keys: the one key family, under the thing they belong to. */
-.sc-keys { display: grid; gap: 6px; min-inline-size: 0; }
-.sc-keys-name { display: none; margin: 0; }
-.sc-key {
+.pw-move { inset-block-start: 0; inset-inline-start: 0; pointer-events: none; position: absolute; z-index: 4; }
+.pw-move .pixel-sprite { display: block; inline-size: 100%; }
+
+/* The dialogue: who said what, the bank's choices, and what to try next. */
+.pw-dialog { background: #ffffff; border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); display: grid; gap: 6px; padding: 8px 12px; }
+.pw-say { align-items: start; animation: pw-appear 1ms backwards; display: flex; gap: 8px; margin: 0; }
+.pw-say span { color: var(--ink); display: grid; font: var(--type-body); font-size: .95rem; gap: 0; line-height: 1.35; }
+.pw-say b { color: var(--ink-secondary); font: var(--type-caption); font-weight: 700; }
+.pw-say[data-speaker="cashier"] span { color: var(--ink-secondary); font-size: .88rem; }
+.pw-choices { align-items: center; display: flex; flex-wrap: wrap; gap: 6px 8px; }
+.pw-choices p { color: var(--ink); font: var(--type-label); font-weight: 600; margin: 0; }
+.pw-choice {
   align-items: center;
   background: var(--raised);
   border: 1px solid var(--line-ink);
   box-shadow: var(--bevel-raised);
   color: var(--ink);
   cursor: pointer;
-  display: flex;
-  gap: 6px;
+  display: inline-flex;
+  font: var(--type-label);
+  font-weight: 600;
+  gap: 4px;
   min-block-size: 44px;
-  min-inline-size: 0;
-  padding: 4px 10px;
+  padding: 4px 12px;
   position: relative;
-  text-align: start;
-  touch-action: manipulation;
 }
-.sc-key > span { display: grid; flex: 1 1 auto; gap: 1px; min-inline-size: 0; }
-.sc-key b { font: var(--type-label); font-weight: 600; overflow-wrap: anywhere; }
-.sc-key small { color: var(--ink-secondary); font: var(--type-caption); }
-.sc-key:hover { background: #ffffff; }
-.sc-key:active { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
-.sc-key:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-html[data-system-mode="computer"] .sc-key { min-block-size: 40px; }
-/* What Payflow suggests is outlined in accent, with the hand on its corner. */
-.sc-key[data-nudged], .sc-actions .sim-secondary[data-nudged] { background: #ffffff; outline: 2px solid var(--accent); outline-offset: 2px; position: relative; }
-.sc-point { animation: sc-appear 1ms 200ms backwards; inset-block-end: -14px; inset-inline-end: -10px; position: absolute; z-index: 2; }
-.sc-new { background: var(--accent-soft); border: 1px solid var(--accent-deep); color: var(--accent-deep); flex: none; font: 700 .7rem/1.2 var(--font-mono), monospace; font-style: normal; padding: 1px 5px; }
+html[data-system-mode="computer"] .pw-choice { min-block-size: 36px; }
+.pw-choice:hover { background: #ffffff; }
+.pw-choice:active { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
+.pw-choice:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pw-choice[data-nudged], .pw-actions .sim-secondary[data-nudged] { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pw-choice-hand { inset-block-end: -14px; inset-inline-end: -12px; position: absolute; }
+.pw-try { color: var(--accent-deep); font: var(--type-label); margin: 0; }
+.pw-try b { font-weight: 700; }
+.pw-tech { border: 1px dashed var(--adverse); display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; }
+.pw-tech .pw-choice { font-family: var(--font-mono), monospace; font-size: .75rem; }
 
-/* What Payflow says, with what to try next. */
-.sc-speech { background: #ffffff; border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); display: grid; gap: 4px; min-inline-size: 0; padding: 8px 12px; }
-.sc-speech p { margin: 0; }
-.sc-speech-line { animation: sc-appear 1ms backwards; color: var(--ink); font: var(--type-body); font-size: .95rem; line-height: 1.4; }
-.sc-speaker { font-weight: 700; }
-.sc-speech-try { color: var(--accent-deep); font: var(--type-caption); font-size: .82rem; }
-.sc-speech-try span { font-weight: 700; }
-.sc-rules { border: 1px dashed var(--adverse); padding: 8px; }
-.sc-rules .sc-keys-name { color: var(--adverse-ink); display: block; font: var(--type-label); font-weight: 600; }
+/* The comparison: one quiet line, never animated, never part of the repo. */
+.pw-next-door { color: var(--ink-secondary); font: var(--type-caption); margin: 0; }
+.pw-next-door span { font-weight: 600; }
+.pw-next-door b { color: var(--ink); }
+.pw-next-door b[data-bad] { color: var(--adverse-ink); }
 
-/* Next door: the comparison, sketched in the same things, never part of the repo. */
-.sc-next-door { background: var(--doc-sunken); border: 1px dashed var(--doc-edge); display: grid; gap: 6px; padding: 8px 12px; }
-.sc-next-door-label { display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 0; }
-.sc-next-door-label span { color: var(--ink-secondary); font: var(--type-caption); }
-.sc-next-door-label b { color: var(--ink); font: var(--type-label); font-weight: 600; }
-.sc-next-door-row { align-items: center; display: flex; flex-wrap: wrap; gap: 6px 10px; }
-.sc-next-door-row strong { color: var(--ink-secondary); font: var(--type-label); font-weight: 600; }
-.sc-next-door-row strong[data-bad] { color: var(--adverse-ink); }
-.sc-next-door-row small { color: var(--ink-secondary); font: var(--type-caption); }
-.sc-next-door .sc-stamp { animation: none; }
-.sc-next-door-now { color: var(--ink-secondary); font: var(--type-caption); margin: 0; }
+.pw-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.pw-actions .instrument-technical { margin-inline-start: auto; }
+.pw-tape { display: grid; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.pw-tape li { color: var(--ink-secondary); font: var(--type-caption); }
+.pw-tape b { color: var(--ink); font-family: var(--font-mono), monospace; }
+.pw-tape code { font-size: .72rem; overflow-wrap: anywhere; }
 
-.sc-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
-.sc-actions .instrument-technical { margin-inline-start: auto; }
-.sc-tape { display: grid; gap: 4px; list-style: none; margin: 0; padding: 0; }
-.sc-tape li { color: var(--ink-secondary); font: var(--type-caption); }
-.sc-tape b { color: var(--ink); font-family: var(--font-mono), monospace; }
-.sc-tape code { font-size: .72rem; overflow-wrap: anywhere; }
-
-/* What crosses the counter on a press (a receipt, the money, a slip, a coin). Its path is stepped
- * in JS (components/shop-counter), so it reads as pixels moving. */
-.sc-move { inset-block-start: 0; inset-inline-start: 0; pointer-events: none; position: absolute; z-index: 6; }
-.sc-move:not([data-ghost]) { filter: drop-shadow(3px 4px 0 rgb(37 43 52 / 18%)); }
-
-/* A phone: the four things stand in one row, and their keys gather below it, two to a row. */
-@container counter (max-width: 39.99rem) {
-  .sc-flow small { display: none; }
-  .sc-flow b { font-size: .75rem; }
-  .sc-scene { gap: 8px; padding: 8px; }
-  .sc-object { display: contents; }
-  .sc-figure { grid-row: 1; justify-items: center; text-align: center; }
-  .sc-figure > p small { display: none; }
-  .sc-figure > p b { font-size: .75rem; }
-  .sc-wallet { inset-block-start: 22px; inset-inline-start: calc(50% + 6px); }
-  .sc-wallet .pixel-object { block-size: 24px; inline-size: 24px; }
-  .sc-till .sc-cashier { display: none; }
-  .sc-display { padding: 3px 4px; }
-  .sc-display strong { font-size: .82rem; }
-  .sc-readings { justify-content: center; }
-  .sc-stamp { font-size: .7rem; padding: 2px 4px; }
-  .sc-manager { flex-direction: column; }
-  .sc-keys { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .sc-keys-name { color: var(--ink-secondary); display: block; font: var(--type-caption); font-weight: 600; grid-column: 1 / -1; }
-  .sc-key small { display: none; }
-  .sc-key { padding-inline: 8px; }
-  .sc-speech-line { font-size: .9rem; }
-}
-
-@keyframes sc-appear { from { visibility: hidden; } }
-@keyframes sc-stamp { 0% { opacity: 0; transform: scale(1.6); } 67% { opacity: 1; } 100% { transform: none; } }
-@keyframes sc-knock { 0%, 100% { translate: 0 0; } 34% { translate: 0 2px; } }
-@keyframes sc-jolt { 0%, 100% { translate: 0 0; } 17%, 50% { translate: -2px 0; } 33%, 67% { translate: 2px 0; } 83% { translate: -1px 0; } }
+@keyframes pw-appear { from { visibility: hidden; } }
+@keyframes pw-stamp { 0% { opacity: 0; transform: translate(-50%, -100%) scale(1.6); } 67% { opacity: 1; } 100% { transform: translate(-50%, -100%); } }
+@keyframes pw-pop { 0% { transform: translate(-50%, -100%) scale(.4); } 100% { transform: translate(-50%, -100%); } }
+@keyframes pw-jolt { 0%, 100% { translate: 0 0; } 17%, 50% { translate: -2px 0; } 33%, 67% { translate: 2px 0; } 83% { translate: -1px 0; } }
+@keyframes pw-flicker { 0%, 100% { opacity: 1; } 34% { opacity: .3; } 67% { opacity: .7; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .shop-counter *, .shop-counter *::before { animation: none !important; }
-  .sc-move { display: none; }
+  .pay-world *, .pay-world *::before { animation: none !important; }
+  .pw-world { transition: none; }
+  .pw-move { display: none; }
 }

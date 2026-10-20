@@ -81,53 +81,51 @@ describe("sound", () => {
     expect(screen.queryByRole("group", { name: "Sound" })).toBeNull();
   });
 
-  it("plays the shop counter's own outcomes, timed to the stamp landing, and marks the knock and the jolt", () => {
+  it("plays the pay world's own outcomes, each landing with its stamp, and marks the knock and the jolt", () => {
     const { play, cues } = withSound(caseOf(0));
     expect(cues()).toEqual(["sys.file-open"]);
-    const press = (label: string) => {
-      fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${label.replace(/[()]/g, "\\$&")}`) }));
-      act(() => vi.advanceTimersByTime(1_600));
-    };
-    const hit = (selector: string) => document.querySelector(selector)?.getAttribute("data-hit");
-    // A receipt or the day's money crosses the counter in 560 ms and is looked at for 140 ms: the knock lands with the stamp.
-    const crosses = 0.7 - 0.12;
-    // A release or a bank's answer happens where it is: 160 ms, then the stamp.
-    const inPlace = 0.3 - 0.12;
+    const settle = () => act(() => vi.advanceTimersByTime(3_500));
+    const tap = (actor: string) => { fireEvent.click(document.querySelector(`.pw-actor[data-actor="${actor}"]`)!); settle(); };
+    const choose = (label: string) => { fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${label}`) })); settle(); };
+    const hit = (place: string) => document.querySelector(`.pw-stamp[data-place="${place}"]`)?.getAttribute("data-hit");
 
-    press("Send “paid”");
-    expect(play).toHaveBeenLastCalledWith("pay.let-in", expect.closeTo(crosses, 3));
-    expect(hit('[data-object="till"] .sc-stamp')).toBe("land");
-    press("Send that again");
-    expect(play).toHaveBeenLastCalledWith("pay.stopped", expect.closeTo(crosses, 3));
-    press("Send an old “authorized”");
-    press("Close the day");
-    expect(play).toHaveBeenLastCalledWith("pay.book-back", expect.closeTo(crosses, 3));
+    // The customer walks up (700 ms) and pays (340 ms), the receipt crosses to the server (900 ms), Payflow looks (160 ms): the knock lands with the stamp.
+    tap("customer");
+    expect(play).toHaveBeenLastCalledWith("pay.let-in", expect.closeTo(2.1 - 0.12, 3));
+    expect(hit("server")).toBe("land");
+    // The cashier taps twice (480 ms) before the receipt crosses.
+    tap("cashier");
+    expect(play).toHaveBeenLastCalledWith("pay.stopped", expect.closeTo(1.54 - 0.12, 3));
+    tap("signal");
+    expect(cues().at(-1)).toBe("pay.stopped");
+    // Closing the day: the money reaches the bank, then the daily report reaches the server.
+    tap("server");
+    expect(cues().slice(-2)).toEqual(["pay.book-back", "sys.file-open"]);
+    choose("The money arrives");
+    expect(play).toHaveBeenLastCalledWith("pay.report-matches", expect.closeTo(0.8 - 0.12, 3));
     fireEvent.click(screen.getByRole("button", { name: "Start over" }));
     expect(cues().at(-1)).toBe("pay.start-over");
-    press("Send “paid 740,000”");
+    tap("cashier");
     expect(cues().at(-1)).toBe("pay.report-differs");
-    // The corrected “paid” is sent back while the payment is held.
-    press("Send “paid”");
+    tap("cashier");
+    choose("The cashier types the right amount");
     expect(cues().at(-1)).toBe("pay.stopped");
-    press("Manager");
-    expect(play).toHaveBeenLastCalledWith("pay.check-on", expect.closeTo(inPlace, 3));
-    press("Send that again");
+    // A release happens at the server where it is.
+    tap("operator");
+    expect(play).toHaveBeenLastCalledWith("pay.check-on", expect.closeTo(Math.max(0, 0.16 - 0.12), 3));
+    tap("cashier");
     expect(cues().at(-1)).toBe("pay.let-in");
-    press("Close the day");
-    press("Daily report: it matches");
-    expect(cues().at(-1)).toBe("sys.file-open");
-    press("Money arrives");
-    expect(play).toHaveBeenLastCalledWith("pay.report-matches", expect.closeTo(inPlace, 3));
-    press("Sends the statement again");
-    expect(cues().at(-1)).toBe("pay.stopped");
     // A broken rule that lets something through lands sour, with the buzz and the jolt.
+    tap("server");
     fireEvent.click(screen.getByRole("button", { name: "Technical details" }));
     expect(cues().at(-1)).toBe("ui.key-on");
-    press("mutation: accept a re-imported statement");
+    choose("camt.053 credit");
+    choose("statement re-imported");
+    choose("mutation: accept a re-imported statement");
     expect(cues().at(-1)).toBe("pay.check-off");
-    press("statement re-imported");
+    choose("statement re-imported");
     expect(cues().at(-1)).toBe("pay.twice");
-    expect(hit(".sc-bank-answer")).toBe("bad");
+    expect(hit("bank")).toBe("bad");
   });
 
   it("keeps the live monitor silent, lands stepped checks, and sounds iYup's verdicts and alerts once", () => {
