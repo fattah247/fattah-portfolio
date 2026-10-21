@@ -5,13 +5,14 @@ import { ArrowIcon, ChevronIcon, ResetIcon, StartOverIcon } from "./icons";
 import { PixelObject, PixelSprite, type PixelObjectName } from "./pixel-objects";
 import { useSound } from "./sound-provider";
 import { LANDING, type CueId } from "../lib/sound/engine";
-import { PAYMENT_AMOUNT, PAYOUT_NET, type FlowEntry, type FlowOutcome, type FlowWorld } from "../lib/payment-flow";
+import { PAYOUT_NET, type FlowEntry, type FlowOutcome, type FlowWorld } from "../lib/payment-flow";
 import {
   codeLink,
   emptyWorld,
   notebook,
   payflowSays,
   receiptNo,
+  recorded,
   roundEnd,
   roundFor,
   rounds,
@@ -25,8 +26,12 @@ import {
 
 /* ------------------------------------------------------------------ The map */
 
-/** The world's own units: 30 tiles of 16 by 12.5 tiles, left to right from the shop to the bank. */
-const W = 480;
+/**
+ * The world's own units: 35 tiles of 16 by 12.5 tiles, left to right: the shop, the card company,
+ * Payflow, the shop's bank. As in the repo, Payflow hears only from the card company and the bank,
+ * and the money goes from the card company to the bank without passing through Payflow.
+ */
+const W = 560;
 const H = 200;
 type Box = { x: number; y: number; w: number; h: number };
 type Point = { x: number; y: number };
@@ -37,17 +42,22 @@ const place = {
   machine: { x: 106, y: 116, w: 16, h: 16 },
   cashier: { x: 138, y: 124, w: 32, h: 48 },
   antenna: { x: 160, y: 42, w: 20, h: 20 },
-  server: { x: 272, y: 76, w: 48, h: 64 },
-  operator: { x: 324, y: 128, w: 32, h: 48 },
-  bank: { x: 400, y: 72, w: 64, h: 64 },
+  provider: { x: 208, y: 56, w: 64, h: 64 },
+  server: { x: 352, y: 76, w: 48, h: 64 },
+  operator: { x: 404, y: 128, w: 32, h: 48 },
+  bank: { x: 480, y: 72, w: 64, h: 64 },
 } satisfies Record<string, Box>;
 /** Payflow's notebook hangs by the server, its right edge here. */
-const notebookAt: Point = { x: 268, y: 96 };
+const notebookAt: Point = { x: 348, y: 96 };
 
-/** The receipts' line: the card machine, up to the shop's antenna, across to the server. */
-const receiptLine: Point[] = [{ x: 114, y: 116 }, { x: 114, y: 86 }, { x: 170, y: 86 }, { x: 170, y: 50 }, { x: 296, y: 50 }, { x: 296, y: 76 }];
-/** The money's line: from the server to the bank, and the bank's statement back. */
-const moneyLine: Point[] = [{ x: 320, y: 104 }, { x: 400, y: 104 }];
+/** The card payment: from the shop's machine, up its antenna, to the card company. */
+const payLine: Point[] = [{ x: 114, y: 116 }, { x: 114, y: 86 }, { x: 170, y: 86 }, { x: 170, y: 50 }, { x: 240, y: 50 }, { x: 240, y: 56 }];
+/** The card company's messages to Payflow's server (and Payflow's payout request back). */
+const messageLine: Point[] = [{ x: 272, y: 88 }, { x: 292, y: 88 }, { x: 292, y: 44 }, { x: 376, y: 44 }, { x: 376, y: 76 }];
+/** The money: from the card company along the ground to the bank, never through Payflow. */
+const moneyLine: Point[] = [{ x: 240, y: 120 }, { x: 240, y: 190 }, { x: 512, y: 190 }, { x: 512, y: 136 }];
+/** The bank's statements to Payflow's server. */
+const statementLine: Point[] = [{ x: 480, y: 104 }, { x: 400, y: 104 }];
 const centre = (box: Box): Point => ({ x: box.x + box.w / 2, y: box.y + box.h / 2 });
 
 type Person = Exclude<Speaker, "narrator">;
@@ -55,19 +65,20 @@ type Person = Exclude<Speaker, "narrator">;
 const speakerAt: Record<Person, Point> = {
   customer: { x: 74, y: 126 },
   cashier: { x: 154, y: 122 },
-  server: { x: 296, y: 74 },
-  operator: { x: 340, y: 126 },
-  bank: { x: 432, y: 70 },
+  provider: { x: 240, y: 64 },
+  server: { x: 376, y: 74 },
+  operator: { x: 420, y: 126 },
+  bank: { x: 512, y: 70 },
 };
-const speakerName: Record<Person, string> = { customer: "Customer", cashier: "Cashier", server: "Payflow", operator: "Payflow's checker", bank: "Bank" };
-const trickIcon: Record<Round["id"], PixelObjectName> = { repeat: "receipt", "old-news": "antenna", short: "card-machine", lost: "money-bag" };
+const speakerName: Record<Person, string> = { customer: "Customer", cashier: "Cashier", provider: "Card company", server: "Payflow", operator: "Payflow's checker", bank: "Bank" };
+const trickIcon: Record<Round["id"], PixelObjectName> = { repeat: "receipt", "old-news": "antenna", short: "report", lost: "money-bag" };
 
 /**
- * The pace, in ms: slow enough to follow a receipt or the money with the eye. A crossing takes 1.5
- * to 1.8 s, receipts sent in a hurry go out 0.45 s apart, and a line holds for about as long as it
- * takes to read (a tap on the world moves on sooner).
+ * The pace, in ms: slow enough to follow a message or the money with the eye. A crossing takes 1.4
+ * to 2.2 s (a message on the slow line 2.6 s), messages sent in a hurry go out 0.45 s apart, and a
+ * line holds for about as long as it takes to read (a tap on the world moves on sooner).
  */
-export const pace = { walk: 1200, card: 700, receipt: 1800, late: 1600, money: 1800, slip: 1500, gap: 450 } as const;
+export const pace = { walk: 1200, card: 700, pay: 1400, message: 1800, late: 2600, request: 1500, money: 2200, slip: 1500, gap: 450 } as const;
 export const holdFor = (text: string) => Math.min(3400, Math.max(1500, text.length * 52));
 /** How long the view takes to turn (the camera's transition in the stylesheet). */
 const TURN = 420;
@@ -89,10 +100,9 @@ const worldCue: Partial<Record<FlowOutcome, CueId>> = {
 const cueFor = (entry: FlowEntry) => worldCue[entry.outcome] ?? "sys.file-open";
 const amount = (value: number) => value.toLocaleString("en-US");
 
-/** The two readings at the top: what the customer paid, and what reached the shop's bank. */
-function charged(flow: FlowWorld) {
-  const captures = flow.journals.filter((journal) => journal === "CAPTURE").length;
-  if (captures) return amount(captures * PAYMENT_AMOUNT);
+/** The readings at the top: what Payflow's books say the shop got, and what reached the shop's bank. */
+function books(flow: FlowWorld) {
+  if (recorded(flow)) return amount(recorded(flow));
   if (flow.status === "MANUAL_REVIEW") return "nothing: on hold";
   return "nothing yet";
 }
@@ -180,10 +190,17 @@ const turnedAway: FlowOutcome[] = ["DUPLICATE_IGNORED", "STALE_IGNORED", "PAYMEN
 function beatsFor(moments: Moment[], start: World, decisive: boolean): { beats: Beat[]; end: World } {
   const beats: Beat[] = [];
   let world = start;
+  const latest = () => world.flow.entries.at(-1)!;
   const answers = (last: boolean): Beat => {
     const text = payflowSays(world);
-    return { kind: "say", speaker: "server", text, entry: world.flow.entries.at(-1), hold: holdFor(text), stay: last };
+    return { kind: "say", speaker: "server", text, entry: latest(), hold: holdFor(text), stay: last };
   };
+  const says = (speaker: Speaker, text: string): Beat => ({ kind: "say", speaker, text, hold: holdFor(text) });
+  /** One thing along a line, taken in where it arrives; its sound lands with it when it changes the world. */
+  const carry = (key: string, object: PixelObjectName, path: Point[], ms: number, focus: number, sound?: boolean): Beat => ({
+    kind: "move", focus, moves: [{ key, object, size: object === "money-bag" ? 24 : 22, frames: [...along(path, 0, ms), ...into(path.at(-1)!, ms)] }],
+    lands: sound ? [{ at: ms, world, cue: cueFor(latest()) }] : undefined,
+  });
   moments.forEach((moment, index) => {
     const last = decisive && index === moments.length - 1;
     if (moment.kind === "walk") beats.push({ kind: "walk" });
@@ -192,54 +209,46 @@ function beatsFor(moments: Moment[], start: World, decisive: boolean): { beats: 
       const to = centre(place.machine);
       beats.push({ kind: "move", focus: 110, moves: [{ key: `card-${index}`, object: "note", size: 18, frames: [...along([from, to], 0, pace.card), { ...to, at: pace.card + 200, scale: 0.5, opacity: 0 }] }] });
     } else if (moment.kind === "tap") beats.push({ kind: "pose", pose: "tap" }, { kind: "wait", ms: 340 }, { kind: "pose", pose: "idle" });
-    else if (moment.kind === "say") beats.push({ kind: "say", speaker: moment.who, text: moment.text, hold: holdFor(moment.text) });
+    else if (moment.kind === "pay") beats.push(carry(`pay-${index}`, "note", payLine, pace.pay, 170));
+    else if (moment.kind === "say") beats.push(says(moment.who, moment.text));
     else if (moment.kind === "receipts") {
-      // Receipts go along their line to Payflow's server; one already in the notebook is turned away.
-      const path = moment.late ? receiptLine.slice(3) : receiptLine;
-      const ms = moment.late ? pace.late : pace.receipt;
+      // The card company's messages go along their line to Payflow; one already in the notebook is turned away.
+      const ms = moment.late ? pace.late : pace.message;
       const moves: Move[] = [];
       const lands: Array<{ at: number; world: World; cue: CueId }> = [];
       moment.inputs.forEach((input, n) => {
         world = step(world, input);
-        const entry = world.flow.entries.at(-1)!;
+        const entry = latest();
         const offset = n * pace.gap;
-        const arrive = path.at(-1)!;
-        moves.push({ key: `${entry.n}-receipt`, object: "receipt", size: 22, tag: entry.event?.id, frames: [...after(path, offset, ms), ...(turnedAway.includes(entry.outcome) ? away : into)(arrive, offset + ms)] });
+        const arrive = messageLine.at(-1)!;
+        moves.push({ key: `${entry.n}-message`, object: "receipt", size: 22, tag: entry.event?.id, frames: [...after(messageLine, offset, ms), ...(turnedAway.includes(entry.outcome) ? away : into)(arrive, offset + ms)] });
         lands.push({ at: offset + ms, world, cue: cueFor(entry) });
       });
-      beats.push({ kind: "move", moves, focus: 240, lands }, { kind: "show", world }, answers(last));
+      beats.push({ kind: "move", moves, focus: 310, lands }, { kind: "show", world }, answers(last));
     } else if (moment.kind === "payout") {
+      // Payflow closes the day and asks the card company to pay the shop; the card company pays the bank.
       world = step(world, { kind: "settle" });
-      const text = payflowSays(world);
+      const request = payflowSays(world);
+      const sending = `Sending ${amount(PAYOUT_NET)} to the shop's bank.`;
+      const money: Frame[] = moment.lost
+        ? [...along(moneyLine.slice(0, 2).concat({ x: 380, y: 190 }), 0, pace.money * 0.6), { x: 380, y: 190, at: pace.money * 0.6 + 300, scale: 0.6, opacity: 0 }]
+        : [...along(moneyLine, 0, pace.money), ...into(moneyLine.at(-1)!, pace.money)];
       beats.push(
-        { kind: "say", speaker: "server", text, entry: world.flow.entries.at(-1), hold: holdFor(text) },
-        { kind: "move", focus: 360, moves: [{ key: `money-${index}`, object: "money-bag", size: 24, frames: [...along(moneyLine, 0, pace.money), ...into(moneyLine.at(-1)!, pace.money)] }], lands: [{ at: pace.money, world, cue: cueFor(world.flow.entries.at(-1)!) }] },
+        { kind: "say", speaker: "server", text: request, entry: latest(), hold: holdFor(request) },
+        carry(`request-${index}`, "slip", [...messageLine].reverse(), pace.request, 300, true),
         { kind: "show", world },
+        says("provider", sending),
+        { kind: "move", focus: 380, moves: [{ key: `money-${index}`, object: "money-bag", size: 24, frames: money }] },
       );
     } else if (moment.kind === "report") {
       world = step(world, { kind: "report", matches: true });
-      const said = `The card company's daily report: “${amount(PAYOUT_NET)} sent”.`;
-      const path = receiptLine.slice(3);
-      beats.push(
-        { kind: "say", speaker: "narrator", text: said, hold: holdFor(said) },
-        { kind: "move", focus: 250, moves: [{ key: `report-${index}`, object: "report", size: 22, frames: [...along(path, 0, pace.late), ...into(path.at(-1)!, pace.late)] }], lands: [{ at: pace.late, world, cue: cueFor(world.flow.entries.at(-1)!) }] },
-        { kind: "show", world },
-        answers(last),
-      );
+      beats.push(says("provider", `Today's report: ${amount(PAYOUT_NET)} sent to the shop's bank.`), carry(`report-${index}`, "report", messageLine, pace.message, 310, true), { kind: "show", world }, answers(last));
     } else if (moment.kind === "statement") {
       world = step(world, moment.input);
-      const entry = world.flow.entries.at(-1)!;
-      const back = [...moneyLine].reverse();
-      beats.push(
-        { kind: "say", speaker: "bank", text: moment.said, hold: holdFor(moment.said) },
-        { kind: "move", focus: 360, moves: [{ key: `${entry.n}-statement`, object: entry.outcome === "MISSING_CREDIT" ? "cross" : "slip", size: 22, frames: [...along(back, 0, pace.slip), ...into(back.at(-1)!, pace.slip)] }], lands: [{ at: pace.slip, world, cue: cueFor(entry) }] },
-        { kind: "show", world },
-        answers(last),
-      );
+      beats.push(says("bank", moment.said), carry(`${latest().n}-statement`, latest().outcome === "MISSING_CREDIT" ? "cross" : "slip", statementLine, pace.slip, 440, true), { kind: "show", world }, answers(last));
     } else {
       world = step(world, { kind: "release" });
-      const said = "I checked it: just a typo. Releasing.";
-      beats.push({ kind: "say", speaker: "operator", text: said, hold: holdFor(said) }, { kind: "show", world, cue: cueFor(world.flow.entries.at(-1)!) }, answers(last));
+      beats.push(says("operator", "I checked with the card company: their mistake. Releasing."), { kind: "show", world, cue: cueFor(latest()) }, answers(last));
     }
   });
   return { beats, end: world };
@@ -522,7 +531,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
           ) : (
             <>
               <span className="pw-chip" data-chip="trick"><PixelObject name={trickIcon[round.id]} size={32} /><span><small>Trick</small><b>{round.trick}</b></span></span>
-              <span className="pw-chip" data-chip="charged"><PixelObject name="wallet" size={32} /><span><small>Customer paid</small><b key={charged(shown.flow)}>{charged(shown.flow)}</b></span></span>
+              <span className="pw-chip" data-chip="books"><PixelObject name="payflow-face" size={32} /><span><small>Payflow&rsquo;s books</small><b key={books(shown.flow)}>{books(shown.flow)}</b></span></span>
               {round.id === "lost" ? <span className="pw-chip" data-chip="bank"><PixelObject name="slip" size={32} /><span><small>In the shop&rsquo;s bank</small><b key={inTheBank(shown.flow)}>{inTheBank(shown.flow)}</b></span></span> : null}
             </>
           )}
@@ -548,25 +557,31 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
               <rect fill="#d3d9e1" height="8" stroke="#252b34" width="36" x="96" y="132" />
               <rect fill="#8ea5cb" height="36" stroke="#252b34" width="36" x="96" y="140" />
               <rect fill="#6e88b6" height="4" width="34" x="97" y="171" />
-              {/* Outside, then Payflow's room with its notebook, outside again, and the bank's square. */}
-              <rect fill="#ffffff" height="56" width="48" x="184" y="40" />
-              <rect fill="url(#pw-grass)" height="104" width="48" x="184" y="96" />
-              <rect fill="#dbe4f3" height="56" width="120" x="232" y="40" />
-              <rect fill="#8ea5cb" height="4" width="120" x="232" y="92" />
-              <rect fill="url(#pw-tiles)" height="104" width="120" x="232" y="96" />
-              <rect fill="#ffffff" height="56" width="40" x="352" y="40" />
-              <rect fill="url(#pw-grass)" height="104" width="40" x="352" y="96" />
-              <rect fill="#ffffff" height="56" width="488" x="392" y="40" />
-              <rect fill="url(#pw-stone)" height="104" width="488" x="392" y="96" />
-              {/* The two lines: receipts from the shop to the server; the money between the server and the bank. */}
-              <polyline className="pw-line" data-line="receipts" fill="none" points={receiptLine.map((spot) => `${spot.x},${spot.y}`).join(" ")} />
-              <polyline className="pw-line" data-line="money" fill="none" points={moneyLine.map((spot) => `${spot.x},${spot.y}`).join(" ")} />
+              {/* Outside, the card company's plot, outside again, Payflow's room with its notebook, outside, and the bank's square. */}
+              <rect fill="#ffffff" height="56" width="12" x="184" y="40" />
+              <rect fill="url(#pw-grass)" height="104" width="12" x="184" y="96" />
+              <rect fill="#ffffff" height="56" width="88" x="196" y="40" />
+              <rect fill="url(#pw-floor)" height="104" width="88" x="196" y="96" />
+              <rect fill="#ffffff" height="56" width="16" x="284" y="40" />
+              <rect fill="url(#pw-grass)" height="104" width="16" x="284" y="96" />
+              <rect fill="#dbe4f3" height="56" width="136" x="300" y="40" />
+              <rect fill="#8ea5cb" height="4" width="136" x="300" y="92" />
+              <rect fill="url(#pw-tiles)" height="104" width="136" x="300" y="96" />
+              <rect fill="#ffffff" height="56" width="32" x="436" y="40" />
+              <rect fill="url(#pw-grass)" height="104" width="32" x="436" y="96" />
+              <rect fill="#ffffff" height="56" width="492" x="468" y="40" />
+              <rect fill="url(#pw-stone)" height="104" width="492" x="468" y="96" />
+              {/* The lines: the card payment to the card company, its messages to Payflow, the money to the bank, the bank's statements to Payflow. */}
+              {([["pay", payLine], ["messages", messageLine], ["money", moneyLine], ["statements", statementLine]] as const).map(([name, line]) => (
+                <polyline className="pw-line" data-line={name} fill="none" key={name} points={line.map((spot) => `${spot.x},${spot.y}`).join(" ")} />
+              ))}
             </svg>
 
             <span aria-hidden="true" className="pw-prop" style={at(place.machine)}><PixelSprite name="card-machine" /></span>
             {actor("customer", atCounter ? place.customer : place.customerStart, <PixelSprite key={walking ? "walking" : "still"} name={walking ? "customer-walk-b" : "customer-walk-a"} />, walking ? <WalkFrom from={place.customerStart} scale={scale} to={place.customer} /> : null)}
             {actor("cashier", place.cashier, <PixelSprite name={pose === "tap" ? "cashier-tap" : "cashier"} />)}
             {actor("signal", place.antenna, <PixelSprite name="antenna" />)}
+            {actor("provider", place.provider, <PixelSprite name="card-company" />)}
             {actor("server", place.server, <PixelSprite name="server" />)}
             {actor("operator", place.operator, <PixelSprite name="operator" />)}
             {actor("bank", place.bank, <PixelSprite name="bank" />)}

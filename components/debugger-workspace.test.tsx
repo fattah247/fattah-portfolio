@@ -121,14 +121,14 @@ describe("DebuggerWorkspace", () => {
 
   it("offers four tricks, sets the scene one line at a time, asks, then shows Payflow next to a basic system", () => {
     renderPayflow();
-    expect(Array.from(document.querySelectorAll(".pw-trick b"), (name) => name.textContent)).toEqual(["Tap again", "Old message", "Wrong amount", "Lost money"]);
-    expect(suggestedTrick()).toBe("Tap again");
+    expect(Array.from(document.querySelectorAll(".pw-trick b"), (name) => name.textContent)).toEqual(["Sent twice", "Old message", "Wrong amount", "Lost money"]);
+    expect(suggestedTrick()).toBe("Sent twice");
     expect(document.querySelector(".pw-trick[data-suggested] .pw-option-hand")).toBeTruthy();
     expect(text(".pw-goal")).toBe("Try to break the payment. Make the customer pay the wrong amount, or lose the shop’s money.");
     expect(notebookLines()).toEqual(["empty"]);
 
-    // The scene plays one line at a time, each held long enough to read, and Payflow writes receipt #1 down.
-    fireEvent.click(within(screen.getByRole("group", { name: "Pick a trick" })).getByRole("button", { name: /^Tap again/ }));
+    // The scene plays one line at a time, each held long enough to read: the card company charges the card and tells Payflow, which writes #1 down.
+    fireEvent.click(within(screen.getByRole("group", { name: "Pick a trick" })).getByRole("button", { name: /^Sent twice/ }));
     const heard: string[] = [];
     for (let turn = 0; turn < 120 && document.querySelector(".pay-world")?.getAttribute("data-phase") !== "ask"; turn += 1) {
       act(() => vi.advanceTimersByTime(250));
@@ -137,17 +137,23 @@ describe("DebuggerWorkspace", () => {
       if (now && heard.at(-1) !== now) heard.push(now);
     }
     act(() => vi.advanceTimersByTime(0));
-    expect(heard).toEqual(["Customer: Here's my card: 750,000.", "Payflow [New]: New receipt #1. I note it and take the 750,000.", "The signal is weak. The cashier can't see if it went through.", "Cashier: Did it go? I'll tap again. And again!"]);
+    expect(heard).toEqual([
+      "Customer: Here's my card: 750,000.",
+      "Card company: Card charged: 750,000. Telling Payflow.",
+      "Payflow [New]: New message #1. I note it and record the 750,000.",
+      "Payflow's “got it” never reaches the card company: the line is weak.",
+      "Card company: No reply… I'll send #1 again. And again.",
+    ]);
     expect(notebookLines()).toEqual(["#1 paid"]);
     expect(textOnScreen()).toBe(0);
-    expect(text(".pw-question")).toBe("The same receipt goes out 2 more times. How much will the customer pay?");
+    expect(text(".pw-question")).toBe("The card company sends #1 two more times. How much will Payflow's books say the shop got?");
     expect(Array.from(document.querySelectorAll(".pw-choice"), (choice) => choice.textContent)).toEqual(["750,000", "1,500,000", "2,250,000"]);
 
     fireEvent.click(screen.getByRole("button", { name: "1,500,000" }));
     untilPhase("result");
-    expect(lineNow()).toBe("Payflow [Already noted]: #1 is already in my notebook. No money moves.");
+    expect(lineNow()).toBe("Payflow [Already noted]: #1 is already in my notebook. Nothing changes.");
     expect(result()).toEqual({ verdict: "Not quite: it's “750,000”.", basic: "2,250,000", payflow: "750,000" });
-    expect(text('.pw-chip[data-chip="charged"] b')).toBe("750,000");
+    expect(text('.pw-chip[data-chip="books"] b')).toBe("750,000");
     expect(screen.getByRole("button", { name: /^Next trick: old message/ })).toBeTruthy();
 
     // How Payflow decided: the repo's lines that decided it, its answer, and the test that holds it, linked at one commit.
@@ -172,7 +178,7 @@ describe("DebuggerWorkspace", () => {
   it("speaks in everyday words until the visitor asks for technical details", () => {
     renderPayflow();
     const toggle = screen.getByRole("button", { name: "Technical details" });
-    playTrick("Tap again", "750,000");
+    playTrick("Sent twice", "750,000");
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
     expect(text(".pw-frame")).not.toMatch(/evt\d|SUCCESS|APPLIED|DUPLICATE|\b200\b|inbox/);
 
@@ -366,7 +372,7 @@ describe("DebuggerWorkspace", () => {
     // Reset returns the case to its story, and the tricks are offered again from the first.
     fireEvent.click(screen.getByRole("button", { name: "Reset" }));
     act(() => vi.advanceTimersByTime(900));
-    expect(suggestedTrick()).toBe("Tap again");
+    expect(suggestedTrick()).toBe("Sent twice");
     expect(screen.queryByRole("button", { name: "Reset" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Next: Detect degradation" }));
@@ -374,7 +380,7 @@ describe("DebuggerWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Previous" }));
     act(() => vi.advanceTimersByTime(0));
 
-    expect(suggestedTrick()).toBe("Tap again");
+    expect(suggestedTrick()).toBe("Sent twice");
   });
 
   it.each(scenarios)("renders the complete $slug chapter and evidence journey", (scenario) => {

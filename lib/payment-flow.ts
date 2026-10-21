@@ -212,7 +212,7 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
       return record(world, input, {
         outcome: "DUPLICATE_IGNORED", http: 200, event, tone: "confirmed",
         plain: `The provider sent ${says} again. It's already in the inbox, so we answered “got it” and changed nothing.`,
-        contrast: event.status === "SUCCESS" && event.amount === PAYMENT_AMOUNT ? "Without an inbox, the money would be captured again." : undefined,
+        contrast: event.status === "SUCCESS" && event.amount === PAYMENT_AMOUNT ? "Without an inbox, the capture would be booked again." : undefined,
         hood: `inbox has ${event.id}, same payload → 200 DUPLICATE_IGNORED · audit DUPLICATE_WEBHOOK_IGNORED`,
       }, { ...base, audit: [...world.audit, "DUPLICATE_WEBHOOK_IGNORED"] });
     }
@@ -240,7 +240,7 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
       return record(world, input, {
         outcome: "DUPLICATE_IGNORED", http: 200, event, tone: "confirmed",
         plain: `The provider restated ${says} under a new message id. That status is already recorded, so nothing changed.`,
-        contrast: event.status === "SUCCESS" ? "Without the check, a second capture would follow." : undefined,
+        contrast: event.status === "SUCCESS" ? "Without the check, a second capture would be booked." : undefined,
         hood: `${event.id} new, status ${event.status} already recorded on the transaction → 200 DUPLICATE_IGNORED · inbox row · audit WEBHOOK_IGNORED`,
       }, { ...base, inbox, audit: [...world.audit, "WEBHOOK_IGNORED"] });
     }
@@ -423,7 +423,7 @@ export function naiveStep(world: NaiveWorld, input: FlowInput, flow: FlowWorld):
       status: world.status === "SETTLED" || world.status === "RECONCILED" ? world.status : "SUCCESS",
       captures,
       wrongAmount: world.wrongAmount + (wrong ? 1 : 0),
-      last: wrong ? `Took ${idr(event.amount)} as paid in full.` : captures > 1 ? `Captured the money again (${captures} times).` : "Captured the money.",
+      last: wrong ? `Took ${idr(event.amount)} as paid in full.` : captures > 1 ? `Booked the capture again (${captures} times).` : "Booked the capture.",
     };
   }
   if (input.kind === "settle") return world.status === "SUCCESS" ? { ...world, status: "SETTLED", last: "Paid it out." } : { ...world, last: "Nothing to pay out." };

@@ -1,15 +1,20 @@
 /*
- * Case 01's toy, "try to break the payment": four short rounds in a small world from a shop to a
- * bank. Each round is one way real payments go wrong (the cashier taps again on a weak signal, an
- * old message arrives late, the wrong amount is typed, the money never reaches the bank). The round
- * sets the scene, asks the visitor what will happen, plays it through Payflow's rules, and shows the
- * answer next to a basic system's.
+ * Case 01's toy, "try to break the payment": four short rounds in a small world of a shop, the card
+ * company (the repo's payment provider), Payflow and the shop's bank. Each round is one way real
+ * payments go wrong: the card company sends the same message again because Payflow's reply never
+ * reached it, an old message arrives late, a message carries the wrong amount, the payout never
+ * reaches the bank. The round sets the scene, asks the visitor what will happen, plays it through
+ * Payflow's rules, and shows the answer next to a basic system's.
  *
- * Every outcome comes from `flowStep` (lib/payment-flow.ts), which follows the Payflow Reliability
- * repo; the basic system takes the same inputs through `naiveStep`, a comparison the site models and
- * never a mode of the repo. The right answer to each question is read from the model, not written
- * down. Payflow's "notebook" is the repo's event inbox (the `provider_events` table): every receipt
- * number is written down before any money moves, so a repeat is recognised and changes nothing.
+ * As in the repo, Payflow only ever hears from the card company (its webhooks, its daily report) and
+ * from the bank (its statements), and never holds the money: it asks the card company to pay out,
+ * and the card company pays the bank. Every outcome comes from `flowStep` (lib/payment-flow.ts),
+ * which follows the Payflow Reliability repo; the basic system takes the same inputs through
+ * `naiveStep`, a comparison the site models and never a mode of the repo. The right answer to each
+ * question is read from the model, not written down. Payflow's "notebook" is the repo's event inbox
+ * (the `provider_events` table): a message's number is looked up before anything changes and written
+ * down with the change, so a repeat is recognised and changes nothing. A message repeated changes
+ * Payflow's books, never the customer's card: the card company charged the card once.
  *
  * Each round also carries its proof for engineers: the request, the lines of the repo that decided
  * it, the result, and the tests that hold it, linked at a fixed commit.
@@ -43,22 +48,26 @@ export function step(world: World, input: FlowInput): World {
 
 const amount = (value: number) => value.toLocaleString("en-US");
 const webhook = (kind: "success" | "again" | "late-authorized" | "wrong-amount"): FlowInput => ({ kind: "webhook", webhook: kind });
-/** A receipt's number as the shop would read it: the provider's event id `evt2` is receipt #2. */
+/** A message's number as Payflow's notebook shows it: the provider's event id `evt2` is #2. */
 export const receiptNo = (id: string) => id.replace(/^evt/, "#");
 
-export type Speaker = "customer" | "cashier" | "server" | "operator" | "bank" | "narrator";
+export type Speaker = "customer" | "cashier" | "provider" | "server" | "operator" | "bank" | "narrator";
 
 /**
- * What happens in a round, in order. `receipts` sends one receipt per input along the line to
+ * What happens in a round, in order. `pay` takes the card payment from the shop's machine to the
+ * card company; `receipts` sends one of the card company's messages per input along the line to
  * Payflow (several at once go out a beat apart); Payflow answers each moment that reaches it.
+ * `payout` is Payflow asking the card company to pay the shop, and the card company paying the
+ * bank (`lost`: the money never gets there).
  */
 export type Moment =
   | { kind: "walk" }
   | { kind: "card" }
   | { kind: "tap" }
+  | { kind: "pay" }
   | { kind: "say"; who: Speaker; text: string }
   | { kind: "receipts"; inputs: FlowInput[]; late?: boolean }
-  | { kind: "payout" }
+  | { kind: "payout"; lost?: boolean }
   | { kind: "report" }
   | { kind: "statement"; input: FlowInput; said: string }
   | { kind: "release" };
@@ -94,21 +103,25 @@ export type Round = {
   proof: Proof;
 };
 
-const captured = (flow: FlowWorld) => flow.journals.filter((journal) => journal === "CAPTURE").length * PAYMENT_AMOUNT;
-/** What the basic system has taken from the customer: every "paid" it was sent, at the amount it said. */
-export function basicCharged(naive: NaiveWorld) {
+/** What Payflow's books say the shop was paid: one capture per payment applied. */
+export const recorded = (flow: FlowWorld) => flow.journals.filter((journal) => journal === "CAPTURE").length * PAYMENT_AMOUNT;
+/** What the basic system's books say: every "paid" message it was sent, at the amount it said. */
+export function basicRecorded(naive: NaiveWorld) {
   const full = Math.max(0, naive.captures - naive.wrongAmount);
   return full * PAYMENT_AMOUNT + naive.wrongAmount * WRONG_AMOUNT;
 }
 
-/** The customer walks up and pays by card; the cashier rings it up and receipt #1 goes to Payflow. */
-const paying: Moment[] = [
+/** The customer pays by card at the shop; the card company charges it and tells Payflow. */
+const charging: Moment[] = [
   { kind: "walk" },
   { kind: "say", who: "customer", text: `Here's my card: ${amount(PAYMENT_AMOUNT)}.` },
   { kind: "card" },
   { kind: "tap" },
-  { kind: "receipts", inputs: [webhook("success")] },
+  { kind: "pay" },
+  { kind: "say", who: "provider", text: `Card charged: ${amount(PAYMENT_AMOUNT)}. Telling Payflow.` },
 ];
+/** …and its message, #1, reaches Payflow. */
+const paying: Moment[] = [...charging, { kind: "receipts", inputs: [webhook("success")] }];
 
 const SERVICE = "src/main/java/id/fatarc/portfolio/payflowreliability";
 const TESTS = "src/test/java/id/fatarc/portfolio/payflowreliability";
@@ -116,58 +129,70 @@ const TESTS = "src/test/java/id/fatarc/portfolio/payflowreliability";
 export const rounds: Round[] = [
   {
     id: "repeat",
-    trick: "Tap again",
-    hint: "On a weak signal, the cashier sends the same payment again.",
+    trick: "Sent twice",
+    hint: "Payflow's reply gets lost, so the card company sends the same message again.",
     conditions: { delivery: "duplicate", amount: "matches", bank: "landed" },
     before: [
       ...paying,
-      { kind: "say", who: "narrator", text: "The signal is weak. The cashier can't see if it went through." },
-      { kind: "tap" },
-      { kind: "say", who: "cashier", text: "Did it go? I'll tap again. And again!" },
+      { kind: "say", who: "narrator", text: "Payflow's “got it” never reaches the card company: the line is weak." },
+      { kind: "say", who: "provider", text: "No reply… I'll send #1 again. And again." },
     ],
-    question: "The same receipt goes out 2 more times. How much will the customer pay?",
+    question: "The card company sends #1 two more times. How much will Payflow's books say the shop got?",
     choices: [1, 2, 3].map((times) => ({ id: String(times * PAYMENT_AMOUNT), label: amount(times * PAYMENT_AMOUNT) })),
     after: [{ kind: "receipts", inputs: [webhook("again"), webhook("again")] }],
-    answer: (end) => String(captured(end.flow)),
-    why: "Payflow writes every receipt number in its notebook before any money moves. #1 was already there, so the 2 repeats changed nothing.",
-    compare: (end) => ({ measure: "Customer paid", basic: amount(basicCharged(end.naive)), payflow: amount(captured(end.flow)) }),
+    answer: (end) => String(recorded(end.flow)),
+    why: "Payflow looks up every message number in its notebook before it changes anything. #1 was already there, so the resends changed nothing. The card was charged once either way: what a resend can break is the books.",
+    compare: (end) => ({ measure: "The books say the shop got", basic: amount(basicRecorded(end.naive)), payflow: amount(recorded(end.flow)) }),
     proof: {
-      request: ["POST /webhooks/provider  evt1 SUCCESS 750000", "POST /webhooks/provider  evt1 SUCCESS 750000  (again)", "POST /webhooks/provider  evt1 SUCCESS 750000  (again)"],
-      code: [{
-        file: `${SERVICE}/payment/ProviderWebhookService.java`,
-        from: 93,
-        lines: [
-          "Optional<PaymentIntent> intentLookup = paymentIntentRepository.findForUpdate(webhook.paymentIntentId());",
-          "",
-          "Optional<ProviderEvent> previousDelivery = providerEventRepository.findByProviderEventId(webhook.providerEventId());",
-          "if (previousDelivery.isPresent()) {",
-          "    return redelivered(previousDelivery.get(), event, intentLookup.orElse(null));",
-          "}",
-        ],
-      }],
-      notes: [
-        "The notebook is the provider_events table. Its provider_event_id is unique (V1__baseline_schema.sql:89), so the same receipt can't be written down twice.",
-        "findForUpdate locks the payment's row first (PESSIMISTIC_WRITE), so two copies arriving at the same moment queue instead of both passing the check.",
+      request: ["POST /webhooks/provider  evt1 SUCCESS 750000", "POST /webhooks/provider  evt1 SUCCESS 750000  (resent: no reply reached the provider)", "POST /webhooks/provider  evt1 SUCCESS 750000  (resent again)"],
+      code: [
+        {
+          file: `${SERVICE}/payment/ProviderWebhookService.java`,
+          from: 93,
+          lines: [
+            "Optional<PaymentIntent> intentLookup = paymentIntentRepository.findForUpdate(webhook.paymentIntentId());",
+            "",
+            "Optional<ProviderEvent> previousDelivery = providerEventRepository.findByProviderEventId(webhook.providerEventId());",
+            "if (previousDelivery.isPresent()) {",
+            "    return redelivered(previousDelivery.get(), event, intentLookup.orElse(null));",
+            "}",
+          ],
+        },
+        {
+          file: `${SERVICE}/payment/ProviderWebhookService.java`,
+          from: 235,
+          lines: [
+            "private void recordEvent(Event event, WebhookOutcome outcome, String detail, UUID reviewCaseId) {",
+            "    // Flush now so a concurrent duplicate surfaces as a unique violation here, not at commit.",
+            "    providerEventRepository.saveAndFlush(new ProviderEvent(event.webhook(), event.source(), outcome, detail, reviewCaseId));",
+            "}",
+          ],
+        },
       ],
-      result: "evt1: 200 APPLIED, one CAPTURE journal. Each repeat: 200 DUPLICATE_IGNORED, audit DUPLICATE_WEBHOOK_IGNORED, nothing posted.",
+      notes: [
+        "The notebook is the provider_events table, keyed by a unique provider_event_id (V1__baseline_schema.sql:89). An event is looked up before anything changes, and written in the same transaction as the change.",
+        "findForUpdate locks the payment's row first (PESSIMISTIC_WRITE), so two copies arriving together queue; the flush makes a racing copy fail on the unique key.",
+        "A cashier pressing pay twice is a different problem, stopped before the card company is called: payment creation takes an idempotency key (PaymentIntentIdempotencyTest).",
+      ],
+      result: "evt1: 200 APPLIED, one CAPTURE journal. Each resend: 200 DUPLICATE_IGNORED, audit DUPLICATE_WEBHOOK_IGNORED, nothing posted.",
       tests: [{ file: `${TESTS}/payment/ProviderWebhookTest.java`, line: 41, name: "shouldIgnoreAnExactRedeliveryWithoutOpeningAReviewCaseOrPostingTwice" }],
     },
   },
   {
     id: "old-news",
     trick: "Old message",
-    hint: "A message from before the payment arrives after it.",
+    hint: "A message the card company sent before the payment arrives after it.",
     conditions: { delivery: "out-of-order", amount: "matches", bank: "landed" },
     before: [
       ...paying,
-      { kind: "say", who: "narrator", text: "An older message, “card approved”, got stuck on the slow signal." },
+      { kind: "say", who: "narrator", text: "The card company's earlier message, “card approved”, got stuck on a slow line." },
     ],
-    question: "It arrives now, after “paid”. What will the shop's screen say?",
+    question: "It arrives now, after “paid”. What will Payflow show the shop?",
     choices: [{ id: "paid", label: "Paid" }, { id: "approved", label: "Approved, not paid yet" }],
     after: [{ kind: "receipts", inputs: [webhook("late-authorized")], late: true }],
     answer: (end) => (end.flow.status === "SUCCESS" ? "paid" : "approved"),
-    why: "“Approved” always comes before “paid”. Payflow notes the late message, but an older message can never undo a newer one.",
-    compare: (end) => ({ measure: "The shop's screen says", basic: end.naive.status === "AUTHORIZED" ? "Approved, not paid" : "Paid", payflow: end.flow.status === "SUCCESS" ? "Paid" : "Approved, not paid" }),
+    why: "“Approved” always comes before “paid”. Payflow notes the late message, but an older message never undoes a newer one.",
+    compare: (end) => ({ measure: "Payflow shows the shop", basic: end.naive.status === "AUTHORIZED" ? "Approved, not paid" : "Paid", payflow: end.flow.status === "SUCCESS" ? "Paid" : "Approved, not paid" }),
     proof: {
       request: ["POST /webhooks/provider  evt1 SUCCESS 750000", "POST /webhooks/provider  evt2 AUTHORIZED 750000  (sent earlier, arrives late)"],
       code: [{
@@ -180,7 +205,7 @@ export const rounds: Round[] = [
           "}",
         ],
       }],
-      notes: ["A capture implies the authorization, so a late AUTHORIZED is written to provider_events and moves nothing. The payment's states only go forward."],
+      notes: ["A capture implies the authorization, so a late AUTHORIZED is recorded in provider_events and audited, and changes nothing. (A late message that contradicts the payment, such as FAILED after SUCCESS, isn't ignored: it holds the payment for review.)"],
       result: "evt2: 200 STALE_IGNORED. The payment stays SUCCESS.",
       tests: [{ file: `${TESTS}/payment/ProviderWebhookTest.java`, line: 110, name: "shouldIgnoreAnAuthorizationThatArrivesAfterCapture" }],
     },
@@ -188,30 +213,42 @@ export const rounds: Round[] = [
   {
     id: "short",
     trick: "Wrong amount",
-    hint: "The cashier types 740,000 for a 750,000 sale.",
+    hint: "The card company's message says 740,000 for a 750,000 sale.",
     conditions: { delivery: "once", amount: "differs", bank: "landed" },
     before: [
-      { kind: "walk" },
-      { kind: "say", who: "customer", text: `Here's my card: ${amount(PAYMENT_AMOUNT)}.` },
-      { kind: "card" },
-      { kind: "tap" },
-      { kind: "say", who: "cashier", text: `Oops, I typed ${amount(WRONG_AMOUNT)}.` },
+      ...charging,
+      { kind: "say", who: "narrator", text: `But the card company's message has a mistake in it: ${amount(WRONG_AMOUNT)}.` },
     ],
-    question: `The receipt says ${amount(WRONG_AMOUNT)} for a ${amount(PAYMENT_AMOUNT)} sale. What will Payflow do?`,
-    choices: [{ id: "take", label: "Take it as paid" }, { id: "hold", label: "Hold it for a person to check" }],
+    question: `The sale is ${amount(PAYMENT_AMOUNT)}, and the card company's message says ${amount(WRONG_AMOUNT)}. What will Payflow do?`,
+    choices: [{ id: "take", label: "Count it as paid" }, { id: "hold", label: "Hold it for a person to check" }],
     after: [
       { kind: "receipts", inputs: [webhook("wrong-amount")] },
-      { kind: "release" },
-      { kind: "tap" },
-      { kind: "say", who: "cashier", text: `The right amount: ${amount(PAYMENT_AMOUNT)}.` },
+      { kind: "say", who: "provider", text: `Our mistake. Here's #2, with ${amount(PAYMENT_AMOUNT)}.` },
       { kind: "receipts", inputs: [webhook("success")] },
+      { kind: "release" },
+      { kind: "say", who: "provider", text: "Trying #2 again." },
+      { kind: "receipts", inputs: [webhook("again")] },
     ],
     answer: (end) => (end.flow.entries.some((entry) => entry.outcome === "SENT_TO_REVIEW") ? "hold" : "take"),
-    why: "Payflow checks every receipt's amount against the sale. A mismatch waits for a person, and it's never counted as paid.",
-    compare: (end) => ({ measure: "Customer paid", basic: amount(basicCharged(end.naive)), payflow: amount(captured(end.flow)) }),
+    why: "Payflow checks every message's amount against the sale. A mismatch waits for a person, and until they decide, every message for that payment is told to try again later.",
+    compare: (end) => ({
+      measure: `The ${amount(WRONG_AMOUNT)} message`,
+      basic: end.naive.wrongAmount > 0 ? "Counted as paid in full" : "Held",
+      payflow: end.flow.entries.some((entry) => entry.outcome === "SENT_TO_REVIEW") && recorded(end.flow) === PAYMENT_AMOUNT ? `Held, then ${amount(PAYMENT_AMOUNT)} once` : "Counted",
+    }),
     proof: {
-      request: ["POST /webhooks/provider  evt1 SUCCESS 740000  (the payment is 750000)", "RELEASE_PAYMENT  (a person, after checking)", "POST /webhooks/provider  evt2 SUCCESS 750000"],
+      request: [
+        "POST /webhooks/provider  evt1 SUCCESS 740000  (the payment is 750000)",
+        "POST /webhooks/provider  evt2 SUCCESS 750000  (the corrected message, while held)",
+        "RELEASE_PAYMENT  (a person, after checking with the provider)",
+        "POST /webhooks/provider  evt2 SUCCESS 750000  (the provider's retry)",
+      ],
       code: [
+        {
+          file: `${SERVICE}/payment/ProviderWebhookService.java`,
+          from: 107,
+          lines: ["if (intent.isOnHold()) {", "    return deferred(event, intent);", "}"],
+        },
         {
           file: `${SERVICE}/payment/ProviderWebhookService.java`,
           from: 115,
@@ -223,14 +260,9 @@ export const rounds: Round[] = [
             "}",
           ],
         },
-        {
-          file: `${SERVICE}/payment/ProviderWebhookService.java`,
-          from: 107,
-          lines: ["if (intent.isOnHold()) {", "    return deferred(event, intent);", "}"],
-        },
       ],
-      notes: ["A mismatch moves the payment to MANUAL_REVIEW with an AMOUNT_MISMATCH case. While it's held, any new event gets 409 PAYMENT_ON_HOLD, so the provider retries once a person has released it."],
-      result: "evt1: 202 SENT_TO_REVIEW. After RELEASE_PAYMENT, evt2: 200 APPLIED, one CAPTURE of 750000.",
+      notes: ["A mismatch moves the payment to MANUAL_REVIEW with an AMOUNT_MISMATCH case. While it's held, events aren't recorded and get 409, so the provider's own retry delivers them once the person has decided (ADR 010)."],
+      result: "evt1: 202 SENT_TO_REVIEW, payment MANUAL_REVIEW. evt2 while held: 409 PAYMENT_ON_HOLD, not recorded. After RELEASE_PAYMENT, evt2's retry: 200 APPLIED, one CAPTURE of 750000.",
       tests: [
         { file: `${TESTS}/payment/ProviderWebhookTest.java`, line: 151, name: "shouldHoldAnInFlightPaymentForAmountMismatch" },
         { file: `${TESTS}/payment/ProviderWebhookTest.java`, line: 191, name: "shouldDeferEventsWhileAPaymentIsOnHoldAndApplyTheRedeliveryAfterRelease" },
@@ -240,17 +272,21 @@ export const rounds: Round[] = [
   {
     id: "lost",
     trick: "Lost money",
-    hint: "The card company says it sent the money. The bank never got it.",
+    hint: "The card company says it paid the shop. The bank never got the money.",
     conditions: { delivery: "once", amount: "matches", bank: "missing" },
-    before: [...paying, { kind: "payout" }, { kind: "report" }],
-    question: `The report says ${amount(PAYOUT_NET)} was sent, but the bank's statement shows nothing arrived. Is the sale done?`,
+    before: [...paying, { kind: "payout", lost: true }, { kind: "report" }],
+    question: `The report says ${amount(PAYOUT_NET)} was sent. The bank's statements for the 2 days after the value date show nothing. Is the sale done?`,
     choices: [{ id: "done", label: "Yes, the report says it was sent" }, { id: "flag", label: "No, flag the missing money" }],
-    after: [{ kind: "statement", input: { kind: "statement", statement: "no-credit" }, said: "Nothing arrived by the value date." }],
+    after: [{ kind: "statement", input: { kind: "statement", statement: "no-credit" }, said: "Nothing came in, 2 days past the value date." }],
     answer: (end) => (end.flow.payout === "BROKEN" ? "flag" : "done"),
     why: "Payflow calls a sale done only when the card company's report and the bank's own statement agree. A report alone proves nothing.",
     compare: (end) => ({ measure: "The books say", basic: end.naive.status === "RECONCILED" ? "Done, with no money" : "Not done", payflow: end.flow.payout === "BROKEN" ? "Money missing: flagged" : "Done" }),
     proof: {
-      request: [`settlement batch: ${PAYMENT_AMOUNT} − ${PAYOUT_FEE} fee = ${PAYOUT_NET}, IN_TRANSIT`, "provider payout report: the row matches", "camt.053 statements through the value date + 2 days: no credit with this reference"],
+      request: [
+        `settlement batch: ${PAYMENT_AMOUNT} − ${PAYOUT_FEE} fee = ${PAYOUT_NET}; payout asked of the provider through the outbox (key payout-<batch>)`,
+        "provider payout report: the row matches",
+        "camt.053 statements through the value date + 2 days: no credit with the payout reference",
+      ],
       code: [
         {
           file: `${SERVICE}/reconciliation/ThreeWayReconciliationService.java`,
@@ -278,7 +314,10 @@ export const rounds: Round[] = [
           ],
         },
       ],
-      notes: ["The report is one piece of evidence; a bank credit matched by reference, amount and value date is the other. A payout is declared missing only once every statement through its window has arrived, and only a LANDED payout reconciles."],
+      notes: [
+        "Payflow never holds the money: it asks the provider to pay out, and the provider pays the bank.",
+        "The provider's report is one piece of evidence; a bank credit matched by reference, amount and value date is the other. A payout is declared missing only once every statement through its window (value-date-window-days, 2) has arrived, and only a LANDED payout reconciles.",
+      ],
       result: "The batch goes BROKEN (MISSING_CREDIT) and a break opens for treasury. The payment stays SETTLED, never RECONCILED.",
       tests: [
         { file: `${TESTS}/reconciliation/ThreeWayReconciliationTest.java`, line: 110, name: "shouldDeclareACreditMissingOnlyWhenEveryStatementThroughTheWindowHasArrived" },
@@ -343,21 +382,21 @@ export function payflowSays(world: World): string {
   const input = entry.input;
   switch (entry.outcome) {
     case "APPLIED":
-      return entry.event?.status === "AUTHORIZED" ? `New receipt ${no}: card approved.` : `New receipt ${no}. I note it and take the ${amount(PAYMENT_AMOUNT)}.`;
+      return entry.event?.status === "AUTHORIZED" ? `New message ${no}: card approved.` : `New message ${no}. I note it and record the ${amount(PAYMENT_AMOUNT)}.`;
     case "DUPLICATE_IGNORED":
-      return input.kind === "webhook" && input.webhook === "again" ? `${no} is already in my notebook. No money moves.` : `${no} says “paid” again. Already noted, no money moves.`;
+      return input.kind === "webhook" && input.webhook === "again" ? `${no} is already in my notebook. Nothing changes.` : `${no} says “paid” again. Already noted, nothing changes.`;
     case "STALE_IGNORED":
       return `${no} says “approved”, but it's already paid. Old news.`;
     case "SENT_TO_REVIEW":
       return `${amount(WRONG_AMOUNT)} for a ${amount(PAYMENT_AMOUNT)} sale? I hold it for a person.`;
     case "PAYMENT_ON_HOLD":
-      return "It's on hold. Send it again after the check.";
+      return `It's on hold. Send ${no} again after the check.`;
     case "RELEASED":
-      return "Checked. The right receipt can count now.";
+      return `Released. Card company, send ${world.flow.lastEvent ? receiptNo(world.flow.lastEvent.id) : "it"} again.`;
     case "BATCH_CREATED":
-      return `Day closed: ${amount(PAYOUT_NET)} goes to the bank (${amount(PAYOUT_FEE)} fee).`;
+      return `Day closed. Card company: pay ${amount(PAYOUT_NET)} to the shop's bank.`;
     case "MATCHED_AWAITING_BANK":
-      return "The report says it was sent. I wait for the bank to agree.";
+      return "The report says it was sent. I wait for the bank's statement.";
     case "MISSING_CREDIT":
       return "The bank never got it. I flag the missing money.";
     case "RECONCILED":
@@ -368,7 +407,7 @@ export function payflowSays(world: World): string {
   }
 }
 
-/** Payflow's notebook: every receipt number it has written down, and what that receipt said. */
+/** Payflow's notebook: every message number it has written down, and what that message said. */
 export function notebook(world: World): Array<{ id: string; no: string; said: string; technical: string }> {
   return Object.values(world.flow.inbox).map((event) => ({
     id: event.id,

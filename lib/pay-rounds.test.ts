@@ -11,7 +11,7 @@ describe("pay rounds (try to break the payment)", () => {
   it("plays each trick through Payflow's rules as the repo decides it", () => {
     expect(outcomes(0)).toEqual(["APPLIED", "DUPLICATE_IGNORED", "DUPLICATE_IGNORED"]);
     expect(outcomes(1)).toEqual(["APPLIED", "STALE_IGNORED"]);
-    expect(outcomes(2)).toEqual(["SENT_TO_REVIEW", "RELEASED", "APPLIED"]);
+    expect(outcomes(2)).toEqual(["SENT_TO_REVIEW", "PAYMENT_ON_HOLD", "RELEASED", "APPLIED"]);
     expect(outcomes(3)).toEqual(["APPLIED", "BATCH_CREATED", "MATCHED_AWAITING_BANK", "MISSING_CREDIT"]);
   });
 
@@ -24,9 +24,9 @@ describe("pay rounds (try to break the payment)", () => {
       expect(basic).not.toBe(payflow);
     }
     expect(rounds.map((round) => round.compare(roundEnd(round)))).toEqual([
-      { measure: "Customer paid", basic: "2,250,000", payflow: "750,000" },
-      { measure: "The shop's screen says", basic: "Approved, not paid", payflow: "Paid" },
-      { measure: "Customer paid", basic: "1,490,000", payflow: "750,000" },
+      { measure: "The books say the shop got", basic: "2,250,000", payflow: "750,000" },
+      { measure: "Payflow shows the shop", basic: "Approved, not paid", payflow: "Paid" },
+      { measure: "The 740,000 message", basic: "Counted as paid in full", payflow: "Held, then 750,000 once" },
       { measure: "The books say", basic: "Done, with no money", payflow: "Money missing: flagged" },
     ]);
   });
@@ -57,6 +57,18 @@ describe("pay rounds (try to break the payment)", () => {
       for (const [key, value] of Object.entries(round.conditions)) expect(controls.find((control) => control.key === key)?.options.map((option) => option.value)).toContain(value);
     }
     expect(roundFor(scenarios[0].defaults)).toBe(0);
+  });
+
+  it("tells the story as the repo has it: the card company sends every message, and Payflow never carries the money", () => {
+    for (const round of rounds) {
+      const moments = [...round.before, ...round.after];
+      // Before anything reaches Payflow, the card payment has gone to the card company.
+      expect(moments.findIndex((moment) => moment.kind === "pay")).toBeLessThan(moments.findIndex((moment) => moment.kind === "receipts"));
+      expect(said(moments).some((text) => /charged twice|pays? twice/i.test(text))).toBe(false);
+    }
+    // A wrong amount follows the repo's test: held, the corrected message told to try later, released, then the retry applies.
+    const wrong = roundEnd(rounds[2]).flow.entries.map((entry) => `${entry.outcome}${entry.http ? ` ${entry.http}` : ""}`);
+    expect(wrong).toEqual(["SENT_TO_REVIEW 202", "PAYMENT_ON_HOLD 409", "RELEASED", "APPLIED 200"]);
   });
 
   it("links every excerpt and test to the repo at one commit", () => {

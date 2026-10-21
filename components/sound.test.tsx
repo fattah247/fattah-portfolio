@@ -90,19 +90,19 @@ describe("sound", () => {
     };
     const trick = (name: string) => fireEvent.click(within(screen.getByRole("group", { name: "Pick a trick" })).getByRole("button", { name: new RegExp(`^${name}`) }));
 
-    trick("Tap again");
+    trick("Sent twice");
     expect(cues().at(-1)).toBe("pay.start-over");
     until("ask");
-    // Receipt #1 takes 1.8 s to cross to the server: its knock lands as it arrives.
+    // Message #1 takes 1.8 s to cross from the card company to the server: its knock lands as it arrives.
     expect(play).toHaveBeenCalledWith("pay.let-in", expect.closeTo(1.8 - 0.12, 3));
     play.mockClear();
-    // The two repeats go out 0.45 s apart, and each is turned away as it lands.
+    // The two resends go out 0.45 s apart, and each is turned away as it lands.
     fireEvent.click(screen.getByRole("button", { name: "750,000" }));
     expect(play.mock.calls).toEqual([["pay.stopped", expect.closeTo(1.8 - 0.12, 3)], ["pay.stopped", expect.closeTo(2.25 - 0.12, 3)]]);
     until("result");
     expect(cues().at(-1)).toBe("pay.check-on");
 
-    // Lost money: the money reaches the bank, the report reaches Payflow, and the missing credit lands sour, with a jolt.
+    // Lost money: Payflow's payout request reaches the card company, its report reaches Payflow, and the missing credit lands sour, with a jolt.
     fireEvent.click(screen.getByRole("button", { name: "All tricks" }));
     trick("Lost money");
     until("ask");

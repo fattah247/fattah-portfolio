@@ -13,7 +13,7 @@ export function readableOutcome(slug: ScenarioSlug, value: string) {
     "payflow:BREAK OPEN": "Paid out, credit missing: a break for treasury",
     "payflow:SETTLED": "Paid out, waiting for the bank",
     "payflow:MANUAL_REVIEW": "On hold for a person",
-    "payflow:CAPTURED TWICE": "Charged twice",
+    "payflow:CAPTURED TWICE": "Recorded twice",
     "payflow:STATUS OVERWRITTEN": "Newer news overwritten",
     "payflow:WRONG AMOUNT ACCEPTED": "Wrong amount taken as paid",
     "payflow:RECONCILED WITHOUT THE BANK": "Reconciled with no money in the bank",
