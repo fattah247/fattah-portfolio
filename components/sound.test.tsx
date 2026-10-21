@@ -81,56 +81,36 @@ describe("sound", () => {
     expect(screen.queryByRole("group", { name: "Sound" })).toBeNull();
   });
 
-  it("plays the pay world's own outcomes, each landing as what was sent arrives, and jolts an answer that broke a rule", () => {
+  it("lands each receipt's sound as it reaches Payflow, marks the guess, and jolts the missing money", () => {
     const { play, cues } = withSound(caseOf(0));
     expect(cues()).toEqual(["sys.file-open"]);
-    // A scene plays through, Continue pressed at each answer; the answers come back as they were shown.
-    const playScene = () => {
-      const jolts: Array<string | null> = [];
-      for (let turn = 0; turn < 40 && document.querySelector(".pay-world[data-playing]"); turn += 1) {
-        act(() => vi.advanceTimersByTime(1_000));
-        const next = screen.queryByRole("button", { name: "Continue" });
-        if (next) { jolts.push(document.querySelector(".pw-bubble")?.getAttribute("data-hit") ?? null); fireEvent.click(next); }
-      }
-      return jolts;
+    const until = (phase: string) => {
+      for (let turn = 0; turn < 160 && document.querySelector(".pay-world")?.getAttribute("data-phase") !== phase; turn += 1) act(() => vi.advanceTimersByTime(500));
+      act(() => vi.advanceTimersByTime(0));
     };
-    const tap = (actor: string) => { fireEvent.click(document.querySelector(`.pw-actor[data-actor="${actor}"]`)!); return playScene(); };
-    const choose = (label: string) => { fireEvent.click(within(screen.getByRole("group", { name: "What happens next" })).getByRole("button", { name: new RegExp(`^${label}`) })); return playScene(); };
+    const trick = (name: string) => fireEvent.click(within(screen.getByRole("group", { name: "Pick a trick" })).getByRole("button", { name: new RegExp(`^${name}`) }));
 
-    // The receipt takes 1.8 s to cross to the server: the knock lands as it arrives.
-    tap("customer");
-    expect(play).toHaveBeenLastCalledWith("pay.let-in", expect.closeTo(1.8 - 0.12, 3));
-    tap("cashier");
-    expect(play).toHaveBeenLastCalledWith("pay.stopped", expect.closeTo(1.8 - 0.12, 3));
-    // The slow signal's old message crosses only the sky, in 1.6 s.
-    tap("signal");
-    expect(play).toHaveBeenLastCalledWith("pay.stopped", expect.closeTo(1.6 - 0.12, 3));
-    // Closing the day: the money reaches the bank, then the daily report reaches the server.
-    tap("server");
-    expect(cues().slice(-2)).toEqual(["pay.book-back", "sys.file-open"]);
-    choose("The money arrives");
-    expect(play).toHaveBeenLastCalledWith("pay.report-matches", expect.closeTo(1.5 - 0.12, 3));
-    fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+    trick("Tap again");
     expect(cues().at(-1)).toBe("pay.start-over");
-    tap("cashier");
-    expect(cues().at(-1)).toBe("pay.report-differs");
-    tap("cashier");
-    expect(cues().at(-1)).toBe("pay.stopped");
-    // A release happens at the server where it is, at once.
-    tap("operator");
-    expect(play).toHaveBeenLastCalledWith("pay.check-on");
-    tap("cashier");
-    expect(cues().at(-1)).toBe("pay.let-in");
-    // A broken rule that lets something through lands sour, with the buzz and the jolt.
-    tap("server");
-    fireEvent.click(screen.getByRole("button", { name: "Technical details" }));
-    expect(cues().at(-1)).toBe("ui.key-on");
-    choose("camt.053 credit");
-    choose("statement re-imported");
-    choose("mutation: accept a re-imported statement");
-    expect(cues().at(-1)).toBe("pay.check-off");
-    expect(choose("statement re-imported")[0]).toBe("bad");
-    expect(cues().at(-1)).toBe("pay.twice");
+    until("ask");
+    // Receipt #1 takes 1.8 s to cross to the server: its knock lands as it arrives.
+    expect(play).toHaveBeenCalledWith("pay.let-in", expect.closeTo(1.8 - 0.12, 3));
+    play.mockClear();
+    // The two repeats go out 0.45 s apart, and each is turned away as it lands.
+    fireEvent.click(screen.getByRole("button", { name: "750,000" }));
+    expect(play.mock.calls).toEqual([["pay.stopped", expect.closeTo(1.8 - 0.12, 3)], ["pay.stopped", expect.closeTo(2.25 - 0.12, 3)]]);
+    until("result");
+    expect(cues().at(-1)).toBe("pay.check-on");
+
+    // Lost money: the money reaches the bank, the report reaches Payflow, and the missing credit lands sour, with a jolt.
+    fireEvent.click(screen.getByRole("button", { name: "All tricks" }));
+    trick("Lost money");
+    until("ask");
+    expect(cues().slice(-2)).toEqual(["pay.book-back", "sys.file-open"]);
+    fireEvent.click(screen.getByRole("button", { name: "Yes, the report says it was sent" }));
+    until("result");
+    expect(cues().slice(-2)).toEqual(["pay.book-down", "pay.check-off"]);
+    expect(document.querySelector(".pw-bubble")?.getAttribute("data-hit")).toBe("bad");
   });
 
   it("keeps the live monitor silent, lands stepped checks, and sounds iYup's verdicts and alerts once", () => {

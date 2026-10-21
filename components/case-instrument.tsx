@@ -30,7 +30,7 @@ function useOnChange<T>(value: T, effect: (next: T, previous: T) => void) {
 
 /** Each simulator has a name, like a small piece of equipment. */
 const simName: Record<Scenario["slug"], string> = {
-  payflow: "Shop to bank",
+  payflow: "Break the payment",
   iyup: "Website monitor",
   trustgate: "Payment gate",
 };
@@ -39,7 +39,7 @@ const simName: Record<Scenario["slug"], string> = {
 const toys = new Set<Scenario["slug"]>(["payflow"]);
 
 const howTo: Record<Scenario["slug"], string> = {
-  payflow: "A customer pays 750,000 IDR at a shop. Tap who acts, and follow the receipt to Payflow's server and the money to the bank.",
+  payflow: "Four things go wrong in real payments. Pick one, guess what happens, and watch Payflow handle it next to a basic system.",
   iyup: "iYup watches a page from two regions, one check every 30 seconds; here a second is one check. Slow the page, break it in one region, or silence an agent, and see what iYup says and when it alerts.",
   trustgate: "You're sending a payment. Switch on what the phone's checks find: each adds points by how serious it is. The server decides from the total, and the phone writes the decision to its log.",
 };
