@@ -292,8 +292,10 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
   const [atCounter, setAtCounter] = useState(false);
   const [frame, setFrame] = useState({ width: 0, scale: 2 });
   const [focusX, setFocusX] = useState(110);
+  const frameBox = useRef<HTMLDivElement>(null);
   const view = useRef<HTMLDivElement>(null);
   const band = useRef<HTMLDivElement>(null);
+  const reveal = useRef(false);
   const queue = useRef<Beat[]>([]);
   const timers = useRef<number[]>([]);
   const hold = useRef<number | null>(null);
@@ -346,6 +348,20 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
     if (active && active !== document.body && !band.current?.contains(active)) return;
     band.current?.querySelector<HTMLButtonElement>("[data-primary]")?.focus({ preventScroll: true });
   }, [phase]);
+
+  // A trick starts where it can be seen: if the visitor had scrolled away (to read a proof, say),
+  // the frame comes back into view, below the case's sticky bars (its scroll margin).
+  // The result, too, is read where it lands: its band scrolls just into view if it ended up below.
+  useEffect(() => {
+    const behavior = reducedMotion() ? "auto" : "smooth";
+    if (reveal.current) {
+      reveal.current = false;
+      const frame = frameBox.current;
+      if (frame && typeof frame.scrollIntoView === "function") frame.scrollIntoView({ block: "nearest", behavior });
+    } else if (phase === "result" && engaged.current && band.current && typeof band.current.scrollIntoView === "function") {
+      band.current.scrollIntoView({ block: "nearest", behavior });
+    }
+  }, [phase, current]);
 
   // When the case's conditions change from outside (Reset, a link), the tricks are offered again from the one they name.
   const signature = conditionsKey(conditions);
@@ -441,6 +457,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
   /** A trick: its conditions become the case's, the world starts fresh, and the scene plays to the question. */
   const begin = (index: number) => {
     engaged.current = true;
+    reveal.current = true;
     stopAll();
     const next = rounds[index];
     setOwnSignature(conditionsKey({ ...conditions, ...next.conditions }));
@@ -476,7 +493,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
     advance();
   };
 
-  const toTricks = () => { engaged.current = true; setPhase("pick"); setShown(emptyWorld); setLine(null); setMoves([]); setAtCounter(false); setPose("idle"); setFocusX(110); };
+  const toTricks = () => { engaged.current = true; reveal.current = true; setPhase("pick"); setShown(emptyWorld); setLine(null); setMoves([]); setAtCounter(false); setPose("idle"); setFocusX(110); };
 
   /* What the world shows. */
   const { width, scale } = frame;
@@ -524,7 +541,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
 
   return (
     <div className="pay-world" data-phase={phase} data-technical={technical || undefined}>
-      <div className="pw-frame">
+      <div className="pw-frame" ref={frameBox}>
         <div className="pw-hud">
           {phase === "pick" ? (
             <p className="pw-goal"><b>Try to break the payment.</b> Make the customer pay the wrong amount, or lose the shop&rsquo;s money.</p>

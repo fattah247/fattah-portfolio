@@ -4572,7 +4572,7 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 .pay-world { display: grid; gap: 10px; min-inline-size: 0; padding: 12px var(--instrument-pad) var(--instrument-pad); position: relative; }
 .instrument[data-phase="rewind"] .pay-world { opacity: .7; }
 
-.pw-frame { background: var(--raised); border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); container-type: inline-size; display: grid; min-inline-size: 0; }
+.pw-frame { background: var(--raised); border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); container-type: inline-size; display: grid; min-inline-size: 0; scroll-margin-top: calc(var(--window-chrome-height) + var(--case-progress-height, 46px) + 16px); }
 .pw-hud { align-items: center; border-block-end: 1px solid var(--line-ink); display: flex; flex-wrap: wrap; gap: 6px 14px; min-block-size: 52px; padding: 6px 10px; }
 .pw-goal { color: var(--ink); font: var(--type-label); margin: 0; }
 .pw-goal b { color: var(--accent-deep); }
