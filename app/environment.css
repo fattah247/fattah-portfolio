@@ -4739,6 +4739,52 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.system-rec
 html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .system-launcher-app .system-app-mark { transition: filter 240ms ease-out !important; }
 html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .system-launcher-app:active .system-app-mark { filter: brightness(.55) !important; transition: none !important; }
 
+/* Side by side on a tablet, as on an iPad: each app keeps its side whichever one has the focus
+ * (Projects on the left, Experience on the right), and the left one's share of the width is --split,
+ * which the divider between them drags and springs (components/split-divider.tsx). */
+@property --split { syntax: "<number>"; inherits: true; initial-value: .5; }
+@media (orientation: landscape) {
+  html[data-system-mode="tablet"] .editorial-home[data-workspace-paired="true"]:has(.portfolio-window[data-window-state="clear"]) .workspace-work-window.portfolio-window {
+    border-inline-end: 1px solid var(--line-ink) !important;
+    inset: var(--os-topbar) auto var(--os-shelf) 0 !important;
+    left: 0 !important;
+    right: auto !important;
+    width: calc(var(--split) * 100%) !important;
+  }
+  html[data-system-mode="tablet"] .editorial-home[data-workspace-paired="true"]:has(.portfolio-window[data-window-state="clear"]) .workspace-experience-window.portfolio-window {
+    border-inline-end: 0 !important;
+    inset: var(--os-topbar) 0 var(--os-shelf) auto !important;
+    left: auto !important;
+    right: 0 !important;
+    width: calc((1 - var(--split)) * 100%) !important;
+  }
+}
+/* Its grip is a small bevelled bar on the seam. */
+html[data-system-mode="tablet"] .split-divider {
+  cursor: ew-resize;
+  inline-size: 28px;
+  inset-block: var(--os-topbar) var(--os-shelf);
+  inset-inline-start: calc(var(--split) * 100% - 14px);
+  position: fixed;
+  touch-action: none;
+  z-index: 33;
+}
+html[data-system-mode="tablet"] .split-divider-grip {
+  background: #ffffff;
+  block-size: 56px;
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--bevel-raised);
+  inline-size: 8px;
+  inset-block-start: calc(50% - 28px);
+  inset-inline-start: 10px;
+  position: absolute;
+  transition: scale 120ms ease-out;
+}
+html[data-system-mode="tablet"] .split-divider:is(:active, :focus-visible) .split-divider-grip { scale: 1.25 1.15; }
+html[data-system-mode="tablet"] .split-divider:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; }
+/* While the divider is held, the two windows follow it without easing. */
+html[data-system-mode="tablet"] .editorial-home[data-splitting] :is(.workspace-work-window, .workspace-experience-window) { transition: none !important; }
+
 /* The phone's bar and the tablet's shelf take a push up as the home gesture (components/
  * use-home-gesture.ts) instead of letting the browser scroll or zoom. */
 html[data-system-mode="phone"] .phone-system-navigation, html[data-system-mode="tablet"] .tablet-shelf { touch-action: none; }

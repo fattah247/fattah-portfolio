@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { homeGestureOutcome } from "./use-home-gesture";
 import { flicksAway } from "./use-flick-away";
 import { sheetGoesAway } from "./debugger-workspace";
+import { splitRest } from "./split-divider";
 
 describe("the home gesture's release", () => {
   const height = 844;
@@ -39,5 +40,20 @@ describe("the evidence sheet's release", () => {
     expect(sheetGoesAway(120, 0.2, 770)).toBe(false);
     expect(sheetGoesAway(300, 0, 770)).toBe(true);
     expect(sheetGoesAway(300, -0.6, 770)).toBe(false);
+  });
+});
+
+describe("the side-by-side divider's release", () => {
+  it("rests on the nearest of a third, half and two thirds, keeping both panes 480px wide", () => {
+    expect(splitRest(0.4, 0, 1600)).toBeCloseTo(1 / 3);
+    expect(splitRest(0.47, 0, 1600)).toBe(0.5);
+    expect(splitRest(0.5, 0.0004, 1600)).toBeCloseTo(2 / 3);
+    expect(splitRest(0.4, 0, 1366)).toBeCloseTo(480 / 1366);
+    expect(1366 * (1 - (splitRest(0.6, 0, 1366) as number))).toBeGreaterThanOrEqual(480);
+  });
+
+  it("closes the side it's thrown over", () => {
+    expect(splitRest(0.6, 0.002, 1366)).toBe("close-right");
+    expect(splitRest(0.4, -0.002, 1366)).toBe("close-left");
   });
 });

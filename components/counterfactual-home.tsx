@@ -19,6 +19,7 @@ import { scenarios, type Conditions, type ScenarioSlug } from "../lib/scenarios"
 import type { GithubProject, GithubProjectsPayload } from "../lib/github-projects";
 import { useWindowFrame, type SnapEdge } from "./use-window-frame";
 import { fadeOutCopy } from "../lib/motion";
+import { SplitDivider } from "./split-divider";
 
 type WorkspaceWindow = Extract<WorkspaceWindowId, "work" | "experience" | "products">;
 type WorkView = "index" | "full-case" | "github-project";
@@ -90,6 +91,7 @@ export function CounterfactualHome({
   initialGithubProjectId?: string;
 } = {}) {
   const workspace = useWorkspaceManager();
+  const homeRef = useRef<HTMLElement>(null);
   const [githubProjects, setGithubProjects] = useState(initialGithubProjects);
   const [githubProjectsSource, setGithubProjectsSource] = useState(initialGithubProjectsSource);
   const [githubLoading, setGithubLoading] = useState(false);
@@ -666,15 +668,19 @@ export function CounterfactualHome({
   const selectedScenario = selectedScenarioFor(selectedCaseSlug);
   const selectedGithubProject = githubProjects.find((project) => project.id === selectedGithubProjectId) ?? githubProjects[0];
 
+  const paired = workspace.paired && (workspace.activeApp === "work" || workspace.activeApp === "experience") && isWorkOpen && isExperienceOpen && workspace.surface === "application";
+
   return (
     <>
       <main
         className={`home-page editorial-home ${hasOpenWindows ? "has-work-window" : "is-desktop"}`}
         data-system-mode={workspace.mode}
-        data-workspace-paired={workspace.paired && (workspace.activeApp === "work" || workspace.activeApp === "experience") && isWorkOpen && isExperienceOpen && workspace.surface === "application"}
+        data-workspace-paired={paired}
         id="main-content"
+        ref={homeRef}
         tabIndex={-1}
       >
+        {paired && workspace.mode === "tablet" ? <SplitDivider host={() => homeRef.current} keep={(app) => { workspace.setPaired(false); workspace.focusApp(app); }} /> : null}
         <DesktopSurface onOpenCase={openCaseWindow} onOpenWindow={openWindow} />
         <WindowSnapPreview edge={activeSnapCandidate} key={activeSnapCandidate ?? "none"} />
         {hasOpenWindows ? (
