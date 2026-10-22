@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties, MouseEvent, RefObject } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowIcon, ChevronIcon } from "./icons";
 import { CaseCover } from "./case-cover";
@@ -86,6 +86,20 @@ function EvidenceDialog({
 
   // Closing is immediate: the sheet is gone the moment it's asked.
   const requestClose = useCallback(() => onClose(), [onClose]);
+
+  // The sheet grows out of the evidence card that opened it, so it's seen to come from there.
+  useLayoutEffect(() => {
+    const sheet = frameRef.current;
+    if (!sheet || !returnFocus) return;
+    const card = returnFocus.getBoundingClientRect();
+    const box = sheet.getBoundingClientRect();
+    // A card out of sight (opened from the keyboard, say) grows the sheet from its nearest edge.
+    const x = Math.min(Math.max(card.left + card.width / 2 - box.left, 0), box.width);
+    const y = Math.min(Math.max(card.top + card.height / 2 - box.top, 0), box.height);
+    sheet.style.setProperty("--from-origin", `${Math.round(x)}px ${Math.round(y)}px`);
+  // Measured once, as the sheet opens.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (surface !== "application" || activeWindow !== evidenceWindowId) return;

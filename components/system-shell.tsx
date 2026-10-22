@@ -211,6 +211,32 @@ export function SystemShell() {
     return () => document.removeEventListener("contextmenu", preventPageContextMenu);
   }, []);
 
+  // Going Home from an app (by Home, Back or Recents) sends it back into its Home icon, or a
+  // tablet's shelf button, the way it came out: the window it left is marked for that one moment.
+  const leftFrom = useRef({ surface: workspace.surface, app: workspace.activeApp });
+  useLayoutEffect(() => {
+    const before = leftFrom.current;
+    leftFrom.current = { surface: workspace.surface, app: workspace.activeApp };
+    if (workspace.mode === "computer" || before.surface !== "application" || workspace.surface !== "home" || !before.app) return;
+    if (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const leaving = document.querySelector<HTMLElement>(`:is(.portfolio-window, .contact-window)[data-app-id="${before.app}"]`);
+    if (!leaving) return;
+    const icon = [...document.querySelectorAll<HTMLElement>(`.system-launcher-app[data-app="${before.app}"], .tablet-shelf [data-app="${before.app}"]`)]
+      .map((element) => element.getBoundingClientRect())
+      .find((rect) => rect.width > 0);
+    const box = leaving.getBoundingClientRect();
+    leaving.style.setProperty("--leave-origin", icon ? `${Math.round(icon.left + icon.width / 2 - box.left)}px ${Math.round(icon.top + icon.height / 2 - box.top)}px` : "50% 100%");
+    const layer = leaving.closest<HTMLElement>(".contact-window-layer");
+    const settle = () => {
+      delete leaving.dataset.leaving;
+      if (layer) delete layer.dataset.leaving;
+    };
+    leaving.dataset.leaving = "true";
+    if (layer) layer.dataset.leaving = "true";
+    const timer = window.setTimeout(settle, 240);
+    return () => { window.clearTimeout(timer); settle(); };
+  }, [workspace.activeApp, workspace.mode, workspace.surface]);
+
   /**
    * Records where a launch began, so the opening app grows out of that icon, row, shelf button or
    * Recents card, and marks the launch for its one animation. Only a launch plays it: an app that
