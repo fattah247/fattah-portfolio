@@ -10,7 +10,7 @@ import { CaseCover } from "./case-cover";
 import { CaseInstrument } from "./case-instrument";
 import { useSound } from "./sound-provider";
 import { readableOutcome } from "../lib/instruments";
-import { fadeOutCopy, sheetSpring, springEasing } from "../lib/motion";
+import { fadeOutCopy, leaveSpring, pointerTrail, project, rubberband, sheetSpring, springTo } from "../lib/motion";
 import { findScrollOwner } from "./application-frame";
 import { useWindowFrame, windowResizeEdges } from "./use-window-frame";
 import { WindowChrome } from "./window-chrome";
@@ -42,6 +42,15 @@ export const caseSections: Array<{ id: CaseSectionId; index: string; label: stri
 ];
 
 
+
+/**
+ * Whether a sheet let go `dy` px below where it was grabbed, moving at `velocity` px per ms, goes away:
+ * if the throw would carry it more than 40% of its height down, or it was let go a quarter of the way
+ * down and not on its way back up.
+ */
+export function sheetGoesAway(dy: number, velocity: number, height: number) {
+  return project(dy, velocity) > height * 0.4 || (dy > height / 4 && velocity >= 0);
+}
 
 function EvidenceDialog({
   evidence,
@@ -89,10 +98,12 @@ function EvidenceDialog({
   const requestClose = useCallback(() => { fadeOutCopy(frameRef.current); onClose(); }, [frameRef, onClose]);
 
   // On a phone or tablet the sheet is a sheet: grab its title bar (or the grabber) and it follows the
-  // finger 1:1, even while it's still opening. Let go a quarter of the way down, or flick it, and it
-  // slides away; otherwise it springs back. Pulling it up resists.
-  const pull = useRef<{ id: number; startY: number; startT: number } | null>(null);
-  const offsetFor = (dy: number) => (dy > 0 ? dy : dy / 4);
+  // finger 1:1, even while it's still opening, the page behind brightening as it comes down; pulled up
+  // it gives like a rubber band. Let go and it goes where the throw would carry it: off the bottom at
+  // the speed it was thrown, or back up on a spring at that speed.
+  const pull = useRef<{ id: number; startY: number; trail: ReturnType<typeof pointerTrail> } | null>(null);
+  const offsetFor = (dy: number, height: number) => (dy > 0 ? dy : rubberband(dy, height));
+  const scrimOf = (sheet: HTMLElement) => sheet.parentElement?.querySelector<HTMLElement>(".evidence-scrim") ?? null;
   const grabSheet = (event: React.PointerEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement;
     if (workspace.mode === "computer" || !target.closest(".evidence-sheet-head, .evidence-grabber") || target.closest("button, a, summary")) return;
@@ -100,7 +111,10 @@ function EvidenceDialog({
     if (!sheet) return;
     // A slide it was already making stops under the finger; its opening (a scale) carries on.
     for (const running of sheet.getAnimations?.() ?? []) if (!("animationName" in running)) running.cancel();
-    pull.current = { id: event.pointerId, startY: event.clientY, startT: event.timeStamp };
+    for (const running of scrimOf(sheet)?.getAnimations?.() ?? []) running.cancel();
+    const trail = pointerTrail();
+    trail.add(event.clientX, event.clientY, event.timeStamp);
+    pull.current = { id: event.pointerId, startY: event.clientY, trail };
     sheet.dataset.pulling = "true";
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -108,7 +122,11 @@ function EvidenceDialog({
     const state = pull.current;
     const sheet = frameRef.current;
     if (!state || state.id !== event.pointerId || !sheet) return;
-    sheet.style.translate = `0 ${offsetFor(event.clientY - state.startY)}px`;
+    state.trail.add(event.clientX, event.clientY, event.timeStamp);
+    const offset = offsetFor(event.clientY - state.startY, sheet.offsetHeight);
+    sheet.style.translate = `0px ${offset}px`;
+    const scrim = scrimOf(sheet);
+    if (scrim) scrim.style.opacity = String(1 - Math.max(0, Math.min(1, offset / sheet.offsetHeight)));
   };
   const releaseSheet = (event: React.PointerEvent<HTMLDivElement>) => {
     const state = pull.current;
@@ -116,19 +134,23 @@ function EvidenceDialog({
     if (!state || state.id !== event.pointerId || !sheet) return;
     pull.current = null;
     delete sheet.dataset.pulling;
+    const height = sheet.offsetHeight;
     const dy = event.clientY - state.startY;
-    const from = `0 ${offsetFor(dy)}px`;
-    sheet.style.translate = "";
-    // A flick is the whole pull being quick (a finger that held still before letting go threw nothing).
-    const velocity = dy / Math.max(16, event.timeStamp - state.startT);
-    if (dy > sheet.offsetHeight / 4 || (dy > 24 && velocity > 0.4)) {
-      // Away with the flick: it carries on down, quicker the faster it was thrown.
-      const away = sheet.animate([{ translate: from }, { translate: `0 ${sheet.offsetHeight}px` }], { duration: velocity > 0.8 ? 140 : 200, easing: "cubic-bezier(.32, .72, 0, 1)", fill: "forwards" });
-      away.addEventListener("finish", () => onClose());
+    const velocity = event.type === "pointercancel" ? 0 : state.trail.velocity(event.timeStamp).y;
+    const scrim = scrimOf(sheet);
+    const shade = scrim ? Number(getComputedStyle(scrim).opacity) : 1;
+    scrim?.style.removeProperty("opacity");
+    if (event.type !== "pointercancel" && sheetGoesAway(dy, velocity, height)) {
+      const away = springTo(sheet, { translate: `0px ${height}px` }, leaveSpring, { fill: "forwards", velocity: velocity * 1000 });
+      sheet.style.removeProperty("translate");
+      scrim?.animate([{ opacity: shade }, { opacity: 0 }], { duration: 200, easing: "cubic-bezier(.32, .72, 0, 1)", fill: "forwards" });
+      if (away) away.addEventListener("finish", () => onClose());
+      else onClose();
       return;
     }
-    const { duration, easing } = springEasing(sheetSpring);
-    sheet.animate([{ translate: from }, { translate: "0 0" }], { duration, easing });
+    springTo(sheet, { translate: "0px 0px" }, sheetSpring, { velocity: velocity * 1000 });
+    sheet.style.removeProperty("translate");
+    scrim?.animate([{ opacity: shade }, { opacity: 1 }], { duration: 200, easing: "ease-out" });
   };
 
   // The sheet grows out of the evidence card that opened it, so it's seen to come from there.

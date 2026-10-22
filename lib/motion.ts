@@ -102,7 +102,8 @@ export function pointerTrail() {
 
 const prefersStill = () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const cssName = (property: string) => (property.startsWith("--") ? property : property.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`));
-const numberOf = (value: Keyframe[string]) => (typeof value === "number" ? value : parseFloat(String(value)));
+/** A keyframe value as one number: the value itself, or for a translate its vertical part (the last). */
+const numberOf = (value: Keyframe[string]) => (typeof value === "number" ? value : parseFloat(String(value).trim().split(/\s+/).at(-1) ?? ""));
 
 /** The spring each element is riding, so whatever interrupts it can take over its speed. */
 const riding = new WeakMap<Element, { animation: Animation; from: number; property: string; spring: Spring; to: number; velocity: number }>();

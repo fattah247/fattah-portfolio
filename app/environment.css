@@ -4735,6 +4735,12 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.system-rec
 html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .system-launcher-app .system-app-mark { transition: filter 240ms ease-out !important; }
 html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .system-launcher-app:active .system-app-mark { filter: brightness(.55) !important; transition: none !important; }
 
+/* The phone's bar and the tablet's shelf take a push up as the home gesture (components/
+ * use-home-gesture.ts) instead of letting the browser scroll or zoom. */
+html[data-system-mode="phone"] .phone-system-navigation, html[data-system-mode="tablet"] .tablet-shelf { touch-action: none; }
+/* A Recents card takes a flick up (components/use-flick-away.ts); the row still scrolls sideways. */
+.system-recent-card { touch-action: pan-x; }
+
 /* Focus: the ring arrives from a little outside the control and closes in on it, as a Mac's does. */
 @keyframes focus-ring-in { from { outline-color: transparent; outline-offset: 8px; } }
 @media (prefers-reduced-motion: no-preference) {
