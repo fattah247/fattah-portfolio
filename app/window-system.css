@@ -38,12 +38,11 @@ body {
   isolation: isolate;
   overscroll-behavior: contain;
   overflow-x: hidden !important;
-  scroll-behavior: smooth;
   transition:
-    border-color 180ms ease,
+    border-color 180ms ease-out,
     box-shadow 220ms var(--os-ease),
-    filter 220ms ease,
-    opacity 220ms ease;
+    filter 180ms ease-out,
+    opacity 140ms ease-out;
   z-index: var(--window-z, 24) !important;
 }
 
@@ -1833,7 +1832,7 @@ html[data-system-mode="computer"] .desktop-board {
   opacity: 1;
   overflow: auto;
   position: fixed;
-  transition: opacity 180ms ease, visibility 180ms ease;
+  transition: opacity 160ms ease-out, visibility 160ms ease-out;
   visibility: visible;
   z-index: 4000;
 }

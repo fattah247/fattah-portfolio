@@ -1900,14 +1900,16 @@ html[data-system-mode="computer"] .desktop-object[data-dragging="true"] { backgr
 
 /* ------------------------------------------------- Minimize into the dock */
 
+/* Minimize and restore travel between the window and its taskbar button, easing out both ways:
+ * most of the travel happens at the start, so it reads as quick (an ease-in would hang first). */
 html[data-system-mode="computer"] .portfolio-window,
 html[data-system-mode="computer"] .contact-window {
   transition:
-    border-color .18s,
-    box-shadow .22s var(--env-settle),
-    filter .22s,
-    opacity 260ms ease,
-    transform 380ms var(--env-settle),
+    border-color 180ms ease-out,
+    box-shadow 220ms var(--env-settle),
+    filter 180ms ease-out,
+    opacity 160ms ease-out,
+    transform 260ms var(--env-settle),
     visibility 0s linear 0s !important;
 }
 
@@ -1916,17 +1918,21 @@ html[data-system-mode="computer"] .contact-window[data-window-state="minimized"]
   opacity: 0 !important;
   transform: translate3d(var(--minimize-dx, 0px), var(--minimize-dy, 240px), 0) scale(.06) !important;
   transition:
-    opacity 170ms ease-in 210ms,
-    transform 380ms cubic-bezier(.5, 0, .75, .4),
-    visibility 0s linear 380ms !important;
+    opacity 120ms ease-out 140ms,
+    transform 260ms var(--ease-event),
+    visibility 0s linear 260ms !important;
 }
 
+/* Reduced motion keeps only a short fade: shown at once on restore, gone when its fade ends. */
 @media (prefers-reduced-motion: reduce) {
   html[data-system-mode="computer"] .portfolio-window,
-  html[data-system-mode="computer"] .contact-window,
+  html[data-system-mode="computer"] .contact-window {
+    transition: opacity 120ms ease-out, visibility 0s linear 0s !important;
+  }
+
   html[data-system-mode="computer"] .portfolio-window[data-window-state="minimized"],
   html[data-system-mode="computer"] .contact-window[data-window-state="minimized"] {
-    transition: opacity 120ms ease, visibility 0s linear 120ms !important;
+    transition: opacity 120ms ease-out, visibility 0s linear 120ms !important;
   }
 
   html[data-system-mode="computer"] .portfolio-window[data-window-state="minimized"],
@@ -1939,7 +1945,7 @@ html[data-system-mode="computer"] .contact-window[data-window-state="minimized"]
   html[data-system-mode="computer"] .portfolio-window,
   html[data-system-mode="computer"] .contact-window,
   html[data-system-mode="computer"] .evidence-dialog .evidence-sheet {
-    animation: os-window-open 300ms var(--env-settle) backwards !important;
+    animation: os-window-open 180ms var(--env-settle) backwards !important;
   }
 }
 

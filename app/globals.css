@@ -3674,7 +3674,6 @@ body[data-workspace="case"] .portfolio-header {
 }
 
 .selected-work-window {
-  scroll-behavior: smooth;
   scroll-padding-top: calc(var(--window-chrome-height) + 92px);
 }
 
@@ -4255,7 +4254,6 @@ body:has(.editorial-home.is-desktop) {
 .window-chrome .window-location span { color: var(--ink-secondary); font-size: 0.78rem; }
 
 .case-page.selected-work-window {
-  scroll-behavior: smooth;
   scroll-padding-top: calc(var(--window-chrome-height) + 92px);
 }
 
