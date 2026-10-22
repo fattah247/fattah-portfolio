@@ -94,7 +94,7 @@ function EvidenceDialog({
   } = useWindowFrame({ defaultHeight: 780, defaultWidth: 1180, minHeight: 480, minWidth: 720 });
 
   // Closing is immediate: the sheet is gone the moment it's asked, and a copy of it fades out where it
-  // stood (90 ms, never in the way), so the close is seen to happen.
+  // stood (150 ms, never in the way), so the close is seen to happen.
   const requestClose = useCallback(() => { fadeOutCopy(frameRef.current); onClose(); }, [frameRef, onClose]);
 
   // On a phone or tablet the sheet is a sheet: grab its title bar (or the grabber) and it follows the

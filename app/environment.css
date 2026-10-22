@@ -707,11 +707,15 @@ html[data-system-mode="computer"] .window-management-options button { border-rad
 html[data-system-mode="computer"] .window-management-options button:hover { background: var(--accent-deep) !important; color: #ffffff !important; }
 
 html[data-system-mode="computer"] .window-snap-preview {
+  animation: snap-zone-in var(--spring-sheet-duration) var(--spring-sheet);
   background: rgb(83 111 163 / 14%) !important;
   border: 2px dashed var(--accent-deep) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
 }
+
+/* The zone a window would snap into grows in where the pointer meets the edge, as a Mac's does. */
+@keyframes snap-zone-in { from { opacity: 0; scale: .94; } }
 
 /* Window manager cursors follow desktop convention. */
 html[data-system-mode="computer"] :is(.portfolio-window-chrome, .window-titlebar, .evidence-sheet-head) { cursor: default; }

@@ -142,10 +142,29 @@ export function springTo(element: HTMLElement, to: Keyframe, spring: Spring = wi
 }
 
 /**
- * A close says it happened without making anyone wait: a still copy of what closed fades out over
- * 90 ms where it stood, while the real thing is already gone and the page answers at once.
+ * A launching app's taskbar button hops, as a Mac's Dock icon bounces: up, a fall, and a smaller
+ * second bounce, over 600 ms.
  */
-export function fadeOutCopy(element: HTMLElement | null) {
+export function hop(element: HTMLElement | null) {
+  if (!element || prefersStill() || typeof element.animate !== "function") return;
+  const rise = "cubic-bezier(.33, 1, .68, 1)";
+  const fall = "cubic-bezier(.32, 0, .67, 0)";
+  element.animate([
+    { easing: rise, offset: 0, translate: "0 0" },
+    { easing: fall, offset: 0.32, translate: "0 -10px" },
+    { easing: rise, offset: 0.62, translate: "0 0" },
+    { easing: fall, offset: 0.78, translate: "0 -3px" },
+    { offset: 0.92, translate: "0 0" },
+    { offset: 1, translate: "0 0" },
+  ], { duration: 600 });
+}
+
+/**
+ * A close says it happened without making anyone wait: a still copy of what closed fades out where it
+ * stood (150 ms for a window, as a Mac's does; a menu likewise), while the real thing is already gone
+ * and the page answers at once.
+ */
+export function fadeOutCopy(element: HTMLElement | null, duration = 150) {
   if (!element || prefersStill() || typeof element.animate !== "function") return;
   const rect = element.getBoundingClientRect();
   if (!rect.width || !rect.height) return;
@@ -160,7 +179,7 @@ export function fadeOutCopy(element: HTMLElement | null) {
   });
   copy.dataset.closingCopy = "true";
   // The copy sits inside see-through shells of its original containers, so every style scoped to
-  // them still applies for its 90 ms; the shells draw nothing themselves (display: contents).
+  // them still applies while it fades; the shells draw nothing themselves (display: contents).
   let holder: HTMLElement = document.body;
   let outermost: HTMLElement = copy;
   const ancestors: HTMLElement[] = [];
@@ -178,7 +197,7 @@ export function fadeOutCopy(element: HTMLElement | null) {
   }
   holder.append(copy);
   // A window's opacity is pinned in the stylesheet and reads --window-fade, so both are faded.
-  const fade = copy.animate([{ "--window-fade": 1, opacity: 1, scale: 1 }, { "--window-fade": 0, opacity: 0, scale: 0.985 }], { duration: 90, easing: "cubic-bezier(.32, .72, 0, 1)", fill: "forwards" });
+  const fade = copy.animate([{ "--window-fade": 1, opacity: 1, scale: 1 }, { "--window-fade": 0, opacity: 0, scale: 0.97 }], { duration, easing: "cubic-bezier(.32, .72, 0, 1)", fill: "forwards" });
   const remove = () => outermost.remove();
   fade.addEventListener("finish", remove);
   fade.addEventListener("cancel", remove);

@@ -15,7 +15,7 @@ import { CaseCover } from "./case-cover";
 import { Wallpaper } from "./wallpaper";
 import { SoundControl } from "./sound-control";
 import { useSound } from "./sound-provider";
-import { leaveSpring, springDuration, springTo, windowSpring } from "../lib/motion";
+import { hop, leaveSpring, springDuration, springTo, windowSpring } from "../lib/motion";
 import { useWorkspaceSounds } from "./use-workspace-sounds";
 import { useHomeGesture } from "./use-home-gesture";
 import { useFlickAway } from "./use-flick-away";
@@ -343,6 +343,16 @@ export function SystemShell() {
     if (workspace.launchApp("work", `case:${slug}`)) return;
     router.push(`/case/${slug}`);
   }
+
+  // On the desktop, an app that starts running hops its taskbar button once, as a Mac's Dock does
+  // (not for apps a returning visitor finds already running).
+  const runningBefore = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const before = runningBefore.current;
+    runningBefore.current = new Set(runningApps);
+    if (!before || workspace.mode !== "computer") return;
+    for (const app of runningApps) if (!before.has(app)) hop(document.querySelector<HTMLElement>(`.taskbar-app[data-app="${app}"]`));
+  }, [runningApps, workspace.mode]);
 
   // Closing a Recents card lets the cards beside it slide over into the gap on the window spring,
   // from where they stood before, rather than jumping there.

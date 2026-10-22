@@ -485,6 +485,8 @@ export function useWindowFrame({
     pendingManipulationRef.current = null;
     if (completedKind === "drag" && completedSnap) {
       restoreRectRef.current = sessionRef.current.rect;
+      // Dropped on an edge, it springs from where it was let go into the zone, as on a Mac.
+      noteSeat();
       setRect(clamp(snapRect(completedSnap), { respectMinimums: false }));
     } else if (pendingRect) {
       setRect(pendingRect);

@@ -416,7 +416,7 @@ export function CounterfactualHome({
     focusWindowControl(windowName);
   }
 
-  /** A closed desktop window leaves a copy that fades out where it stood (90 ms, never in the way). */
+  /** A closed desktop window leaves a copy that fades out where it stood (150 ms, never in the way). */
   function fadeOutWindow(windowName: WorkspaceWindow) {
     if (workspace.mode !== "computer") return;
     const selector = { work: ".workspace-work-window", experience: ".workspace-experience-window", products: ".product-links-window" }[windowName as "work" | "experience" | "products"];
@@ -676,7 +676,7 @@ export function CounterfactualHome({
         tabIndex={-1}
       >
         <DesktopSurface onOpenCase={openCaseWindow} onOpenWindow={openWindow} />
-        <WindowSnapPreview edge={activeSnapCandidate} />
+        <WindowSnapPreview edge={activeSnapCandidate} key={activeSnapCandidate ?? "none"} />
         {hasOpenWindows ? (
           <>
           {isWorkOpen ? <ApplicationFrame windowId="work" documentId={workView === "full-case" ? `case:${selectedCaseSlug}` : workView === "github-project" ? `project:${selectedGithubProjectId}` : workView} resizeHandleProps={workResizeHandleProps}
