@@ -4506,7 +4506,8 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 .pw-world { position: relative; transition: transform 420ms cubic-bezier(.3, .7, .3, 1); }
 .pw-ground { block-size: 100%; inline-size: 100%; inset: 0; position: absolute; }
 .pw-line { stroke: #8d98a7; stroke-dasharray: 2 3; stroke-linecap: square; stroke-width: 1.5; }
-.pay-world:is([data-phase="play"], [data-phase="ask"]) .pw-line { stroke: var(--accent); }
+/* Only the line something is travelling along lights up, so the eye follows it. */
+.pw-line[data-active] { stroke: var(--accent); stroke-width: 2.2; }
 .pw-actor, .pw-prop { display: block; pointer-events: none; position: absolute; z-index: 2; }
 .pw-actor .pixel-sprite, .pw-prop .pixel-sprite { block-size: 100%; display: block; inline-size: 100%; }
 
@@ -4613,7 +4614,8 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 .pw-choices { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); }
 .pw-choice { font-weight: 600; justify-content: center; text-align: center; }
 
-.pw-result { animation: pw-appear 1ms backwards; display: grid; gap: 8px; }
+/* The result slides up into the band, like a language game's answer bar. */
+.pw-result { animation: pw-result-in 200ms var(--env-settle) backwards; display: grid; gap: 8px; }
 .pw-verdict { color: var(--ink); font: 700 1.05rem/1.3 var(--font-body), system-ui, sans-serif; margin: 0; }
 .pw-result[data-right] .pw-verdict { color: var(--confirmed); }
 .pw-why { color: var(--ink); font: var(--type-label); margin: 0; max-inline-size: 60ch; }
@@ -4653,6 +4655,7 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 @keyframes pw-appear { from { visibility: hidden; } }
 @keyframes pw-pop { 0% { scale: .6; } 100% { scale: 1; } }
 @keyframes pw-jolt { 0%, 100% { translate: 0 0; } 17%, 50% { translate: -2px 0; } 33%, 67% { translate: 2px 0; } 83% { translate: -1px 0; } }
+@keyframes pw-result-in { from { opacity: 0; translate: 0 12px; } }
 @keyframes pw-flash { 0%, 33%, 67% { background: var(--accent-soft); } 17%, 50%, 100% { background: transparent; } }
 
 @media (prefers-reduced-motion: reduce) {

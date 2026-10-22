@@ -9,6 +9,7 @@ import { PAYOUT_NET, type FlowEntry, type FlowOutcome, type FlowWorld } from "..
 import {
   codeLink,
   emptyWorld,
+  openingFor,
   notebook,
   payflowSays,
   receiptNo,
@@ -52,8 +53,11 @@ const notebookAt: Point = { x: 348, y: 96 };
 
 /** The card payment: from the shop's machine, up its antenna, to the card company. */
 const payLine: Point[] = [{ x: 114, y: 116 }, { x: 114, y: 86 }, { x: 170, y: 86 }, { x: 170, y: 50 }, { x: 240, y: 50 }, { x: 240, y: 56 }];
-/** The card company's messages to Payflow's server (and Payflow's payout request back). */
-const messageLine: Point[] = [{ x: 272, y: 88 }, { x: 292, y: 88 }, { x: 292, y: 44 }, { x: 376, y: 44 }, { x: 376, y: 76 }];
+/** The card company's messages to Payflow: they land in its notebook, where each number is looked up. */
+const messageLine: Point[] = [{ x: 272, y: 88 }, { x: 292, y: 88 }, { x: 292, y: 44 }, { x: 326, y: 44 }, { x: 326, y: 94 }];
+/** The card company's daily report to Payflow's server, and Payflow's payout request back. */
+const reportLine: Point[] = [{ x: 272, y: 88 }, { x: 292, y: 88 }, { x: 292, y: 44 }, { x: 376, y: 44 }, { x: 376, y: 76 }];
+type LineName = "pay" | "messages" | "report" | "money" | "statements";
 /** The money: from the card company along the ground to the bank, never through Payflow. */
 const moneyLine: Point[] = [{ x: 240, y: 120 }, { x: 240, y: 190 }, { x: 512, y: 190 }, { x: 512, y: 136 }];
 /** The bank's statements to Payflow's server. */
@@ -119,15 +123,26 @@ type Frame = Point & { at: number; scale?: number; opacity?: number };
 /** Something crossing the world: what it is, its receipt number, and its path in world units at moments (ms). */
 type Move = { key: string; object: PixelObjectName; size: number; tag?: string; frames: Frame[] };
 
-/** Positions along a polyline at a constant pace, from one moment to another. */
+/** Cubic ease-in-out: something already on screen speeds away, travels, and settles where it lands. */
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+
+/** Positions along a polyline from one moment to another, one per 60 ms pixel step, spaced by the ease. */
 function along(points: Point[], from: number, to: number): Frame[] {
   const lengths = points.slice(1).map((spot, index) => Math.hypot(spot.x - points[index].x, spot.y - points[index].y));
   const total = lengths.reduce((sum, length) => sum + length, 0) || 1;
-  let walked = 0;
-  return points.map((spot, index) => {
-    if (index > 0) walked += lengths[index - 1];
-    return { ...spot, at: from + ((to - from) * walked) / total };
-  });
+  const pointAt = (distance: number): Point => {
+    let left = distance;
+    for (const [index, length] of lengths.entries()) {
+      if (left <= length || index === lengths.length - 1) {
+        const share = length ? Math.min(1, left / length) : 0;
+        return { x: points[index].x + (points[index + 1].x - points[index].x) * share, y: points[index].y + (points[index + 1].y - points[index].y) * share };
+      }
+      left -= length;
+    }
+    return points.at(-1)!;
+  };
+  const count = Math.max(2, Math.round((to - from) / 60));
+  return Array.from({ length: count + 1 }, (_, index) => ({ ...pointAt(easeInOut(index / count) * total), at: from + ((to - from) * index) / count }));
 }
 /** Taken in where it arrives: it rests a moment, then shrinks away. */
 const into = (spot: Point, at: number): Frame[] => [{ ...spot, at: at + 200 }, { ...spot, at: at + 500, scale: 0.4, opacity: 0 }];
@@ -143,13 +158,15 @@ function MoveSprite({ move, scale, technical }: { move: Move; scale: number; tec
     const end = move.frames.at(-1)!.at;
     element.animate(
       move.frames.map((frame, index) => {
+        // Each frame holds until the next (the pixel step); the ease is in how far apart they are.
         const next = move.frames[index + 1];
-        const travels = next && (next.x !== frame.x || next.y !== frame.y || (next.scale ?? 1) !== (frame.scale ?? 1));
+        const travels = next && (next.x !== frame.x || next.y !== frame.y);
+        const shrinks = next && ((next.scale ?? 1) !== (frame.scale ?? 1) || (next.opacity ?? 1) !== (frame.opacity ?? 1));
         return {
           offset: end ? frame.at / end : 0,
           opacity: frame.opacity ?? 1,
           transform: `translate(${frame.x * scale}px, ${frame.y * scale}px) translate(-50%, -50%) scale(${frame.scale ?? 1})`,
-          easing: travels ? `steps(${Math.max(3, Math.round((next.at - frame.at) / 60))}, end)` : "linear",
+          easing: travels ? "steps(1, end)" : shrinks ? "steps(3, end)" : "linear",
         };
       }),
       { duration: end, fill: "forwards" },
@@ -174,7 +191,8 @@ function MoveSprite({ move, scale, technical }: { move: Move; scale: number; tec
  */
 type Beat =
   | { kind: "say"; speaker: Speaker; text: string; entry?: FlowEntry; hold: number; stay?: boolean }
-  | { kind: "move"; moves: Move[]; focus: number; lands?: Array<{ at: number; world: World; cue: CueId }> }
+  | { kind: "move"; moves: Move[]; focus: number; line?: LineName; lands?: Array<{ at: number; world: World; cue: CueId }> }
+  | { kind: "arrive" }
   | { kind: "show"; world: World; cue?: CueId }
   | { kind: "walk" }
   | { kind: "pose"; pose: "tap" | "idle" }
@@ -197,8 +215,8 @@ function beatsFor(moments: Moment[], start: World, decisive: boolean): { beats: 
   };
   const says = (speaker: Speaker, text: string): Beat => ({ kind: "say", speaker, text, hold: holdFor(text) });
   /** One thing along a line, taken in where it arrives; its sound lands with it when it changes the world. */
-  const carry = (key: string, object: PixelObjectName, path: Point[], ms: number, focus: number, sound?: boolean): Beat => ({
-    kind: "move", focus, moves: [{ key, object, size: object === "money-bag" ? 24 : 22, frames: [...along(path, 0, ms), ...into(path.at(-1)!, ms)] }],
+  const carry = (key: string, object: PixelObjectName, path: Point[], ms: number, focus: number, line: LineName, sound?: boolean): Beat => ({
+    kind: "move", focus, line, moves: [{ key, object, size: object === "money-bag" ? 24 : 22, frames: [...along(path, 0, ms), ...into(path.at(-1)!, ms)] }],
     lands: sound ? [{ at: ms, world, cue: cueFor(latest()) }] : undefined,
   });
   moments.forEach((moment, index) => {
@@ -209,7 +227,12 @@ function beatsFor(moments: Moment[], start: World, decisive: boolean): { beats: 
       const to = centre(place.machine);
       beats.push({ kind: "move", focus: 110, moves: [{ key: `card-${index}`, object: "note", size: 18, frames: [...along([from, to], 0, pace.card), { ...to, at: pace.card + 200, scale: 0.5, opacity: 0 }] }] });
     } else if (moment.kind === "tap") beats.push({ kind: "pose", pose: "tap" }, { kind: "wait", ms: 340 }, { kind: "pose", pose: "idle" });
-    else if (moment.kind === "pay") beats.push(carry(`pay-${index}`, "note", payLine, pace.pay, 170));
+    else if (moment.kind === "pay") beats.push(carry(`pay-${index}`, "note", payLine, pace.pay, 170, "pay"));
+    else if (moment.kind === "recap") {
+      // The same sale, recalled in one line: the customer is at the counter, and its inputs land at once.
+      for (const input of moment.inputs) world = step(world, input);
+      beats.push({ kind: "arrive" }, { kind: "show", world }, says("narrator", moment.text));
+    }
     else if (moment.kind === "say") beats.push(says(moment.who, moment.text));
     else if (moment.kind === "receipts") {
       // The card company's messages go along their line to Payflow; one already in the notebook is turned away.
@@ -224,7 +247,7 @@ function beatsFor(moments: Moment[], start: World, decisive: boolean): { beats: 
         moves.push({ key: `${entry.n}-message`, object: "receipt", size: 22, tag: entry.event?.id, frames: [...after(messageLine, offset, ms), ...(turnedAway.includes(entry.outcome) ? away : into)(arrive, offset + ms)] });
         lands.push({ at: offset + ms, world, cue: cueFor(entry) });
       });
-      beats.push({ kind: "move", moves, focus: 310, lands }, { kind: "show", world }, answers(last));
+      beats.push({ kind: "move", moves, focus: 310, line: "messages", lands }, { kind: "show", world }, answers(last));
     } else if (moment.kind === "payout") {
       // Payflow closes the day and asks the card company to pay the shop; the card company pays the bank.
       world = step(world, { kind: "settle" });
@@ -235,17 +258,17 @@ function beatsFor(moments: Moment[], start: World, decisive: boolean): { beats: 
         : [...along(moneyLine, 0, pace.money), ...into(moneyLine.at(-1)!, pace.money)];
       beats.push(
         { kind: "say", speaker: "server", text: request, entry: latest(), hold: holdFor(request) },
-        carry(`request-${index}`, "slip", [...messageLine].reverse(), pace.request, 300, true),
+        carry(`request-${index}`, "slip", [...reportLine].reverse(), pace.request, 300, "report", true),
         { kind: "show", world },
         says("provider", sending),
-        { kind: "move", focus: 380, moves: [{ key: `money-${index}`, object: "money-bag", size: 24, frames: money }] },
+        { kind: "move", focus: 380, line: "money", moves: [{ key: `money-${index}`, object: "money-bag", size: 24, frames: money }] },
       );
     } else if (moment.kind === "report") {
       world = step(world, { kind: "report", matches: true });
-      beats.push(says("provider", `Today's report: ${amount(PAYOUT_NET)} sent to the shop's bank.`), carry(`report-${index}`, "report", messageLine, pace.message, 310, true), { kind: "show", world }, answers(last));
+      beats.push(says("provider", `Today's report: ${amount(PAYOUT_NET)} sent to the shop's bank.`), carry(`report-${index}`, "report", reportLine, pace.message, 310, "report", true), { kind: "show", world }, answers(last));
     } else if (moment.kind === "statement") {
       world = step(world, moment.input);
-      beats.push(says("bank", moment.said), carry(`${latest().n}-statement`, latest().outcome === "MISSING_CREDIT" ? "cross" : "slip", statementLine, pace.slip, 440, true), { kind: "show", world }, answers(last));
+      beats.push(says("bank", moment.said), carry(`${latest().n}-statement`, latest().outcome === "MISSING_CREDIT" ? "cross" : "slip", statementLine, pace.slip, 440, "statements", true), { kind: "show", world }, answers(last));
     } else {
       world = step(world, { kind: "release" });
       beats.push(says("operator", "I checked with the card company: their mistake. Releasing."), { kind: "show", world, cue: cueFor(latest()) }, answers(last));
@@ -299,6 +322,9 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
   const queue = useRef<Beat[]>([]);
   const timers = useRef<number[]>([]);
   const hold = useRef<number | null>(null);
+  const finishMove = useRef<(() => void) | null>(null);
+  const openingSeen = useRef(false);
+  const [activeLine, setActiveLine] = useState<LineName | null>(null);
   const lines = useRef(0);
   const middle = useRef<World>(emptyWorld);
   const verdict = useRef(false);
@@ -317,6 +343,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
     timers.current.forEach((timer) => window.clearTimeout(timer));
     timers.current = [];
     hold.current = null;
+    finishMove.current = null;
   };
   useEffect(() => () => stopAll(), []);
   // Back at the tricks, nothing of a round may still be playing.
@@ -409,16 +436,35 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
     } else if (beat.kind === "move") {
       setLine(null);
       setFocusX(beat.focus);
-      for (const land of beat.lands ?? []) play(land.cue, still ? 0 : Math.max(0, land.at / 1000 - LANDING));
+      const lands = beat.lands ?? [];
       if (still) {
-        const landed = beat.lands?.at(-1);
+        for (const land of lands) play(land.cue);
+        const landed = lands.at(-1);
         if (landed) setShown(landed.world);
         advance();
         return;
       }
       setMoves(beat.moves);
-      for (const land of beat.lands ?? []) later(land.at, () => setShown(land.world));
-      later(Math.max(...beat.moves.map((move) => move.frames.at(-1)!.at)), () => { setMoves([]); advance(); });
+      setActiveLine(beat.line ?? null);
+      // Each landing is heard as it lands (the cue starts LANDING ahead of its knock) and shown then.
+      const heard = new Set<number>();
+      const own: number[] = lands.flatMap((land, index) => [
+        later(Math.max(0, land.at - LANDING * 1000), () => { heard.add(index); play(land.cue); }),
+        later(land.at, () => setShown(land.world)),
+      ]);
+      const done = () => { finishMove.current = null; setMoves([]); setActiveLine(null); advance(); };
+      own.push(later(Math.max(...beat.moves.map((move) => move.frames.at(-1)!.at)), done));
+      // A tap finishes it at once: everything lands, the last landing is heard if it wasn't yet.
+      finishMove.current = () => {
+        own.forEach((timer) => window.clearTimeout(timer));
+        timers.current = timers.current.filter((timer) => !own.includes(timer));
+        const landed = lands.at(-1);
+        if (landed) {
+          if (!heard.has(lands.length - 1)) play(landed.cue);
+          setShown(landed.world);
+        }
+        done();
+      };
     } else if (beat.kind === "show") {
       setShown(beat.world);
       if (beat.cue) play(beat.cue);
@@ -430,6 +476,10 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
       if (still) { advance(); return; }
       setWalking(true);
       later(pace.walk, () => { setWalking(false); advance(); });
+    } else if (beat.kind === "arrive") {
+      setAtCounter(true);
+      setFocusX(240);
+      advance();
     } else if (beat.kind === "pose") {
       setPose(beat.pose);
       advance();
@@ -438,6 +488,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
       else later(beat.ms, advance);
     } else if (beat.kind === "ask") {
       setLine(null);
+      openingSeen.current = true;
       setPhase("ask");
     } else {
       setPhase("result");
@@ -445,8 +496,9 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
     }
   };
 
-  /** A tap on the world, or Skip, moves past the line that's holding. */
+  /** A tap on the world, or Skip, moves past the line that's holding, or finishes what's moving. */
   const skip = () => {
+    if (finishMove.current) { finishMove.current(); return; }
     if (hold.current === null) return;
     window.clearTimeout(hold.current);
     timers.current = timers.current.filter((id) => id !== hold.current);
@@ -462,7 +514,8 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
     const next = rounds[index];
     setOwnSignature(conditionsKey({ ...conditions, ...next.conditions }));
     for (const [key, value] of Object.entries(next.conditions)) if (conditions[key] !== value) onChange(key, value);
-    const { beats, end: asked } = beatsFor(next.before, emptyWorld, false);
+    // The opening plays in full once; later rounds recall the same sale in one line.
+    const { beats, end: asked } = beatsFor(openingFor(next, !openingSeen.current), emptyWorld, false);
     middle.current = asked;
     queue.current = [...beats, { kind: "ask" }];
     setCurrent(index);
@@ -471,6 +524,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
     setShown(emptyWorld);
     setLine(null);
     setMoves([]);
+    setActiveLine(null);
     setPose("idle");
     setWalking(false);
     setAtCounter(false);
@@ -588,9 +642,9 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
               <rect fill="url(#pw-grass)" height="104" width="32" x="436" y="96" />
               <rect fill="#ffffff" height="56" width="492" x="468" y="40" />
               <rect fill="url(#pw-stone)" height="104" width="492" x="468" y="96" />
-              {/* The lines: the card payment to the card company, its messages to Payflow, the money to the bank, the bank's statements to Payflow. */}
-              {([["pay", payLine], ["messages", messageLine], ["money", moneyLine], ["statements", statementLine]] as const).map(([name, line]) => (
-                <polyline className="pw-line" data-line={name} fill="none" key={name} points={line.map((spot) => `${spot.x},${spot.y}`).join(" ")} />
+              {/* The lines: the card payment to the card company, its messages into Payflow's notebook, its report to Payflow's server, the money to the bank, the bank's statements to Payflow. Only the one in use lights up. */}
+              {([["pay", payLine], ["messages", messageLine], ["report", reportLine], ["money", moneyLine], ["statements", statementLine]] as const).map(([name, path]) => (
+                <polyline className="pw-line" data-active={activeLine === name || undefined} data-line={name} fill="none" key={name} points={path.map((spot) => `${spot.x},${spot.y}`).join(" ")} />
               ))}
             </svg>
 
@@ -664,7 +718,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
           ) : (
             <div className="pw-playing">
               <p className="pw-band-note">{round.trick}</p>
-              <button className="sim-secondary" disabled={!line} onClick={skip} type="button">Skip ahead</button>
+              <button className="sim-secondary" disabled={!line && !moves.length} onClick={skip} type="button">Skip ahead</button>
             </div>
           )}
         </div>

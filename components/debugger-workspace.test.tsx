@@ -163,6 +163,32 @@ describe("DebuggerWorkspace", () => {
     expect(proof.getByRole("link", { name: /^ProviderWebhookService\.java:93–98/ }).getAttribute("href")).toBe(`${REPO_AT}/src/main/java/id/fatarc/portfolio/payflowreliability/payment/ProviderWebhookService.java#L93-L98`);
     expect(proof.getByText("shouldIgnoreAnExactRedeliveryWithoutOpeningAReviewCaseOrPostingTwice")).toBeTruthy();
     expect(proof.getByText(/^evt1: 200 APPLIED/)).toBeTruthy();
+
+    // The next trick doesn't make the visitor sit through the same opening: the sale is recalled in one line.
+    fireEvent.click(screen.getByRole("button", { name: /^Next trick: old message/ }));
+    const next: string[] = [];
+    for (let turn = 0; turn < 120 && document.querySelector(".pay-world")?.getAttribute("data-phase") !== "ask"; turn += 1) {
+      act(() => vi.advanceTimersByTime(250));
+      const now = lineNow();
+      if (now && next.at(-1) !== now) next.push(now);
+    }
+    expect(next).toEqual([
+      "Same sale again: the card company charged 750,000, and #1 is in Payflow's notebook.",
+      "The card company's earlier message, “card approved”, got stuck on a slow line.",
+    ]);
+    expect(notebookLines()).toEqual(["#1 paid"]);
+  });
+
+  it("finishes a moving message at a tap on the world", () => {
+    renderPayflow();
+    fireEvent.click(within(screen.getByRole("group", { name: "Pick a trick" })).getByRole("button", { name: /^Sent twice/ }));
+    // Wait for message #1 to set off from the card company, then tap the world.
+    for (let turn = 0; turn < 200 && !document.querySelector('.pw-move [class="pw-move-tag"]'); turn += 1) act(() => vi.advanceTimersByTime(50));
+    expect(notebookLines()).toEqual(["empty"]);
+    fireEvent.click(document.querySelector(".pw-view")!);
+    expect(document.querySelector(".pw-move")).toBeNull();
+    expect(notebookLines()).toEqual(["#1 paid"]);
+    expect(lineNow()).toBe("Payflow [New]: New message #1. I note it and record the 750,000.");
   });
 
   it.each(rounds.map((round) => [round.trick, round] as const))("says Right! when the guess for “%s” matches what Payflow does", (trick, round) => {

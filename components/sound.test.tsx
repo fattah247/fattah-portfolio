@@ -93,12 +93,19 @@ describe("sound", () => {
     trick("Sent twice");
     expect(cues().at(-1)).toBe("pay.start-over");
     until("ask");
-    // Message #1 takes 1.8 s to cross from the card company to the server: its knock lands as it arrives.
-    expect(play).toHaveBeenCalledWith("pay.let-in", expect.closeTo(1.8 - 0.12, 3));
+    // Message #1 is heard as it lands in Payflow's notebook.
+    expect(play).toHaveBeenCalledWith("pay.let-in");
     play.mockClear();
-    // The two resends go out 0.45 s apart, and each is turned away as it lands.
+    // The two resends go out 0.45 s apart, each crossing in 1.8 s and turned away as it lands: each cue
+    // starts 120 ms ahead of its knock.
     fireEvent.click(screen.getByRole("button", { name: "750,000" }));
-    expect(play.mock.calls).toEqual([["pay.stopped", expect.closeTo(1.8 - 0.12, 3)], ["pay.stopped", expect.closeTo(2.25 - 0.12, 3)]]);
+    const stopped = () => cues().filter((cue) => cue === "pay.stopped").length;
+    act(() => vi.advanceTimersByTime(1_679));
+    expect(stopped()).toBe(0);
+    act(() => vi.advanceTimersByTime(2));
+    expect(stopped()).toBe(1);
+    act(() => vi.advanceTimersByTime(450));
+    expect(stopped()).toBe(2);
     until("result");
     expect(cues().at(-1)).toBe("pay.check-on");
 

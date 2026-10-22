@@ -70,7 +70,9 @@ export type Moment =
   | { kind: "payout"; lost?: boolean }
   | { kind: "report" }
   | { kind: "statement"; input: FlowInput; said: string }
-  | { kind: "release" };
+  | { kind: "release" }
+  /** The same sale recalled in one line, its inputs applied at once (a repeated opening). */
+  | { kind: "recap"; text: string; inputs: FlowInput[] };
 
 export type CodeExcerpt = { file: string; from: number; lines: string[] };
 export type Proof = {
@@ -331,10 +333,22 @@ export const rounds: Round[] = [
 export const REPO_AT = "https://github.com/fattah247/Payflow-reliability/blob/b21130a1f7a5c1d81a8e9e128d89c8beab64e4eb";
 export const codeLink = (file: string, from: number, to = from) => `${REPO_AT}/${file}#L${from}${to > from ? `-L${to}` : ""}`;
 
+/**
+ * A round's opening: in full the first time; after that the same sale is recalled in one line, since
+ * an opening seen once only makes the visitor wait the second time.
+ */
+export function openingFor(round: Round, firstTime: boolean): Moment[] {
+  if (firstTime) return round.before;
+  const startsWith = (prefix: Moment[]) => prefix.every((moment, index) => round.before[index] === moment);
+  if (startsWith(paying)) return [{ kind: "recap", text: `Same sale again: the card company charged ${amount(PAYMENT_AMOUNT)}, and #1 is in Payflow's notebook.`, inputs: [webhook("success")] }, ...round.before.slice(paying.length)];
+  if (startsWith(charging)) return [{ kind: "recap", text: `Same sale again: the card company charged ${amount(PAYMENT_AMOUNT)}.`, inputs: [] }, ...round.before.slice(charging.length)];
+  return round.before;
+}
+
 /** Every input a round sends, in order. */
 export const roundInputs = (round: Round): FlowInput[] =>
   [...round.before, ...round.after].flatMap((moment): FlowInput[] => {
-    if (moment.kind === "receipts") return moment.inputs;
+    if (moment.kind === "receipts" || moment.kind === "recap") return moment.inputs;
     if (moment.kind === "payout") return [{ kind: "settle" }];
     if (moment.kind === "report") return [{ kind: "report", matches: true }];
     if (moment.kind === "statement") return [moment.input];
