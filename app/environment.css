@@ -71,7 +71,6 @@
   --object-shadow-lifted: 4px 4px 0 rgb(37 43 52 / 28%);
 
   --focus: #536fa3;
-  --env-spring: cubic-bezier(.2, .8, .2, 1);
   --env-settle: cubic-bezier(.2, .8, .2, 1);
 
   /* Type scale: IBM Plex Sans for every interface and reading role; IBM Plex Mono only for
@@ -2432,53 +2431,6 @@ html[data-system-mode="computer"] .evidence-sheet[data-snap] {
 
 html[data-system-mode="phone"] .product-links-intro { padding-top: 18px !important; }
 
-/* ------------------------------------------------------------- Motion audit */
-
-/* Entrance choreography removed: documents, rows, icons, and window contents no longer
- * fade up in staggered sequence. Motion that carries meaning stays: opening and closing
- * apps, window focus and minimize, the evidence sheet, the chapter marker, and every
- * simulation state change. */
-.evidence-image,
-.case-workspace-chrome,
-.case-intro .case-index-block,
-.case-intro .case-thesis,
-.case-interaction,
-.evidence-inspector,
-.evidence-stage-label,
-.evidence-image-wrap,
-.evidence-image-wrap::before,
-.evidence-image-wrap::after,
-.brief-actions .brief-action,
-.contact-window-body > *,
-.desktop-object,
-.portfolio-window-chrome,
-.portfolio-window-content > *,
-.experience-window > .brief-section,
-.portfolio-window-chrome::after,
-.case-workspace-chrome::after,
-.portfolio-window-content > .editorial-work,
-.portfolio-window-content > .editorial-footer,
-.selected-work-window .case-intro,
-.selected-work-window .case-interaction,
-.selected-work-window .mobile-outcome-strip,
-.selected-work-window .case-evidence,
-.selected-work-window .case-handoff,
-.editorial-home .portfolio-window .portfolio-window-chrome,
-.editorial-home .experience-window .portfolio-window-chrome,
-.editorial-home .workspace-case-window .portfolio-window-chrome,
-.case-page.selected-work-window .case-workspace-chrome,
-.editorial-home .portfolio-window .portfolio-window-chrome::after,
-.editorial-home .experience-window .portfolio-window-chrome::after,
-.editorial-home .workspace-case-window .portfolio-window-chrome::after,
-.case-page.selected-work-window .case-workspace-chrome::after,
-.window-close-action:active > span,
-.case-close-action:active > span,
-.portfolio-window > :not(.window-chrome):not(.window-resize-handle),
-.selected-work-window > :not(.window-chrome):not(.window-resize-handle)
- {
-  animation: none !important;
-}
-
 /* Evidence ledger: a document heading, not a poster. */
 .evidence-route-window .evidence-route-content { background: var(--doc) !important; }
 
@@ -2796,8 +2748,6 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 
 @keyframes instrument-mark-odd { 0%, 45% { outline-color: var(--accent); } 100% { outline-color: transparent; } }
 @keyframes instrument-mark-even { 0%, 45% { outline-color: var(--accent); } 100% { outline-color: transparent; } }
-@keyframes pay-arrive-odd { from { background: var(--accent-soft); } to { background: transparent; } }
-@keyframes pay-arrive-even { from { background: var(--accent-soft); } to { background: transparent; } }
 
 
 @media (prefers-reduced-motion: reduce) {
@@ -2847,71 +2797,11 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 .sd-ground { fill: #ffffff; }
 .sd-label { fill: #8593a6; font: 500 12px var(--font-mono), monospace; letter-spacing: .04em; }
 .sd-rule { stroke: #dce3ec; stroke-width: 1; }
-.sd-hint { fill: #8593a6; font: 500 12px var(--font-mono), monospace; }
-.sd-small { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
 .sd-note { fill: var(--ink); font: 600 13px var(--font-mono), monospace; }
 .sd-compact .sd-note { font-size: 12px; }
 .sd-note-bad { fill: var(--adverse-ink); }
 .sd-note-arrow { fill: #8593a6; }
 .sd-flow { fill: none; stroke: #6b7a90; stroke-width: 1.8; }
-.sd-arrow { fill: none; stroke: #6b7a90; stroke-width: 1.8; }
-.sd-flow-faint { stroke: #c3cbd6; stroke-dasharray: 3 3; }
-.sd-stop { stroke: var(--adverse); stroke-width: 3; }
-
-/* Payment */
-.sd-event rect { fill: #ffffff; stroke: #6b7a90; stroke-width: 1.4; }
-.sd-event text { fill: var(--ink); font: 600 12px var(--font-mono), monospace; }
-.sd-event .sd-event-seq { fill: #8593a6; font: 500 12px var(--font-mono), monospace; }
-/* Compact lists each message with what happened to it, since only the newest one travels. */
-.sd-event .sd-event-tag { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
-.sd-row[data-flow="stop"] .sd-event-tag { fill: var(--uncertain); }
-.sd-row[data-flow="pass-bad"] .sd-event-tag { fill: var(--adverse-ink); }
-.sd-row[data-flow="stop"] .sd-flow { stroke: var(--uncertain); stroke-dasharray: 5 4; }
-.sd-row[data-flow="stop"] .sd-event rect { stroke: var(--uncertain); }
-.sd-row[data-flow="pass-bad"] :is(.sd-flow, .sd-arrow) { stroke: var(--adverse); }
-.sd-row[data-flow="pass-bad"] .sd-event rect { fill: var(--adverse-wash); stroke: var(--adverse); }
-.sd-row:not(.sd-row-new) { opacity: .62; }
-.sd-gate { fill: var(--designed-wash); stroke: var(--designed); stroke-width: 1.6; }
-.sd-gate[data-check="off"] { fill: #ffffff; stroke: #97a3b4; stroke-dasharray: 5 4; }
-.sd-gate-text { fill: var(--designed); font: 600 12px var(--font-mono), monospace; }
-.sd-svg[data-check="off"] .sd-gate-text { fill: var(--ink-secondary); }
-.sd-flow-out, .sd-arrow-out { stroke: var(--designed); stroke-width: 2; }
-.sd-svg[data-check="off"] :is(.sd-flow-out, .sd-arrow-out) { stroke: #6b7a90; }
-.sd-state rect { fill: #ffffff; stroke: #97a3b4; stroke-width: 1.6; }
-.sd-state text { fill: var(--ink-secondary); font: 700 15px var(--font-mono), monospace; }
-/* Everyday state names run longer ("Needs checking"), so they step down a size. */
-.sd-svg:not([data-technical]) .sd-state text { font-size: 13px; }
-.sd-state[data-state="paid"] rect { fill: var(--confirmed-wash); stroke: var(--confirmed); }
-.sd-state[data-state="paid"] text { fill: var(--confirmed); }
-.sd-state[data-state="review"] rect { fill: var(--uncertain-wash); stroke: var(--uncertain); }
-.sd-state[data-state="review"] text { fill: var(--uncertain); }
-.sd-badge rect { fill: var(--adverse); stroke: var(--line-ink); }
-.sd-badge text { fill: #ffffff; font: 700 12px var(--font-mono), monospace; }
-.sd-settle rect { fill: #ffffff; stroke: #97a3b4; stroke-width: 1.2; }
-.sd-settle text { fill: var(--ink-secondary); font: 600 12px var(--font-mono), monospace; }
-.sd-settle[data-outcome="matched"] rect { stroke: var(--confirmed); }
-.sd-settle[data-outcome="matched"] text { fill: var(--confirmed); }
-.sd-settle[data-outcome="mismatched"] rect { fill: var(--uncertain-wash); stroke: var(--uncertain); }
-.sd-settle[data-outcome="mismatched"] text { fill: var(--uncertain); }
-.sd-record { fill: var(--confirmed); stroke: var(--line-ink); stroke-width: 1; }
-.sd-record[data-status="pending"] { fill: #ffffff; stroke: var(--uncertain); stroke-dasharray: 2 2; stroke-width: 1.6; }
-.sd-store rect { fill: var(--confirmed); stroke: var(--line-ink); }
-.sd-store[data-online="false"] rect { fill: var(--uncertain); }
-.sd-store text { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
-
-/* Packets travel one straight leg each; the boundary and the state answer when they arrive. */
-.sd-packet { animation: sd-travel 440ms steps(12, end) both; fill: var(--designed); stroke: #ffffff; stroke-width: 1.5; }
-.sd-row[data-flow="stop"] .sd-packet { fill: var(--uncertain); }
-.sd-row[data-flow="pass-bad"] .sd-packet { fill: var(--adverse); }
-.sd-row-new .sd-event { animation: sd-slide 260ms steps(4, end) both; }
-.sd-row-new .sd-stop { animation: sd-flash 600ms steps(3, end) 380ms both; }
-.sd-gate { animation: sd-hit 500ms steps(4, end) 380ms both; }
-.sd-state rect, .sd-badge, .sd-record-new { animation: sd-pop 360ms steps(3, end) both; transform-box: fill-box; transform-origin: center; }
-@keyframes sd-travel { 0% { opacity: 0; transform: translate(0, 0); } 6% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)); } }
-@keyframes sd-slide { from { opacity: 0; transform: translateX(-18px); } }
-@keyframes sd-flash { 0% { opacity: 0; } 34% { opacity: 1; stroke-width: 6; } 100% { opacity: 1; stroke-width: 3; } }
-@keyframes sd-hit { 0%, 100% { stroke-width: 1.6; } 40% { stroke-width: 4; } }
-@keyframes sd-pop { from { opacity: .3; transform: scale(1.12); } }
 
 /* Service */
 .sd-clock { fill: var(--ink); font: 700 15px var(--font-mono), monospace; }
@@ -2924,17 +2814,10 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 .sd-trace { fill: none; stroke: var(--adverse); stroke-linejoin: round; stroke-width: 2.8; }
 .sd-point { fill: #ffffff; stroke: #6b7a90; stroke-width: 1.4; }
 .sd-point[data-over] { fill: var(--adverse-wash); stroke: var(--adverse); }
-.sd-breach { fill: #ffffff; stroke: var(--adverse); stroke-width: 2.4; }
-.sd-breach[data-firing] { animation: sd-ring 1100ms steps(2, end) infinite; }
 .sd-threshold { stroke: var(--uncertain); stroke-dasharray: 6 4; stroke-width: 1.5; }
 .sd-threshold-label { fill: var(--uncertain); font: 600 12px var(--font-mono), monospace; }
 /* A white halo keeps the label legible where the trace crosses it in a narrow drawing. */
 .sd-threshold-label { paint-order: stroke; stroke: #ffffff; stroke-linejoin: round; stroke-width: 4px; }
-.sd-overlay rect { fill: var(--doc-sunken); stroke: #97a3b4; stroke-dasharray: 4 3; }
-.sd-overlay text { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
-.sd-health { stroke: var(--confirmed); stroke-width: 2.8; }
-.sd-health[data-state="fail"] { stroke: var(--adverse); stroke-dasharray: 6 4; }
-.sd-health-text { fill: var(--confirmed); font: 700 12px var(--font-mono), monospace; }
 .sd-health-text[data-state="fail"] { fill: var(--adverse-ink); }
 .sd-pager rect { fill: var(--confirmed); stroke: var(--line-ink); }
 .sd-pager text { fill: var(--ink); font: 600 12px var(--font-mono), monospace; }
@@ -2951,7 +2834,6 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 .sd-legend-actual { stroke: #8593a6; stroke-dasharray: 5 5; stroke-width: 1.8; }
 /* Each minute the chart moves one slot to the left in a single step, as a ticker does: time is
  * seen to pass without anything gliding on its own. */
-@keyframes sd-ring { 50% { stroke-width: 5; } }
 @keyframes sd-blink { 50% { fill: #ffffff; } }
 
 /* Device trust (TrustGate's scorer): each found check lights in turn and drops its points onto the
@@ -3017,18 +2899,6 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sim-send { min
 
 /* ---- Readout: the same state as text, on one line. */
 .sim-readout { align-items: center; border-block: 1px solid var(--rule); display: flex; flex-wrap: wrap; gap: 6px 22px; padding: 8px 0; }
-.pay-states { display: flex; flex-wrap: wrap; gap: 4px 14px; list-style: none; margin: 0; padding: 0; }
-.pay-states li { align-items: center; color: var(--ink-secondary); display: flex; font: var(--type-label); gap: 7px; outline: 2px solid transparent; outline-offset: 1px; padding: 2px 3px; }
-.pay-states li i { background: #ffffff; block-size: 11px; border: 1px solid var(--line-ink); flex: none; inline-size: 11px; }
-.pay-states li[data-current] { color: var(--ink); font-weight: 650; }
-.pay-states li[data-current][data-state="pending"] i { background: var(--border); }
-.pay-states li[data-current][data-state="paid"] i { background: var(--confirmed); }
-.pay-states li[data-current][data-state="review"] i { background: var(--uncertain); }
-.sim-counts { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0; }
-.sim-counts div { align-items: baseline; display: flex; gap: 8px; outline: 2px solid transparent; outline-offset: 1px; padding: 2px 3px; }
-.sim-counts dt { color: var(--ink-secondary); font: var(--type-label); }
-.sim-counts dd { color: var(--ink); font: 700 .92rem var(--font-mono), monospace; margin: 0; }
-.sim-counts div[data-tone="adverse"] dd { background: var(--adverse-wash); border: 1px solid var(--adverse); color: var(--adverse-ink); padding: 0 6px; }
 
 .sim-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 10px; }
 .sim-primary, .sim-secondary {
@@ -3116,12 +2986,11 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.sim-primar
 }
 
 /* Cause and effect: whatever changed in the last update is outlined in the accent once. */
-[data-changed="odd"]:is(.pay-states li, .sim-counts div, .svc-status) { animation: instrument-mark-odd 1100ms steps(4, end); }
-[data-changed="even"]:is(.pay-states li, .sim-counts div, .svc-status) { animation: instrument-mark-even 1100ms steps(4, end); }
+.svc-status[data-changed="odd"] { animation: instrument-mark-odd 1100ms steps(4, end); }
+.svc-status[data-changed="even"] { animation: instrument-mark-even 1100ms steps(4, end); }
 
 @media (prefers-reduced-motion: reduce) {
   .sd *, .sim-journal li:first-child { animation: none !important; }
-  .sd-packet { display: none; }
 }
 
 /* On a phone the sticky chapter bar spans the case at every width, so the chapters scrolling under
@@ -4510,8 +4379,6 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sound-control-
 @keyframes fx-jolt-odd { 0%, 100% { translate: 0 0; } 17%, 50% { translate: -2px 0; } 33%, 67% { translate: 2px 0; } 83% { translate: -1px 0; } }
 @keyframes fx-jolt-even { 0%, 100% { translate: 0 0; } 17%, 50% { translate: -2px 0; } 33%, 67% { translate: 2px 0; } 83% { translate: -1px 0; } }
 
-.sd-state[data-hit="land"] { animation: sd-knock 150ms steps(3, end) var(--hit-delay); }
-.sd-state[data-hit="bad"] { animation: sd-jolt 255ms steps(6, end) var(--hit-delay); }
 .sd-decision { animation: sd-stamp 300ms steps(3, end) var(--d) backwards, sd-knock 150ms steps(3, end) calc(var(--d) + 300ms); }
 .sd-decision[data-tone="adverse"] { animation: sd-stamp 300ms steps(3, end) var(--d) backwards, sd-jolt 255ms steps(6, end) calc(var(--d) + 300ms); }
 .svc-status[data-changed="odd"][data-jolt="odd"] { animation: instrument-mark-odd 1100ms steps(4, end), fx-jolt-odd 255ms steps(6, end); }

@@ -26,7 +26,6 @@ import {
   type Scenario,
 } from "../lib/scenarios";
 
-type MotionPhase = "rest" | "rewind" | "reconstruct";
 type CaseSectionId = "context" | "replay" | "decision" | "evidence";
 
 /**
@@ -303,7 +302,6 @@ export function DebuggerWorkspace({
   useEffect(() => () => play("sys.file-close"), [play]);
   const [conditions, setConditions] = useState<Conditions>(() => resolveScenarioConditions(scenario, (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.conditions as Conditions) ?? initialConditions));
   const [selectedConditions, setSelectedConditions] = useState<Conditions>(() => resolveScenarioConditions(scenario, (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.conditions as Conditions) ?? initialConditions));
-  const [phase, setPhase] = useState<MotionPhase>("rest");
   const [statusMessage, setStatusMessage] = useState("Replay ready.");
   // The simulators run only the repo's rules; the comparison is drawn beside them, never switched to.
   const [approach, setApproach] = useState<ProjectionMode>("designed");
@@ -425,7 +423,6 @@ export function DebuggerWorkspace({
       targetConditions.current = nextConditions;
       setConditions(nextConditions);
       setSelectedConditions(nextConditions);
-      setPhase("rest");
       setEvidence(null);
       setActiveSection("context");
       setStatusMessage("Replay ready.");
@@ -612,7 +609,6 @@ export function DebuggerWorkspace({
     timers.current = [];
     setConditions(next);
     updateUrl(next);
-    setPhase("rest");
     setStatusMessage(message);
   }
 
@@ -682,7 +678,6 @@ export function DebuggerWorkspace({
         className={`case-page case-${scenario.slug} selected-work-window ${embedded ? "embedded-case-workspace" : ""}`.trim()}
         data-dragging={dragging}
         data-app-id="work"
-        data-motion-phase={phase}
         data-resizing={resizing}
         data-snap={snap ?? undefined}
         data-window-state={workspace.stateFor(hostWindowId)}
@@ -765,7 +760,6 @@ export function DebuggerWorkspace({
           onApproachChange={changeApproach}
           onChange={changeCondition}
           onReset={reset}
-          phase={phase}
           scenario={scenario}
           selectedConditions={resolvedSelectedConditions}
         />

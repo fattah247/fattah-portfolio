@@ -249,28 +249,9 @@ body {
 }
 
 /* Window lifecycle and snap */
-@media (prefers-reduced-motion: no-preference) {
-  .portfolio-window,
-  .contact-window,
-  .selected-work-window,
-  .evidence-sheet {
-    animation: os-window-open var(--duration-window) var(--os-ease) both !important;
-  }
-
-  .portfolio-window > :not(.window-chrome):not(.window-resize-handle),
-  .selected-work-window > :not(.window-chrome):not(.window-resize-handle) {
-    animation: os-content-arrive 470ms 70ms var(--os-ease) both;
-  }
-}
-
 @keyframes os-window-open {
   from { opacity: 0; transform: translateY(16px) scale(.965); }
   60% { opacity: 1; transform: translateY(-2px) scale(1.002); }
-  to { opacity: 1; transform: none; }
-}
-
-@keyframes os-content-arrive {
-  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
 }
 
@@ -901,18 +882,6 @@ body {
 
 .taskbar-app::after {
   display: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .workspace-case-window[data-view="full-case"] > .embedded-case-workspace,
-  .product-links-window[data-window-state="active"] > .product-links-app-content {
-    animation: application-view-enter var(--duration-navigation) var(--ease-decision) both;
-  }
-}
-
-@keyframes application-view-enter {
-  from { opacity: 0; transform: translateY(var(--space-2)); }
-  to { opacity: 1; transform: none; }
 }
 
 @container product-directory (max-width: 720px) {

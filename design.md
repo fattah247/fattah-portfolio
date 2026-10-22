@@ -179,18 +179,26 @@ The window frame is the single scroll owner of a document: it records the scroll
 
 ## Motion
 
-- Micro response: 140ms
-- Focus and controls: 180ms
-- Window open: 160ms; on tablet and phone the app grows from the icon or row that opened it (280ms)
-- Minimize and restore: 380ms along the vector to the taskbar button
-- Causal reconstruction: 380ms
-- Knock (something lands): 2px down and back in three steps, 150ms; jolt (something went wrong): 2px side to side in six steps, 255ms, in time with the buzz
-- Desktop objects follow the pointer 1:1 and drop in place
+Five rules, from Emil Kowalski's account of how good interface animation is built, decide every motion on the site:
+
+1. **Spatial consistency.** Motion draws a map of where things live. An app grows out of the icon, row, shelf button or Recents card that launched it and goes back into its Home icon (a tablet's shelf button) when you leave it; a desktop window minimizes into its own taskbar button and restores out of it; attached evidence grows out of the evidence card that opened it.
+2. **Teach once, then get out of the way.** Animation teaches something the first time; after that it only makes you wait. An app that surfaces again (a sheet closed over it, Recents dismissed, Back) simply appears; Home's icons and Recents' cards never fade in; closing anything is immediate, with nothing to wait for; a simulator key answers at once. Anything that moves can be interrupted.
+3. **Ease out.** Most of the travel happens at the start, so it reads as quick: entrances and exits both ease out (`--env-settle`, `--ease-event`); nothing eases in, and nothing moves at a constant speed except where it means something (a stepped knock or jolt, the payment game's pixel steps).
+4. **Add time only where it earns trust.** A wait is a deliberate beat: a scoring walk that shows how points add up, Payflow's verdict landing in the game, "Email copied" holding long enough to read.
+5. **Personality stays in the toys.** The environment is a work tool, restrained and fast; the case toys may play (a speaking character, a stamp, a jolt), never with confetti.
+
+The numbers:
+
+- Micro response: 140ms; focus and controls: 180ms. A control's hover and press answer at once (hover lightens it; a press moves it 1px with the bevel inset), close buttons included.
+- Desktop window open: 180ms. Minimize and restore: 260ms along the vector to the taskbar button, easing out both ways.
+- Phone and tablet launch: 260ms out of what launched it, only on a real launch; going Home: 220ms back into its icon. A window going into the background hides at once; coming back to the front fades in over 140ms. Home and Recents fade in 160ms.
+- Attached evidence: 200ms (desktop) to 220ms (phone, tablet) out of its card. Closing is immediate everywhere.
+- Taskbar captions: the first waits 480ms so passing over the bar doesn't flash it; while the pointer reads along the bar the next ones answer at once; none slides.
+- Knock (something lands): 2px down and back in three steps, 150ms; jolt (something went wrong): 2px side to side in six steps, 255ms, in time with the buzz.
+- Desktop objects follow the pointer 1:1 and drop in place. Scrolling is instant except a chapter jump the visitor asks for (360ms, easing out); scroll containers don't scroll smoothly by default.
 - No boot sequence: `/` opens on Home with nothing auto-launched.
 
-Motion communicates origin, destination, focus, or causality. Documents, rows, icons, launcher items, Recents cards, and window contents do not fade up in staggered sequences; those entrance animations are switched off in environment.css's motion audit. There is no ambient motion: the wallpaper is static and nothing follows the pointer. Open animations never keep filling once finished, so state transitions can run. `prefers-reduced-motion` removes travel while keeping every state understandable.
-
-Application entry changes with the device model: desktop uses a short focus-settle, tablet reveals the constrained stage, and phone reveals from the forward navigation edge. These transitions never delay readable content.
+There is no ambient motion: the wallpaper is static, nothing follows the pointer, the iYup chart moves one slot per check in a single step, and its pager blinks three times when it starts paging, then stays lit. Open animations never keep filling once finished, so state transitions can run. `prefers-reduced-motion` removes travel and keeps every state understandable: windows fade (120ms) instead of travelling, and the drawings, stamps and launches don't move at all.
 
 System information is never repeated within one view. Desktop's top right holds the tray: the sound level, then the clock. Tablet shows the date and time in its status bar on every surface. Phone shows the time in its status bar on every surface, with the short date on Home; Home has no clock line. Landscape phones hide the status bar.
 

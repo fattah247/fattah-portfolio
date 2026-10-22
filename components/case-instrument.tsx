@@ -11,7 +11,6 @@ import { type Conditions, type ProjectionMode, type Scenario } from "../lib/scen
 import { type FlowTone } from "../lib/payment-flow";
 import { alertFor, alertSeverity, clockOf, DEGRADED_AFTER_MS, firing, naiveTally, naiveView, runUptime, STORY_CHECKS, toUptimeConditions, type Tick } from "../lib/uptime";
 
-type Phase = "rest" | "rewind" | "reconstruct";
 
 /** Runs `effect` when `value` changes after the first render, with the value it changed from. */
 function useOnChange<T>(value: T, effect: (next: T, previous: T) => void) {
@@ -100,7 +99,6 @@ export function CaseInstrument({
   onApproachChange,
   onChange,
   onReset,
-  phase,
   scenario,
   selectedConditions,
 }: {
@@ -112,7 +110,6 @@ export function CaseInstrument({
   onApproachChange: (mode: ProjectionMode) => void;
   onChange: (key: string, value: string) => void;
   onReset?: () => void;
-  phase: Phase;
   scenario: Scenario;
   selectedConditions: Conditions;
 }) {
@@ -126,7 +123,7 @@ export function CaseInstrument({
     </button>
   );
   return (
-    <section aria-labelledby={titleId} className="instrument" data-approach={approach} data-instrument={scenario.slug} data-phase={phase} data-technical={technical || undefined} id="replay">
+    <section aria-labelledby={titleId} className="instrument" data-approach={approach} data-instrument={scenario.slug} data-technical={technical || undefined} id="replay">
       <header className="instrument-plate">
         <h2 className="interaction-title" id={titleId}>Test the decision</h2>
         <p className="instrument-plate-name"><span>{simName[scenario.slug]}</span> <small>Simulated</small></p>

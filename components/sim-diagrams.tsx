@@ -2,12 +2,7 @@
 
 import { Fragment, useId, type CSSProperties, type ReactNode } from "react";
 import { MEDIUM_SCORE_THRESHOLD, HIGH_SCORE_THRESHOLD, type DeviceAssessment, type GateDecision, type Signing } from "../lib/device-risk";
-import { BUZZ_AFTER_LANDING } from "../lib/sound/engine";
-import { PAYMENT_AMOUNT, payoutWord, statusWord, type FlowEntry, type FlowWorld, type PaymentStatus } from "../lib/payment-flow";
 import { alertFor, alertSeverity, CHECK_INTERVAL_S, clockOf, DEGRADED_AFTER_MS, firing, type Region, type RegionView, type Tick } from "../lib/uptime";
-
-/** How long a message takes to reach the payment in the drawing (the packet's travel in environment.css). */
-export const messageTravelMs = 440;
 
 /*
  * The simulators' main view: each case's cover schematic drawn large and driven live. Labels are
@@ -24,14 +19,9 @@ export const messageTravelMs = 440;
 type Layout = "wide" | "medium" | "compact";
 const layouts: Layout[] = ["wide", "medium", "compact"];
 
-/** A packet that travels a straight leg: dx/dy in the drawing's own units. */
-const leg = (dx: number, dy: number, delay = 0): CSSProperties => ({ "--dx": `${dx}px`, "--dy": `${dy}px`, animationDelay: `${delay}ms` } as CSSProperties);
-
 function Variants({ className, render }: { className: string; render: (layout: Layout) => ReactNode }) {
   return <div aria-hidden="true" className={`sd ${className}`}>{layouts.map((layout) => render(layout))}</div>;
 }
-
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
 /* ------------------------------------------------------------------ Notes */
 
@@ -89,218 +79,6 @@ function Note({ carry = false, joiner, joinerClass, max, parts, step, x, y }: { 
         </tspan>
       ))}
     </text>
-  );
-}
-
-/* ------------------------------------------------------------------ Payment */
-
-type Flow = "pass" | "stop" | "pass-bad";
-const flowOf = (entry: FlowEntry): Flow => (entry.outcome === "APPLIED" ? "pass" : entry.outcome === "SENT_TO_REVIEW" ? "pass-bad" : "stop");
-
-/** The payment state's colour family in the drawing: waiting, paid, or held. */
-const stateFamily = (status: PaymentStatus) => (status === "MANUAL_REVIEW" ? "review" : status === "PENDING" || status === "AUTHORIZED" ? "pending" : "paid");
-
-/** An event as the provider would say it, or its id and status with technical details. */
-function eventLabel(entry: FlowEntry, technical: boolean) {
-  const event = entry.event!;
-  if (technical) return `${event.id} ${event.amount !== PAYMENT_AMOUNT ? event.amount : event.status}`;
-  if (entry.input.kind === "webhook" && entry.input.webhook === "again") return "“paid” again";
-  if (event.amount !== PAYMENT_AMOUNT) return "wrong amount";
-  if (event.status === "AUTHORIZED") return "late “authorized”";
-  return entry.input.kind === "webhook" && entry.input.webhook === "new-id" ? "“paid”, new id" : "“paid”";
-}
-
-function paymentNote(world: FlowWorld, technical: boolean): Segment[] {
-  const deliveries = world.entries.filter((entry) => entry.event).length;
-  const captures = world.journals.filter((journal) => journal === "CAPTURE").length;
-  const parts: Segment[] = technical
-    ? [{ text: plural(deliveries, "delivery", "deliveries") }, { text: plural(captures, "CAPTURE journal", "CAPTURE journals") }]
-    : [{ text: plural(deliveries, "event", "events") }, { text: `money captured ${captures === 1 ? "once" : `${captures} times`}` }];
-  const bad = world.rulesBroken.length
-    ? (technical ? "rule removed: caught" : "a rule was removed!")
-    : world.status === "MANUAL_REVIEW" ? (technical ? "MANUAL_REVIEW" : "on hold")
-      : world.payout === "BROKEN" ? (technical ? "break MISSING_CREDIT" : "credit missing") : "";
-  return bad ? [...parts, { text: bad, bad: true }] : parts;
-}
-
-export function PaymentDiagram({ technical, world }: { technical: boolean; world: FlowWorld }) {
-  const deliveries = world.entries.filter((entry) => entry.event);
-  const latest = deliveries.at(-1);
-  const note = paymentNote(world, technical);
-  const audit = world.audit.slice(-16);
-  const lastEntry = world.entries.at(-1);
-  const inboxSize = Object.keys(world.inbox).length;
-  const seen = (compact: boolean) => technical
-    ? (inboxSize ? `inbox ${Object.keys(world.inbox).slice(compact ? -2 : -3).join(" ")}` : "inbox –")
-    : !inboxSize ? (compact ? "nothing yet" : "nothing recorded yet") : `remembers ${plural(inboxSize, "event", "events")}`;
-  const payoutText = technical ? `payout ${world.payout === "NONE" ? "–" : world.payout}` : `payout: ${payoutWord[world.payout]}`;
-  const reportText = technical
-    ? (world.reportMatched ? "report MATCHED" : world.reviewCases.includes("REPORT_MISMATCH") ? "report MISMATCH" : "report –")
-    : (world.reportMatched ? "report matches" : world.reviewCases.includes("REPORT_MISMATCH") ? "report differs" : "no report yet");
-  const words = technical
-    ? { source: "provider", gate: "inbox", state: "payment", book: "audit", empty: "no events", pass: "in", stop: "stop", held: "held" }
-    : { source: "provider", gate: "inbox", state: "payment", book: "audit trail", empty: "nothing yet", pass: "in", stop: "stop", held: "held" };
-  const stateText = technical ? world.status : statusWord[world.status];
-
-  // The payment answers what just reached it: a knock when an event is applied or money lands, a
-  // jolt (in time with the buzz) when a removed rule lets something through.
-  const hit = lastEntry?.outcome === "APPLIED" || lastEntry?.outcome === "LANDED" || lastEntry?.outcome === "RECONCILED" ? "land" : lastEntry?.outcome === "RULE_BROKEN" ? "bad" : undefined;
-  const hitDelay = (lastEntry?.event ? messageTravelMs : 0) + (hit === "bad" ? BUZZ_AFTER_LANDING * 1000 : 0);
-  const stateBox = (x: number, y: number, w: number, h: number) => (
-    <g className="sd-state" data-hit={hit} data-state={stateFamily(world.status)} key={`state-${world.status}-${world.entries.length}`} style={{ "--hit-delay": `${hitDelay}ms` } as CSSProperties}>
-      <rect height={h} width={w} x={x} y={y} />
-      <text textAnchor="middle" x={x + w / 2} y={y + h / 2 + 5}>{stateText}</text>
-    </g>
-  );
-  const chip = (text: string, outcome: string, x: number, y: number, w: number, h: number) => (
-    <g className="sd-settle" data-outcome={outcome}>
-      <rect height={h} width={w} x={x} y={y} />
-      <text textAnchor="middle" x={x + w / 2} y={y + h / 2 + 4}>{text}</text>
-    </g>
-  );
-  const payoutOutcome = world.payout === "LANDED" ? "matched" : world.payout === "BROKEN" ? "mismatched" : "none";
-  const reportOutcome = world.reportMatched ? "matched" : world.reviewCases.includes("REPORT_MISMATCH") ? "mismatched" : "none";
-  const book = (place: (index: number) => { x: number; y: number }, empty: { x: number; y: number }) => (
-    <>
-      {audit.map((record, index) => {
-        const at = place(index);
-        return <rect className={`sd-record${index === audit.length - 1 ? " sd-record-new" : ""}`} data-status="written" height="14" key={`${index}-${record}`} width="14" x={at.x} y={at.y} />;
-      })}
-      {!audit.length ? <text className="sd-small" x={empty.x} y={empty.y}>{words.empty}</text> : null}
-    </>
-  );
-  const svg = (layout: Layout, w: number, h: number, children: ReactNode) => (
-    <svg className={`sd-svg sd-${layout}`} data-technical={technical || undefined} focusable="false" key={layout} viewBox={`0 0 ${w} ${h}`}>
-      <rect className="sd-ground" height="100%" width="100%" />
-      {children}
-    </svg>
-  );
-  const gateRect = (x: number, y: number, w: number, h: number) => <rect className="sd-gate" height={h} key={`gate-${latest?.n ?? 0}`} width={w} x={x} y={y} />;
-  const tag = (flow: Flow) => (flow === "stop" ? words.stop : flow === "pass-bad" ? words.held : words.pass);
-
-  return (
-    <Variants
-      className="sd-pay"
-      render={(layout) => {
-        if (layout === "wide") {
-          const rows = deliveries.slice(-4);
-          return svg("wide", 640, 262, <>
-            <text className="sd-label" x="16" y="20">{words.source}</text>
-            <text className="sd-label" textAnchor="middle" x="320" y="20">{words.gate}</text>
-            <text className="sd-label" textAnchor="middle" x="462" y="20">{words.state}</text>
-            <text className="sd-label" x="540" y="20">{words.book}</text>
-            <path className="sd-rule" d="M16 30H624" />
-            {!rows.length ? <text className="sd-hint" x="16" y="66">no events yet: send one from the provider</text> : null}
-            {rows.map((entry, index) => {
-              const flow = flowOf(entry);
-              const isNew = entry.n === latest?.n;
-              const y = 62 + index * 38;
-              const end = flow === "stop" ? 278 : 300;
-              return (
-                <g className={`sd-row${isNew ? " sd-row-new" : ""}`} data-flow={flow} key={entry.n}>
-                  <path className="sd-flow" d={`M152 ${y}H${end}`} />
-                  {flow === "stop" ? <path className="sd-stop" d={`M${end + 7} ${y - 12}v24`} /> : <path className="sd-arrow" d={`m${end - 7} ${y - 5} 6 5-6 5`} />}
-                  <g className="sd-event">
-                    <rect height="26" width="136" x="16" y={y - 13} />
-                    <text x="24" y={y + 4}>{eventLabel(entry, technical)}</text>
-                  </g>
-                  {technical && entry.http ? <text className="sd-event-seq" x="160" y={y - 4}>{entry.http}</text> : null}
-                  {isNew ? <circle className="sd-packet" cx="152" cy={y} r="5" style={leg(end - 152, 0)} /> : null}
-                </g>
-              );
-            })}
-            {gateRect(300, 44, 40, 150)}
-            <text className="sd-gate-text" textAnchor="middle" x="320" y="123">{inboxSize}</text>
-            <text className="sd-small" textAnchor="middle" x="320" y="214">{seen(false)}</text>
-            <path className="sd-flow sd-flow-out" d="M340 119H394" />
-            <path className="sd-arrow sd-arrow-out" d="m388 114 6 5-6 5" />
-            {latest && latest.outcome !== "PAYMENT_ON_HOLD" && latest.n === lastEntry?.n && flowOf(latest) !== "stop" ? <circle className="sd-packet sd-packet-out" cx="340" cy="119" key={`out-${latest.n}`} r="5" style={leg(54, 0, 440)} /> : null}
-            {stateBox(400, 96, 124, 46)}
-            {chip(payoutText, payoutOutcome, 400, 154, 224, 24)}
-            {chip(reportText, reportOutcome, 400, 184, 224, 24)}
-            {book((index) => ({ x: 540 + (index % 4) * 19, y: 44 + Math.floor(index / 4) * 19 }), { x: 540, y: 56 })}
-            <Note joiner=" · " max={76} parts={note} step={18} x={16} y={248} />
-          </>);
-        }
-
-        if (layout === "medium") {
-          const rows = deliveries.slice(-2);
-          return svg("medium", 320, 500, <>
-            <text className="sd-label" x="16" y="20">{words.source}</text>
-            <path className="sd-rule" d="M16 30H304" />
-            {!rows.length ? <text className="sd-hint" x="16" y="62">no events yet</text> : null}
-            {rows.map((entry, index) => {
-              const flow = flowOf(entry);
-              const isNew = entry.n === latest?.n;
-              const x = 16 + index * 152;
-              const cx = x + 68;
-              const end = flow === "stop" ? 156 : 176;
-              return (
-                <g className={`sd-row${isNew ? " sd-row-new" : ""}`} data-flow={flow} key={entry.n}>
-                  <path className="sd-flow" d={`M${cx} 70V${end}`} />
-                  {flow === "stop" ? <path className="sd-stop" d={`M${cx - 13} ${end + 7}h26`} /> : <path className="sd-arrow" d={`m${cx - 5} ${end - 7} 5 6 5-6`} />}
-                  <g className="sd-event">
-                    <rect height="26" width="136" x={x} y="44" />
-                    <text x={x + 8} y="61">{eventLabel(entry, technical)}</text>
-                  </g>
-                  {isNew ? <circle className="sd-packet" cx={cx} cy="70" r="5" style={leg(0, end - 70)} /> : null}
-                </g>
-              );
-            })}
-            {gateRect(16, 176, 288, 48)}
-            <text className="sd-gate-text" textAnchor="middle" x="160" y="195">{words.gate} · {inboxSize}</text>
-            <text className="sd-small" textAnchor="middle" x="160" y="214">{seen(false)}</text>
-            <path className="sd-flow sd-flow-out" d="M160 224V251" />
-            <path className="sd-arrow sd-arrow-out" d="m155 245 5 6 5-6" />
-            {stateBox(90, 258, 140, 46)}
-            {chip(payoutText, payoutOutcome, 50, 316, 220, 24)}
-            {chip(reportText, reportOutcome, 50, 346, 220, 24)}
-            <text className="sd-label" x="16" y="396">{words.book}</text>
-            {book((index) => ({ x: 16 + index * 18, y: 406 }), { x: 16, y: 418 })}
-            <Note joiner=" · " max={36} parts={note} step={18} x={16} y={452} />
-          </>);
-        }
-
-        // Compact: the latest three events as a list; only the newest travels on to the inbox.
-        const rows = deliveries.slice(-3);
-        return svg("compact", 200, 444, <>
-          <text className="sd-label" x="10" y="18">{words.source}</text>
-          <path className="sd-rule" d="M10 26H190" />
-          {!rows.length ? <text className="sd-hint" x="10" y="50">no events yet</text> : null}
-          {rows.map((entry, index) => {
-            const flow = flowOf(entry);
-            const isNew = entry.n === latest?.n;
-            const y = 34 + index * 30;
-            const end = flow === "stop" ? 128 : 140;
-            return (
-              <g className={`sd-row${isNew ? " sd-row-new" : ""}`} data-flow={flow} key={entry.n}>
-                {isNew ? <>
-                  <path className="sd-flow" d={`M100 ${y + 24}V${end}`} />
-                  {flow === "stop" ? <path className="sd-stop" d={`M87 ${end + 5}h26`} /> : <path className="sd-arrow" d={`m95 ${end - 6} 5 6 5-6`} />}
-                </> : null}
-                <g className="sd-event">
-                  <rect height="24" width="180" x="10" y={y} />
-                  <text x="17" y={y + 16}>{eventLabel(entry, technical)}</text>
-                  <text className="sd-event-tag" textAnchor="end" x="183" y={y + 16}>{tag(flow)}</text>
-                </g>
-                {isNew ? <circle className="sd-packet" cx="100" cy={y + 24} r="5" style={leg(0, end - (y + 24))} /> : null}
-              </g>
-            );
-          })}
-          {gateRect(10, 140, 180, 46)}
-          <text className="sd-gate-text" textAnchor="middle" x="100" y="159">{words.gate} · {inboxSize}</text>
-          <text className="sd-small" textAnchor="middle" x="100" y="177">{seen(true)}</text>
-          <path className="sd-flow sd-flow-out" d="M100 186V207" />
-          <path className="sd-arrow sd-arrow-out" d="m95 201 5 6 5-6" />
-          {stateBox(40, 210, 120, 40)}
-          {chip(payoutText, payoutOutcome, 10, 258, 180, 24)}
-          {chip(reportText, reportOutcome, 10, 288, 180, 24)}
-          <text className="sd-label" x="10" y="334">{words.book}</text>
-          {book((index) => ({ x: 10 + (index % 9) * 20, y: 342 + Math.floor(index / 9) * 20 }), { x: 10, y: 354 })}
-          <Note joiner=" · " max={25} parts={note} step={16} x={10} y={404} />
-        </>);
-      }}
-    />
   );
 }
 
@@ -392,7 +170,7 @@ export function ServiceDiagram({ technical, ticks, window: slots }: { technical:
             <path className="sd-baseline-axis" d={`M${g.x0} ${g.top}V${g.bottom}H${g.x1}`} />
 
             <g clipPath={`url(#${id}-${layout}-plot)`}>
-              <g className="sd-scroll">
+              <g>
                 {padded.map((tick, index) => (tick && !tick.results.some((result) => result.region === "lab-b")
                   ? <rect className="svc-gap sd-gap" fill={`url(#${id}-${layout}-hatch)`} height={g.bottom - g.top} key={`gap-${tick.n}`} width={slot} x={x(index) - slot / 2} y={g.top} />
                   : null))}

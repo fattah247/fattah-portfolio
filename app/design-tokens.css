@@ -71,15 +71,10 @@
   --control-shadow-pressed: inset 1px 1px 0 #8d98a7, inset -1px -1px 0 #ffffff;
   --icon-shadow: none;
 
-  /* Motion */
+  /* Motion: everything eases out (most of the travel at the start), so it reads as quick. */
   --duration-micro: 140ms;
   --duration-focus: 180ms;
-  --duration-window: 160ms;
-  --duration-navigation: 180ms;
-  --duration-causal: 380ms;
-  --duration-boot: 720ms;
   --ease-event: cubic-bezier(0.32, 0.72, 0, 1);
-  --ease-rewind: cubic-bezier(0.65, 0, 0.78, 0);
   --ease-decision: cubic-bezier(0.16, 1, 0.3, 1);
   --os-ease: var(--ease-decision);
 }
