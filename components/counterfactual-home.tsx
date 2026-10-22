@@ -18,6 +18,7 @@ import { useWorkspaceManager, type PortfolioAppId, type WorkspaceWindowId } from
 import { scenarios, type Conditions, type ScenarioSlug } from "../lib/scenarios";
 import type { GithubProject, GithubProjectsPayload } from "../lib/github-projects";
 import { useWindowFrame, type SnapEdge } from "./use-window-frame";
+import { fadeOutCopy } from "../lib/motion";
 
 type WorkspaceWindow = Extract<WorkspaceWindowId, "work" | "experience" | "products">;
 type WorkView = "index" | "full-case" | "github-project";
@@ -415,8 +416,16 @@ export function CounterfactualHome({
     focusWindowControl(windowName);
   }
 
+  /** A closed desktop window leaves a copy that fades out where it stood (90 ms, never in the way). */
+  function fadeOutWindow(windowName: WorkspaceWindow) {
+    if (workspace.mode !== "computer") return;
+    const selector = { work: ".workspace-work-window", experience: ".workspace-experience-window", products: ".product-links-window" }[windowName as "work" | "experience" | "products"];
+    if (selector) fadeOutCopy(document.querySelector<HTMLElement>(selector));
+  }
+
   // Closing is immediate: the window is gone the moment it's asked, with nothing to wait for.
   function closeWindow(windowName: WorkspaceWindow) {
+    fadeOutWindow(windowName);
     const remainingWindows = openWindows.filter((item) => item !== windowName);
     workspace.closeWindow(windowName);
     if (workspace.mode === "computer" && remainingWindows.length === 1) {
@@ -442,6 +451,7 @@ export function CounterfactualHome({
   }
 
   function closeApplication(app: "work" | "experience" | "products") {
+    fadeOutWindow(app);
     const removedWindows: WorkspaceWindow[] = openWindows.filter((item) => item === app);
     const remainingWindows = openWindows.filter((item) => !removedWindows.includes(item));
     workspace.closeApp(app);

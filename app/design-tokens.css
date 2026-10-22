@@ -76,6 +76,12 @@
   --duration-focus: 180ms;
   --ease-event: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-decision: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Springs, copied from nature: generated from lib/motion.ts (a test keeps these equal). Windows
+   * and launches settle with a 0.6% overshoot you feel more than see; sheets are a touch calmer. */
+  --spring-window: linear(0, 0.0321, 0.1099, 0.2118, 0.3228, 0.4328, 0.5356, 0.6279, 0.7079, 0.7756, 0.8315, 0.8766, 0.9123, 0.9399, 0.9608, 0.9763, 0.9874, 0.9951, 1.0003, 1.0035, 1.0053, 1.0061, 1.0063, 1.006, 1.0055, 1.0048, 1.0041, 1.0034, 1.0028, 1.0022, 1.0017, 1.0013, 1);
+  --spring-window-duration: 530ms;
+  --spring-sheet: linear(0, 0.0293, 0.1005, 0.1938, 0.2959, 0.398, 0.4944, 0.5821, 0.6595, 0.7264, 0.783, 0.8301, 0.8688, 0.9001, 0.925, 0.9447, 0.9599, 0.9716, 0.9805, 0.9871, 0.9919, 0.9953, 0.9977, 0.9994, 1.0004, 1.001, 1.0014, 1.0015, 1.0015, 1.0014, 1.0013, 1.0012, 1);
+  --spring-sheet-duration: 427ms;
   --os-ease: var(--ease-decision);
 }
 

@@ -10,6 +10,7 @@ import { CaseCover } from "./case-cover";
 import { CaseInstrument } from "./case-instrument";
 import { useSound } from "./sound-provider";
 import { readableOutcome } from "../lib/instruments";
+import { fadeOutCopy, sheetSpring, springEasing } from "../lib/motion";
 import { findScrollOwner } from "./application-frame";
 import { useWindowFrame, windowResizeEdges } from "./use-window-frame";
 import { WindowChrome } from "./window-chrome";
@@ -83,8 +84,52 @@ function EvidenceDialog({
     toggleMaximize,
   } = useWindowFrame({ defaultHeight: 780, defaultWidth: 1180, minHeight: 480, minWidth: 720 });
 
-  // Closing is immediate: the sheet is gone the moment it's asked.
-  const requestClose = useCallback(() => onClose(), [onClose]);
+  // Closing is immediate: the sheet is gone the moment it's asked, and a copy of it fades out where it
+  // stood (90 ms, never in the way), so the close is seen to happen.
+  const requestClose = useCallback(() => { fadeOutCopy(frameRef.current); onClose(); }, [frameRef, onClose]);
+
+  // On a phone or tablet the sheet is a sheet: grab its title bar (or the grabber) and it follows the
+  // finger 1:1, even while it's still opening. Let go a quarter of the way down, or flick it, and it
+  // slides away; otherwise it springs back. Pulling it up resists.
+  const pull = useRef<{ id: number; startY: number; startT: number } | null>(null);
+  const offsetFor = (dy: number) => (dy > 0 ? dy : dy / 4);
+  const grabSheet = (event: React.PointerEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (workspace.mode === "computer" || !target.closest(".evidence-sheet-head, .evidence-grabber") || target.closest("button, a, summary")) return;
+    const sheet = frameRef.current;
+    if (!sheet) return;
+    // A slide it was already making stops under the finger; its opening (a scale) carries on.
+    for (const running of sheet.getAnimations?.() ?? []) if (!("animationName" in running)) running.cancel();
+    pull.current = { id: event.pointerId, startY: event.clientY, startT: event.timeStamp };
+    sheet.dataset.pulling = "true";
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const dragSheet = (event: React.PointerEvent<HTMLDivElement>) => {
+    const state = pull.current;
+    const sheet = frameRef.current;
+    if (!state || state.id !== event.pointerId || !sheet) return;
+    sheet.style.translate = `0 ${offsetFor(event.clientY - state.startY)}px`;
+  };
+  const releaseSheet = (event: React.PointerEvent<HTMLDivElement>) => {
+    const state = pull.current;
+    const sheet = frameRef.current;
+    if (!state || state.id !== event.pointerId || !sheet) return;
+    pull.current = null;
+    delete sheet.dataset.pulling;
+    const dy = event.clientY - state.startY;
+    const from = `0 ${offsetFor(dy)}px`;
+    sheet.style.translate = "";
+    // A flick is the whole pull being quick (a finger that held still before letting go threw nothing).
+    const velocity = dy / Math.max(16, event.timeStamp - state.startT);
+    if (dy > sheet.offsetHeight / 4 || (dy > 24 && velocity > 0.4)) {
+      // Away with the flick: it carries on down, quicker the faster it was thrown.
+      const away = sheet.animate([{ translate: from }, { translate: `0 ${sheet.offsetHeight}px` }], { duration: velocity > 0.8 ? 140 : 200, easing: "cubic-bezier(.32, .72, 0, 1)", fill: "forwards" });
+      away.addEventListener("finish", () => onClose());
+      return;
+    }
+    const { duration, easing } = springEasing(sheetSpring);
+    sheet.animate([{ translate: from }, { translate: "0 0" }], { duration, easing });
+  };
 
   // The sheet grows out of the evidence card that opened it, so it's seen to come from there.
   useLayoutEffect(() => {
@@ -189,9 +234,13 @@ function EvidenceDialog({
         data-resizing={resizing}
         data-snap={snap ?? undefined}
         data-window-state={workspace.stateFor(evidenceWindowId)}
+        onPointerCancel={releaseSheet}
+        onPointerDown={grabSheet}
         onPointerDownCapture={() => {
           if (activeWindow !== evidenceWindowId) focusWindow(evidenceWindowId);
         }}
+        onPointerMove={dragSheet}
+        onPointerUp={releaseSheet}
         ref={(node) => {
           frameRef.current = node;
         }}
@@ -199,6 +248,7 @@ function EvidenceDialog({
         suppressHydrationWarning
         tabIndex={-1}
       >
+        {workspace.mode !== "computer" ? <span aria-hidden="true" className="evidence-grabber" /> : null}
         <WindowChrome
           app="work"
           className="evidence-sheet-head"

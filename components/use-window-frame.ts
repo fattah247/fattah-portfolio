@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from "react";
 import { capabilitiesForWindow } from "../lib/device-capabilities";
+import { springEasing, windowSpring } from "../lib/motion";
 import { useSound } from "./sound-provider";
 import { useOptionalWorkspaceManager, type PortfolioAppId } from "./workspace-manager";
 
@@ -125,6 +126,24 @@ export function useWindowFrame({
   const snapRef = useRef<SnapEdge>(null);
   const keyboardRect = useRef<FrameRect | null>(null);
 
+  // A seat change (snap, maximize, restore, Reset position) springs the window from where it was to
+  // where it goes, like a physical thing settling into place. Dragging and resizing stay 1:1.
+  const seatFrom = useRef<FrameRect | null>(null);
+  const noteSeat = () => {
+    const node = frameRef.current?.getBoundingClientRect();
+    if (node?.width) seatFrom.current = { x: node.left, y: node.top, width: node.width, height: node.height };
+  };
+  useLayoutEffect(() => {
+    const from = seatFrom.current;
+    seatFrom.current = null;
+    const element = frameRef.current;
+    if (!from || !element || typeof element.animate !== "function") return;
+    if (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const { duration, easing } = springEasing(windowSpring);
+    const frame = (box: FrameRect) => ({ "--window-x": `${box.x}px`, "--window-y": `${box.y}px`, "--window-width": `${box.width}px`, "--window-height": `${box.height}px` });
+    element.animate([frame(from), frame(rect)], { duration, easing });
+  }, [rect]);
+
   useEffect(() => {
     compactModeRef.current = usesCompactWindowModel();
     const saved = appId ? workspace?.readDocumentState(appId, "frame")?.geometry : undefined;
@@ -209,6 +228,7 @@ export function useWindowFrame({
   }
 
   function snapTo(edge: Exclude<SnapEdge, null>) {
+    noteSeat();
     if (!snap) {
       const nodeRect = frameRef.current?.getBoundingClientRect();
       restoreRectRef.current = clamp({
@@ -247,6 +267,7 @@ export function useWindowFrame({
 
   function toggleMaximize() {
     if (usesCompactWindowModel()) return;
+    noteSeat();
     if (maximized) {
       const restoredSnap = restoreSnapRef.current;
       setRect(restoredSnap
@@ -492,7 +513,7 @@ export function useWindowFrame({
     commit: () => { keyboardRect.current = null; },
     move: (dx: number, dy: number) => { setMaximized(false); setSnap(null); setRect((current) => clamp({ ...current, x: current.x + dx, y: current.y + dy })); },
     resize: (dx: number, dy: number) => { setMaximized(false); setSnap(null); setRect((current) => clamp({ ...current, width: current.width + dx, height: current.height + dy })); },
-    reset: resetFrame,
+    reset: () => { noteSeat(); resetFrame(); },
     snap: snapTo,
   };
 

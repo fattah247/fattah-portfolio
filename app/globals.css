@@ -3628,7 +3628,7 @@ body:has(.editorial-home.is-desktop) {
     max-width: 100%;
     min-height: calc(100svh - 58px);
     min-width: 0;
-    opacity: 1 !important;
+    opacity: var(--window-fade) !important;
     overflow: visible;
     position: relative;
     resize: none;

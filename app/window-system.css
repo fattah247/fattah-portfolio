@@ -54,7 +54,7 @@ body {
   border-color: var(--ink) !important;
   box-shadow: var(--window-shadow-active) !important;
   filter: none !important;
-  opacity: 1 !important;
+  opacity: var(--window-fade) !important;
 }
 
 .portfolio-window:focus,
@@ -68,14 +68,14 @@ body {
 .selected-work-window[data-window-state="clear"],
 .contact-window[data-window-state="clear"] {
   filter: none !important;
-  opacity: 1 !important;
+  opacity: var(--window-fade) !important;
 }
 
 .portfolio-window[data-window-state="blurred"],
 .selected-work-window[data-window-state="blurred"],
 .contact-window[data-window-state="blurred"] {
   filter: none !important;
-  opacity: 1 !important;
+  opacity: var(--window-fade) !important;
 }
 
 .portfolio-window[data-window-state="blurred"]::after,
@@ -249,10 +249,10 @@ body {
 }
 
 /* Window lifecycle and snap */
+/* Two stops: the spring easing that plays it brings the slight settle past the end and back. */
 @keyframes os-window-open {
-  from { opacity: 0; transform: translateY(16px) scale(.965); }
-  60% { opacity: 1; transform: translateY(-2px) scale(1.002); }
-  to { opacity: 1; transform: none; }
+  from { --window-fade: 0; opacity: 0; transform: translateY(12px) scale(.97); }
+  to { --window-fade: 1; opacity: 1; transform: none; }
 }
 
 .window-snap-preview {
@@ -2980,7 +2980,7 @@ html[data-system-mode="tablet"] .system-recents > header > button {
     filter: none;
     inset: calc(var(--os-topbar) + 14px) auto calc(var(--os-shelf) + 14px) 14px !important;
     left: 14px !important;
-    opacity: 1 !important;
+    opacity: var(--window-fade) !important;
     pointer-events: auto !important;
     right: auto !important;
     visibility: visible !important;
@@ -5446,7 +5446,7 @@ html[data-system-mode="computer"] .desktop-board {
     margin: 0 !important;
     max-inline-size: none !important;
     min-inline-size: 0 !important;
-    opacity: 1 !important;
+    opacity: var(--window-fade) !important;
     pointer-events: auto !important;
     position: fixed !important;
     top: calc(var(--os-topbar) + 14px) !important;

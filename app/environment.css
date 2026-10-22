@@ -1897,6 +1897,31 @@ html[data-system-mode="computer"] .desktop-object:active .desktop-app-glyph {
 html[data-system-mode="computer"] .desktop-object:active { background: rgb(32 43 58 / 5%); }
 html[data-system-mode="computer"] .desktop-object[data-dragging="true"] { background: transparent !important; z-index: 5; }
 
+/* ------------------------------------------------- Windows on springs */
+
+/* A window's frame is four registered lengths, so a seat change (snapping to an edge, maximizing,
+ * restoring, Reset position) can spring them from where the window was to where it goes, the way
+ * a physical thing settles into place. Dragging and resizing stay 1:1 with the pointer. */
+@property --window-x { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@property --window-y { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@property --window-width { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@property --window-height { syntax: "<length>"; inherits: true; initial-value: 0px; }
+/* A window at the front has its opacity pinned with !important, which no animation can move, so it
+ * reads this number instead (1 at rest): an open, a sheet, a close's fading copy, and a phone's
+ * launch and leave fade by animating it, on the same spring as their scale, and one interrupted
+ * midway turns around from where it was. */
+@property --window-fade { syntax: "<number>"; inherits: false; initial-value: 1; }
+/* A launch fades on its spring alone, not also on the quick fade of a window coming back to the front. */
+html[data-launching]:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.portfolio-window, .contact-window) { transition: none !important; }
+
+/* A closed window's fading copy (lib/motion.ts) plays nothing of its own. */
+html[data-system-mode] [data-closing-copy][data-closing-copy] { animation: none !important; transition: none !important; }
+
+/* The item chosen in a window menu blinks once, then the menu closes and the action runs: the menu
+ * confirms the choice on its way out instead of animating on its way in. */
+.window-management-options button[data-chosen] { animation: menu-chosen 120ms steps(2, end); }
+@keyframes menu-chosen { 0%, 100% { background: var(--accent); color: #ffffff; } 50% { background: transparent; color: inherit; } }
+
 /* ------------------------------------------------- Minimize into the dock */
 
 /* Minimize and restore travel between the window and its taskbar button, easing out both ways:
@@ -1908,7 +1933,7 @@ html[data-system-mode="computer"] .contact-window {
     box-shadow 220ms var(--env-settle),
     filter 180ms ease-out,
     opacity 160ms ease-out,
-    transform 260ms var(--env-settle),
+    transform var(--spring-window-duration) var(--spring-window),
     visibility 0s linear 0s !important;
 }
 
@@ -1943,12 +1968,12 @@ html[data-system-mode="computer"] .contact-window[data-window-state="minimized"]
 @media (prefers-reduced-motion: no-preference) {
   html[data-system-mode="computer"] .portfolio-window,
   html[data-system-mode="computer"] .contact-window {
-    animation: os-window-open 180ms var(--env-settle) backwards !important;
+    animation: os-window-open var(--spring-window-duration) var(--spring-window) backwards !important;
   }
 
   /* Attached evidence grows out of the evidence card that opened it. */
   html[data-system-mode="computer"] .evidence-dialog .evidence-sheet {
-    animation: sheet-from-card 200ms var(--env-settle) backwards !important;
+    animation: sheet-from-card var(--spring-sheet-duration) var(--spring-sheet) backwards !important;
     transform-origin: var(--from-origin, 50% 50%);
   }
 }
@@ -2989,6 +3014,16 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.sim-primar
 .svc-status[data-changed="odd"] { animation: instrument-mark-odd 1100ms steps(4, end); }
 .svc-status[data-changed="even"] { animation: instrument-mark-even 1100ms steps(4, end); }
 
+/* Reduced motion keeps what a jolt means: where something would shake because it went wrong, it
+ * flashes red twice instead, without moving (as an old game still shakes when you take a hit with
+ * its animations off). */
+@keyframes still-alert { 0%, 100% { outline-color: var(--adverse); } 50% { outline-color: transparent; } }
+@keyframes still-alert-fill { 0%, 100% { stroke: var(--adverse); stroke-width: 3.2; } 50% { stroke-width: 1.8; } }
+@media (prefers-reduced-motion: reduce) {
+  .svc-status[data-jolt], .pw-bubble[data-hit="bad"] { animation: still-alert 400ms steps(2, end) 2 !important; outline: 2px solid transparent; outline-offset: 2px; }
+  .sd .sd-decision[data-tone="adverse"] rect { animation: still-alert-fill 400ms steps(2, end) 2 !important; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sd *, .sim-journal li:first-child { animation: none !important; }
 }
@@ -3013,31 +3048,39 @@ html[data-system-mode="phone"] .case-page.selected-work-window .case-progress { 
     animation: none !important;
   }
 
-  html[data-launching]:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.portfolio-window, .contact-window)[data-window-state="active"] {
-    animation: app-launch 260ms var(--env-settle) backwards !important;
-    transform-origin: var(--launch-x, 50%) calc(var(--launch-y, 100%) - var(--os-topbar));
-  }
-
   html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .evidence-dialog .evidence-sheet {
-    animation: sheet-from-card 220ms var(--env-settle) backwards !important;
+    animation: sheet-from-card var(--spring-sheet-duration) var(--spring-sheet) backwards !important;
     transform-origin: var(--from-origin, 50% 100%);
   }
 
   /* Going Home sends the app back into its Home icon (a tablet's shelf button), the way it came
    * out. The shell marks the window it left for that one moment; it stays visible above Home
-   * while it shrinks away, then it's simply hidden like any background window. */
+   * while it shrinks and fades away (the fade rides the spring too, through --window-fade), then
+   * it's simply hidden like any background window. */
   html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.portfolio-window, .contact-window)[data-leaving],
   html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .contact-window-layer[data-leaving] {
-    opacity: 1 !important;
+    opacity: var(--window-fade) !important;
     pointer-events: none !important;
+    transition: none !important;
     visibility: visible !important;
     z-index: 4500 !important;
   }
 
-  html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.portfolio-window, .contact-window)[data-leaving] {
-    animation: app-leave 220ms var(--env-settle) forwards !important;
-    transform-origin: var(--leave-origin, 50% 100%) !important;
-  }
+}
+
+/* On a phone or tablet attached evidence is a sheet you can pull down by its title bar or grabber:
+ * the browser leaves that drag to the sheet instead of scrolling. */
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .evidence-dialog :is(.evidence-sheet-head, .evidence-grabber) { touch-action: none; }
+.evidence-grabber { display: none; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .evidence-grabber {
+  background: var(--line-ink);
+  block-size: 4px;
+  display: block;
+  inline-size: 36px;
+  inset-block-start: 4px;
+  inset-inline-start: calc(50% - 18px);
+  position: absolute;
+  z-index: 6;
 }
 
 /* A window that goes into the background hides at once (it has just shrunk away, or something
@@ -3047,18 +3090,11 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.portfolio-
 }
 
 @keyframes sheet-from-card {
-  from { opacity: 0; scale: .9; }
-  to { opacity: 1; scale: 1; }
+  from { --window-fade: 0; opacity: 0; scale: .9; }
+  to { --window-fade: 1; opacity: 1; scale: 1; }
 }
 
-@keyframes app-leave {
-  to { filter: opacity(0); scale: .12; }
-}
 
-@keyframes app-launch {
-  from { opacity: .4; scale: .9; }
-  to { opacity: 1; scale: 1; }
-}
 
 
 html[data-system-mode="computer"] .desktop-object .desktop-object-copy strong {

@@ -84,9 +84,16 @@ export function WindowChrome({
     if (returnFocus) menuRef.current?.querySelector("summary")?.focus();
   }
 
-  function runFromMenu(action?: () => void) {
-    closeMenu();
-    action?.();
+  /** The chosen item blinks once (120 ms), then the menu closes and the action runs, as a desktop menu confirms a choice. */
+  function runFromMenu(action?: () => void, chosen?: HTMLElement) {
+    const still = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!chosen || still) { closeMenu(); action?.(); return; }
+    chosen.dataset.chosen = "true";
+    window.setTimeout(() => {
+      delete chosen.dataset.chosen;
+      closeMenu();
+      action?.();
+    }, 120);
   }
 
   const closeControl = onClose ? (
@@ -123,16 +130,16 @@ export function WindowChrome({
       }}>
         <summary aria-label={`${label} window menu`}>{app ? <AppIcon app={app} variant="small" /> : <MoreIcon className="system-control-icon" />}</summary>
         <div className="window-management-options" role="group" aria-label={`${label} window`}>
-          {onToggleMaximize && maximized ? <button type="button" onClick={() => runFromMenu(onToggleMaximize)}>Restore</button> : null}
+          {onToggleMaximize && maximized ? <button type="button" onClick={(event) => runFromMenu(onToggleMaximize, event.currentTarget)}>Restore</button> : null}
           <button type="button" onClick={() => { windowManagement.begin(); setOperation("move"); }}>Move with arrow keys</button>
           <button type="button" onClick={() => { windowManagement.begin(); setOperation("resize"); }}>Resize with arrow keys</button>
-          <button type="button" onClick={() => runFromMenu(() => windowManagement.snap("left"))}>Snap left</button>
-          <button type="button" onClick={() => runFromMenu(() => windowManagement.snap("right"))}>Snap right</button>
-          <button type="button" onClick={() => runFromMenu(windowManagement.reset)}>Reset position</button>
+          <button type="button" onClick={(event) => runFromMenu(() => windowManagement.snap("left"), event.currentTarget)}>Snap left</button>
+          <button type="button" onClick={(event) => runFromMenu(() => windowManagement.snap("right"), event.currentTarget)}>Snap right</button>
+          <button type="button" onClick={(event) => runFromMenu(windowManagement.reset, event.currentTarget)}>Reset position</button>
           {onMinimize || (onToggleMaximize && !maximized) || onClose ? <hr /> : null}
-          {onMinimize ? <button type="button" onClick={() => runFromMenu(onMinimize)}>Minimize</button> : null}
-          {onToggleMaximize && !maximized ? <button type="button" onClick={() => runFromMenu(onToggleMaximize)}>Maximize</button> : null}
-          {onClose ? <button type="button" onClick={() => runFromMenu(onClose)}>Close</button> : null}
+          {onMinimize ? <button type="button" onClick={(event) => runFromMenu(onMinimize, event.currentTarget)}>Minimize</button> : null}
+          {onToggleMaximize && !maximized ? <button type="button" onClick={(event) => runFromMenu(onToggleMaximize, event.currentTarget)}>Maximize</button> : null}
+          {onClose ? <button type="button" onClick={(event) => runFromMenu(onClose, event.currentTarget)}>Close</button> : null}
           {operation ? <p role="status">Arrow keys {operation}. Shift: 1px. Enter: done. Escape: cancel.</p> : null}
         </div>
       </details> : null}

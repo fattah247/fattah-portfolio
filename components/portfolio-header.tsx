@@ -10,6 +10,7 @@ import { displayHandle, portfolioIdentity } from "../lib/portfolio-identity";
 import { WindowChrome } from "@/components/window-chrome";
 import { useWorkspaceManager } from "@/components/workspace-manager";
 import { OwnerMark } from "@/components/app-icons";
+import { fadeOutCopy } from "../lib/motion";
 
 function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }) {
   const workspace = useWorkspaceManager();
@@ -55,8 +56,10 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
     });
   }, [open, workspace]);
 
-  // Closing is immediate: the window is gone the moment it's asked.
+  // Closing is immediate: the window is gone the moment it's asked; on a desktop a copy of it fades
+  // out where it stood.
   function requestClose() {
+    if (workspace.mode === "computer") fadeOutCopy(frameRef.current);
     onClose();
   }
 

@@ -15,6 +15,7 @@ import { CaseCover } from "./case-cover";
 import { Wallpaper } from "./wallpaper";
 import { SoundControl } from "./sound-control";
 import { useSound } from "./sound-provider";
+import { springTo, windowSpring } from "../lib/motion";
 import { useWorkspaceSounds } from "./use-workspace-sounds";
 import { experience } from "../lib/content";
 import { rowsThatFit } from "../lib/fit-rows";
@@ -211,21 +212,35 @@ export function SystemShell() {
     return () => document.removeEventListener("contextmenu", preventPageContextMenu);
   }, []);
 
-  // Going Home from an app (by Home, Back or Recents) sends it back into its Home icon, or a
-  // tablet's shelf button, the way it came out: the window it left is marked for that one moment.
+  // A launch grows the app out of what launched it; going Home (by Home, Back or Recents) sends it
+  // back into its Home icon, or a tablet's shelf button. Both ride the window spring from wherever the
+  // window is, so tapping Home mid-launch (or the icon mid-leave) turns it around instead of jumping.
   const leftFrom = useRef({ surface: workspace.surface, app: workspace.activeApp });
   useLayoutEffect(() => {
     const before = leftFrom.current;
     leftFrom.current = { surface: workspace.surface, app: workspace.activeApp };
-    if (workspace.mode === "computer" || before.surface !== "application" || workspace.surface !== "home" || !before.app) return;
-    if (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const leaving = document.querySelector<HTMLElement>(`:is(.portfolio-window, .contact-window)[data-app-id="${before.app}"]`);
+    if (workspace.mode === "computer") return;
+    const root = document.documentElement;
+    const windowOf = (app: string) => document.querySelector<HTMLElement>(`:is(.portfolio-window, .contact-window)[data-app-id="${app}"]`);
+    // Where a point on screen sits in a full-screen window's own box (its layout box, untransformed).
+    const originIn = (element: HTMLElement, x: number, y: number) => `${Math.round(x - element.offsetLeft)}px ${Math.round(y - element.offsetTop)}px`;
+
+    const launched = root.dataset.launching && workspace.surface === "application" && workspace.activeApp && (before.surface !== "application" || before.app !== workspace.activeApp);
+    if (launched) {
+      const launching = windowOf(workspace.activeApp!);
+      if (launching) {
+        launching.style.transformOrigin = originIn(launching, parseFloat(root.style.getPropertyValue("--launch-x")) || launching.offsetWidth / 2, parseFloat(root.style.getPropertyValue("--launch-y")) || launching.offsetHeight);
+        springTo(launching, { scale: "1", "--window-fade": "1" }, windowSpring, { from: { scale: "0.9", "--window-fade": "0" } });
+      }
+    }
+
+    if (before.surface !== "application" || workspace.surface !== "home" || !before.app) return;
+    const leaving = windowOf(before.app);
     if (!leaving) return;
     const icon = [...document.querySelectorAll<HTMLElement>(`.system-launcher-app[data-app="${before.app}"], .tablet-shelf [data-app="${before.app}"]`)]
       .map((element) => element.getBoundingClientRect())
       .find((rect) => rect.width > 0);
-    const box = leaving.getBoundingClientRect();
-    leaving.style.setProperty("--leave-origin", icon ? `${Math.round(icon.left + icon.width / 2 - box.left)}px ${Math.round(icon.top + icon.height / 2 - box.top)}px` : "50% 100%");
+    leaving.style.transformOrigin = icon ? originIn(leaving, icon.left + icon.width / 2, icon.top + icon.height / 2) : "50% 100%";
     const layer = leaving.closest<HTMLElement>(".contact-window-layer");
     const settle = () => {
       delete leaving.dataset.leaving;
@@ -233,8 +248,11 @@ export function SystemShell() {
     };
     leaving.dataset.leaving = "true";
     if (layer) layer.dataset.leaving = "true";
-    const timer = window.setTimeout(settle, 240);
-    return () => { window.clearTimeout(timer); settle(); };
+    // Shrinking into an icon doesn't overshoot: the spring is fully damped.
+    const leave = springTo(leaving, { scale: "0.12", "--window-fade": "0" }, { response: 0.34, damping: 1 }, { from: { scale: "1", "--window-fade": "1" }, fill: "forwards" });
+    if (!leave) { settle(); return; }
+    leave.addEventListener("finish", () => { settle(); leave.cancel(); });
+    return settle;
   }, [workspace.activeApp, workspace.mode, workspace.surface]);
 
   /**
