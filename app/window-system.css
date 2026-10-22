@@ -205,9 +205,7 @@ body {
   padding: 0 !important;
   position: relative;
   text-decoration: none;
-  transform-origin: center;
-  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 260ms var(--os-ease);
-  will-change: transform;
+  transition: none;
   width: 44px !important;
 }
 
@@ -220,15 +218,15 @@ body {
   background: var(--adverse) !important;
   border-color: var(--adverse) !important;
   color: white !important;
-  transform: rotate(45deg);
 }
 
+/* Close is a control like any other: its hover answers at once, and a press moves it 1px. */
 .window-close-action:active,
 .case-close-action:active,
 .evidence-close-action:active {
   background: var(--adverse) !important;
   border-color: var(--adverse) !important;
-  transform: rotate(45deg) scale(.9);
+  transform: translate(1px, 1px);
 }
 
 .window-close-action > span,
@@ -239,8 +237,8 @@ body {
   font-size: 1.35rem;
   height: auto !important;
   line-height: 1;
-  transform: rotate(0) !important;
-  transition: transform 260ms var(--os-ease) !important;
+  transform: none !important;
+  transition: none !important;
   width: auto !important;
 }
 
@@ -306,21 +304,6 @@ body {
   min-height: 0 !important;
   padding: clamp(28px, 4vw, 56px) !important;
   position: relative;
-}
-
-.window-close-action:hover > span,
-.window-close-action:focus-visible > span,
-.case-close-action:hover > span,
-.case-close-action:focus-visible > span,
-.evidence-close-action:hover > span,
-.evidence-close-action:focus-visible > span {
-  transform: rotate(-45deg) !important;
-}
-
-.window-close-action:active > span,
-.case-close-action:active > span,
-.evidence-close-action:active > span {
-  transform: rotate(-45deg) scale(.92) !important;
 }
 
 .desktop-board {
@@ -2098,30 +2081,17 @@ html[data-system-mode="computer"] .desktop-board {
   position: absolute;
   right: 14px;
   top: 14px;
-  transition: background 160ms ease, transform 220ms var(--os-ease);
   width: 38px;
 }
 
 .system-recent-close:hover,
 .system-recent-close:focus-visible {
   background: var(--adverse);
-  transform: rotate(45deg);
 }
 
-.system-recent-close:active {
-  background: var(--adverse);
-  transform: rotate(45deg) scale(.96);
-}
+.system-recent-close:active { background: var(--adverse); }
 
-.system-recent-close > span {
-  display: block;
-  transition: transform var(--duration-focus) var(--ease-event);
-}
-
-.system-recent-close:hover > span,
-.system-recent-close:focus-visible > span {
-  transform: rotate(-45deg);
-}
+.system-recent-close > span { display: block; }
 
 .tablet-shelf,
 .phone-system-navigation {

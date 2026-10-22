@@ -3811,7 +3811,8 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .system-recents
   place-items: center;
 }
 
-.system-recent-close:hover > span { background: var(--adverse); color: #ffffff; }
+.system-recent-close:is(:hover, :focus-visible) > span { background: var(--adverse); color: #ffffff; }
+.system-recent-close:active > span { box-shadow: var(--bevel-inset); translate: 1px 1px; }
 .system-recent-close svg { block-size: 12px; inline-size: 12px; }
 
 html[data-system-mode="phone"] .system-recents-list {
