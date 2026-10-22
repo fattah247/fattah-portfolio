@@ -96,8 +96,6 @@ export function CounterfactualHome({
   const [selectedCaseSlug, setSelectedCaseSlug] = useState<ScenarioSlug>(() => initialCaseSlug ?? (workspace.readDocumentState("work", "session")?.data?.slug as ScenarioSlug) ?? "payflow");
   const [selectedGithubProjectId, setSelectedGithubProjectId] = useState(() => initialGithubProjectId ?? (workspace.readDocumentState("work", "session")?.data?.repository as string) ?? githubProjects[0]?.id ?? "");
   const [workView, setWorkView] = useState<WorkView>(() => initialGithubProjectId ? "github-project" : initialCaseSlug ? "full-case" : (workspace.readDocumentState("work", "session")?.data?.view as WorkView) ?? "index");
-  const [closingWindows, setClosingWindows] = useState<WorkspaceWindow[]>([]);
-  const closeTimers = useRef<number[]>([]);
   const experienceCloseRef = useRef<HTMLButtonElement>(null);
   const workContentRef = useRef<HTMLDivElement>(null);
   const initialConditionsConsumed = useRef(false);
@@ -417,57 +415,44 @@ export function CounterfactualHome({
     focusWindowControl(windowName);
   }
 
+  // Closing is immediate: the window is gone the moment it's asked, with nothing to wait for.
   function closeWindow(windowName: WorkspaceWindow) {
-    if (closingWindows.includes(windowName)) return;
     const remainingWindows = openWindows.filter((item) => item !== windowName);
-    setClosingWindows((current) => [...current, windowName]);
-    closeTimers.current.push(window.setTimeout(() => {
-      workspace.closeWindow(windowName);
-      if (workspace.mode === "computer" && remainingWindows.length === 1) {
-        const remaining = remainingWindows[0];
-        window.requestAnimationFrame(() => {
-          resetFrameFor(remaining);
-          focusWindow(remaining);
-          focusWindowControl(remaining);
-        });
-      } else if (workspace.mode === "computer" && remainingWindows.length > 1) {
-        const promoted = activeWindow !== windowName && remainingWindows.includes(activeWindow as WorkspaceWindow)
-          ? activeWindow as WorkspaceWindow
-          : remainingWindows.find((item) => windowState(item) === "clear") ?? remainingWindows.at(-1)!;
-        const companion = remainingWindows.find((item) => item !== promoted)!;
-        const portrait = window.innerWidth <= 1100 && window.innerHeight > window.innerWidth;
-        snapFrameFor(companion, portrait ? "top" : "left");
-        snapFrameFor(promoted, portrait ? "bottom" : "right");
-        window.requestAnimationFrame(() => {
-          focusWindow(promoted);
-          focusWindowControl(promoted);
-        });
-      }
-      setClosingWindows((current) => current.filter((item) => item !== windowName));
-    }, 320));
+    workspace.closeWindow(windowName);
+    if (workspace.mode === "computer" && remainingWindows.length === 1) {
+      const remaining = remainingWindows[0];
+      window.requestAnimationFrame(() => {
+        resetFrameFor(remaining);
+        focusWindow(remaining);
+        focusWindowControl(remaining);
+      });
+    } else if (workspace.mode === "computer" && remainingWindows.length > 1) {
+      const promoted = activeWindow !== windowName && remainingWindows.includes(activeWindow as WorkspaceWindow)
+        ? activeWindow as WorkspaceWindow
+        : remainingWindows.find((item) => windowState(item) === "clear") ?? remainingWindows.at(-1)!;
+      const companion = remainingWindows.find((item) => item !== promoted)!;
+      const portrait = window.innerWidth <= 1100 && window.innerHeight > window.innerWidth;
+      snapFrameFor(companion, portrait ? "top" : "left");
+      snapFrameFor(promoted, portrait ? "bottom" : "right");
+      window.requestAnimationFrame(() => {
+        focusWindow(promoted);
+        focusWindowControl(promoted);
+      });
+    }
   }
 
-  function closeApplication(app: "work" | "experience" | "products", visualWindow: WorkspaceWindow) {
-    if (closingWindows.includes(visualWindow)) return;
-    const removedWindows: WorkspaceWindow[] = app === "work"
-      ? openWindows.filter((item) => item === "work")
-      : app === "experience"
-        ? openWindows.filter((item) => item === "experience")
-        : openWindows.filter((item) => item === "products");
+  function closeApplication(app: "work" | "experience" | "products") {
+    const removedWindows: WorkspaceWindow[] = openWindows.filter((item) => item === app);
     const remainingWindows = openWindows.filter((item) => !removedWindows.includes(item));
-    setClosingWindows((current) => [...current, visualWindow]);
-    closeTimers.current.push(window.setTimeout(() => {
-      workspace.closeApp(app);
-      if (workspace.mode === "computer" && remainingWindows.length === 1) {
-        const remaining = remainingWindows[0];
-        window.requestAnimationFrame(() => {
-          resetFrameFor(remaining);
-          focusWindow(remaining);
-          focusWindowControl(remaining);
-        });
-      }
-      setClosingWindows((current) => current.filter((item) => item !== visualWindow));
-    }, 320));
+    workspace.closeApp(app);
+    if (workspace.mode === "computer" && remainingWindows.length === 1) {
+      const remaining = remainingWindows[0];
+      window.requestAnimationFrame(() => {
+        resetFrameFor(remaining);
+        focusWindow(remaining);
+        focusWindowControl(remaining);
+      });
+    }
   }
 
   function openCaseWindow(slug: ScenarioSlug) {
@@ -595,8 +580,6 @@ export function CounterfactualHome({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isWorkOpen, workView, workspace.activeApp, workspace.activeWindow, workspace.mode]);
 
-  useEffect(() => () => closeTimers.current.forEach(window.clearTimeout), []);
-
   useEffect(() => {
     for (const app of mainWindowIds) {
       if (workspace.isAppOpen(app)) { openedApps.current.add(app); continue; }
@@ -625,7 +608,7 @@ export function CounterfactualHome({
     return () => window.removeEventListener("keydown", closeActiveWithEscape);
   // Close behavior intentionally follows the currently focused OS window.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeWindow, closingWindows, workView]);
+  }, [activeWindow, workView]);
 
   useEffect(() => {
     const unregister = [
@@ -691,7 +674,6 @@ export function CounterfactualHome({
             aria-label="Projects window"
             data-active-window={activeWindow === "work"}
             data-app-id="work"
-            data-closing={closingWindows.includes("work")}
             data-dragging={workDragging}
             data-resizing={workResizing}
             data-snap={workSnap ?? undefined}
@@ -725,7 +707,7 @@ export function CounterfactualHome({
               compactBackText="Projects"
               label="Projects"
               maximized={workMaximized}
-              onClose={() => closeApplication("work", "work")}
+              onClose={() => closeApplication("work")}
               onCompactBack={workspace.mode !== "computer" && workView !== "index" ? workspace.requestBack : undefined}
               onMinimize={() => workspace.minimizeWindow("work")}
               onToggleMaximize={toggleWorkMaximize}
@@ -773,7 +755,6 @@ export function CounterfactualHome({
             aria-label="Experience window"
             data-active-window={activeWindow === "experience"}
             data-app-id="experience"
-            data-closing={closingWindows.includes("experience")}
             data-dragging={experienceDragging}
             data-resizing={experienceResizing}
             data-snap={experienceSnap ?? undefined}
@@ -794,7 +775,7 @@ export function CounterfactualHome({
               closeRef={experienceCloseRef}
               label="Experience"
               maximized={experienceMaximized}
-              onClose={() => closeApplication("experience", "experience")}
+              onClose={() => closeApplication("experience")}
               onMinimize={() => workspace.minimizeWindow("experience")}
               onToggleMaximize={toggleExperienceMaximize}
               {...experienceTitlebarProps}
@@ -806,7 +787,6 @@ export function CounterfactualHome({
             aria-label="Product Links window"
             data-active-window={activeWindow === "products"}
             data-app-id="products"
-            data-closing={closingWindows.includes("products")}
             data-dragging={productsDragging}
             data-resizing={productsResizing}
             data-snap={productsSnap ?? undefined}
@@ -826,7 +806,7 @@ export function CounterfactualHome({
               closeRef={productsCloseRef}
               label="Product Links"
               maximized={productsMaximized}
-              onClose={() => closeApplication("products", "products")}
+              onClose={() => closeApplication("products")}
               onMinimize={() => workspace.minimizeWindow("products")}
               onToggleMaximize={toggleProductsMaximize}
               {...productsTitlebarProps}

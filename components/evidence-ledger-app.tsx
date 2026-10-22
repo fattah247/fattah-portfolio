@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { ChevronIcon } from "@/components/icons";
 import { PortfolioHeader } from "@/components/portfolio-header";
 import { useWindowFrame } from "@/components/use-window-frame";
@@ -19,9 +19,7 @@ export function EvidenceLedgerApp() {
   const closeEvidenceWindow = workspace.closeWindow;
   const openEvidenceWindow = workspace.openWindow;
   const closeRef = useRef<HTMLButtonElement>(null);
-  const closeTimerRef = useRef<number | null>(null);
   const wasOpenRef = useRef(false);
-  const [isClosing, setIsClosing] = useState(false);
   const {
     dragging,
     frameRef,
@@ -36,10 +34,7 @@ export function EvidenceLedgerApp() {
 
   useEffect(() => {
     openEvidenceWindow("evidence");
-    return () => {
-      if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
-      closeEvidenceWindow("evidence");
-    };
+    return () => closeEvidenceWindow("evidence");
   }, [closeEvidenceWindow, openEvidenceWindow]);
 
   useEffect(() => {
@@ -54,18 +49,16 @@ export function EvidenceLedgerApp() {
   // This route has no Home host, so a session closed from Recents must leave the address itself.
   useEffect(() => {
     if (workspace.isOpen("evidence")) { wasOpenRef.current = true; return; }
-    if (!wasOpenRef.current || isClosing) return;
+    if (!wasOpenRef.current) return;
     wasOpenRef.current = false;
     router.push("/#selected-work");
-  }, [isClosing, router, workspace]);
+  }, [router, workspace]);
 
+  // Closing is immediate; the effect above doesn't leave the address a second time.
   function requestClose() {
-    if (isClosing) return;
-    setIsClosing(true);
-    closeTimerRef.current = window.setTimeout(() => {
-      workspace.closeWindow("evidence");
-      router.push("/#selected-work");
-    }, 240);
+    wasOpenRef.current = false;
+    workspace.closeWindow("evidence");
+    router.push("/#selected-work");
   }
 
   return (
@@ -76,7 +69,6 @@ export function EvidenceLedgerApp() {
         className="evidence-page portfolio-window evidence-route-window"
         data-active-window={workspace.activeWindow === "evidence"}
         data-app-id="work"
-        data-closing={isClosing}
         data-dragging={dragging}
         data-resizing={resizing}
         data-snap={snap ?? undefined}

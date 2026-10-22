@@ -134,23 +134,30 @@ describe("sound", () => {
     expect(cues().filter((cue) => cue === "svc.alarm")).toHaveLength(1);
   });
 
-  it("ticks once for each found check, then lands the server's answer, in time with the drawing", () => {
+  it("answers a toggled check at once, and ticks each found check in time with the drawing when the payment is sent again", () => {
     const { cues } = withSound(caseOf(2));
     expect(cues()).toEqual(["sys.file-open"]);
     fireEvent.click(within(screen.getByRole("group", { name: /^What the phone/ })).getByRole("button", { name: /^Root app installed/ }));
-    // The case settles the change first; the walk starts from the new payment: root app, test build, installer.
-    for (let waited = 0; waited < 2_000 && !cues().includes("pol.rule-1"); waited += 10) act(() => vi.advanceTimersByTime(10));
-    expect(cues().slice(1)).toEqual(["pol.rule-1"]);
-    act(() => vi.advanceTimersByTime(270));
-    expect(cues().slice(1)).toEqual(["pol.rule-1"]);
+    // A toggled check answers quickly: the answer alone, a quarter of a second later (three checks found).
+    act(() => vi.advanceTimersByTime(230));
+    expect(cues().slice(1)).toEqual([]);
     act(() => vi.advanceTimersByTime(20));
-    expect(cues().slice(1)).toEqual(["pol.rule-1", "pol.rule-2"]);
+    expect(cues().slice(1)).toEqual(["pol.block"]);
+    // "Send again" teaches the walk at its full pace: root app, test build, installer, then the answer.
+    fireEvent.click(screen.getByRole("button", { name: /Send the payment again/ }));
+    const sent = () => cues().slice(2);
+    act(() => vi.advanceTimersByTime(310));
+    expect(sent()).toEqual([]);
+    act(() => vi.advanceTimersByTime(20));
+    expect(sent()).toEqual(["pol.rule-1"]);
     act(() => vi.advanceTimersByTime(280));
-    expect(cues().slice(1)).toEqual(["pol.rule-1", "pol.rule-2", "pol.rule-3"]);
+    expect(sent()).toEqual(["pol.rule-1", "pol.rule-2"]);
+    act(() => vi.advanceTimersByTime(280));
+    expect(sent()).toEqual(["pol.rule-1", "pol.rule-2", "pol.rule-3"]);
     act(() => vi.advanceTimersByTime(540));
-    expect(cues().slice(1)).toEqual(["pol.rule-1", "pol.rule-2", "pol.rule-3"]);
+    expect(sent()).toEqual(["pol.rule-1", "pol.rule-2", "pol.rule-3"]);
     act(() => vi.advanceTimersByTime(20));
-    expect(cues().slice(1)).toEqual(["pol.rule-1", "pol.rule-2", "pol.rule-3", "pol.block"]);
+    expect(sent()).toEqual(["pol.rule-1", "pol.rule-2", "pol.rule-3", "pol.block"]);
   });
 
   it("hears every way of opening and closing an app the same, from the workspace's own state", () => {

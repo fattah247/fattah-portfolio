@@ -88,6 +88,9 @@ function RecentPreview({ app }: { app: PortfolioAppId }) {
   );
 }
 
+/** How long the pointer rests on a taskbar button before its caption shows (the stylesheet waits as long). */
+const captionDelayMs = 480;
+
 export function SystemShell() {
   const pathname = usePathname();
   const router = useRouter();
@@ -104,6 +107,12 @@ export function SystemShell() {
   const activeEntry = portfolioApps.find((app) => app.id === (workspace.activeApp ?? routeOwner));
   const resumeApp = runningApps.at(-1) ?? "work";
   const recentsListRef = useRef<HTMLDivElement>(null);
+  const launchTimer = useRef(0);
+  // Taskbar captions: the first waits a moment; once one has shown, the next answer at once.
+  const [captionsWarm, setCaptionsWarm] = useState(false);
+  const captionTimer = useRef(0);
+  const warmCaptions = () => { window.clearTimeout(captionTimer.current); captionTimer.current = window.setTimeout(() => setCaptionsWarm(true), captionDelayMs); };
+  const coolCaptions = () => { window.clearTimeout(captionTimer.current); captionTimer.current = window.setTimeout(() => setCaptionsWarm(false), 400); };
 
   // Recents reads oldest to newest; entering it lands on the newest card with the previous one peeking.
   useLayoutEffect(() => {
@@ -202,12 +211,20 @@ export function SystemShell() {
     return () => document.removeEventListener("contextmenu", preventPageContextMenu);
   }, []);
 
-  /** Records where a launch began so the opening app can grow out of that icon or row. */
+  /**
+   * Records where a launch began, so the opening app grows out of that icon, row, shelf button or
+   * Recents card, and marks the launch for its one animation. Only a launch plays it: an app that
+   * surfaces again (a sheet closed over it, Recents dismissed, Back) simply appears.
+   */
   function noteLaunchOrigin(target: EventTarget | null) {
     if (!(target instanceof HTMLElement)) return;
     const rect = target.getBoundingClientRect();
-    document.documentElement.style.setProperty("--launch-x", `${Math.round(rect.left + rect.width / 2)}px`);
-    document.documentElement.style.setProperty("--launch-y", `${Math.round(rect.top + rect.height / 2)}px`);
+    const root = document.documentElement;
+    root.style.setProperty("--launch-x", `${Math.round(rect.left + rect.width / 2)}px`);
+    root.style.setProperty("--launch-y", `${Math.round(rect.top + rect.height / 2)}px`);
+    root.dataset.launching = "true";
+    window.clearTimeout(launchTimer.current);
+    launchTimer.current = window.setTimeout(() => { delete root.dataset.launching; }, 400);
   }
 
   function launchApp(app: PortfolioAppId) {
@@ -362,7 +379,7 @@ export function SystemShell() {
             const status = current ? "Active" : workspace.isMinimized(app) ? "Minimized" : "Background";
             return (
               <article className="system-recent-card" data-current={current} key={app}>
-                <button className="system-recent-open" onClick={() => launchApp(app)} type="button" aria-label={`Switch to ${entry.label}. ${status}`}>
+                <button className="system-recent-open" onClick={(event) => { noteLaunchOrigin(event.currentTarget); launchApp(app); }} type="button" aria-label={`Switch to ${entry.label}. ${status}`}>
                   <div className="system-recent-preview" data-app={app}>
                     <div className="system-recent-preview-bar">
                       <AppMark app={app} small />
@@ -383,7 +400,7 @@ export function SystemShell() {
 
       {workspace.mode === "computer" ? <nav className="desktop-taskbar" aria-label="System taskbar">
         <button className="taskbar-home" data-active={workspace.surface === "home"} data-label="Desktop" onClick={workspace.goHome} type="button" aria-label="Show desktop"><SystemIcon name="home" /></button>
-        <div className="taskbar-apps">
+        <div className="taskbar-apps" data-warm={captionsWarm || undefined} onPointerEnter={warmCaptions} onPointerLeave={coolCaptions}>
           {portfolioApps.map((app) => {
             const running = workspace.isAppOpen(app.id);
             const active = workspace.surface === "application" && workspace.activeApp === app.id;
@@ -437,7 +454,7 @@ export function SystemShell() {
               data-minimized={minimized}
               data-running={running}
               key={app.id}
-              onClick={() => launchApp(app.id)}
+              onClick={(event) => { if (!active) noteLaunchOrigin(event.currentTarget); launchApp(app.id); }}
               type="button"
             >
               <AppMark app={app.id} />

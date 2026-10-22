@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { ArrowIcon } from "@/components/icons";
 import { CopyEmailButton } from "@/components/copy-email-button";
 import { SystemShell } from "@/components/system-shell";
@@ -14,11 +14,8 @@ import { OwnerMark } from "@/components/app-icons";
 function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }) {
   const workspace = useWorkspaceManager();
   const closeRef = useRef<HTMLButtonElement>(null);
-  const closeTimerRef = useRef<number | null>(null);
-  const closingRef = useRef(false);
   const foregroundRef = useRef(false);
   foregroundRef.current = workspace.activeWindow === "contact" && workspace.surface === "application";
-  const [isClosing, setIsClosing] = useState(false);
   const {
     dragging,
     frameRef,
@@ -58,19 +55,9 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
     });
   }, [open, workspace]);
 
-  useEffect(() => () => {
-    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
-  }, []);
-
+  // Closing is immediate: the window is gone the moment it's asked.
   function requestClose() {
-    if (closingRef.current) return;
-    closingRef.current = true;
-    setIsClosing(true);
-    closeTimerRef.current = window.setTimeout(() => {
-      closingRef.current = false;
-      setIsClosing(false);
-      onClose();
-    }, 320);
+    onClose();
   }
 
   if (!open) return null;
@@ -78,7 +65,6 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
   return (
     <div
       className="contact-window-layer"
-      data-closing={isClosing}
       data-window-state={workspace.stateFor("contact")}
       role="presentation"
       style={{ "--window-layer-z": workspace.zIndexFor("contact") } as CSSProperties}

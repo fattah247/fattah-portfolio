@@ -392,7 +392,7 @@ export function ServiceDiagram({ technical, ticks, window: slots }: { technical:
             <path className="sd-baseline-axis" d={`M${g.x0} ${g.top}V${g.bottom}H${g.x1}`} />
 
             <g clipPath={`url(#${id}-${layout}-plot)`}>
-              <g className="sd-scroll" key={now.n} style={{ "--slot": `${slot}px` } as CSSProperties}>
+              <g className="sd-scroll">
                 {padded.map((tick, index) => (tick && !tick.results.some((result) => result.region === "lab-b")
                   ? <rect className="svc-gap sd-gap" fill={`url(#${id}-${layout}-hatch)`} height={g.bottom - g.top} key={`gap-${tick.n}`} width={slot} x={x(index) - slot / 2} y={g.top} />
                   : null))}
@@ -448,11 +448,17 @@ const signingWord: Record<"plain" | "technical", Record<Signing, string>> = {
 };
 const answerTone = { ALLOW: "confirmed", "REQUIRE CONFIRMATION": "uncertain", BLOCK: "adverse" } as const;
 const levelTone = { LOW: "confirmed", MEDIUM: "uncertain", HIGH: "adverse" } as const;
-/** The scoring walk: the first found check lights after `toRulesMs`, then one per `ruleStepMs`; the answer lands after the last. */
-export const ruleStepMs = 280;
-export const toRulesMs = 320;
+/**
+ * The scoring walk: the first found check lights after `to`, then one per `step`; the answer lands
+ * after the last. It teaches at its full pace the first time and whenever the visitor sends the
+ * payment again; a check toggled after that answers quickly, the checks still lighting in order.
+ */
+export type WalkTempo = "teach" | "quick";
+export const walkPace: Record<WalkTempo, { to: number; step: number }> = { teach: { to: 320, step: 280 }, quick: { to: 40, step: 50 } };
+export const ruleStepMs = walkPace.teach.step;
+export const toRulesMs = walkPace.teach.to;
 /** When the level and the answer land, for a run with `found` checks lit. */
-export const answerDelayMs = (found: number) => toRulesMs + found * ruleStepMs;
+export const answerDelayMs = (found: number, tempo: WalkTempo = "teach") => walkPace[tempo].to + found * walkPace[tempo].step;
 /** The points track shows ten points; a higher total reads as "+N" past its end. */
 const trackPoints = 10;
 
@@ -464,13 +470,14 @@ function deviceNote(run: DeviceAssessment, technical: boolean): Segment[] {
   return [{ text: before }, { text: signingWord[voice][run.signing], bad: run.signing === "NOTHING SIGNED" }];
 }
 
-export function DeviceDiagram({ requestKey, run, technical }: { requestKey: string; run: DeviceAssessment; technical: boolean }) {
+export function DeviceDiagram({ requestKey, run, technical, tempo = "teach" }: { requestKey: string; run: DeviceAssessment; technical: boolean; tempo?: WalkTempo }) {
   const voice = technical ? "technical" : "plain";
   const note = deviceNote(run, technical);
-  const lit = new Map(run.found.map((check, index) => [check.id, toRulesMs + index * ruleStepMs]));
+  const pace = walkPace[tempo];
+  const lit = new Map(run.found.map((check, index) => [check.id, pace.to + index * pace.step]));
   // Each point of the track is filled when the check that brings it lights, in that check's tone.
   const cells = run.found.flatMap((check) => Array.from({ length: check.points }, () => ({ d: lit.get(check.id)!, tone: check.severity === "HIGH" ? "adverse" : "uncertain" })));
-  const answerAt = answerDelayMs(run.found.length);
+  const answerAt = answerDelayMs(run.found.length, tempo);
   const levelText = technical
     ? `${run.level} · score ${run.score}`
     : `${run.level.toLowerCase()} risk · ${run.score} ${run.score === 1 ? "point" : "points"}`;
@@ -537,7 +544,7 @@ export function DeviceDiagram({ requestKey, run, technical }: { requestKey: stri
                 <text textAnchor="middle" x={level.x + level.w / 2} y={level.y + level.h / 2 + 5}>{levelText}</text>
               </g>
               <path className="sd-flow sd-flow-out" d={`M${answer.x + answer.w - 24} ${level.y + level.h}V${answer.y}`} style={{ "--d": `${answerAt}ms` } as CSSProperties} />
-              <g className="sd-decision" data-tone={answerTone[run.decision]} style={{ "--d": `${answerAt + ruleStepMs}ms` } as CSSProperties}>
+              <g className="sd-decision" data-tone={answerTone[run.decision]} style={{ "--d": `${answerAt + pace.step}ms` } as CSSProperties}>
                 <rect height={answer.h} width={answer.w} x={answer.x} y={answer.y} />
                 <text textAnchor="middle" x={answer.x + answer.w / 2} y={answer.y + answer.h / 2 + 5}>{answerWord[voice][run.decision]}</text>
               </g>

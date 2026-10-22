@@ -717,13 +717,12 @@ describe("CounterfactualHome", () => {
     const evidenceDialog = screen.getByRole("dialog", { name: /Exhibit 01\.1/i });
     expect(evidenceDialog.getAttribute("data-window-state")).toBe("active");
 
+    // Closing is immediate: Back takes the evidence away at once.
     fireEvent.click(phoneNavigation.getByRole("button", { name: "Back" }));
-    act(() => vi.advanceTimersByTime(400));
     expect(screen.queryByRole("dialog", { name: /Exhibit 01\.1/i })).toBeNull();
     expect(document.querySelector('.workspace-work-window[data-view="full-case"]')).toBeTruthy();
 
     fireEvent.click(phoneNavigation.getByRole("button", { name: "Back" }));
-    act(() => vi.advanceTimersByTime(340));
     expect(screen.getByRole("region", { name: "Projects window" }).getAttribute("data-view")).toBe("index");
     const workWindow = screen.getByRole("region", { name: "Projects window" });
     const selectedWork = workWindow.querySelector<HTMLElement>("#selected-work")!;

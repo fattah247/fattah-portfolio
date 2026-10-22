@@ -264,22 +264,12 @@ body {
   .selected-work-window > :not(.window-chrome):not(.window-resize-handle) {
     animation: os-content-arrive 470ms 70ms var(--os-ease) both;
   }
-
-  [data-closing="true"] {
-    animation: os-window-close 320ms cubic-bezier(.55, 0, .85, .35) both !important;
-    pointer-events: none !important;
-  }
 }
 
 @keyframes os-window-open {
   from { opacity: 0; transform: translateY(16px) scale(.965); }
   60% { opacity: 1; transform: translateY(-2px) scale(1.002); }
   to { opacity: 1; transform: none; }
-}
-
-@keyframes os-window-close {
-  from { opacity: 1; transform: none; }
-  to { opacity: 0; transform: translateY(18px) scale(.94); }
 }
 
 @keyframes os-content-arrive {
@@ -330,20 +320,8 @@ body {
 
 .window-close-action:active > span,
 .case-close-action:active > span,
-.evidence-close-action:active > span,
-[data-closing="true"] .window-close-action > span,
-[data-closing="true"] .case-close-action > span,
-[data-closing="true"] .evidence-close-action > span {
+.evidence-close-action:active > span {
   transform: rotate(-45deg) scale(.92) !important;
-}
-
-[data-closing="true"] .window-close-action,
-[data-closing="true"] .case-close-action,
-[data-closing="true"] .evidence-close-action {
-  background: var(--adverse) !important;
-  border-color: var(--adverse) !important;
-  color: white !important;
-  transform: rotate(45deg);
 }
 
 .desktop-board {
@@ -502,10 +480,6 @@ body {
 .contact-window {
   overflow: auto !important;
   pointer-events: auto !important;
-}
-
-.contact-window-layer[data-closing="true"] .contact-window {
-  animation: os-window-close 320ms cubic-bezier(.55, 0, .85, .35) both !important;
 }
 
 /* Evidence is a child inspector, not a full-page takeover. The layer itself is clear; the scrim
@@ -2620,56 +2594,6 @@ html[data-system-mode="computer"][data-system-surface="recents"] .contact-window
 
   .case-progress a { min-width: 25% !important; }
 
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .system-home-screen:not([aria-hidden="true"]) .system-launcher-app {
-    animation: system-icon-arrive 420ms var(--os-ease) both;
-  }
-
-  .system-home-screen:not([aria-hidden="true"]) .system-launcher-app:nth-child(2) { animation-delay: 45ms; }
-  .system-home-screen:not([aria-hidden="true"]) .system-launcher-app:nth-child(3) { animation-delay: 90ms; }
-  .system-recents:not([aria-hidden="true"]) .system-recent-card { animation: system-card-arrive 320ms var(--os-ease) both; }
-
-  html[data-system-mode="computer"] .portfolio-window[data-window-state="active"]:not([data-dragging="true"]):not([data-resizing="true"]),
-  html[data-system-mode="computer"] .contact-window[data-window-state="active"] {
-    animation: computer-window-focus var(--duration-focus) var(--ease-event);
-  }
-
-  html[data-system-mode="tablet"] .portfolio-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle),
-  html[data-system-mode="tablet"] .contact-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle) {
-    animation: tablet-app-enter var(--duration-window) var(--ease-decision);
-  }
-
-  html[data-system-mode="phone"] .portfolio-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle),
-  html[data-system-mode="phone"] .contact-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle) {
-    animation: phone-app-enter var(--duration-navigation) var(--ease-decision);
-  }
-}
-
-@keyframes system-icon-arrive {
-  from { opacity: 0; transform: translateY(12px) scale(.94); }
-  to { opacity: 1; transform: none; }
-}
-
-@keyframes system-card-arrive {
-  from { opacity: 0; transform: translateY(16px) scale(.97); }
-  to { opacity: 1; transform: none; }
-}
-
-@keyframes computer-window-focus {
-  from { opacity: .82; transform: scale(.992); }
-  to { opacity: 1; transform: none; }
-}
-
-@keyframes tablet-app-enter {
-  from { opacity: .72; transform: translateY(18px) scale(.985); }
-  to { opacity: 1; transform: none; }
-}
-
-@keyframes phone-app-enter {
-  from { opacity: .7; transform: translateX(22px); }
-  to { opacity: 1; transform: none; }
 }
 
 .contact-window-layer,

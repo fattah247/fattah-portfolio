@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PlayIcon, ResetIcon } from "./icons";
-import { answerDelayMs, DeviceDiagram, ruleStepMs, ServiceDiagram, toRulesMs } from "./sim-diagrams";
+import { answerDelayMs, DeviceDiagram, ServiceDiagram, walkPace, type WalkTempo } from "./sim-diagrams";
 import { PayWorld } from "./pay-world";
 import { useSound } from "./sound-provider";
 import { type CueId } from "../lib/sound/engine";
@@ -459,6 +459,15 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
   const [sends, setSends] = useState(0);
   const [history, setHistory] = useState<PaymentRecord[]>([]);
   const requestKey = `${JSON.stringify(conditions)}:${sends}`;
+  // The walk teaches at full pace on the first payment and on "Send again"; a check toggled after
+  // that answers quickly, since the visitor has seen how the points add up.
+  const [tempo, setTempo] = useState<WalkTempo>("teach");
+  const conditionsKey = JSON.stringify(conditions);
+  const [seenConditions, setSeenConditions] = useState(conditionsKey);
+  if (conditionsKey !== seenConditions) {
+    setSeenConditions(conditionsKey);
+    setTempo("quick");
+  }
   const lastKey = useRef<string | null>(null);
   const { play } = useSound();
   const walk = useRef<number[]>([]);
@@ -467,8 +476,10 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
   // points, in order, then the server's answer landing.
   useOnChange(requestKey, () => {
     walk.current.forEach(window.clearTimeout);
-    const steps: Array<[number, CueId]> = run.found.map((_, index) => [toRulesMs + index * ruleStepMs, `pol.rule-${Math.min(4, index + 1)}` as CueId]);
-    steps.push([answerDelayMs(run.found.length) + ruleStepMs, decisionCue[run.decision]]);
+    // A quick answer is heard as its answer alone, not a burst of ticks.
+    const pace = walkPace[tempo];
+    const steps: Array<[number, CueId]> = tempo === "teach" ? run.found.map((_, index) => [pace.to + index * pace.step, `pol.rule-${Math.min(4, index + 1)}` as CueId]) : [];
+    steps.push([answerDelayMs(run.found.length, tempo) + pace.step, decisionCue[run.decision]]);
     walk.current = steps.map(([at, id]) => window.setTimeout(() => play(id), at));
   });
   const reasonId = run.reason.kind === "severe" ? `SevereSignal(${run.reason.checks.join(", ")})` : run.reason.kind === "score" ? `ScoreThreshold(${run.reason.score}, ${run.reason.threshold})` : `BelowThresholds(${run.reason.score})`;
@@ -494,7 +505,7 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
 
   return (
     <div className="sim" data-sim="trustgate">
-      <DeviceDiagram requestKey={requestKey} run={run} technical={technical} />
+      <DeviceDiagram requestKey={requestKey} run={run} technical={technical} tempo={tempo} />
       <Wire technical={technical}>{hood}</Wire>
 
       <div className="sim-controls">
@@ -533,7 +544,7 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
       />
 
       <div className="sim-actions">
-        <button className="sim-primary" onClick={() => setSends((value) => value + 1)} type="button"><PlayIcon />Send the payment again</button>
+        <button className="sim-primary" onClick={() => { setTempo("teach"); setSends((value) => value + 1); }} type="button"><PlayIcon />Send the payment again</button>
         <StoryReset isDefault={isDefault} onReset={onReset} />
         <p className="sim-compare">Confirm from {MEDIUM_SCORE_THRESHOLD} points, block from {HIGH_SCORE_THRESHOLD} or on any high-severity check.</p>
       </div>

@@ -570,7 +570,10 @@ html[data-system-mode="computer"] .taskbar-app[data-active="true"] > i { backgro
 html[data-system-mode="computer"] .taskbar-home svg,
 html[data-system-mode="computer"] .taskbar-overview svg { block-size: 18px; inline-size: 18px; stroke: var(--shell-ink) !important; }
 
-/* Hover and focus caption: a plain tooltip box above the button. */
+/* Hover and focus caption: a plain tooltip box above the button. It never slides. The first one
+ * waits 480ms, so passing over the taskbar doesn't flash it; once one has shown (the bar is "warm"),
+ * the next answer at once while the visitor reads along the bar. Keyboard focus shows it at once,
+ * and it goes the moment the pointer leaves. */
 html[data-system-mode="computer"] .taskbar-app > .taskbar-app-preview {
   background: var(--raised) !important;
   border: 1px solid var(--line-ink) !important;
@@ -578,7 +581,12 @@ html[data-system-mode="computer"] .taskbar-app > .taskbar-app-preview {
   bottom: calc(100% + 8px) !important;
   box-shadow: var(--object-shadow) !important;
   color: var(--shell-ink) !important;
+  transform: translate(-50%, 0) !important;
+  transition: none !important;
 }
+html[data-system-mode="computer"] .taskbar-app:hover > .taskbar-app-preview { transition: opacity 0s linear 480ms, visibility 0s linear 480ms !important; }
+html[data-system-mode="computer"] .taskbar-apps[data-warm] .taskbar-app:hover > .taskbar-app-preview,
+html[data-system-mode="computer"] .taskbar-app:focus-visible > .taskbar-app-preview { transition: none !important; }
 
 html[data-system-mode="computer"] .desktop-taskbar button::after { display: none !important; }
 
@@ -1930,7 +1938,7 @@ html[data-system-mode="computer"] .contact-window[data-window-state="minimized"]
 @media (prefers-reduced-motion: no-preference) {
   html[data-system-mode="computer"] .portfolio-window,
   html[data-system-mode="computer"] .contact-window,
-  html[data-system-mode="computer"] .evidence-dialog:not([data-closing="true"]) .evidence-sheet {
+  html[data-system-mode="computer"] .evidence-dialog .evidence-sheet {
     animation: os-window-open 300ms var(--env-settle) backwards !important;
   }
 }
@@ -2794,7 +2802,6 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 .instrument-control legend small { color: var(--ink-secondary); display: block; font: var(--type-caption); font-weight: 400; margin-top: 1px; }
 
 .sim { display: grid; gap: 16px; min-inline-size: 0; padding: 14px var(--instrument-pad) var(--instrument-pad); transition: opacity 160ms ease; }
-.instrument[data-phase="rewind"] .sim { opacity: .7; }
 
 /* ---- Diagram */
 .sd { background: #ffffff; border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); container: sd / inline-size; }
@@ -2920,7 +2927,8 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 .sd-health-text[data-state="fail"] { fill: var(--adverse-ink); }
 .sd-pager rect { fill: var(--confirmed); stroke: var(--line-ink); }
 .sd-pager text { fill: var(--ink); font: 600 12px var(--font-mono), monospace; }
-.sd-pager[data-state="paging"] rect { animation: sd-blink 1100ms steps(2, end) infinite; fill: var(--adverse); }
+/* The pager blinks three times when it starts paging, then stays lit: an alarm, not a loop. */
+.sd-pager[data-state="paging"] rect { animation: sd-blink 1100ms steps(2, end) 3; fill: var(--adverse); }
 .sd-pager[data-state="paging"] text { fill: var(--adverse-ink); }
 .sd-pager:is([data-state="nodata"], [data-state="silent"]) rect { fill: var(--uncertain); }
 .sd-pager:is([data-state="nodata"], [data-state="silent"]) text { fill: var(--uncertain); }
@@ -2930,9 +2938,8 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 .sd-legend text { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
 .sd-legend-measured { stroke: var(--adverse); stroke-width: 2.8; }
 .sd-legend-actual { stroke: #8593a6; stroke-dasharray: 5 5; stroke-width: 1.8; }
-/* Each minute the chart steps one slot to the left, so time is seen to pass. */
-.sd-scroll { animation: sd-scroll 700ms steps(7, end) both; }
-@keyframes sd-scroll { from { transform: translateX(var(--slot)); } }
+/* Each minute the chart moves one slot to the left in a single step, as a ticker does: time is
+ * seen to pass without anything gliding on its own. */
 @keyframes sd-ring { 50% { stroke-width: 5; } }
 @keyframes sd-blink { 50% { fill: #ffffff; } }
 
@@ -3114,24 +3121,31 @@ html[data-system-mode="phone"] .case-page.selected-work-window .case-progress { 
 
 /* ------------------------------------------------- Phone and tablet app launch */
 
-/* An app grows out of the icon or row that opened it. `scale` is animated rather than
- * `transform`, which legacy phone rules pin; the old sideways content slide is retired so
- * there is one motion, not two. */
+/* An app grows out of the icon, row, shelf button or Recents card that launched it, once, as it
+ * launches (the shell marks the moment with `data-launching`). An app that surfaces again (a sheet
+ * closed over it, Recents dismissed, Back) simply appears: animation teaches where an app lives
+ * the first time and only makes you wait after that. Nothing else on these windows animates, and
+ * hidden windows never do. `scale` is animated rather than `transform`, which legacy phone rules
+ * pin. The evidence sheet rises into place the same way, once, as it opens. */
 @media (prefers-reduced-motion: no-preference) {
-  html[data-system-mode="phone"] .portfolio-window[data-window-state="active"],
-  html[data-system-mode="phone"] .contact-window[data-window-state="active"],
-  html[data-system-mode="tablet"] .portfolio-window[data-window-state="active"],
-  html[data-system-mode="tablet"] .contact-window[data-window-state="active"] {
-    animation: app-launch 280ms var(--env-settle) backwards !important;
+  html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.portfolio-window, .contact-window, .selected-work-window),
+  html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.portfolio-window, .contact-window) > :not(.window-chrome):not(.window-resize-handle) {
+    animation: none !important;
+  }
+
+  html[data-launching]:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.portfolio-window, .contact-window)[data-window-state="active"] {
+    animation: app-launch 260ms var(--env-settle) backwards !important;
     transform-origin: var(--launch-x, 50%) calc(var(--launch-y, 100%) - var(--os-topbar));
   }
 
-  html[data-system-mode="phone"] .portfolio-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle),
-  html[data-system-mode="phone"] .contact-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle),
-  html[data-system-mode="tablet"] .portfolio-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle),
-  html[data-system-mode="tablet"] .contact-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle) {
-    animation: none !important;
+  html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .evidence-dialog .evidence-sheet {
+    animation: sheet-rise 220ms var(--env-settle) backwards !important;
   }
+}
+
+@keyframes sheet-rise {
+  from { opacity: 0; translate: 0 24px; }
+  to { opacity: 1; translate: 0 0; }
 }
 
 @keyframes app-launch {
@@ -4570,7 +4584,6 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
  * tricks, the question, and the result sit; under a result, the proof for engineers. Only one
  * line is ever said in the world at a time: a bubble over whoever speaks, or the narrator's card. */
 .pay-world { display: grid; gap: 10px; min-inline-size: 0; padding: 12px var(--instrument-pad) var(--instrument-pad); position: relative; }
-.instrument[data-phase="rewind"] .pay-world { opacity: .7; }
 
 .pw-frame { background: var(--raised); border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); container-type: inline-size; display: grid; min-inline-size: 0; scroll-margin-top: calc(var(--window-chrome-height) + var(--case-progress-height, 46px) + 16px); }
 .pw-hud { align-items: center; border-block-end: 1px solid var(--line-ink); display: flex; flex-wrap: wrap; gap: 6px 14px; min-block-size: 52px; padding: 6px 10px; }

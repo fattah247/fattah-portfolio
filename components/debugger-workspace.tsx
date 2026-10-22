@@ -69,9 +69,6 @@ function EvidenceDialog({
     surface,
   } = workspace;
   const closeRef = useRef<HTMLButtonElement>(null);
-  const closeTimerRef = useRef<number | null>(null);
-  const closingRef = useRef(false);
-  const [isClosing, setIsClosing] = useState(false);
   // Screenshots are often wider than a phone; "Actual size" shows real pixels and pans.
   const [zoomed, setZoomed] = useState(false);
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
@@ -87,15 +84,8 @@ function EvidenceDialog({
     toggleMaximize,
   } = useWindowFrame({ defaultHeight: 780, defaultWidth: 1180, minHeight: 480, minWidth: 720 });
 
-  const requestClose = useCallback(() => {
-    if (closingRef.current) return;
-    closingRef.current = true;
-    setIsClosing(true);
-    closeTimerRef.current = window.setTimeout(() => {
-      closingRef.current = false;
-      onClose();
-    }, 380);
-  }, [onClose]);
+  // Closing is immediate: the sheet is gone the moment it's asked.
+  const requestClose = useCallback(() => onClose(), [onClose]);
 
   useEffect(() => {
     if (surface !== "application" || activeWindow !== evidenceWindowId) return;
@@ -150,10 +140,6 @@ function EvidenceDialog({
     return true;
   }), [activeWindow, evidenceWindowId, registerBackHandler, requestClose, surface]);
 
-  useEffect(() => () => {
-    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
-  }, []);
-
   useEffect(() => {
     openWindow(evidenceWindowId);
     return () => {
@@ -172,7 +158,6 @@ function EvidenceDialog({
       inert={workspace.stateFor(evidenceWindowId) === "background" || workspace.stateFor(evidenceWindowId) === "minimized"}
       className="evidence-dialog"
       data-app-id="work"
-      data-closing={isClosing}
       data-window-id={evidenceWindowId}
       data-window-state={workspace.stateFor(evidenceWindowId)}
       role="dialog"
@@ -310,17 +295,14 @@ export function DebuggerWorkspace({
   const [approach, setApproach] = useState<ProjectionMode>("designed");
   const [evidence, setEvidence] = useState<Evidence | null>(null);
   const [activeSection, setActiveSection] = useState<CaseSectionId>("context");
-  const [isClosing, setIsClosing] = useState(false);
   const [pageVisible, setPageVisible] = useState(true);
   const resolvedConditions = useMemo(() => resolveScenarioConditions(scenario, conditions), [conditions, scenario]);
   const resolvedSelectedConditions = useMemo(() => resolveScenarioConditions(scenario, selectedConditions), [scenario, selectedConditions]);
   const timers = useRef<number[]>([]);
   const caseScrollFrame = useRef<number | null>(null);
-  const closeTimerRef = useRef<number | null>(null);
   const embeddedFrameRef = useRef<HTMLDivElement>(null);
   const evidenceTriggerRef = useRef<HTMLElement | null>(null);
   const previousScenarioSlugRef = useRef(scenario.slug);
-  const workspaceClosingRef = useRef(false);
   const targetConditions = useRef<Conditions>(resolveScenarioConditions(scenario, (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.conditions as Conditions) ?? initialConditions));
   const workspaceTitleRef = useRef<HTMLHeadingElement>(null);
   const {
@@ -417,7 +399,6 @@ export function DebuggerWorkspace({
   useEffect(() => () => {
     timers.current.forEach(window.clearTimeout);
     if (caseScrollFrame.current) window.cancelAnimationFrame(caseScrollFrame.current);
-    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -440,12 +421,7 @@ export function DebuggerWorkspace({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenario.slug]);
 
-  const requestWorkspaceClose = useCallback(() => {
-    if (!onClose || workspaceClosingRef.current) return;
-    workspaceClosingRef.current = true;
-    setIsClosing(true);
-    closeTimerRef.current = window.setTimeout(onClose, 320);
-  }, [onClose]);
+  const requestWorkspaceClose = useCallback(() => { onClose?.(); }, [onClose]);
 
   const returnToWorkIndex = useCallback(() => {
     if (onClose) {
@@ -616,29 +592,14 @@ export function DebuggerWorkspace({
     return readableOutcome(scenario.slug, value);
   }
 
-  /** Applies new conditions with a short settle so the change reads as cause, then effect. */
+  /** Applies new conditions at once: a key the visitor pressed answers immediately. */
   function settle(next: Conditions, message: string) {
     timers.current.forEach(window.clearTimeout);
     timers.current = [];
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setConditions(next);
-      updateUrl(next);
-      setPhase("rest");
-      setStatusMessage(message);
-      return;
-    }
-    setPhase("rewind");
-    timers.current.push(
-      window.setTimeout(() => {
-        setConditions(next);
-        updateUrl(next);
-        setPhase("reconstruct");
-      }, 120),
-      window.setTimeout(() => {
-        setPhase("rest");
-        setStatusMessage(message);
-      }, 420),
-    );
+    setConditions(next);
+    updateUrl(next);
+    setPhase("rest");
+    setStatusMessage(message);
   }
 
   function changeCondition(key: string, value: string) {
@@ -706,7 +667,6 @@ export function DebuggerWorkspace({
       <WorkspaceElement
         className={`case-page case-${scenario.slug} selected-work-window ${embedded ? "embedded-case-workspace" : ""}`.trim()}
         data-dragging={dragging}
-        data-closing={isClosing}
         data-app-id="work"
         data-motion-phase={phase}
         data-resizing={resizing}
