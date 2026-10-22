@@ -1934,6 +1934,7 @@ html[data-system-mode="computer"] .contact-window {
     filter 180ms ease-out,
     opacity 160ms ease-out,
     transform var(--spring-window-duration) var(--spring-window),
+    translate var(--spring-pop-duration) var(--spring-pop),
     visibility 0s linear 0s !important;
 }
 
@@ -2846,8 +2847,8 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 .sd-health-text[data-state="fail"] { fill: var(--adverse-ink); }
 .sd-pager rect { fill: var(--confirmed); stroke: var(--line-ink); }
 .sd-pager text { fill: var(--ink); font: 600 12px var(--font-mono), monospace; }
-/* The pager blinks three times when it starts paging, then stays lit: an alarm, not a loop. */
-.sd-pager[data-state="paging"] rect { animation: sd-blink 1100ms steps(2, end) 3; fill: var(--adverse); }
+/* The pager pulses three times when it starts paging, then stays lit: an alarm, not a loop. */
+.sd-pager[data-state="paging"] rect { animation: sd-blink 1100ms ease-in-out 3; fill: var(--adverse); }
 .sd-pager[data-state="paging"] text { fill: var(--adverse-ink); }
 .sd-pager:is([data-state="nodata"], [data-state="silent"]) rect { fill: var(--uncertain); }
 .sd-pager:is([data-state="nodata"], [data-state="silent"]) text { fill: var(--uncertain); }
@@ -2888,7 +2889,7 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 .sd-decision[data-tone="uncertain"] text { fill: var(--uncertain); }
 .sd-decision[data-tone="adverse"] rect { fill: var(--adverse-wash); stroke: var(--adverse); }
 .sd-decision[data-tone="adverse"] text { fill: var(--adverse-ink); }
-.sd-decision { animation: sd-stamp 300ms steps(3, end) var(--d) backwards; transform-box: fill-box; transform-origin: center; }
+.sd-decision { animation: sd-stamp var(--spring-pop-duration) var(--spring-pop) var(--d) backwards; transform-box: fill-box; transform-origin: center; }
 .sd-walk .sd-flow-out { animation: sd-reveal 1ms linear var(--d) backwards; stroke: var(--designed); }
 @keyframes sd-reveal { from { opacity: .25; } }
 @keyframes sd-stamp { from { opacity: 0; transform: scale(1.15); } }
@@ -2955,7 +2956,7 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.sim-primar
 .sim-journal > h3 small { font: inherit; letter-spacing: 0; margin-inline-start: 8px; opacity: .8; }
 .sim-journal ol { display: grid; list-style: none; margin: 0; padding: 0; }
 .sim-journal li { border-bottom: 1px solid var(--rule); column-gap: 12px; display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); padding: 7px 0; row-gap: 2px; }
-.sim-journal li:first-child { animation: sim-arrive 240ms steps(4, end) backwards; }
+.sim-journal li:first-child { animation: sim-arrive var(--spring-sheet-duration) var(--spring-sheet) backwards; }
 .sim-journal-badge { align-items: center; color: var(--ink-secondary); display: inline-flex; font: 600 .75rem var(--font-mono), monospace; gap: 6px; grid-row: span 2; }
 .sim-journal-badge i { background: var(--border); block-size: 10px; border: 1px solid var(--line-ink); flex: none; inline-size: 10px; }
 .sim-journal li[data-tone="confirmed"] .sim-journal-badge i { background: var(--confirmed); }
@@ -3011,8 +3012,8 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.sim-primar
 }
 
 /* Cause and effect: whatever changed in the last update is outlined in the accent once. */
-.svc-status[data-changed="odd"] { animation: instrument-mark-odd 1100ms steps(4, end); }
-.svc-status[data-changed="even"] { animation: instrument-mark-even 1100ms steps(4, end); }
+.svc-status[data-changed="odd"] { animation: instrument-mark-odd 1100ms ease-out; }
+.svc-status[data-changed="even"] { animation: instrument-mark-even 1100ms ease-out; }
 
 /* Reduced motion keeps what a jolt means: where something would shake because it went wrong, it
  * flashes red twice instead, without moving (as an old game still shakes when you take a hit with
@@ -4408,19 +4409,16 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sound-control-
  * message lands on it and jolts with the buzz when one is handled twice; an answer knocks once it
  * is stamped, and a Block jolts; the monitor jolts when the site goes down; a dropped desktop icon
  * knocks into place. Timings come from the drawing (--hit-delay, --d), so they meet the sound. */
-@keyframes sd-knock { 0%, 100% { transform: translate(0, 0); } 34% { transform: translate(0, 2px); } }
-@keyframes sd-jolt { 0%, 100% { transform: translate(0, 0); } 17%, 50% { transform: translate(-2px, 0); } 33%, 67% { transform: translate(2px, 0); } 83% { transform: translate(-1px, 0); } }
-@keyframes fx-knock-odd { 0%, 100% { translate: 0 0; } 34% { translate: 0 2px; } }
-@keyframes fx-knock-even { 0%, 100% { translate: 0 0; } 34% { translate: 0 2px; } }
-@keyframes fx-jolt-odd { 0%, 100% { translate: 0 0; } 17%, 50% { translate: -2px 0; } 33%, 67% { translate: 2px 0; } 83% { translate: -1px 0; } }
-@keyframes fx-jolt-even { 0%, 100% { translate: 0 0; } 17%, 50% { translate: -2px 0; } 33%, 67% { translate: 2px 0; } 83% { translate: -1px 0; } }
+/* What went wrong shakes the way a Mac password field does: side to side a few times, each swing
+ * smaller, over 420 ms. What lands presses down from a touch larger and settles with a small bounce
+ * (the stamp's own pop spring); nothing knocks. */
+@keyframes sd-jolt { 0%, 100% { transform: translate(0, 0); } 12% { transform: translate(-6px, 0); } 27% { transform: translate(5px, 0); } 42% { transform: translate(-4px, 0); } 57% { transform: translate(3px, 0); } 72% { transform: translate(-1.5px, 0); } 86% { transform: translate(.5px, 0); } }
+@keyframes fx-jolt-odd { 0%, 100% { translate: 0 0; } 12% { translate: -6px 0; } 27% { translate: 5px 0; } 42% { translate: -4px 0; } 57% { translate: 3px 0; } 72% { translate: -1.5px 0; } 86% { translate: .5px 0; } }
+@keyframes fx-jolt-even { 0%, 100% { translate: 0 0; } 12% { translate: -6px 0; } 27% { translate: 5px 0; } 42% { translate: -4px 0; } 57% { translate: 3px 0; } 72% { translate: -1.5px 0; } 86% { translate: .5px 0; } }
 
-.sd-decision { animation: sd-stamp 300ms steps(3, end) var(--d) backwards, sd-knock 150ms steps(3, end) calc(var(--d) + 300ms); }
-.sd-decision[data-tone="adverse"] { animation: sd-stamp 300ms steps(3, end) var(--d) backwards, sd-jolt 255ms steps(6, end) calc(var(--d) + 300ms); }
-.svc-status[data-changed="odd"][data-jolt="odd"] { animation: instrument-mark-odd 1100ms steps(4, end), fx-jolt-odd 255ms steps(6, end); }
-.svc-status[data-changed="even"][data-jolt="even"] { animation: instrument-mark-even 1100ms steps(4, end), fx-jolt-even 255ms steps(6, end); }
-html[data-system-mode="computer"] .desktop-object[data-landed="odd"] { animation: fx-knock-odd 150ms steps(3, end) !important; }
-html[data-system-mode="computer"] .desktop-object[data-landed="even"] { animation: fx-knock-even 150ms steps(3, end) !important; }
+.sd-decision[data-tone="adverse"] { animation: sd-stamp var(--spring-pop-duration) var(--spring-pop) var(--d) backwards, sd-jolt 420ms ease-out calc(var(--d) + 240ms); }
+.svc-status[data-changed="odd"][data-jolt="odd"] { animation: instrument-mark-odd 1100ms ease-out, fx-jolt-odd 420ms ease-out; }
+.svc-status[data-changed="even"][data-jolt="even"] { animation: instrument-mark-even 1100ms ease-out, fx-jolt-even 420ms ease-out; }
 
 /* Lift: what is held casts a longer, lighter hard shadow down-right and rises a little up-left,
  * by the film's light rule (one key light from the upper left). It returns to rest on release. */
@@ -4430,7 +4428,6 @@ html[data-system-mode="computer"] .desktop-object[data-dragging="true"] .case-fi
 html[data-system-mode="computer"] .desktop-object[data-dragging="true"] .desktop-app-glyph { filter: drop-shadow(3px 4px 0 rgb(37 43 52 / 22%)); translate: -1px -2px; }
 
 @media (prefers-reduced-motion: reduce) {
-  html[data-system-mode="computer"] .desktop-object[data-landed] { animation: none !important; }
   html[data-system-mode="computer"] :is(.portfolio-window, .selected-work-window, .contact-window, .evidence-sheet)[data-dragging="true"],
   html[data-system-mode="computer"] .desktop-object[data-dragging="true"] :is(.case-file-sheet, .desktop-app-glyph) { translate: none; }
 }
@@ -4534,7 +4531,7 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 .pw-chip { align-items: center; display: inline-flex; gap: 6px; min-inline-size: 0; }
 .pw-chip > span { display: grid; }
 .pw-chip small { color: var(--ink-secondary); font: var(--type-caption); }
-.pw-chip b { animation: pw-pop 240ms steps(3, end); color: var(--ink); font: 700 .84rem/1.25 var(--font-mono), monospace; transform-origin: 0 50%; }
+.pw-chip b { animation: pw-roll var(--spring-sheet-duration) var(--spring-sheet); color: var(--ink); font: 700 .84rem/1.25 var(--font-mono), monospace; transform-origin: 0 50%; }
 .pw-chip[data-chip="trick"] b { font-family: var(--font-body), system-ui, sans-serif; }
 @container (max-width: 359px) { .pw-chip .pixel-object { display: none; } }
 
@@ -4553,7 +4550,7 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 .pw-note { animation: pw-appear 1ms backwards; color: var(--ink); font: 600 .75rem/1.35 var(--font-mono), monospace; white-space: nowrap; }
 .pw-note b { color: var(--accent-deep); }
 .pw-note[data-empty] { color: var(--ink-secondary); font-weight: 500; }
-.pw-note[data-flash] { animation: pw-flash 900ms steps(6, end); }
+.pw-note[data-flash] { animation: pw-flash 900ms ease-in-out; }
 .pay-world[data-technical] .pw-notebook-title { font-family: var(--font-mono), monospace; }
 
 .pw-move { inset-block-start: 0; inset-inline-start: 0; pointer-events: none; position: absolute; z-index: 4; }
@@ -4562,7 +4559,7 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 
 /* The one line: a bubble over whoever speaks, kept inside the view, its tail at the speaker. */
 .pw-bubble {
-  animation: pw-pop 200ms steps(3, end);
+  animation: pw-pop var(--spring-pop-duration) var(--spring-pop);
   background: #ffffff;
   border: 1px solid var(--line-ink);
   box-shadow: var(--object-shadow);
@@ -4589,8 +4586,10 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 .pw-bubble-stamp[data-tone="adverse"] { background: var(--adverse-wash); color: var(--adverse-ink); }
 .pw-bubble-text { font: 500 .94rem/1.35 var(--font-body), system-ui, sans-serif; }
 /* A line whose speaker the view turns to waits for the turn. */
-.pw-bubble[data-turn] { animation: pw-appear 1ms 420ms backwards, pw-pop 200ms steps(3, end) 420ms backwards; }
-.pw-bubble[data-hit="bad"] { animation: pw-pop 200ms steps(3, end), pw-jolt 255ms steps(6, end) 200ms; }
+.pw-bubble[data-turn] { animation: pw-appear 1ms 420ms backwards, pw-pop var(--spring-pop-duration) var(--spring-pop) 420ms backwards; }
+.pw-bubble[data-hit="bad"] { animation: pw-pop var(--spring-pop-duration) var(--spring-pop), pw-jolt 420ms ease-out 160ms; }
+/* A bubble grows out of its tail, the way a popover grows out of what it points at. */
+.pw-bubble { transform-origin: clamp(12px, calc(50% + var(--tail, 0px)), calc(100% - 12px)) 100%; }
 
 /* The narrator: what no one in the world says, on a card in the sky. */
 .pw-narration {
@@ -4689,8 +4688,10 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 .pw-actions .instrument-technical { margin-inline-start: auto; }
 
 @keyframes pw-appear { from { visibility: hidden; } }
-@keyframes pw-pop { 0% { scale: .6; } 100% { scale: 1; } }
-@keyframes pw-jolt { 0%, 100% { translate: 0 0; } 17%, 50% { translate: -2px 0; } 33%, 67% { translate: 2px 0; } 83% { translate: -1px 0; } }
+@keyframes pw-pop { from { opacity: 0; scale: .6; } to { opacity: 1; scale: 1; } }
+/* A number that changes rolls in from below, as Apple's counters do. */
+@keyframes pw-roll { from { opacity: 0; translate: 0 .5em; } }
+@keyframes pw-jolt { 0%, 100% { translate: 0 0; } 12% { translate: -6px 0; } 27% { translate: 5px 0; } 42% { translate: -4px 0; } 57% { translate: 3px 0; } 72% { translate: -1.5px 0; } 86% { translate: .5px 0; } }
 @keyframes pw-result-in { from { opacity: 0; translate: 0 12px; } }
 @keyframes pw-flash { 0%, 33%, 67% { background: var(--accent-soft); } 17%, 50%, 100% { background: transparent; } }
 
@@ -4699,3 +4700,48 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
   .pw-world { transition: none; }
   .pw-move { display: none; }
 }
+
+/* ================================================================== Feel */
+
+/* What is seen is retro; how it answers is Apple's. Whatever is touched or clicked answers in the
+ * same frame, and lets go on a spring; whatever is held lifts quickly and settles with a small
+ * bounce when it's put down; whatever takes the keyboard's focus is shown it the way a Mac does. */
+
+/* Held and put down: a window or a desktop object rises a little toward the light as it's picked up
+ * (120 ms), and settles onto the desk on the pop spring when it's let go. */
+html[data-system-mode="computer"] :is(.portfolio-window, .contact-window)[data-dragging="true"] {
+  transition:
+    border-color 180ms ease-out,
+    box-shadow 120ms ease-out,
+    filter 180ms ease-out,
+    opacity 160ms ease-out,
+    transform var(--spring-window-duration) var(--spring-window),
+    translate 120ms ease-out,
+    visibility 0s linear 0s !important;
+}
+html[data-system-mode="computer"] .desktop-object :is(.case-file-sheet, .desktop-app-glyph) { transition: box-shadow 240ms ease-out, filter 240ms ease-out, translate var(--spring-pop-duration) var(--spring-pop); }
+html[data-system-mode="computer"] .desktop-object[data-dragging="true"] :is(.case-file-sheet, .desktop-app-glyph) { transition: box-shadow 120ms ease-out, filter 120ms ease-out, translate 120ms ease-out; }
+
+/* Touched: a card or row sinks a little the moment a finger lands and springs back as it lifts; a
+ * Home icon darkens, as an iPhone's does. (On an iPhone a page only shows :active once something
+ * listens for touches; the shell does.) */
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.system-recent-open, .home-case, .system-resume-app, .case-entry, .selected-work-window .evidence-card, .home-action) {
+  transition: background-color 200ms ease-out, scale var(--spring-pop-duration) var(--spring-pop);
+}
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.system-recent-open, .home-case, .system-resume-app, .case-entry, .selected-work-window .evidence-card, .home-action):active {
+  scale: .97;
+  transition: background-color 0s, scale 100ms ease-out;
+}
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .system-launcher-app .system-app-mark { transition: filter 240ms ease-out !important; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .system-launcher-app:active .system-app-mark { filter: brightness(.55) !important; transition: none !important; }
+
+/* Focus: the ring arrives from a little outside the control and closes in on it, as a Mac's does. */
+@keyframes focus-ring-in { from { outline-color: transparent; outline-offset: 8px; } }
+@media (prefers-reduced-motion: no-preference) {
+  :where(a, button, summary, input, select, textarea, [tabindex]):focus-visible { animation: focus-ring-in 200ms cubic-bezier(.32, .72, 0, 1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.system-recent-open, .home-case, .system-resume-app, .case-entry, .selected-work-window .evidence-card, .home-action):active { scale: none; }
+}
+

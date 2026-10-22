@@ -15,7 +15,7 @@ import { CaseCover } from "./case-cover";
 import { Wallpaper } from "./wallpaper";
 import { SoundControl } from "./sound-control";
 import { useSound } from "./sound-provider";
-import { springTo, windowSpring } from "../lib/motion";
+import { leaveSpring, springTo, windowSpring } from "../lib/motion";
 import { useWorkspaceSounds } from "./use-workspace-sounds";
 import { experience } from "../lib/content";
 import { rowsThatFit } from "../lib/fit-rows";
@@ -203,6 +203,13 @@ export function SystemShell() {
     return () => window.clearInterval(timer);
   }, []);
 
+  // An iPhone shows a touched control's :active state only once the page listens for touches.
+  useEffect(() => {
+    const listen = () => undefined;
+    document.addEventListener("touchstart", listen, { passive: true });
+    return () => document.removeEventListener("touchstart", listen);
+  }, []);
+
   useEffect(() => {
     const preventPageContextMenu = (event: globalThis.MouseEvent) => {
       const target = event.target instanceof Element ? event.target : null;
@@ -249,7 +256,7 @@ export function SystemShell() {
     leaving.dataset.leaving = "true";
     if (layer) layer.dataset.leaving = "true";
     // Shrinking into an icon doesn't overshoot: the spring is fully damped.
-    const leave = springTo(leaving, { scale: "0.12", "--window-fade": "0" }, { response: 0.34, damping: 1 }, { from: { scale: "1", "--window-fade": "1" }, fill: "forwards" });
+    const leave = springTo(leaving, { scale: "0.12", "--window-fade": "0" }, leaveSpring, { from: { scale: "1", "--window-fade": "1" }, fill: "forwards" });
     if (!leave) { settle(); return; }
     leave.addEventListener("finish", () => { settle(); leave.cancel(); });
     return settle;

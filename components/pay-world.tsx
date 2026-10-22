@@ -126,7 +126,7 @@ type Move = { key: string; object: PixelObjectName; size: number; tag?: string; 
 /** Cubic ease-in-out: something already on screen speeds away, travels, and settles where it lands. */
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
-/** Positions along a polyline from one moment to another, one per 60 ms pixel step, spaced by the ease. */
+/** Positions along a polyline from one moment to another, one per 60 ms, spaced by the ease and joined smoothly. */
 function along(points: Point[], from: number, to: number): Frame[] {
   const lengths = points.slice(1).map((spot, index) => Math.hypot(spot.x - points[index].x, spot.y - points[index].y));
   const total = lengths.reduce((sum, length) => sum + length, 0) || 1;
@@ -151,22 +151,22 @@ const away = (spot: Point, at: number): Frame[] => [{ ...spot, at: at + 300 }, {
 /** Sets off later than the others: hidden where it starts until its moment. */
 const after = (path: Point[], offset: number, ms: number): Frame[] => [...(offset ? [{ ...path[0], at: 0, opacity: 0 }, { ...path[0], at: offset - 1, opacity: 0 }] : []), ...along(path, offset, offset + ms)];
 
-/** Plays a move with the Web Animations API, in steps, scaled from world units to pixels. */
+/** Plays a move with the Web Animations API, scaled from world units to pixels. */
 function MoveSprite({ move, scale, technical }: { move: Move; scale: number; technical: boolean }) {
   const ref = useCallback((element: HTMLDivElement | null) => {
     if (!element || typeof element.animate !== "function") return;
     const end = move.frames.at(-1)!.at;
     element.animate(
       move.frames.map((frame, index) => {
-        // Each frame holds until the next (the pixel step); the ease is in how far apart they are.
+        // Travel glides straight between frames (the ease is in how far apart they are); being taken
+        // in or turned away eases out, as everything leaving does.
         const next = move.frames[index + 1];
-        const travels = next && (next.x !== frame.x || next.y !== frame.y);
         const shrinks = next && ((next.scale ?? 1) !== (frame.scale ?? 1) || (next.opacity ?? 1) !== (frame.opacity ?? 1));
         return {
           offset: end ? frame.at / end : 0,
           opacity: frame.opacity ?? 1,
           transform: `translate(${frame.x * scale}px, ${frame.y * scale}px) translate(-50%, -50%) scale(${frame.scale ?? 1})`,
-          easing: travels ? "steps(1, end)" : shrinks ? "steps(3, end)" : "linear",
+          easing: shrinks ? "cubic-bezier(.32, .72, 0, 1)" : "linear",
         };
       }),
       { duration: end, fill: "forwards" },
@@ -765,7 +765,7 @@ function WalkFrom({ from, scale, to }: { from: Box; scale: number; to: Box }) {
   const ref = useCallback((element: HTMLSpanElement | null) => {
     const sprite = element?.parentElement;
     if (!sprite || typeof sprite.animate !== "function") return;
-    sprite.animate([{ transform: `translate(${(from.x - to.x) * scale}px, ${(from.y - to.y) * scale}px)` }, { transform: "none" }], { duration: pace.walk, easing: "steps(12, end)" });
+    sprite.animate([{ transform: `translate(${(from.x - to.x) * scale}px, ${(from.y - to.y) * scale}px)` }, { transform: "none" }], { duration: pace.walk, easing: "cubic-bezier(.65, 0, .35, 1)" });
   }, [from, scale, to]);
   return <span aria-hidden="true" hidden ref={ref} />;
 }

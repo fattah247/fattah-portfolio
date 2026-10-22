@@ -86,7 +86,6 @@ export function DesktopSurface({
   const [desktopOffsets, setDesktopOffsets] = useState<DesktopOffsets>({});
   const [draggingDesktopItem, setDraggingDesktopItem] = useState<string | null>(null);
   // The last drop, with a count whose parity restarts the landing knock on every drop.
-  const [landedDesktopItem, setLandedDesktopItem] = useState<{ key: string; count: number } | null>(null);
   const { play } = useSound();
   const [grabReadyDesktopItem, setGrabReadyDesktopItem] = useState<string | null>(null);
   // Desktop convention: one click selects a shortcut, a double click (or Enter, or a touch tap)
@@ -218,7 +217,6 @@ export function DesktopSurface({
     if (drag.moved) {
       suppressClickRef.current = drag.key;
       play(drag.key.startsWith("surface-shot-") ? "sys.drop-file" : "sys.drop-icon");
-      setLandedDesktopItem((current) => ({ key: drag.key, count: (current?.count ?? 0) + 1 }));
       setDesktopOffsets((current) => {
         const next = { ...current, [drag.key]: drag.latest };
         storeDesktopOffsets(next);
@@ -292,7 +290,6 @@ export function DesktopSurface({
           <Link
             className={`desktop-object ${item.type === "folder" ? "desktop-folder" : "desktop-evidence desktop-case-file"} ${item.className}`}
             data-dragging={draggingDesktopItem === item.className ? "true" : undefined}
-            data-landed={landedDesktopItem?.key === item.className ? (landedDesktopItem.count % 2 ? "odd" : "even") : undefined}
             data-selected={selectedDesktopItem === item.className ? "true" : undefined}
             onFocus={() => setSelectedDesktopItem(item.className)}
             data-grab-ready={grabReadyDesktopItem === item.className ? "true" : undefined}
