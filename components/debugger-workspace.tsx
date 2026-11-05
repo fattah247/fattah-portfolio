@@ -768,16 +768,16 @@ export function DebuggerWorkspace({
         tabIndex={-1}
       >
         {!embedded ? <WindowChrome
-          actions={<div className="case-workspace-actions" aria-label="Move between projects">
+          actions={<div aria-label="Move between cases" className="case-workspace-actions" role="group">
             {onSelectScenario ? <button onClick={() => onSelectScenario(previousScenario.slug)} type="button">Previous</button> : <Link href={`/case/${previousScenario.slug}`}>Previous</Link>}
             {onSelectScenario ? <button onClick={() => onSelectScenario(nextScenario.slug)} type="button">Next</button> : <Link href={`/case/${nextScenario.slug}`}>Next</Link>}
           </div>}
           app="work"
-          aria-label="Project workspace"
+          aria-label="Case workspace"
           className="case-workspace-chrome"
           closeClassName="case-close-action"
           closeHref={onClose ? undefined : "/#selected-work"}
-          closeLabel={onClose ? "Close project detail" : "Close project and return to the project list"}
+          closeLabel={onClose ? "Close case" : "Close case and return to the project list"}
           label="Projects"
           locationClassName="case-location"
           maximized={maximized}
@@ -849,7 +849,7 @@ export function DebuggerWorkspace({
           <div className="evidence-grid">
             {scenario.evidence.map((item, index) => (
               <button className="evidence-card" key={item.src} onClick={(event) => openEvidence(item, event.currentTarget)} type="button">
-                <span className="evidence-number">EXHIBIT {scenario.number}.{index + 1}</span>
+                <span className="evidence-number">Exhibit {scenario.number}.{index + 1}</span>
                 <span className="evidence-focus">{item.focus}</span>
                 <span className="evidence-thumb">
                   <Image src={item.src} alt="" className="evidence-thumb-image" fill loading={index === 0 ? "eager" : "lazy"} sizes="(max-width: 800px) 90vw, 30vw" />
@@ -869,12 +869,12 @@ export function DebuggerWorkspace({
               </button>
             ) : (
               <button className="solid-link" onClick={() => onSelectScenario(nextScenario.slug)} type="button">
-                {scenario.slug === "payflow" ? "Next: Detect degradation" : "Next: Evaluate device trust"} <ChevronIcon direction="right" />
+                {scenario.slug === "payflow" ? "Next: Service observability" : "Next: Android device trust"} <ChevronIcon direction="right" />
               </button>
             )
           ) : (
             <Link className="solid-link" href={scenario.slug === "payflow" ? "/case/iyup" : scenario.slug === "iyup" ? "/case/trustgate" : "/brief"}>
-              {scenario.slug === "payflow" ? "Next: Detect degradation" : scenario.slug === "iyup" ? "Next: Evaluate device trust" : "Open Experience"} <ChevronIcon direction="right" />
+              {scenario.slug === "payflow" ? "Next: Service observability" : scenario.slug === "iyup" ? "Next: Android device trust" : "Open Experience"} <ChevronIcon direction="right" />
             </Link>
           )}
         </section>

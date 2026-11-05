@@ -14,7 +14,7 @@ export function readableOutcome(slug: ScenarioSlug, value: string) {
     "payflow:SETTLED": "Paid out, waiting for the bank",
     "payflow:MANUAL_REVIEW": "On hold for a person",
     "payflow:CAPTURED TWICE": "Recorded twice",
-    "payflow:STATUS OVERWRITTEN": "Newer news overwritten",
+    "payflow:STATUS OVERWRITTEN": "Older status overwrote the newer one",
     "payflow:WRONG AMOUNT ACCEPTED": "Wrong amount taken as paid",
     "payflow:RECONCILED WITHOUT THE BANK": "Reconciled with no money in the bank",
     "iyup:QUIET": "No alert",

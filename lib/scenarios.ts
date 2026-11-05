@@ -138,7 +138,7 @@ export const scenarios: Scenario[] = [
       {
         src: "/projects/payflow/23-chaos-money-rules.png",
         alt: "Payflow chaos scenario output: a seeded run of 150 steps with lost and doubled webhooks, provider timeouts, racing payouts, bank faults, slowness and risky devices, after which all twelve money rules hold",
-        caption: "A seeded run of 150 steps throws lost and doubled webhooks, provider timeouts, racing payouts, bank faults, slowness and risky devices at the running app. Afterwards all twelve money rules hold, from balanced books to payouts sent once.",
+        caption: "A seeded run of 150 steps throws lost and doubled webhooks, provider timeouts, racing payouts, bank faults, slowness and risky devices at the running app. Afterwards all twelve money rules hold, including balanced books and payouts sent once.",
         focus: "Twelve money rules hold under chaos",
       },
     ],
@@ -224,7 +224,7 @@ export const scenarios: Scenario[] = [
       {
         src: "/projects/iyup/prometheus-targets.png",
         alt: "Prometheus targets page: the API gateway and both regions' ping agents being scraped, all up",
-        caption: "Collection is visible at the scrape boundary: both regions' agents and the API are scraped, so missing data reads as unknown, never as down or as zero.",
+        caption: "Prometheus scrapes both regions' agents and the API, so missing data reads as unknown, never as down or as zero.",
         focus: "Collection state at the scrape boundary",
       },
     ],
@@ -280,7 +280,7 @@ export const scenarios: Scenario[] = [
       {
         src: "/projects/trustgate/02-device-risk-details.png",
         alt: "TrustGate Android Signals tab: three of eight checks flagged, with the points each adds to a high-risk score of 5",
-        caption: "Each flagged check shows the points it adds, so the risk verdict can be checked by hand before a sensitive action is evaluated.",
+        caption: "Each flagged check shows the points it adds, so you can check the risk verdict by hand before the gate evaluates a sensitive action.",
         focus: "The points behind the verdict",
       },
       {

@@ -21,11 +21,11 @@ export const metadata: Metadata = {
     template: portfolioTitle.template,
   },
   description:
-    "Engineering cases about payment reliability, service degradation, and Android device trust.",
+    "Engineering cases about payment reliability, service observability, and Android device trust.",
   openGraph: {
     title: portfolioTitle.default,
     description:
-      "Engineering cases about payment reliability, service degradation, and Android device trust.",
+      "Engineering cases about payment reliability, service observability, and Android device trust.",
     type: "website",
   },
 };

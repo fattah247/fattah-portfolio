@@ -44,7 +44,7 @@ describe("side projects", () => {
     expect(siteRow.getAttribute("data-language")).toBe("Live site");
     expect(within(siteRow).getByText("Since 2019")).toBeTruthy();
     expect(within(screen.getByRole("link", { name: "Open Stock Triage project preview" })).getByText("Updated May 2026")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "All 1 public repositories on GitHub" }).textContent).toContain("1 public repo");
+    expect(screen.getByRole("link", { name: "1 public repo on GitHub, opens in a new tab" }).textContent).toContain("1 public repo");
   });
 
   it("opens a live site with a visit link instead of a source link", () => {

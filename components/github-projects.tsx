@@ -55,13 +55,12 @@ export function GithubProjectsIndex({
       <header className="github-projects-heading">
         <h2 id="github-projects-heading">Side projects</h2>
         <a
-          aria-label={`All ${repositoryCount} public repositories on GitHub`}
           className="github-projects-github-link"
           href="https://github.com/fattah247?tab=repositories"
           rel="noopener noreferrer"
           target="_blank"
         >
-          <span className="github-project-count">{repositoryCount} public {repositoryCount === 1 ? "repo" : "repos"}</span> on GitHub <ArrowIcon />
+          <span className="github-project-count">{repositoryCount} public {repositoryCount === 1 ? "repo" : "repos"}</span> on GitHub<span className="sr-only">, opens in a new tab</span> <ArrowIcon />
         </a>
       </header>
 
@@ -120,7 +119,7 @@ export function GithubProjectPreview({
         <dl>
           {project.since ? <div><dt>Since</dt><dd>{project.since}</dd></div> : <div><dt>Updated</dt><dd>{project.updatedLabel}</dd></div>}
           <div><dt>{project.repositoryUrl ? "Repository" : "Source"}</dt><dd>{project.repositoryUrl ? "Public" : "Private"}</dd></div>
-          <div><dt>Topics</dt><dd>{project.topics.length ? project.topics.join(" · ") : "Project source"}</dd></div>
+          {project.topics.length ? <div><dt>Topics</dt><dd>{project.topics.join(" · ")}</dd></div> : null}
         </dl>
       </section>
 

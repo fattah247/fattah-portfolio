@@ -265,7 +265,7 @@ describe("CounterfactualHome", () => {
 
     const projectsWindow = screen.getByRole("region", { name: "Projects window" });
     expect(within(projectsWindow).getByRole("heading", { name: "Side projects" })).toBeTruthy();
-    expect(within(projectsWindow).getByRole("link", { name: /public repositories on GitHub/ })).toBeTruthy();
+    expect(within(projectsWindow).getByRole("link", { name: /public repos? on GitHub/ })).toBeTruthy();
 
     fireEvent.click(within(projectsWindow).getByRole("link", { name: /TrustGate Android/i }));
 
@@ -350,7 +350,7 @@ describe("CounterfactualHome", () => {
     const list = within(sideProjects).getByRole("list", { name: "Side projects" });
     expect(list.children).toHaveLength(rollingGithubProjects.length);
     expect(within(sideProjects).queryAllByRole("button")).toHaveLength(0);
-    expect(within(sideProjects).getByRole("link", { name: `All ${rollingGithubProjects.length} public repositories on GitHub` }).getAttribute("target")).toBe("_blank");
+    expect(within(sideProjects).getByRole("link", { name: `${rollingGithubProjects.length} public repos on GitHub, opens in a new tab` }).getAttribute("target")).toBe("_blank");
 
     act(() => vi.advanceTimersByTime(12_000));
     expect(Array.from(list.querySelectorAll("a")).map((link) => link.getAttribute("href"))).toEqual(
@@ -434,7 +434,7 @@ describe("CounterfactualHome", () => {
     expect(within(experienceWindow).queryByRole("link", { name: /Open full brief/i })).toBeNull();
     expect(document.querySelectorAll('[data-app-id="experience"]')).toHaveLength(1);
     expect(window.location.pathname).toBe("/brief");
-    expect(document.title).toBe("Experience and CV — Muhammad A. Fattah");
+    expect(document.title).toBe("Experience and CV · Muhammad A. Fattah");
   });
 
   it("hands off from Experience to the existing Work application instead of repeating cases", () => {
@@ -489,20 +489,20 @@ describe("CounterfactualHome", () => {
     expect(screen.getByRole("heading", { name: scenarios[0].title })).toBeTruthy();
     scrollTo.mockClear();
     workWindow.scrollTop = 640;
-    fireEvent.click(within(activeSelectedWindow()).getByRole("button", { name: "Next: Detect degradation" }));
+    fireEvent.click(within(activeSelectedWindow()).getByRole("button", { name: "Next: Service observability" }));
     expect(screen.getByRole("region", { name: "Projects window" })).toBe(workWindow);
     expect(screen.getByRole("heading", { name: scenarios[1].title })).toBeTruthy();
     act(() => vi.advanceTimersByTime(20));
     expect(scrollTo).toHaveBeenCalledWith({ behavior: "auto", top: 0 });
-    expect(document.activeElement?.textContent).not.toBe("Next: Detect degradation");
+    expect(document.activeElement?.textContent).not.toBe("Next: Service observability");
     scrollTo.mockClear();
     workWindow.scrollTop = 640;
-    fireEvent.click(within(activeSelectedWindow()).getByRole("button", { name: "Next: Evaluate device trust" }));
+    fireEvent.click(within(activeSelectedWindow()).getByRole("button", { name: "Next: Android device trust" }));
     expect(screen.getByRole("region", { name: "Projects window" })).toBe(workWindow);
     expect(screen.getByRole("heading", { name: scenarios[2].title })).toBeTruthy();
     act(() => vi.advanceTimersByTime(20));
     expect(scrollTo).toHaveBeenCalledWith({ behavior: "auto", top: 0 });
-    expect(document.activeElement?.textContent).not.toBe("Next: Evaluate device trust");
+    expect(document.activeElement?.textContent).not.toBe("Next: Android device trust");
     expect(document.querySelectorAll('.portfolio-window[data-app-id="work"]')).toHaveLength(1);
     expect(activeSelectedWindow().getAttribute("data-view")).toBe("full-case");
   });

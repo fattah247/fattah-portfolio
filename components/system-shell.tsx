@@ -504,7 +504,7 @@ export function SystemShell() {
         <header>
           <div>
             <h2>Recents</h2>
-            <p>{runningApps.length ? `${runningApps.length} ${runningApps.length === 1 ? "app" : "apps"} open` : "No apps open."}</p>
+            <p>{runningApps.length ? `${runningApps.length} ${runningApps.length === 1 ? "app" : "apps"} open` : "No apps open"}</p>
           </div>
           {/* A landscape phone hides the status bar, so its sound level lives here instead. */}
           <SoundControl className="sound-control-recents" />

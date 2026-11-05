@@ -38,7 +38,7 @@ const simName: Record<Scenario["slug"], string> = {
 const toys = new Set<Scenario["slug"]>(["payflow"]);
 
 const howTo: Record<Scenario["slug"], string> = {
-  payflow: "Four things go wrong in real payments. Pick one, guess what happens, and watch Payflow handle it next to a basic system.",
+  payflow: "Here are four ways real payments go wrong. Pick one, guess what happens, and watch Payflow handle it next to a basic system.",
   iyup: "iYup watches a page from two regions, one check every 30 seconds; here a second is one check. Slow the page, break it in one region, or silence an agent, and see what iYup says and when it alerts.",
   trustgate: "You're sending a payment. Switch on what the phone's checks find: each adds points by how serious it is. The server decides from the total, and the phone writes the decision to its log.",
 };
@@ -254,7 +254,7 @@ function plainVerdict(tick: Tick) {
   const down = tick.views.filter((view) => view.state === "down");
   const unknown = tick.views.filter((view) => view.state === "unknown");
   const slowest = Math.max(...tick.views.map((view) => view.latencyMs ?? 0));
-  if (tick.verdict === "unknown") return "No region has a fresh result, so iYup won't guess: unknown is not down.";
+  if (tick.verdict === "unknown") return "No region has a fresh result, so iYup reports the page as unknown rather than down.";
   if (tick.verdict === "down") return `Down in ${down.length === tick.views.length ? "both regions" : "most regions"}: ${down[0].reason === "http_5xx" ? "the page answers with error 503" : "the page answers, but not with the expected text"}.`;
   if (tick.verdict === "slow") return `Up, but slow: checks take ${seconds(slowest)}, over the page's ${limit} limit, in most regions.`;
   if (down.length) return `Up: only ${down[0].region} fails (1 of 2 regions), so it's a warning, not an outage.`;
@@ -396,7 +396,7 @@ function ServiceSim({ conditions, foreground, isDefault, onChange, onReset, scen
         name="A health-only monitor in one region (lab-b)"
         says={naive.says === "up" ? "Says up." : naive.pages ? "Pages: down." : "Says down."}
         tally={[
-          { label: "Checks visitors waited, unseen", value: tally.unseenSlow },
+          { label: "Slow checks it reported as up", value: tally.unseenSlow },
           { label: "False pages", value: tally.falsePages },
           { label: "Missing data called down", value: tally.missingAsDown },
         ]}
@@ -443,8 +443,8 @@ function plainReason(run: DeviceAssessment) {
   if (run.level === "HIGH") return `${pointsText(run)} reach the block mark of ${HIGH_SCORE_THRESHOLD}. The server issues no challenge, so nothing can be signed.`;
   if (run.level === "MEDIUM") {
     return `${pointsText(run)}: past the confirm mark of ${MEDIUM_SCORE_THRESHOLD}, under the block mark of ${HIGH_SCORE_THRESHOLD}. ${run.screenLock
-      ? "The payment is signed only after the screen lock or a fingerprint unlocks the confirmation key."
-      : "With no screen lock there's no confirmation key, so a tap confirmation is signed into the request."}`;
+      ? "The payment is signed only after the screen lock or biometrics unlock the step-up key."
+      : "With no screen lock there's no step-up key, so a tap confirmation is signed into the request."}`;
   }
   return run.score
     ? `${pointsText(run)}: under the confirm mark of ${MEDIUM_SCORE_THRESHOLD}, so it's sent. The check stays in the log.`

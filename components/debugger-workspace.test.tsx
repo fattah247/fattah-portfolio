@@ -124,7 +124,7 @@ describe("DebuggerWorkspace", () => {
     expect(Array.from(document.querySelectorAll(".pw-trick b"), (name) => name.textContent)).toEqual(["Sent twice", "Old message", "Wrong amount", "Lost money"]);
     expect(suggestedTrick()).toBe("Sent twice");
     expect(document.querySelector(".pw-trick[data-suggested] .pw-option-hand")).toBeTruthy();
-    expect(text(".pw-goal")).toBe("Try to break the payment. Make the customer pay the wrong amount, or lose the shop’s money.");
+    expect(text(".pw-goal")).toBe("Try to break the payment. Get Payflow’s books wrong, or lose the shop’s money.");
     expect(notebookLines()).toEqual(["empty"]);
 
     // The scene plays one line at a time, each held long enough to read: the card company charges the card and tells Payflow, which writes #1 down.
@@ -191,12 +191,12 @@ describe("DebuggerWorkspace", () => {
     expect(lineNow()).toBe("Payflow [New]: New message #1. I note it and record the 750,000.");
   });
 
-  it.each(rounds.map((round) => [round.trick, round] as const))("says Right! when the guess for “%s” matches what Payflow does", (trick, round) => {
+  it.each(rounds.map((round) => [round.trick, round] as const))("says Right when the guess for “%s” matches what Payflow does", (trick, round) => {
     renderPayflow();
     const end = roundEnd(round);
     playTrick(trick, round.choices.find((choice) => choice.id === round.answer(end))!.label);
     const { basic, payflow } = round.compare(end);
-    expect(result()).toEqual({ verdict: "Right!", basic, payflow });
+    expect(result()).toEqual({ verdict: "Right.", basic, payflow });
     // The trick's conditions become the case's, so the Result chapter and the address follow it.
     expect(Object.entries(round.conditions).every(([key, value]) => new URLSearchParams(window.location.search).get(key) === value || scenarios[0].defaults[key as keyof typeof scenarios[0]["defaults"]] === value)).toBe(true);
   });
@@ -378,7 +378,7 @@ describe("DebuggerWorkspace", () => {
     // The late “authorized” trick is now the case's setting, so the next one on offer is the wrong amount.
     expect(screen.getByRole("button", { name: /^Next trick: wrong amount/ })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Next: Detect degradation" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next: Service observability" }));
     act(() => vi.advanceTimersByTime(0));
     expect(screen.getByRole("heading", { name: scenarios[1].title })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Slow (1.2–1.8 s)" }).getAttribute("aria-pressed")).toBe("true");
@@ -401,7 +401,7 @@ describe("DebuggerWorkspace", () => {
     expect(suggestedTrick()).toBe("Sent twice");
     expect(screen.queryByRole("button", { name: "Reset" })).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Next: Detect degradation" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next: Service observability" }));
     act(() => vi.advanceTimersByTime(0));
     fireEvent.click(screen.getByRole("button", { name: "Previous" }));
     act(() => vi.advanceTimersByTime(0));

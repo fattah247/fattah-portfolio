@@ -598,7 +598,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
       <div className="pw-frame" ref={frameBox}>
         <div className="pw-hud">
           {phase === "pick" ? (
-            <p className="pw-goal"><b>Try to break the payment.</b> Make the customer pay the wrong amount, or lose the shop&rsquo;s money.</p>
+            <p className="pw-goal"><b>Try to break the payment.</b> Get Payflow&rsquo;s books wrong, or lose the shop&rsquo;s money.</p>
           ) : (
             <>
               <span className="pw-chip" data-chip="trick"><PixelObject name={trickIcon[round.id]} size={32} /><span><small>Trick</small><b>{round.trick}</b></span></span>
@@ -703,7 +703,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
             </div>
           ) : phase === "result" ? (
             <div className="pw-result" data-right={right || undefined}>
-              <p className="pw-verdict">{right ? "Right!" : `Not quite: it's “${rightLabel}”.`}</p>
+              <p className="pw-verdict">{right ? "Right." : `Not quite: it's “${rightLabel}”.`}</p>
               <p className="pw-why">{round.why}</p>
               <div className="pw-compare">
                 <span className="pw-compare-measure">{compare.measure}</span>
@@ -712,7 +712,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
               </div>
               <div className="pw-result-actions">
                 <button aria-expanded={showProof} className="sim-secondary" onClick={() => setProofOpen(!showProof)} type="button">How Payflow decided</button>
-                <button className="sim-primary" data-primary onClick={() => begin(nextIndex)} type="button">{tried.length >= rounds.length ? "Play" : "Next trick"}: {rounds[nextIndex].trick.toLowerCase()}<ChevronIcon direction="right" /></button>
+                <button className="sim-primary" data-primary onClick={() => begin(nextIndex)} type="button">{tried.length >= rounds.length ? "Play again" : "Next trick"}: {rounds[nextIndex].trick.toLowerCase()}<ChevronIcon direction="right" /></button>
               </div>
             </div>
           ) : (
