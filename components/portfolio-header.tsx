@@ -82,6 +82,7 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
         data-resizing={resizing}
         data-snap={snap ?? undefined}
         data-window-state={workspace.stateFor("contact")}
+        onFocusCapture={() => { if (workspace.activeWindow !== "contact") workspace.focusWindow("contact"); }}
         onPointerDown={() => workspace.focusWindow("contact")}
         frameRef={frameRef}
         role="dialog"
@@ -127,7 +128,7 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
                 <span>LinkedIn</span>
                 <span>{displayHandle(portfolioIdentity.linkedin)}</span>
               </div>
-              <a className="contact-directory-action" href={portfolioIdentity.linkedin} target="_blank" rel="noopener noreferrer" aria-label="Open LinkedIn profile">
+              <a className="contact-directory-action" href={portfolioIdentity.linkedin} target="_blank" rel="noopener noreferrer" aria-label="Open LinkedIn profile, opens in a new tab">
                 <span className="contact-action-label">Open</span> <ArrowIcon />
               </a>
             </li>
@@ -136,7 +137,7 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
                 <span>WhatsApp</span>
                 <span>{portfolioIdentity.whatsappDisplay}</span>
               </div>
-              <a className="contact-directory-action" href={portfolioIdentity.whatsapp} target="_blank" rel="noopener noreferrer" aria-label="Open WhatsApp conversation">
+              <a className="contact-directory-action" href={portfolioIdentity.whatsapp} target="_blank" rel="noopener noreferrer" aria-label="Open WhatsApp conversation, opens in a new tab">
                 <span className="contact-action-label">Open</span> <ArrowIcon />
               </a>
             </li>
@@ -145,7 +146,7 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
                 <span>GitHub</span>
                 <span>{displayHandle(portfolioIdentity.github)}</span>
               </div>
-              <a className="contact-directory-action" href={portfolioIdentity.github} target="_blank" rel="noopener noreferrer" aria-label="Open GitHub profile">
+              <a className="contact-directory-action" href={portfolioIdentity.github} target="_blank" rel="noopener noreferrer" aria-label="Open GitHub profile, opens in a new tab">
                 <span className="contact-action-label">Open</span> <ArrowIcon />
               </a>
             </li>

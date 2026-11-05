@@ -258,6 +258,9 @@ function EvidenceDialog({
         data-window-state={workspace.stateFor(evidenceWindowId)}
         onPointerCancel={releaseSheet}
         onPointerDown={grabSheet}
+        onFocusCapture={() => {
+          if (activeWindow !== evidenceWindowId) focusWindow(evidenceWindowId);
+        }}
         onPointerDownCapture={() => {
           if (activeWindow !== evidenceWindowId) focusWindow(evidenceWindowId);
         }}

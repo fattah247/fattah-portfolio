@@ -249,19 +249,22 @@ const liveWindow = 12;
 export const seconds = (ms: number) => `${(ms / 1000).toFixed(2)} s`;
 const limit = seconds(DEGRADED_AFTER_MS);
 
-/** What the status page says, with the reason under it, in everyday words. */
-function plainVerdict(tick: Tick) {
+/**
+ * What the status page says, with the reason under it, in everyday words. Untimed, it leaves out the
+ * check times, which change every second, so a screen reader hears it only when the verdict changes.
+ */
+function plainVerdict(tick: Tick, timed = true) {
   const down = tick.views.filter((view) => view.state === "down");
   const unknown = tick.views.filter((view) => view.state === "unknown");
   const slowest = Math.max(...tick.views.map((view) => view.latencyMs ?? 0));
   if (tick.verdict === "unknown") return "No region has a fresh result, so iYup reports the page as unknown rather than down.";
   if (tick.verdict === "down") return `Down in ${down.length === tick.views.length ? "both regions" : "most regions"}: ${down[0].reason === "http_5xx" ? "the page answers with error 503" : "the page answers, but not with the expected text"}.`;
-  if (tick.verdict === "slow") return `Up, but slow: checks take ${seconds(slowest)}, over the page's ${limit} limit, in most regions.`;
+  if (tick.verdict === "slow") return timed ? `Up, but slow: checks take ${seconds(slowest)}, over the page's ${limit} limit, in most regions.` : `Up, but slow: checks take over the page's ${limit} limit in most regions.`;
   if (down.length) return `Up: only ${down[0].region} fails (1 of 2 regions), so it's a warning, not an outage.`;
   if (unknown.length) return `Up: ${unknown[0].region} has gone quiet, so the verdict comes from the region that still reports.`;
   const slow = tick.views.filter((view) => view.slow);
   if (slow.length) return `Up: only ${slow[0].region} is slow (1 of 2 regions), so the page isn't marked slow.`;
-  return `Up: checks take ${seconds(slowest)}, under the ${limit} limit.`;
+  return timed ? `Up: checks take ${seconds(slowest)}, under the ${limit} limit.` : `Up: checks are under the ${limit} limit.`;
 }
 
 const verdictTone = { up: "confirmed", slow: "uncertain", down: "adverse", unknown: "uncertain" } as const;
@@ -403,7 +406,7 @@ function ServiceSim({ conditions, foreground, isDefault, onChange, onReset, scen
       />
 
       <Journal empty="Waiting for the first check." entries={journal.slice(0, 6)} technical={technical} />
-      <p aria-live="polite" className="sr-only">{`${now.headline} ${plainVerdict(now)}`}</p>
+      <p aria-live="polite" className="sr-only">{`${now.headline} ${plainVerdict(now, false)}`}</p>
     </div>
   );
 }

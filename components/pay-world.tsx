@@ -84,6 +84,55 @@ const trickIcon: Record<Round["id"], PixelObjectName> = { repeat: "receipt", "ol
  */
 export const pace = { walk: 1200, card: 700, pay: 1400, message: 1800, late: 2600, request: 1500, money: 2200, slip: 1500, gap: 450 } as const;
 export const holdFor = (text: string) => Math.min(3400, Math.max(1500, text.length * 52));
+/** A beat's timer: when it's due and what it does, so it can be held and resumed. */
+type Timer = { due: number; effect: () => void; id: number };
+
+/**
+ * The round's clock: every beat waits on one of its timers, each remembering when it's due, so a
+ * pause holds them all and a resume gives each the time it had left. One set while paused waits too.
+ */
+function createBeatClock() {
+  let timers: Timer[] = [];
+  let pausedAt: number | null = null;
+  const arm = (timer: Timer, ms: number) => {
+    timer.id = window.setTimeout(() => {
+      timers = timers.filter((other) => other !== timer);
+      timer.effect();
+    }, ms);
+  };
+  return {
+    later(ms: number, effect: () => void) {
+      const timer: Timer = { due: performance.now() + ms, effect, id: 0 };
+      timers.push(timer);
+      if (pausedAt === null) arm(timer, ms);
+      return timer;
+    },
+    cancel(timer: Timer) {
+      window.clearTimeout(timer.id);
+      timers = timers.filter((other) => other !== timer);
+    },
+    clear() {
+      timers.forEach((timer) => window.clearTimeout(timer.id));
+      timers = [];
+      pausedAt = null;
+    },
+    pause() {
+      if (pausedAt !== null) return;
+      pausedAt = performance.now();
+      timers.forEach((timer) => window.clearTimeout(timer.id));
+    },
+    resume() {
+      if (pausedAt === null) return;
+      const now = performance.now();
+      for (const timer of timers) {
+        timer.due += now - pausedAt;
+        arm(timer, timer.due - now);
+      }
+      pausedAt = null;
+    },
+  };
+}
+
 /** How long the view takes to turn (the camera's transition in the stylesheet). */
 const TURN = 420;
 
@@ -320,8 +369,9 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
   const band = useRef<HTMLDivElement>(null);
   const reveal = useRef(false);
   const queue = useRef<Beat[]>([]);
-  const timers = useRef<number[]>([]);
-  const hold = useRef<number | null>(null);
+  const [clock] = useState(createBeatClock);
+  const hold = useRef<Timer | null>(null);
+  const [paused, setPaused] = useState(false);
   const finishMove = useRef<(() => void) | null>(null);
   const openingSeen = useRef(false);
   const [activeLine, setActiveLine] = useState<LineName | null>(null);
@@ -340,18 +390,19 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
   const showProof = phase === "result" && (proofOpen ?? technical);
 
   const stopAll = () => {
-    timers.current.forEach((timer) => window.clearTimeout(timer));
-    timers.current = [];
+    clock.clear();
     hold.current = null;
     finishMove.current = null;
   };
-  useEffect(() => () => stopAll(), []);
+  useEffect(() => () => clock.clear(), [clock]);
   // Back at the tricks, nothing of a round may still be playing.
   useEffect(() => {
     if (phase !== "pick") return;
-    stopAll();
+    clock.clear();
+    hold.current = null;
+    finishMove.current = null;
     queue.current = [];
-  }, [phase]);
+  }, [clock, phase]);
 
   // The world fits its box when it can, up to 1.8 times its size (a wide box centres it, its ground
   // running on to the edges); a phone shows part of it, and the view follows the action.
@@ -411,13 +462,21 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
     const spot = x * size + offset;
     return across > 0 && spot > 48 && spot < across - 48;
   };
-  const later = (ms: number, effect: () => void) => {
-    const timer = window.setTimeout(() => {
-      timers.current = timers.current.filter((id) => id !== timer);
-      effect();
-    }, ms);
-    timers.current.push(timer);
-    return timer;
+  const later = clock.later;
+  const cancel = clock.cancel;
+
+  /** Holds the round where it is: its lines, its timed sounds and whatever is crossing the world. */
+  const pause = () => {
+    if (paused) return;
+    clock.pause();
+    view.current?.getAnimations?.({ subtree: true }).forEach((animation) => animation.pause());
+    setPaused(true);
+  };
+  const resume = () => {
+    if (!paused) return;
+    clock.resume();
+    view.current?.getAnimations?.({ subtree: true }).forEach((animation) => animation.play());
+    setPaused(false);
   };
 
   /** Plays the next beat. The queue stops at the question, and at the result. */
@@ -448,7 +507,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
       setActiveLine(beat.line ?? null);
       // Each landing is heard as it lands (the cue starts LANDING ahead of its knock) and shown then.
       const heard = new Set<number>();
-      const own: number[] = lands.flatMap((land, index) => [
+      const own: Timer[] = lands.flatMap((land, index) => [
         later(Math.max(0, land.at - LANDING * 1000), () => { heard.add(index); play(land.cue); }),
         later(land.at, () => setShown(land.world)),
       ]);
@@ -456,8 +515,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
       own.push(later(Math.max(...beat.moves.map((move) => move.frames.at(-1)!.at)), done));
       // A tap finishes it at once: everything lands, the last landing is heard if it wasn't yet.
       finishMove.current = () => {
-        own.forEach((timer) => window.clearTimeout(timer));
-        timers.current = timers.current.filter((timer) => !own.includes(timer));
+        own.forEach(cancel);
         const landed = lands.at(-1);
         if (landed) {
           if (!heard.has(lands.length - 1)) play(landed.cue);
@@ -496,12 +554,13 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
     }
   };
 
-  /** A tap on the world, or Skip, moves past the line that's holding, or finishes what's moving. */
+  /** A tap on the world, or Skip, moves past the line that's holding, or finishes what's moving (and ends a pause). */
   const skip = () => {
+    if (!finishMove.current && hold.current === null) return;
+    resume();
     if (finishMove.current) { finishMove.current(); return; }
     if (hold.current === null) return;
-    window.clearTimeout(hold.current);
-    timers.current = timers.current.filter((id) => id !== hold.current);
+    cancel(hold.current);
     hold.current = null;
     advance();
   };
@@ -511,6 +570,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
     engaged.current = true;
     reveal.current = true;
     stopAll();
+    setPaused(false);
     const next = rounds[index];
     setOwnSignature(conditionsKey({ ...conditions, ...next.conditions }));
     for (const [key, value] of Object.entries(next.conditions)) if (conditions[key] !== value) onChange(key, value);
@@ -689,8 +749,8 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
                 <button className="pw-trick" data-primary={index === suggested || undefined} data-suggested={index === suggested || undefined} data-tried={tried.includes(option.id) || undefined} key={option.id} onClick={() => begin(index)} type="button">
                   <PixelObject name={trickIcon[option.id]} size={32} />
                   <span><b>{option.trick}</b><small>{option.hint}</small></span>
-                  {tried.includes(option.id) ? <PixelObject className="pw-trick-tick" name="tick" size={32} /> : null}
-                  {index === suggested ? <PixelObject className="pw-option-hand" name="hand-left" size={32} /> : null}
+                  {tried.includes(option.id) ? <><PixelObject className="pw-trick-tick" name="tick" size={32} /><span className="sr-only">, tried</span></> : null}
+                  {index === suggested ? <><PixelObject className="pw-option-hand" name="hand-left" size={32} /><span className="sr-only">, suggested next</span></> : null}
                 </button>
               ))}
             </div>
@@ -718,7 +778,9 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
           ) : (
             <div className="pw-playing">
               <p className="pw-band-note">{round.trick}</p>
-              <button className="sim-secondary" disabled={!line && !moves.length} onClick={skip} type="button">Skip ahead</button>
+              {/* Between beats Skip has nothing to skip, so it says so without losing the keyboard's place. */}
+              <button className="sim-secondary" onClick={paused ? resume : pause} type="button">{paused ? "Resume" : "Pause"}</button>
+              <button aria-disabled={(!line && !moves.length) || undefined} className="sim-secondary" onClick={skip} type="button">Skip ahead</button>
             </div>
           )}
         </div>
@@ -731,7 +793,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
             <p className="pw-proof-label">The code that decided it</p>
             {round.proof.code.map((excerpt) => (
               <figure className="pw-code" key={`${excerpt.file}:${excerpt.from}`}>
-                <figcaption><a href={codeLink(excerpt.file, excerpt.from, excerpt.from + excerpt.lines.length - 1)} rel="noreferrer" target="_blank">{fileName(excerpt.file)}:{excerpt.from}&ndash;{excerpt.from + excerpt.lines.length - 1}<ArrowIcon /></a></figcaption>
+                <figcaption><a href={codeLink(excerpt.file, excerpt.from, excerpt.from + excerpt.lines.length - 1)} rel="noreferrer" target="_blank">{fileName(excerpt.file)}:{excerpt.from}&ndash;{excerpt.from + excerpt.lines.length - 1}<span className="sr-only">, opens in a new tab</span><ArrowIcon /></a></figcaption>
                 <pre><code>{excerpt.lines.map((text, index) => <span className="pw-code-line" data-n={excerpt.from + index} key={index}>{text || " "}</span>)}</code></pre>
               </figure>
             ))}

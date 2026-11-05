@@ -96,11 +96,11 @@ describe("SystemShell", () => {
     render(<WorkspaceManagerProvider><SystemShell /></WorkspaceManagerProvider>);
     const shelf = within(screen.getByRole("navigation", { name: "Tablet application shelf" }));
 
-    const product = shelf.getByRole("button", { name: "Open Product Links. Not running" });
+    const product = shelf.getByRole("button", { name: "Open Products. Not running" });
     fireEvent.click(product);
 
-    expect(shelf.getByRole("button", { name: "Switch to Product Links. Active" })).toBeTruthy();
-    expect(shelf.getAllByRole("button", { name: /Product Links/i })).toHaveLength(1);
+    expect(shelf.getByRole("button", { name: "Switch to Products. Active" })).toBeTruthy();
+    expect(shelf.getAllByRole("button", { name: /Products/i })).toHaveLength(1);
   });
 
   it("makes the tablet shelf the launcher: labelled groups, Back resting on Home, Recents toggling", () => {

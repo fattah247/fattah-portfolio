@@ -31,7 +31,7 @@ function ProductRow({ product }: { product: IndexedProductLink }) {
       <div className="product-link-offers" role="group" aria-label={`Buy ${product.name}`}>
         {product.offers.map((offer) => (
           <a
-            aria-label={`Open ${product.name} on ${marketplaceLabel(offer.marketplace)}`}
+            aria-label={`Open ${product.name} on ${marketplaceLabel(offer.marketplace)}, opens in a new tab`}
             className="product-marketplace-link"
             data-marketplace={offer.marketplace}
             href={offer.href}

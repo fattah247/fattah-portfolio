@@ -14,7 +14,7 @@ export function ExperienceBriefContent({
   onOpenContact,
 }: {
   onOpenWork: (event: MouseEvent<HTMLAnchorElement>) => void;
-  onOpenContact: (event: MouseEvent<HTMLAnchorElement>) => void;
+  onOpenContact: () => void;
 }) {
   const { play } = useSound();
   return (
@@ -27,7 +27,7 @@ export function ExperienceBriefContent({
           <a className="experience-brief-action" href={portfolioIdentity.github} target="_blank" rel="noopener noreferrer">
             GitHub <span className="sr-only">opens in a new tab</span>
           </a>
-          <a className="experience-brief-action" href="#contact" onClick={onOpenContact}>Contact</a>
+          <button className="experience-brief-action" onClick={onOpenContact} type="button">Contact</button>
         </nav>
       </header>
 

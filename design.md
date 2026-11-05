@@ -240,9 +240,12 @@ The environment sounds like the LinkedIn film (`ma-fattah-motion-campaign`), qui
 
 ## Interaction and accessibility
 
-- Every interactive element has an accessible name, visible keyboard focus, and at least a 44px touch target where space permits.
-- Hover is supplementary; focus and pressed states communicate the same meaning.
-- Focus returns to the invoking control when a child surface closes. When an app closes and takes focus with it, focus returns to that app's taskbar or shelf button.
+- Every interactive element has an accessible name, visible keyboard focus, and at least a 44px touch target where space permits. A control's name contains the words it shows (WCAG 2.5.3), so a voice user can say what they see: the shelf's "Products", "Back to Projects", the "Side by side" toggle (its pressed state says whether it's on). A link that opens a new tab says so.
+- Text meets WCAG AA (4.5:1, large text 3:1) on every surface it sits on, including recessed greys and status washes; no text fades below it through opacity, and none is under 12px.
+- Hover is supplementary; focus and pressed states communicate the same meaning. A title bar's focus ring is white on the active blue bar and ink on an inactive grey one, and a window becomes active when focus enters it.
+- Focus returns to the invoking control when a child surface closes. When an app closes and takes focus with it, focus returns to that app's taskbar or shelf button; closed from Recents, it goes to the card that took its place, or to Home when none is left. Opening Recents from its button lands on the current card. Back on the Projects list after a case, focus is on that case's row.
+- Every gesture has a press or key alternative: the home gesture has Home and Recents, a Recents card its close button, the evidence sheet its close button and Escape, a window's drag and resize the window menu's arrow-key modes, and the side-by-side divider a tap (it steps to the next stop) and the arrow, Home and End keys. Pinch-zoom is never turned off.
+- Nothing that runs on its own announces more than its changes: the website monitor's live line speaks only when its verdict changes, not every check. The payment game's rounds can be paused (Pause, Resume) and skipped; Skip stays focusable between beats instead of dropping the keyboard's place.
 - Keyboard Escape closes the foreground child surface before its parent application.
 - Loading, empty, and error states live inside the owning application.
 - Server-rendered essential content remains readable without waiting for motion.

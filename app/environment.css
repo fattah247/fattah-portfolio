@@ -714,7 +714,6 @@ html[data-system-mode="computer"] .window-management-options button { border-rad
 html[data-system-mode="computer"] .window-management-options button:hover { background: var(--accent-deep) !important; color: #ffffff !important; }
 
 html[data-system-mode="computer"] .window-snap-preview {
-  animation: snap-zone-in var(--spring-sheet-duration) var(--spring-sheet);
   background: rgb(83 111 163 / 14%) !important;
   border: 2px dashed var(--accent-deep) !important;
   border-radius: 0 !important;
@@ -723,6 +722,9 @@ html[data-system-mode="computer"] .window-snap-preview {
 
 /* The zone a window would snap into grows in where the pointer meets the edge, as a Mac's does. */
 @keyframes snap-zone-in { from { opacity: 0; scale: .94; } }
+@media (prefers-reduced-motion: no-preference) {
+  html[data-system-mode="computer"] .window-snap-preview { animation: snap-zone-in var(--spring-sheet-duration) var(--spring-sheet); }
+}
 
 /* Window manager cursors follow desktop convention. */
 html[data-system-mode="computer"] :is(.portfolio-window-chrome, .window-titlebar, .evidence-sheet-head) { cursor: default; }
@@ -2322,7 +2324,7 @@ html:not([data-system-mode="phone"]) .selected-work-window .case-progress a[aria
 
 .evidence-zoom::after { content: ""; inset: -2px; position: absolute; }
 .evidence-zoom[aria-pressed="true"] { background: rgb(103 133 200 / 24%); border-color: rgb(103 133 200 / 60%); }
-.evidence-zoom:disabled { cursor: default; opacity: .5; }
+.evidence-zoom:disabled { cursor: not-allowed; opacity: .5; }
 
 .evidence-image-wrap {
   background: transparent !important;
@@ -2335,7 +2337,7 @@ html:not([data-system-mode="phone"]) .selected-work-window .case-progress a[aria
   justify-items: start !important;
   overflow: auto !important;
   overscroll-behavior: contain;
-  touch-action: pan-x pan-y;
+  touch-action: pan-x pan-y pinch-zoom;
 }
 
 .evidence-stage[data-zoomed] .evidence-stage-tools {
@@ -2930,7 +2932,7 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 .sim-send small code { font: 500 .75rem/1.2 var(--font-mono), monospace; }
 .sim-send:hover:not(:disabled) { background: #ffffff; }
 .sim-send:active:not(:disabled) { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
-.sim-send:disabled { cursor: default; opacity: .5; }
+.sim-send:disabled { cursor: not-allowed; opacity: .5; }
 html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sim-send { min-block-size: 44px; }
 .sim-send:focus-visible, .sim-primary:focus-visible, .sim-secondary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
@@ -2952,9 +2954,9 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sim-send { min
 .sim-primary:hover:not(:disabled) { background: var(--accent-deep); }
 .sim-primary:active:not(:disabled) { background: var(--accent-deep); box-shadow: var(--bevel-primary-inset); transform: translate(1px, 1px); }
 .sim-secondary { background: var(--raised); box-shadow: var(--bevel-raised); color: var(--ink); }
-.sim-secondary:hover:not(:disabled) { background: #ffffff; }
-.sim-secondary:active:not(:disabled) { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
-.sim-primary:disabled, .sim-secondary:disabled { cursor: default; opacity: .55; }
+.sim-secondary:hover:not(:disabled, [aria-disabled="true"]) { background: #ffffff; }
+.sim-secondary:active:not(:disabled, [aria-disabled="true"]) { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
+.sim-primary:disabled, .sim-secondary:is(:disabled, [aria-disabled="true"]) { cursor: not-allowed; opacity: .55; }
 .sim-primary svg, .sim-secondary svg { block-size: 14px; inline-size: 14px; }
 html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.sim-primary, .sim-secondary) { min-block-size: 44px; }
 .sim-compare { color: var(--ink-secondary); font: var(--type-body); font-size: .9rem; margin: 0; }
@@ -3082,7 +3084,7 @@ html[data-system-mode="phone"] .case-page.selected-work-window .case-progress { 
 
 /* On a phone or tablet attached evidence is a sheet you can pull down by its title bar or grabber:
  * the browser leaves that drag to the sheet instead of scrolling. */
-html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .evidence-dialog :is(.evidence-sheet-head, .evidence-grabber) { touch-action: none; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .evidence-dialog :is(.evidence-sheet-head, .evidence-grabber) { touch-action: pinch-zoom; }
 .evidence-grabber { display: none; }
 html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .evidence-grabber {
   background: var(--line-ink);
@@ -3601,7 +3603,7 @@ html[data-system-mode="tablet"] nav.tablet-shelf button[data-running="true"] { b
 html[data-system-mode="tablet"] nav.tablet-shelf button[data-active="true"],
 html[data-system-mode="tablet"] nav.tablet-shelf button:not(:disabled):active { background: var(--recessed) !important; border-color: var(--line-ink) !important; box-shadow: var(--bevel-inset) !important; }
 html[data-system-mode="tablet"] nav.tablet-shelf button:focus-visible { outline: 2px solid var(--focus) !important; outline-offset: -2px; }
-html[data-system-mode="tablet"] nav.tablet-shelf button:disabled { cursor: default; opacity: 1 !important; }
+html[data-system-mode="tablet"] nav.tablet-shelf button:disabled { cursor: not-allowed; opacity: 1 !important; }
 html[data-system-mode="tablet"] nav.tablet-shelf button:disabled svg { stroke: var(--border) !important; }
 html[data-system-mode="tablet"] nav.tablet-shelf button:disabled .tablet-app-label { color: var(--border) !important; }
 /* Pixel icons are shown at whole multiples of their grid (32 px here), never resampled. */
@@ -3790,11 +3792,11 @@ html[data-system-mode="phone"] .system-recents-list::-webkit-scrollbar { display
   text-transform: none !important;
 }
 
-:is(.home-action, .contact-directory-action, .experience-brief-action, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom, .case-preview-titlebar-actions .case-back-action, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button):hover { background: #ffffff !important; }
+:is(.home-action, .contact-directory-action, .experience-brief-action, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom:not(:disabled), .case-preview-titlebar-actions .case-back-action, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button):hover { background: #ffffff !important; }
 
 :is(.desktop-identity-primary, .home-action:first-child, .contact-directory-action.is-primary, .experience-brief-action.is-primary, .github-project-actions .primary-action):hover { background: var(--accent-deep) !important; }
 
-:is(.home-action, .contact-directory-action, .experience-brief-action, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom, .case-preview-titlebar-actions .case-back-action, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button):active {
+:is(.home-action, .contact-directory-action, .experience-brief-action, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom:not(:disabled), .case-preview-titlebar-actions .case-back-action, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button):active {
   background: var(--recessed) !important;
   box-shadow: var(--bevel-inset) !important;
   transform: translate(1px, 1px);
@@ -3905,6 +3907,9 @@ html[data-system-mode="tablet"] .window-compact-back-action {
 html[data-system-mode="tablet"] .window-compact-back-action svg { block-size: 18px; fill: none; inline-size: 18px; stroke: currentColor; stroke-width: 2; }
 html[data-system-mode="tablet"] .window-compact-back-action:active { background: var(--recessed) !important; box-shadow: var(--bevel-inset) !important; transform: translate(1px, 1px); }
 html[data-system-mode="tablet"] .window-compact-back-action:focus-visible { outline: 2px solid #ffffff !important; outline-offset: 2px; }
+/* A title bar's white focus ring is for the active blue bar; on an inactive grey bar it turns ink, so
+ * it never drops to 1.4:1 (focus normally activates the window first; this covers the moment between). */
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) :is(.portfolio-window, .contact-window, .selected-work-window, .evidence-sheet):not([data-window-state="active"]) :is(.window-close-action, .evidence-close-action, .case-close-action, .window-system-control, .window-management-menu > summary, .window-compact-back-action):focus-visible { outline-color: var(--ink) !important; }
 .window-compact-back-text { display: none; }
 html[data-system-mode="tablet"] .window-compact-back-text { display: inline; }
 html[data-system-mode="tablet"] .window-chrome .window-location:has(strong) .micro-label { display: none !important; }
@@ -4252,7 +4257,7 @@ html[data-system-mode="phone"] .contact-directory > li:not(.contact-primary) .co
 }
 
 /* The phone's Back rests disabled on Home, where nothing is behind it. */
-html[data-system-mode="phone"] .phone-system-navigation button:disabled { cursor: default; }
+html[data-system-mode="phone"] .phone-system-navigation button:disabled { cursor: not-allowed; }
 html[data-system-mode="phone"] .phone-system-navigation button:disabled svg { stroke: var(--border) !important; }
 /* Recents keeps its heading at the reading edge, as before the cards grew. */
 html[data-system-mode="phone"] .system-recents > header { box-sizing: border-box; inline-size: 100% !important; justify-self: stretch; margin-inline: 0 !important; max-inline-size: none !important; text-align: start; }
@@ -4773,7 +4778,7 @@ html[data-system-mode="tablet"] .split-divider {
   inset-block: var(--os-topbar) var(--os-shelf);
   inset-inline-start: calc(var(--split) * 100% - 14px);
   position: fixed;
-  touch-action: none;
+  touch-action: pinch-zoom;
   z-index: 33;
 }
 html[data-system-mode="tablet"] .split-divider-grip {
@@ -4787,16 +4792,18 @@ html[data-system-mode="tablet"] .split-divider-grip {
   position: absolute;
   transition: scale 120ms ease-out;
 }
-html[data-system-mode="tablet"] .split-divider:is(:active, :focus-visible) .split-divider-grip { scale: 1.25 1.15; }
+@media (prefers-reduced-motion: no-preference) {
+  html[data-system-mode="tablet"] .split-divider:is(:active, :focus-visible) .split-divider-grip { scale: 1.25 1.15; }
+}
 html[data-system-mode="tablet"] .split-divider:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; }
 /* While the divider is held, the two windows follow it without easing. */
 html[data-system-mode="tablet"] .editorial-home[data-splitting] :is(.workspace-work-window, .workspace-experience-window) { transition: none !important; }
 
 /* The phone's bar and the tablet's shelf take a push up as the home gesture (components/
  * use-home-gesture.ts) instead of letting the browser scroll or zoom. */
-html[data-system-mode="phone"] .phone-system-navigation, html[data-system-mode="tablet"] .tablet-shelf { touch-action: none; }
+html[data-system-mode="phone"] .phone-system-navigation, html[data-system-mode="tablet"] .tablet-shelf { touch-action: pinch-zoom; }
 /* A Recents card takes a flick up (components/use-flick-away.ts); the row still scrolls sideways. */
-.system-recent-card { touch-action: pan-x; }
+.system-recent-card { touch-action: pan-x pinch-zoom; }
 
 /* Focus: the ring arrives from a little outside the control and closes in on it, as a Mac's does. */
 @keyframes focus-ring-in { from { outline-color: transparent; outline-offset: 8px; } }

@@ -488,7 +488,8 @@ export function CounterfactualHome({
     workspaceHistory.replaceState(null, portfolioTitle.default, "/#selected-work");
     window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
       if (workspace.mode !== "computer") scrollWorkToSelected("auto");
-      workFrameRef.current?.focus({ preventScroll: true });
+      // Back on the list, the keyboard picks up at the case it left.
+      (workFrameRef.current?.querySelector<HTMLElement>(`.case-entry[data-case="${selectedCaseSlug}"]`) ?? workFrameRef.current)?.focus({ preventScroll: true });
     }));
   }
 
@@ -639,8 +640,7 @@ export function CounterfactualHome({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openWindows, workspace]);
 
-  function openContactWindow(event: MouseEvent<HTMLAnchorElement>) {
-    event.preventDefault();
+  function openContactWindow() {
     workspace.launchApp("contact");
   }
 
@@ -719,7 +719,7 @@ export function CounterfactualHome({
               className="portfolio-window-chrome"
               closeLabel="Close Projects window"
               closeRef={workCloseRef}
-              compactBackLabel="Return to project list"
+              compactBackLabel="Back to Projects"
               compactBackText="Projects"
               label="Projects"
               maximized={workMaximized}

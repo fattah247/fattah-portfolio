@@ -400,11 +400,11 @@ describe("CounterfactualHome", () => {
     const shelf = within(screen.getByRole("navigation", { name: "Tablet application shelf" }));
     fireEvent.click(shelf.getByRole("button", { name: "Open Projects. Not running" }));
     const workWindow = screen.getByRole("region", { name: "Projects window" });
-    expect(within(workWindow).queryByRole("button", { name: "Return to project list" })).toBeNull();
+    expect(within(workWindow).queryByRole("button", { name: "Back to Projects" })).toBeNull();
 
     fireEvent.click(screen.getByRole("link", { name: /A payment callback arrived twice/i }));
     expect(workWindow.getAttribute("data-view")).toBe("full-case");
-    const back = within(workWindow).getByRole("button", { name: "Return to project list" });
+    const back = within(workWindow).getByRole("button", { name: "Back to Projects" });
     expect(back.textContent).toBe("Projects");
     fireEvent.click(back);
     act(() => vi.advanceTimersByTime(400));
@@ -427,7 +427,7 @@ describe("CounterfactualHome", () => {
     expect(within(experienceWindow).queryByText("Roles, scope, and responsibility.")).toBeNull();
     expect(within(experienceWindow).getByRole("link", { name: /Download CV/i })).toBeTruthy();
     expect(within(experienceWindow).getByRole("link", { name: /GitHub/i })).toBeTruthy();
-    expect(within(experienceWindow).getByRole("link", { name: "Contact" })).toBeTruthy();
+    expect(within(experienceWindow).getByRole("button", { name: "Contact" })).toBeTruthy();
     expect(within(experienceWindow).getByRole("link", { name: "Projects" })).toBeTruthy();
     expect(within(experienceWindow).queryByRole("heading", { name: "Engineering cases" })).toBeNull();
     expect(within(experienceWindow).queryByText("fattahmuhammad17@gmail.com")).toBeNull();
@@ -459,7 +459,7 @@ describe("CounterfactualHome", () => {
     fireEvent.click(within(workWindow).getByRole("link", { name: "Experience" }));
 
     const experienceWindow = screen.getByRole("region", { name: "Experience window" });
-    fireEvent.click(within(experienceWindow).getByRole("link", { name: "Contact" }));
+    fireEvent.click(within(experienceWindow).getByRole("button", { name: "Contact" }));
 
     const contactWindow = screen.getByRole("dialog", { name: "Contact" });
     expect(contactWindow.getAttribute("data-active-window")).toBe("true");

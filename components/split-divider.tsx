@@ -28,8 +28,8 @@ export function splitRest(split: number, velocity: number, width: number): numbe
 /**
  * The divider between two apps side by side on a tablet, as an iPad's: both resize under the finger
  * as it's dragged; let go, it springs to the nearest of its three stops (by where the throw would
- * land); pushed to an edge, it closes that side and the other app has the screen. The arrow keys step
- * it between the same stops.
+ * land); pushed to an edge, it closes that side and the other app has the screen. A tap steps it to
+ * the next stop, and the arrow keys (Home and End too) step it between the same stops.
  */
 export function SplitDivider({ host, keep }: {
   /** The element whose `--split` (the left app's share of the width) the windows read. */
@@ -38,7 +38,7 @@ export function SplitDivider({ host, keep }: {
   keep: (app: "work" | "experience") => void;
 }) {
   const [split, setSplit] = useState(0.5);
-  const drag = useRef<{ id: number; trail: ReturnType<typeof pointerTrail> } | null>(null);
+  const drag = useRef<{ id: number; startX: number; trail: ReturnType<typeof pointerTrail> } | null>(null);
 
   const across = (element: HTMLElement, x: number) => Math.min(0.95, Math.max(0.05, x / element.clientWidth));
 
@@ -68,7 +68,7 @@ export function SplitDivider({ host, keep }: {
     for (const animation of element.getAnimations?.() ?? []) if (animation.id === "spring") animation.cancel();
     const trail = pointerTrail();
     trail.add(event.clientX, event.clientY, event.timeStamp);
-    drag.current = { id: event.pointerId, trail };
+    drag.current = { id: event.pointerId, startX: event.clientX, trail };
     event.currentTarget.setPointerCapture(event.pointerId);
     element.dataset.splitting = "true";
   };
@@ -86,6 +86,14 @@ export function SplitDivider({ host, keep }: {
     if (!element || state?.id !== event.pointerId) return;
     drag.current = null;
     delete element.dataset.splitting;
+    // A tap that didn't drag steps to the next stop, so resizing never needs a drag.
+    if (event.type !== "pointercancel" && Math.abs(event.clientX - state.startX) < 6) {
+      const stops = splitStops(element.clientWidth);
+      const index = stops.findIndex((stop) => Math.abs(stop - split) < 0.01);
+      element.style.setProperty("--split", String(split));
+      settle(element, stops[(index + 1) % stops.length]);
+      return;
+    }
     const at = across(element, event.clientX);
     const velocity = event.type === "pointercancel" ? 0 : state.trail.velocity(event.timeStamp).x / element.clientWidth;
     const rest = splitRest(at, velocity, element.clientWidth);
@@ -95,11 +103,12 @@ export function SplitDivider({ host, keep }: {
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const element = host();
-    if (!element || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
+    if (!element || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
     const stops = splitStops(element.clientWidth);
     const index = stops.findIndex((stop) => Math.abs(stop - split) < 0.01);
-    const next = stops[Math.min(stops.length - 1, Math.max(0, (index < 0 ? 1 : index) + (event.key === "ArrowRight" ? 1 : -1)))];
+    const step = (index < 0 ? 1 : index) + (event.key === "ArrowRight" ? 1 : -1);
+    const next = event.key === "Home" ? stops[0] : event.key === "End" ? stops.at(-1)! : stops[Math.min(stops.length - 1, Math.max(0, step))];
     settle(element, next);
   };
 
@@ -110,6 +119,7 @@ export function SplitDivider({ host, keep }: {
       aria-valuemax={100}
       aria-valuemin={0}
       aria-valuenow={Math.round(split * 100)}
+      aria-valuetext={`Projects ${Math.round(split * 100)}%, Experience ${100 - Math.round(split * 100)}%`}
       className="split-divider"
       onKeyDown={onKeyDown}
       onPointerCancel={onPointerUp}

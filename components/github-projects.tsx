@@ -144,12 +144,12 @@ export function GithubProjectPreview({
       <div className="github-project-actions">
         {project.repositoryUrl ? (
           <a className="primary-action" href={project.repositoryUrl} rel="noopener noreferrer" target="_blank">
-            View source <ArrowIcon />
+            View source<span className="sr-only">, opens in a new tab</span> <ArrowIcon />
           </a>
         ) : null}
         {project.homepageUrl ? (
           <a className={project.repositoryUrl ? "inline-link" : "primary-action"} href={project.homepageUrl} rel="noopener noreferrer" target="_blank">
-            {project.repositoryUrl ? "Open live site" : `Visit ${project.displayName}`} <ArrowIcon />
+            {project.repositoryUrl ? "Open live site" : `Visit ${project.displayName}`}<span className="sr-only">, opens in a new tab</span> <ArrowIcon />
           </a>
         ) : null}
       </div>

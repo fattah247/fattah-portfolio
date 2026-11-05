@@ -17,7 +17,7 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-body), sans-serif;
-  font-size: 17px;
+  font-size: 1.0625rem;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   overflow-x: clip;
@@ -662,7 +662,7 @@ p {
 }
 
 @media (max-width: 760px) {
-  body { font-size: 16px; }
+  body { font-size: 1rem; }
   .portfolio-header {
     grid-template-columns: 1fr auto;
     min-height: 54px;

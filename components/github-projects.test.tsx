@@ -50,10 +50,10 @@ describe("side projects", () => {
   it("opens a live site with a visit link instead of a source link", () => {
     render(<GithubProjectPreview onSelectProject={vi.fn()} project={site} projects={[site, repository]} />);
 
-    const visit = screen.getByRole("link", { name: "Visit canoe.quest" });
+    const visit = screen.getByRole("link", { name: "Visit canoe.quest, opens in a new tab" });
     expect(visit.getAttribute("href")).toBe("https://canoe.quest");
     expect(visit.getAttribute("target")).toBe("_blank");
-    expect(screen.queryByRole("link", { name: "View source" })).toBeNull();
+    expect(screen.queryByRole("link", { name: /View source/ })).toBeNull();
     expect(screen.getByRole("heading", { name: "About the site" })).toBeTruthy();
     expect(screen.getByText("Private")).toBeTruthy();
   });
@@ -72,7 +72,7 @@ describe("side projects", () => {
   it("keeps the source link first for a public repository", () => {
     render(<GithubProjectPreview onSelectProject={vi.fn()} project={repository} projects={[site, repository]} />);
 
-    expect(screen.getByRole("link", { name: "View source" }).getAttribute("href")).toBe("https://github.com/fattah247/Stock-Triage");
+    expect(screen.getByRole("link", { name: "View source, opens in a new tab" }).getAttribute("href")).toBe("https://github.com/fattah247/Stock-Triage");
     expect(screen.getByRole("navigation", { name: "Move between side project previews" })).toBeTruthy();
   });
 });
