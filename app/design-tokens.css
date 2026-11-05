@@ -13,7 +13,7 @@
   --paper-warm: #e3e7ec;
   --surface: var(--paper-raised);
   --ink: #252b34;
-  --ink-secondary: #59616d;
+  --ink-secondary: #555d69;
   --ink-tertiary: #5f6773;
   --rule: #c4ccd6;
   --rule-strong: #8d98a7;
@@ -24,9 +24,9 @@
   --designed: #3a5f9f;
   --designed-bright: #536fa3;
   --designed-wash: #dbe4f3;
-  --confirmed: #3a7a6c;
+  --confirmed: #336d60;
   --confirmed-wash: #d6e9e4;
-  --uncertain: #85621f;
+  --uncertain: #76571a;
   --uncertain-wash: #efe6d3;
   --adverse: #b84f55;
   --adverse-ink: #a3434a;

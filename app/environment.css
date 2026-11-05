@@ -15,7 +15,7 @@
   --shell-ground: #dce3ea;
   --shell-ground-deep: #c9d2dc;
   --shell-ink: #252b34;
-  --shell-ink-muted: #59616d;
+  --shell-ink-muted: #555d69;
 
   /* Surfaces */
   --surface: #f1f3f5;
@@ -29,7 +29,7 @@
   --title-active: #455d83;
   --title-active-ink: #ffffff;
   --title-inactive: #d3d9e1;
-  --title-inactive-ink: #59616d;
+  --title-inactive-ink: #555d69;
 
   /* Accent roles */
   --accent: #536fa3;
@@ -226,6 +226,9 @@ html[data-system-mode="computer"] .desktop-identity {
   padding: 5px 10px;
 }
 
+/* The card's title bar keeps the 12px floor over the older desktop rule for the card's paragraphs. */
+html[data-system-mode="computer"] .desktop-identity > p.desktop-identity-title { font-size: .75rem; }
+
 .desktop-identity-mark { block-size: 44px; inline-size: 44px; }
 html[data-system-mode="computer"] .desktop-identity-mark { grid-column: 2; margin-top: 14px; }
 html[data-system-mode="computer"] .desktop-identity-copy { grid-column: 4; padding-top: 14px; }
@@ -413,7 +416,7 @@ html[data-system-mode="computer"] .desktop-object[data-dragging="true"] .case-fi
 
 /* Case cover schematics (shared by desktop files, Home, and the Projects index). */
 .case-cover-ground { fill: #ffffff; }
-.case-cover-label { fill: #8593a6; font: 500 9px var(--font-mono), monospace; letter-spacing: .04em; }
+.case-cover-label { fill: var(--language); font: 500 9px var(--font-mono), monospace; letter-spacing: .04em; }
 .case-cover-note { fill: var(--ink); font: 600 10px var(--font-mono), monospace; }
 .case-cover-rule { stroke: #dce3ec; stroke-width: 1; }
 .case-cover-flow { fill: none; stroke: #6b7a90; stroke-width: 1.6; }
@@ -438,7 +441,7 @@ html[data-system-mode="computer"] .desktop-object[data-dragging="true"] .case-fi
 .case-cover-signal-text { fill: var(--ink); font: 500 8.5px var(--font-mono), monospace; }
 .case-cover-decision { fill: var(--uncertain-wash); stroke: var(--uncertain); stroke-width: 1.4; }
 .case-cover-decision-text { fill: var(--uncertain); font: 700 9px var(--font-mono), monospace; }
-.case-cover-signal-clear { fill: #8593a6; }
+.case-cover-signal-clear { fill: var(--language); }
 .case-cover-cell { fill: #fff; stroke: #97a3b4; stroke-width: 1.1; }
 .case-cover-cell-on { fill: var(--uncertain); stroke: var(--line-ink); }
 .case-cover-mark { stroke: var(--ink); stroke-dasharray: 2 2; stroke-width: 1.2; }
@@ -586,6 +589,10 @@ html[data-system-mode="computer"] .taskbar-app > .taskbar-app-preview {
 html[data-system-mode="computer"] .taskbar-app:hover > .taskbar-app-preview { transition: opacity 0s linear 480ms, visibility 0s linear 480ms !important; }
 html[data-system-mode="computer"] .taskbar-apps[data-warm] .taskbar-app:hover > .taskbar-app-preview,
 html[data-system-mode="computer"] .taskbar-app:focus-visible > .taskbar-app-preview { transition: none !important; }
+/* The caption reads at the 12px floor, its status line in secondary ink (they were 10px and 9px, the
+ * status a pale rule grey left over from a dark caption). */
+html[data-system-mode="computer"] .taskbar-app > .taskbar-app-preview :is(strong, small) { font-size: .75rem !important; }
+html[data-system-mode="computer"] .taskbar-app > .taskbar-app-preview small { color: var(--ink-secondary) !important; }
 
 html[data-system-mode="computer"] .desktop-taskbar button::after { display: none !important; }
 
@@ -958,7 +965,7 @@ html[data-system-mode="computer"] .window-chrome :is(button, a, summary) { curso
 }
 
 .github-projects-index .github-project-list .github-project-row {
-  --language: #8593a6;
+  --language: #5f6d82;
   align-items: baseline;
   background: transparent !important;
   border: 0 !important;
@@ -2825,12 +2832,12 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 /* With technical details on, the raw machine state sits under the drawing as one mono line. */
 .sim-wire { background: var(--doc-sunken); border: 1px dashed #97a3b4; box-sizing: border-box; color: var(--ink-secondary); font: 500 .75rem/1.45 var(--font-mono), monospace; inline-size: 100%; justify-self: center; max-inline-size: 50rem; overflow-wrap: anywhere; padding: 6px 10px; }
 .sd-ground { fill: #ffffff; }
-.sd-label { fill: #8593a6; font: 500 12px var(--font-mono), monospace; letter-spacing: .04em; }
+.sd-label { fill: var(--language); font: 500 12px var(--font-mono), monospace; letter-spacing: .04em; }
 .sd-rule { stroke: #dce3ec; stroke-width: 1; }
 .sd-note { fill: var(--ink); font: 600 13px var(--font-mono), monospace; }
 .sd-compact .sd-note { font-size: 12px; }
 .sd-note-bad { fill: var(--adverse-ink); }
-.sd-note-arrow { fill: #8593a6; }
+.sd-note-arrow { fill: var(--language); }
 .sd-flow { fill: none; stroke: #6b7a90; stroke-width: 1.8; }
 
 /* Service */
@@ -2870,7 +2877,7 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
  * track, whose marks are the two thresholds; then the risk level and the server's answer land. A
  * check is amber for a medium or low severity and red for a high one, which blocks on its own. */
 .sd-check rect { fill: #ffffff; stroke: #c3cbd6; stroke-width: 1.2; }
-.sd-check text { fill: #8593a6; font: 600 12px var(--font-mono), monospace; }
+.sd-check text { fill: var(--language); font: 600 12px var(--font-mono), monospace; }
 .sd-check .sd-check-status { font-weight: 500; }
 .sd-check[data-found] { animation: sd-reveal 1ms linear var(--d) backwards; }
 .sd-check[data-found][data-tone="uncertain"] rect { fill: var(--uncertain-wash); stroke: var(--uncertain); }
@@ -2956,8 +2963,8 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.sim-primar
 
 /* ---- Journal: newest first; the newest entry arrives once. */
 .sim-journal { display: grid; gap: 8px; }
-.sim-journal > h3 { border-bottom: 1px solid #dce3ec; color: #8593a6; font: 500 .75rem/1.2 var(--font-mono), monospace; letter-spacing: .04em; margin: 0; padding-bottom: 6px; }
-.sim-journal > h3 small { font: inherit; letter-spacing: 0; margin-inline-start: 8px; opacity: .8; }
+.sim-journal > h3 { border-bottom: 1px solid #dce3ec; color: var(--language); font: 500 .75rem/1.2 var(--font-mono), monospace; letter-spacing: .04em; margin: 0; padding-bottom: 6px; }
+.sim-journal > h3 small { font: inherit; letter-spacing: 0; margin-inline-start: 8px; }
 .sim-journal ol { display: grid; list-style: none; margin: 0; padding: 0; }
 .sim-journal li { border-bottom: 1px solid var(--rule); column-gap: 12px; display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); padding: 7px 0; row-gap: 2px; }
 .sim-journal li:first-child { animation: sim-arrive var(--spring-sheet-duration) var(--spring-sheet) backwards; }
@@ -3682,7 +3689,7 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .system-recents
 
 .system-recent-card[data-current="true"] .system-recent-preview-bar { background: var(--title-active) !important; color: var(--title-active-ink); }
 .system-recent-preview-bar > span { font: var(--type-system); }
-.system-recent-preview-bar small { color: inherit !important; font: var(--type-caption) !important; letter-spacing: 0 !important; opacity: .85; text-transform: none !important; }
+.system-recent-preview-bar small { color: inherit !important; font: var(--type-caption) !important; letter-spacing: 0 !important; text-transform: none !important; }
 .system-recent-preview-bar .system-app-mark { background: transparent !important; block-size: 16px !important; border: 0 !important; box-shadow: none !important; inline-size: 16px !important; }
 .system-recent-preview-bar .app-icon { block-size: 16px; inline-size: 16px; }
 .system-recent-preview-body { align-content: start !important; display: grid; padding: 0 !important; }

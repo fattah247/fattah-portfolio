@@ -156,11 +156,11 @@ The window frame is the single scroll owner of a document: it records the scroll
 | Desktop ground | `#dce3ea` |
 | Surfaces | surface `#f1f3f5`, secondary `#e3e7ec`, raised `#f7f8f9`, recessed `#d3d9e1` |
 | Lines | border `#8d98a7`, ink line `#252b34` |
-| Ink | `#252b34`, secondary `#59616d` |
-| Title bars | active `#455d83` with white text; inactive `#d3d9e1` with `#59616d` |
+| Ink | `#252b34`, secondary `#555d69` (4.5:1 or better on every surface it sits on, recessed grey included) |
+| Title bars | active `#455d83` with white text; inactive `#d3d9e1` with `#555d69` |
 | Accent | `#536fa3`; deep `#3f5687`; selection `#c8d8f0`; sea green `#5e9990` (shell only) |
 | Document | `#f7f8f9`, sunken `#e9edf1`, edge `#b8c1cd` |
-| Instruments | designed `#3a5f9f`, verified `#3a7a6c`, uncertain `#85621f`, adverse `#b84f55` |
+| Instruments | designed `#3a5f9f`, verified `#336d60`, uncertain `#76571a`, adverse `#b84f55`; schematic labels `#5f6d82`. Status text on its wash (a stamp, a verdict) keeps 4.5:1 |
 
 - Material: every surface is a solid colour. Raised controls use a one-pixel bevel (white top-left, `#8d98a7` bottom-right); pressed and recessed surfaces invert it. Primary controls are solid accent with an accent bevel. Shadows are hard offsets only (2–4px, no blur) and mark objects that sit above the desktop: windows, panels, case files. An object being dragged lifts: its hard shadow grows longer and lighter (7 × 10px for a window, 5 × 7px for a case file) and it rises 1–2px up-left, by the one key light from the upper left, then returns on release.
 - Radii: 0 for windows and title bars, 2px at most anywhere else.
