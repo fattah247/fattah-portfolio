@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   useWorkspaceManager,
@@ -58,7 +58,12 @@ function RecentPreview({ app }: { app: PortfolioAppId }) {
     return (
       <div className="recent-preview recent-preview-index">
         <small>Engineering cases</small>
-        {scenarios.map((item) => <b key={item.slug}><span className="recent-preview-extra">{item.number} </span>{item.shortTitle}</b>)}
+        {scenarios.map((item) => (
+          <Fragment key={item.slug}>
+            <b><span className="recent-preview-extra">{item.number} </span>{item.shortTitle}</b>
+            <span className="recent-preview-extra recent-preview-line">{item.consequence}</span>
+          </Fragment>
+        ))}
       </div>
     );
   }

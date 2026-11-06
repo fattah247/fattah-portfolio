@@ -33,7 +33,6 @@ export type Scenario = {
   category: string;
   shortcutLabel: string;
   indexTechnology: string;
-  indexResult: string;
   slug: ScenarioSlug;
   number: string;
   shortTitle: string;
@@ -65,7 +64,6 @@ export const scenarios: Scenario[] = [
     category: "Payment reliability",
     shortcutLabel: "Payment case",
     indexTechnology: "Spring Boot · PostgreSQL",
-    indexResult: "2 deliveries / 1 payment change",
     number: "01",
     shortTitle: "A payment callback arrived twice",
     title: "The same payment callback arrived twice",
@@ -150,7 +148,6 @@ export const scenarios: Scenario[] = [
     category: "Service observability",
     shortcutLabel: "Service case",
     indexTechnology: "Prometheus · Grafana",
-    indexResult: "Slow warning, no false outage",
     number: "02",
     shortTitle: "The service was up, but getting slower",
     title: "The service was responding, but getting slower",
@@ -236,7 +233,6 @@ export const scenarios: Scenario[] = [
     category: "Android device trust",
     shortcutLabel: "Device case",
     indexTechnology: "Kotlin · Android Keystore",
-    indexResult: "3 points: confirmed first, not blocked",
     number: "03",
     shortTitle: "A phone looked suspicious, but not enough to block",
     title: "The phone looked suspicious, but not enough to block the payment",

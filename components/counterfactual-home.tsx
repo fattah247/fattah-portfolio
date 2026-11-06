@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { ChevronIcon } from "./icons";
 import { CaseCover } from "./case-cover";
 import { DebuggerWorkspace } from "./debugger-workspace";
@@ -31,8 +31,8 @@ function WindowSnapPreview({ edge }: { edge: SnapEdge }) {
 }
 
 const caseDetails = Object.fromEntries(scenarios.map((scenario) => [scenario.slug, {
-  area: scenario.category, technology: scenario.indexTechnology, result: scenario.indexResult,
-}])) as Record<ScenarioSlug, { area: string; technology: string; result: ReactNode }>;
+  area: scenario.category, technology: scenario.indexTechnology,
+}])) as Record<ScenarioSlug, { area: string; technology: string }>;
 
 function WorkRow({
   onOpenCase,
@@ -64,7 +64,6 @@ function WorkRow({
         <span className="case-entry-summary">{scenario.consequence}</span>
         <span className="case-entry-facts">
           <span>{detail.technology}</span>
-          <span className="case-entry-result">{detail.result}</span>
         </span>
         <span className="case-entry-open" aria-hidden="true">Open case <ChevronIcon direction="right" /></span>
       </span>

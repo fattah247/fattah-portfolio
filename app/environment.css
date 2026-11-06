@@ -862,8 +862,6 @@ html[data-system-mode="computer"] .window-chrome :is(button, a, summary) { curso
   margin-top: 4px;
 }
 
-.case-entry-result { color: var(--ink); }
-
 @container projects-app (min-width: 40rem) {
   .case-entry { grid-template-columns: minmax(13rem, 21rem) minmax(0, 1fr); }
   .case-entry .case-entry-cover { border-bottom: 0; border-right: 1px solid var(--border); }
@@ -886,7 +884,6 @@ html[data-system-mode="computer"] .window-chrome :is(button, a, summary) { curso
   .case-entry-body > strong { font-size: 1.12rem; }
   .case-entry-summary { font-size: .92rem; }
   .case-entry-facts { margin-top: 2px; }
-  .case-entry-result { display: none; }
   .home-window .projects-index .work-intro { margin-bottom: 12px !important; }
 }
 
@@ -1553,6 +1550,39 @@ html[data-system-mode="tablet"] .workspace-experience-window .experience-glimpse
   }
 
   .workspace-experience-window .experience-entry-meta > * { grid-column: 1 !important; grid-row: auto !important; text-align: start !important; }
+
+}
+
+/* The roles stack where the older stylesheet stacks them (a container under 720px). */
+@container (max-width: 720px) {
+  /* Stacked, a role reads as the tablet's Home lists it: the title first, then one line of company,
+   * dates and stage, the timeline running down the whole role with its node beside the title. */
+  .workspace-experience-window .experience-entry { border-inline-start: 1px solid var(--border) !important; padding-inline-start: 16px !important; row-gap: 4px !important; }
+  .workspace-experience-window .experience-main { display: contents; }
+  .workspace-experience-window .experience-main h3 { order: -1; position: relative; }
+  .workspace-experience-window .experience-main h3::before {
+    background: #ffffff;
+    block-size: 9px;
+    border: 1px solid var(--line-ink);
+    box-sizing: border-box;
+    content: "";
+    inline-size: 9px;
+    inset-block-start: .5em;
+    inset-inline-start: -21px;
+    position: absolute;
+  }
+  .workspace-experience-window .experience-entry[data-current="true"] .experience-main h3::before { background: var(--accent); }
+  .workspace-experience-window .experience-entry-meta {
+    border-inline-start: 0;
+    column-gap: 0 !important;
+    display: flex !important;
+    flex-wrap: wrap;
+    margin-block-end: 6px;
+    padding-inline-start: 0;
+  }
+  .workspace-experience-window .experience-entry-meta::before { display: none; }
+  .workspace-experience-window .experience-entry-meta > .experience-company { font-size: .92rem !important; order: -1; }
+  .workspace-experience-window .experience-entry-meta > :not(.experience-company)::before { color: var(--ink-secondary); content: "\00a0·\00a0"; }
 }
 
 html[data-system-mode="computer"] .window-management-menu {
@@ -4239,6 +4269,8 @@ html[data-system-mode="phone"] .recent-preview { gap: 8px; padding: 14px; }
 html[data-system-mode="phone"] .recent-preview-case > span { color: var(--ink-secondary); font: var(--type-label); }
 html[data-system-mode="phone"] .recent-preview-index b { font-size: .92rem; }
 html[data-system-mode="phone"] .recent-preview-index b > span { color: var(--accent-deep); font: 500 .8rem/1 var(--font-mono), monospace; }
+/* A phone's Recents card is tall: the case list carries each case's consequence, as the app's own first screen does. */
+html[data-system-mode="phone"] .recent-preview-index .recent-preview-line { color: var(--ink-secondary); font: 400 .82rem/1.35 var(--font-body), sans-serif; margin-top: -4px; }
 html[data-system-mode="phone"] .recent-preview-catalog li { border-top: 1px solid var(--rule); font: var(--type-label); padding-top: 6px; }
 
 /* Contact on a phone: each channel row is one target; the arrow still says it opens a new tab. */
