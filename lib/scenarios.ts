@@ -141,7 +141,7 @@ export const scenarios: Scenario[] = [
       },
     ],
     limitation:
-      "This public lab is built from common payment engineering practice; it does not represent the systems, code, or business rules of any employer, past or present. The provider, the bank and the customers are simulated, with one currency per payout, and payouts stop at the settlement account.",
+      "This public case is built from common payment engineering practice; it does not represent the systems, code, or business rules of any employer, past or present. The provider, the bank and the customers are simulated, with one currency per payout, and payouts stop at the settlement account.",
   },
   {
     slug: "iyup",

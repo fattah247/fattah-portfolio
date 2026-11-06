@@ -4318,6 +4318,31 @@ html[data-system-mode="phone"] .system-recents > header { box-sizing: border-box
   html[data-system-mode="phone"] .system-resume-app { align-self: start; }
 }
 
+/* A very short Home (a laptop zoomed to 300-400%, a tiny landscape window) shows less rather than
+ * scrolling or cutting things off: the name, the four apps across the whole width with their labels
+ * clear of each other, and the bar below. CV and Contact stay a tap away in Experience and Contact,
+ * a running app in Recents. Every real phone stays above this height. */
+@container home (max-height: 16rem) {
+  html[data-system-mode="phone"] .system-home-screen > .home-layout,
+  html[data-system-mode="phone"] .system-home-screen > .home-layout:not([data-resume]) {
+    align-content: center;
+    grid-template-areas: "identity" "launcher";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    max-inline-size: 640px;
+    padding-block: 8px;
+    row-gap: 10px;
+  }
+  html[data-system-mode="phone"] .system-home-screen :is(.home-identity-mark, .home-identity-copy > p, .home-identity-actions, .home-work, .system-resume-app, .home-clock) { display: none !important; }
+  html[data-system-mode="phone"] .system-home-screen .home-identity { grid-template-columns: minmax(0, 1fr); padding: 8px 12px; }
+  html[data-system-mode="phone"] .system-home-screen .system-launcher { align-self: start; }
+}
+/* Narrower still, the apps need two rows, and the name steps aside for them. */
+@container home (max-height: 16rem) and (max-width: 19rem) {
+  html[data-system-mode="phone"] .system-home-screen .home-identity { display: none !important; }
+  html[data-system-mode="phone"] .system-home-screen > .home-layout { grid-template-areas: "launcher" !important; grid-template-rows: auto !important; }
+}
+
 /* The screenshot fills the evidence stage's width; no reserved rows above or below it. */
 html[data-system-mode="phone"] .evidence-stage:not([data-zoomed]) { align-content: start !important; grid-template-rows: auto auto !important; }
 html[data-system-mode="phone"] .evidence-stage:not([data-zoomed]) .evidence-image { padding: 0 !important; }

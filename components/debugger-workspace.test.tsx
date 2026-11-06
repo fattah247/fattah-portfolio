@@ -432,7 +432,7 @@ describe("DebuggerWorkspace", () => {
     // The story reads in order without eyebrow labels: failure, constraint, situation, decision.
     expect(screen.queryByText("Failure")).toBeNull();
     expect(screen.queryByText("Constraint")).toBeNull();
-    expect(screen.getByText("Test the decision")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Try it" })).toBeTruthy();
     const intro = document.querySelector<HTMLElement>(".case-intro")!;
     expect(intro.querySelector("h1")?.textContent).toBe(scenario.title);
     expect(intro.querySelector(".case-consequence")?.textContent).toBe(scenario.consequence);

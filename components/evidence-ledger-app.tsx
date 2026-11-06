@@ -97,9 +97,9 @@ export function EvidenceLedgerApp() {
         />
         <div className="evidence-route-content">
         <section className="evidence-hero">
-          <h1>Evidence for the three public labs</h1>
+          <h1>Evidence for the three public cases</h1>
           <p>
-            Public labs support the technical claims below. Professional experience is described separately and does not imply access to employer source code.
+            The public cases support the technical claims below. Professional experience is described separately and does not imply access to employer source code.
           </p>
         </section>
 

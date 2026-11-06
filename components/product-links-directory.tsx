@@ -74,7 +74,7 @@ export function ProductLinksDirectory({ links }: { links: ProductLink[] }) {
   const visibleOfferCount = results.reduce((total, product) => total + product.offers.length, 0);
 
   return (
-    <section className="product-links-directory" aria-label="Affiliate product links">
+    <section className="product-links-directory" aria-label="Product links">
       <div className="product-links-search">
         <label htmlFor="product-link-search">Find a product</label>
         <input

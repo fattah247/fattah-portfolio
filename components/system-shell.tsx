@@ -89,7 +89,7 @@ function RecentPreview({ app }: { app: PortfolioAppId }) {
   const results = filterProductLinks(searchProductLinks(indexProductLinks(productLinks), directory?.query ?? ""), directory?.marketplace ?? "all");
   return (
     <div className="recent-preview recent-preview-catalog">
-      <small>{directory?.query ? `Search: ${directory.query}` : "Catalogue"}</small>
+      <small>{directory?.query ? `Search: ${directory.query}` : "Products I use"}</small>
       <b>{results.length} {results.length === 1 ? "product" : "products"}</b>
       <ul className="recent-preview-extra">{results.slice(0, 6).map((product) => <li key={product.id}>{product.name}</li>)}</ul>
     </div>
@@ -486,7 +486,7 @@ export function SystemShell() {
           <section className="home-work" aria-labelledby="home-work-title">
             <div className="home-work-head">
               <h2 id="home-work-title">Engineering cases</h2>
-              <button onClick={(event) => { noteLaunchOrigin(event.currentTarget); launchApp("work"); }} type="button">All projects <ChevronIcon direction="right" /></button>
+              <button onClick={(event) => { noteLaunchOrigin(event.currentTarget); launchApp("work"); }} type="button">Open Projects <ChevronIcon direction="right" /></button>
             </div>
             <ol>
               {scenarios.map((scenario) => (

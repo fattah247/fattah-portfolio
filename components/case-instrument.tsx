@@ -125,7 +125,7 @@ export function CaseInstrument({
   return (
     <section aria-labelledby={titleId} className="instrument" data-approach={approach} data-instrument={scenario.slug} data-technical={technical || undefined} id="replay">
       <header className="instrument-plate">
-        <h2 className="interaction-title" id={titleId}>Test the decision</h2>
+        <h2 className="interaction-title" id={titleId}>Try it</h2>
         <p className="instrument-plate-name"><span>{simName[scenario.slug]}</span> <small>Simulated</small></p>
       </header>
       {/* The toys keep the key with their own actions, so the instruction stays one short line. */}

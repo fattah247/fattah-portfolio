@@ -226,7 +226,7 @@ describe("CounterfactualHome", () => {
 
     expect(workIndex).toBeTruthy();
     expect(within(workIndex).getByRole("heading", { name: "Engineering cases" })).toBeTruthy();
-    expect(within(workIndex).getByText(/Three small public projects, each built around one failure/)).toBeTruthy();
+    expect(within(workIndex).getByText(/Three small public cases, each built around one failure/)).toBeTruthy();
     expect(Array.from(caseList.querySelectorAll(".case-entry-open"), (line) => line.textContent?.trim())).toEqual(["Open case", "Open case", "Open case"]);
     expect(Array.from(caseList.querySelectorAll<HTMLAnchorElement>("a")).map((link) => link.getAttribute("href"))).toEqual(
       scenarios.map((scenario) => `/case/${scenario.slug}`),

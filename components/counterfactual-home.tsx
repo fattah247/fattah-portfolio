@@ -735,7 +735,7 @@ export function CounterfactualHome({
                   <div className="projects-index-heading">
                     <h1 id="work-title">Engineering cases</h1>
                   </div>
-                  <p>Three small public projects, each built around one failure in payments, monitoring, or Android security.<span className="work-intro-how"> Open one to read what went wrong and the decision that handles it, then run it yourself.</span></p>
+                  <p>Three small public cases, each built around one failure in payment reliability, service observability, or Android device trust.<span className="work-intro-how"> Open one to read what went wrong and the decision that handles it, then run it yourself.</span></p>
                 </div>
                 <div className="editorial-work-list">
                   {scenarios.map((scenario) => <WorkRow scenario={scenario} key={scenario.slug} onOpenCase={openCaseWindow} />)}

@@ -106,7 +106,7 @@ export function ExperienceBriefContent({
       </section>
 
       <p className="experience-work-handoff">
-        The three public labs and their evidence are in{" "}
+        The three public cases and their evidence are in{" "}
         <Link href="/#selected-work" onClick={onOpenWork}>Projects <ChevronIcon direction="right" /></Link>
       </p>
     </article>
