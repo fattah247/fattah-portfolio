@@ -73,7 +73,7 @@ export const scenarios: Scenario[] = [
     repo: "https://github.com/fattah247/payflow-reliability",
     technology: "Java 21 · Spring Boot · PostgreSQL · Flyway · Prometheus · Docker",
     designedLabel: "Payflow",
-    baselineLabel: "Without an event inbox, trusting the provider (comparison)",
+    baselineLabel: "Trusting every message (comparison)",
     decision: "Record every provider event in an inbox before it can change the payment, hold a payment whose amount disagrees, and land a payout only on a matching bank credit.",
     outcome: "Two deliveries are recorded. The payment changes once.",
     outcomeNodeId: "money",
@@ -150,7 +150,7 @@ export const scenarios: Scenario[] = [
     indexTechnology: "Prometheus · Grafana",
     number: "02",
     shortTitle: "The service was up, but getting slower",
-    title: "The service was responding, but getting slower",
+    title: "The service was up, but getting slower",
     consequence: "A page that still answers but makes visitors wait needs a warning, and a page failing in one place is not an outage.",
     premise:
       "Two agents check the page every 30 seconds from two regions. A check is slow when it takes longer than the page's own limit, here one second. The verdict is the majority: down only when most regions see it fail, slow only when most see it slow.",
@@ -276,7 +276,7 @@ export const scenarios: Scenario[] = [
       {
         src: "/projects/trustgate/02-device-risk-details.png",
         alt: "TrustGate Android Signals tab: three of eight checks flagged, with the points each adds to a high-risk score of 5",
-        caption: "Each flagged check shows the points it adds, so you can check the risk verdict by hand before the gate evaluates a sensitive action.",
+        caption: "Each flagged check shows the points it adds, so you can check the risk verdict by hand before the gate evaluates a sensitive action. From an earlier build that had eight checks.",
         focus: "The points behind the verdict",
       },
       {
@@ -302,6 +302,9 @@ export const scenarios: Scenario[] = [
       "Client-side checks raise the cost of abuse but cannot prove device integrity. The demo's backend runs inside the app; a production server would decide from a Play Integrity verdict.",
   },
 ];
+
+/** The comparison's name for labels and sentences: its baseline label without the "(comparison)" tag or what follows a comma. */
+export const comparisonName = (scenario: Scenario) => (scenario.baselineLabel ?? "").replace(/ \(comparison\)$/, "").split(",")[0];
 
 export function getScenario(slug: string) {
   return scenarios.find((scenario) => scenario.slug === slug);

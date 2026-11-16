@@ -831,7 +831,7 @@ export function DebuggerWorkspace({
           </figure>
         </section>
 
-        <div className="mobile-outcome-strip case-result" id="decision" role="group" aria-label="Outcome comparison">
+        <div className="mobile-outcome-strip case-result" id="decision" role="group" aria-label="Result">
           <p className="case-result-note">{scenario.outcome}</p>
           {storyRows.map((row) => (
             <div data-path={row.path} data-tone={"tone" in row ? row.tone : undefined} key={row.path}><span>{row.label}</span><strong>{row.value}</strong></div>

@@ -22,7 +22,7 @@ import {
 } from "../lib/device-risk";
 import { deviceProofFor, trustgateCodeLink } from "../lib/device-proof";
 import { type Proof } from "../lib/pay-rounds";
-import { type Conditions, type ProjectionMode, type Scenario } from "../lib/scenarios";
+import { comparisonName, type Conditions, type ProjectionMode, type Scenario } from "../lib/scenarios";
 import { type FlowTone } from "../lib/payment-flow";
 import { alertFor, alertSeverity, clockOf, DEGRADED_AFTER_MS, firing, naiveTally, naiveView, runUptime, STORY_CHECKS, toUptimeConditions, type Tick } from "../lib/uptime";
 import { iyupCodeLink, uptimeProofFor } from "../lib/uptime-proof";
@@ -54,7 +54,7 @@ const simName: Record<Scenario["slug"], string> = {
 const toys = new Set<Scenario["slug"]>(["payflow"]);
 
 const howTo: Record<Scenario["slug"], string> = {
-  payflow: "Here are four ways real payments go wrong. Pick one, guess what happens, and watch Payflow handle it next to a basic system.",
+  payflow: "Here are four ways real payments go wrong. Pick one, guess what happens, and watch Payflow handle it next to a system that trusts every message, the comparison.",
   iyup: "iYup watches a page from two regions, one check every 30 seconds; here a second is one check. Slow the page, break it in one region, or silence an agent, and see what iYup says and when it alerts.",
   trustgate: "You're sending a payment. Switch on what the phone's checks find: each adds points by how serious it is. The server decides from the total, and the phone writes the decision to its log.",
 };
@@ -534,7 +534,7 @@ function ServiceSim({ conditions, foreground, isDefault, onChange, onReset, scen
         <RepoProof
           answerLabel="What iYup answered"
           codeUrl={iyupCodeLink}
-          compareNote="The health-only monitor in one region is the site’s comparison, not code from the repo: it checks only whether lab-b answered and pages on the first failure."
+          compareNote={`“${comparisonName(scenario)}” is the site’s comparison, not code from the repo: it checks only whether lab-b answered and pages on the first failure.`}
           inputLabel="What the agents and scrape saw"
           lead="How iYup decided, from the iYup repo:"
           proof={proof}
@@ -544,7 +544,7 @@ function ServiceSim({ conditions, foreground, isDefault, onChange, onReset, scen
 
       <ShadowLane
         last={naive.why}
-        name="A health-only monitor in one region (lab-b)"
+        name={scenario.baselineLabel ?? ""}
         says={naive.says === "up" ? "Says up." : naive.pages ? "Pages: down." : "Says down."}
         tally={[
           { label: "Slow checks it reported as up", value: tally.unseenSlow },
@@ -632,7 +632,7 @@ function plainResolution(result: ConfirmationResult): { title: string; detail: s
   };
 }
 
-function DeviceSim({ conditions, isDefault, onChange, onReset, selectedConditions, technical }: SimProps) {
+function DeviceSim({ conditions, isDefault, onChange, onReset, scenario, selectedConditions, technical }: SimProps) {
   const run = useMemo(() => assessDevice(conditions), [conditions]);
   const [sends, setSends] = useState(0);
   const [history, setHistory] = useState<PaymentRecord[]>([]);
@@ -735,10 +735,10 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
           ) : (
             <div aria-label="Confirm or cancel this payment" className="pol-confirm-actions" role="group">
               <button className="sim-primary" onClick={() => resolveConfirmation(confirmPayment(run, run))} type="button">
-                {run.screenLock ? "Approve with screen lock" : "Approve with a tap"}
+                {run.screenLock ? "Confirm with the screen lock" : "Confirm with a tap"}
               </button>
               <button className="sim-secondary" onClick={() => resolveConfirmation(confirmPayment(run, assessDevice({ ...conditions, debugger_connected: "found" })))} type="button">
-                Attach debugger, then approve
+                Attach a debugger, then confirm
               </button>
               <button className="sim-secondary" onClick={() => resolveConfirmation(cancelPayment(run))} type="button">
                 Cancel payment
@@ -752,7 +752,7 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
         <RepoProof
           answerLabel="What TrustGate answered"
           codeUrl={trustgateCodeLink}
-          compareNote="The gate that blocks on any signal is the site’s comparison, not code from the repo: it treats a single weak signal the same as a rooted phone."
+          compareNote={`“${comparisonName(scenario)}” is the site’s comparison, not code from the repo: it treats a single weak signal the same as a rooted phone.`}
           inputLabel="What the phone collected"
           lead="How TrustGate decided, from the TrustGate Android repo:"
           proof={proof}
@@ -762,7 +762,7 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
 
       <ShadowLane
         last={naive === "BLOCK" ? (run.decision === "BLOCK" ? "It blocks this one too." : run.decision === "REQUIRE CONFIRMATION" ? "It blocks a payment that only needed a confirmation." : "It blocks a low-risk payment over one weak signal.") : "Nothing was found, so it lets the payment through."}
-        name="A gate that blocks on any signal"
+        name={scenario.baselineLabel ?? ""}
         says={naive === "BLOCK" ? "Blocked." : "Sent."}
         tally={[
           { label: "Blocked, though a confirmation was enough", value: history.filter((record) => overBlocked(record) && record.run.decision === "REQUIRE CONFIRMATION").length },
@@ -788,7 +788,7 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
             badge: `#${record.n}`,
             tone: confirmed ? plainResolution(confirmed).tone : decisionTone[record.run.decision],
             plain: `${record.run.found.length ? foundText(record.run) : "Nothing found"} = ${pointsText(record.run)}: ${plainAnswer(record.run).toLowerCase()}${confirmedSummary}.`,
-            contrast: overBlocked(record) ? "A gate that blocks on any signal would have blocked this payment." : undefined,
+            contrast: overBlocked(record) ? `The comparison, ${comparisonName(scenario).toLowerCase()}, would have blocked this payment.` : undefined,
             hood: `${record.hood}${confirmedHood}`,
           };
         })}

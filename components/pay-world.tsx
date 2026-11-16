@@ -5,6 +5,7 @@ import { ArrowIcon, ChevronIcon, ResetIcon, StartOverIcon } from "./icons";
 import { PixelObject, PixelSprite, type PixelObjectName } from "./pixel-objects";
 import { useSound } from "./sound-provider";
 import { LANDING, type CueId } from "../lib/sound/engine";
+import { comparisonName, scenarios } from "../lib/scenarios";
 import { PAYOUT_NET, type FlowEntry, type FlowOutcome, type FlowWorld } from "../lib/payment-flow";
 import {
   codeLink,
@@ -350,6 +351,8 @@ type PayWorldProps = {
  * through Payflow's rules, and shows the answer next to a basic system's; under each result, "How
  * Payflow decided" gives an engineer the request, the repo's lines that decided it, and its tests.
  */
+const comparison = comparisonName(scenarios.find((scenario) => scenario.slug === "payflow")!);
+
 export function PayWorld({ conditions, isDefault, onChange, onReset, technical, technicalKey }: PayWorldProps) {
   const [phase, setPhase] = useState<Phase>("pick");
   const [current, setCurrent] = useState(() => Math.max(0, roundFor(conditions)));
@@ -767,7 +770,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
               <p className="pw-why">{round.why}</p>
               <div className="pw-compare">
                 <span className="pw-compare-measure">{compare.measure}</span>
-                <span className="pw-compare-side" data-side="basic"><small>A basic system</small><b>{compare.basic}</b></span>
+                <span className="pw-compare-side" data-side="basic"><small>{comparison} (comparison)</small><b>{compare.basic}</b></span>
                 <span className="pw-compare-side" data-side="payflow"><small>Payflow</small><b>{compare.payflow}</b></span>
               </div>
               <div className="pw-result-actions">
@@ -804,7 +807,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
             <ul className="pw-proof-tests">
               {round.proof.tests.map((test) => <li key={test.name}><a href={codeLink(test.file, test.line)} rel="noreferrer" target="_blank">{fileName(test.file)}:{test.line}<ArrowIcon /></a> <code>{test.name}</code></li>)}
             </ul>
-            <p className="pw-proof-compare">The basic system is the site&rsquo;s comparison, not code from the repo: it applies every message it gets and trusts the card company&rsquo;s report.</p>
+            <p className="pw-proof-compare">&ldquo;{comparison}&rdquo; is the site&rsquo;s comparison, not code from the repo: it applies every message it gets and trusts the card company&rsquo;s report.</p>
           </section>
         ) : null}
       </div>
@@ -817,7 +820,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
       </div>
 
       <p aria-live="polite" className="sr-only">
-        {phase === "ask" ? round.question : phase === "result" ? `${right ? "Right." : `Not quite: it's ${rightLabel}.`} ${compare.measure}: a basic system ${compare.basic}, Payflow ${compare.payflow}.` : line ? `${line.speaker === "narrator" ? "" : `${speakerName[line.speaker]}: `}${line.text}` : ""}
+        {phase === "ask" ? round.question : phase === "result" ? `${right ? "Right." : `Not quite: it's “${rightLabel}”.`} ${compare.measure}: ${comparison.toLowerCase()} ${compare.basic}, Payflow ${compare.payflow}.` : line ? `${line.speaker === "narrator" ? "" : `${speakerName[line.speaker]}: `}${line.text}` : ""}
       </p>
     </div>
   );

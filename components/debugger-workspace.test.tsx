@@ -325,11 +325,11 @@ describe("DebuggerWorkspace", () => {
     );
 
     expect(document.querySelector(".pol-decision strong")?.textContent).toBe("Confirm with the screen lock");
-    fireEvent.click(screen.getByRole("button", { name: "Approve with screen lock" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm with the screen lock" }));
     expect(document.querySelector(".pol-resolution-badge")?.textContent).toBe("Confirmed and sent");
 
     fireEvent.click(screen.getByRole("button", { name: /Send the payment again/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Attach debugger, then approve" }));
+    fireEvent.click(screen.getByRole("button", { name: "Attach a debugger, then confirm" }));
     expect(document.querySelector(".pol-resolution-badge")?.textContent).toBe("Stopped by the app before signing");
 
     fireEvent.click(screen.getByRole("button", { name: /Send the payment again/ }));
@@ -354,7 +354,7 @@ describe("DebuggerWorkspace", () => {
       </WorkspaceManagerProvider>,
     );
     const check = (name: RegExp) => within(screen.getByRole("group", { name: /^What the phone/ })).getByRole("button", { name });
-    fireEvent.click(screen.getByRole("button", { name: "Approve with screen lock" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm with the screen lock" }));
     expect(document.querySelector(".pol-resolution-badge")?.textContent).toBe("Confirmed and sent");
 
     fireEvent.click(check(/^Root app installed/));
@@ -364,7 +364,7 @@ describe("DebuggerWorkspace", () => {
 
     expect(document.querySelector(".pol-decision span")?.textContent).toMatch(/^Payment #3: medium risk/);
     expect(document.querySelector(".pol-resolution-badge")).toBeNull();
-    expect(screen.getByRole("button", { name: "Approve with screen lock" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Confirm with the screen lock" })).toBeTruthy();
     const journal = Array.from(document.querySelectorAll(".sim-journal li"), (item) => item.textContent ?? "");
     expect(journal[0]).not.toMatch(/confirmed and sent/);
     expect(journal[2]).toMatch(/confirmed and sent/);
@@ -536,7 +536,7 @@ describe("DebuggerWorkspace", () => {
     expect(intro.querySelector(".case-situation")?.textContent).toBe(scenario.premise);
     expect(intro.querySelector(".case-decision-line")?.textContent).toBe(`Decision${scenario.decision}`);
     // Limits close the result, after the outcome they qualify.
-    const result = screen.getByRole("group", { name: "Outcome comparison" });
+    const result = screen.getByRole("group", { name: "Result" });
     expect(result.querySelector(".case-limits")?.textContent).toBe(`Limits${scenario.limitation}`);
     expect(result.querySelector(".case-result-note")?.textContent).toBe(scenario.outcome);
     expect(document.querySelector(".case-index-block")).toBeNull();

@@ -123,7 +123,7 @@ describe("CounterfactualHome", () => {
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
 
     expect(screen.queryByRole("region", { name: "Opening portfolio workspace" })).toBeNull();
-    expect(screen.getByRole("region", { name: "Engineering workspace" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Desktop" })).toBeTruthy();
     expect(document.querySelector(".environment-wallpaper")?.getAttribute("aria-hidden")).toBe("true");
     expect(screen.queryByText("Second Attempt")).toBeNull();
     expect(screen.queryByRole("link", { name: "Selected work" })).toBeNull();

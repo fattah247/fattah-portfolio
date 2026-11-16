@@ -393,7 +393,7 @@ export function DesktopSurface({
   return (
     <section className="desktop-surface" aria-labelledby="desktop-surface-title">
       <Wallpaper />
-      <h2 className="sr-only" id="desktop-surface-title">Engineering workspace</h2>
+      <h2 className="sr-only" id="desktop-surface-title">Desktop</h2>
       {/* A pinned desk accessory, in the chrome language of the windows: it names whose computer
           this is and carries the two things a visitor most often wants, the CV and an address. */}
       <div className="desktop-identity" role="group" aria-label={`${portfolioIdentity.name}, ${portfolioIdentity.role}`}>
