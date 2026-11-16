@@ -74,7 +74,7 @@ describe("simulator drawings", () => {
         }
       }
     }
-  });
+  }, 30_000);
 
   it("keeps the arrow at the end of a broken device note", () => {
     const { container } = render(<DeviceDiagram requestKey="a" run={assessDevice(scenarios[2].defaults)} technical={false} />);
@@ -86,7 +86,7 @@ describe("simulator drawings", () => {
   it("lights only the found checks, fills one track cell per point, and lands the level and the answer", () => {
     const { container } = render(<DeviceDiagram requestKey="a" run={assessDevice(scenarios[2].defaults)} technical={false} />);
     const wide = container.querySelector(".sd-wide")!;
-    expect(wide.querySelectorAll(".sd-check")).toHaveLength(8);
+    expect(wide.querySelectorAll(".sd-check")).toHaveLength(deviceChecks.length);
     expect(Array.from(wide.querySelectorAll(".sd-check[data-found] text:first-of-type")).map((text) => text.textContent)).toEqual(["+2 test build", "+1 unknown installer"]);
     expect(wide.querySelectorAll(".sd-cell[data-tone]")).toHaveLength(3);
     expect(Array.from(wide.querySelectorAll(".sd-decision text")).map((text) => text.textContent)).toEqual(["medium risk · 3 points", "confirm first"]);

@@ -215,6 +215,9 @@ const checkName: Record<string, { plain: string; technical: string }> = {
   debugger_connected: { plain: "debugger on", technical: "debugger" },
   app_debuggable: { plain: "debug build", technical: "debuggable" },
   installer_source_unknown: { plain: "unknown installer", technical: "installer ?" },
+  call_active: { plain: "on a call", technical: "call active" },
+  screen_reader_app: { plain: "app reads screen", technical: "screen reader" },
+  screen_recording: { plain: "screen recorded", technical: "recording" },
 };
 const answerWord: Record<"plain" | "technical", Record<GateDecision, string>> = {
   plain: { ALLOW: "send", "REQUIRE CONFIRMATION": "confirm first", BLOCK: "blocked" },
@@ -279,8 +282,9 @@ export function DeviceDiagram({ requestKey, run, technical, tempo = "teach" }: {
         const markLabelY = track.y + 22 + 18;
         const level = wide ? { x: 296, y: 124, w: 328, h: 40 } : { x: margin, y: markLabelY + (compact ? 40 : 28), w: width - margin * 2, h: 36 };
         const answer = wide ? { x: 296, y: 190, w: 328, h: 44 } : { x: margin, y: level.y + level.h + 30, w: width - margin * 2, h: compact ? 40 : 44 };
-        const noteY = wide ? 262 : answer.y + answer.h + 32;
-        const height = wide ? 280 : noteY + 40;
+        // Wide puts the checks in their own column, so the note sits under the last of them.
+        const noteY = wide ? Math.max(262, lastRow.y + lastRow.h + 34) : answer.y + answer.h + 32;
+        const height = wide ? noteY + 18 : noteY + 40;
         const extra = run.score - trackPoints;
         return (
           <svg className={`sd-svg sd-${layout}`} data-technical={technical || undefined} focusable="false" key={layout} viewBox={`0 0 ${width} ${height}`}>

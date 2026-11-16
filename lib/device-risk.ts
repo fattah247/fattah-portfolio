@@ -2,7 +2,9 @@
  * Case 03's model, taken from the TrustGate Android repo (fattah247/trustgate-android) so the site
  * says what the code does:
  *
- * - the eight device checks, with their severities, from `AndroidDeviceSignalCollector.kt`;
+ * - the eleven device checks, in `AndroidDeviceSignalCollector.kt`'s order, with the names, severities
+ *   and explanations of `SignalCatalog.kt`; the three SCAM checks score like the rest, and the server
+ *   also raises a scam warning for them (`RiskPolicy.assess`), which the simulator does not draw;
  * - the score and the level, from `RiskScorer.kt`: a found check adds its severity's weight
  *   (low 1, medium 2, high 3); any high-severity check makes the level HIGH on its own, otherwise
  *   5 points or more is HIGH, 2 or more is MEDIUM, and anything less is LOW;
@@ -36,21 +38,24 @@ export type DeviceCheck = {
   id: string;
   /** The repo's own name for the check. */
   name: string;
-  category: "ROOT" | "EMULATOR" | "DEBUGGER" | "INSTALLER";
+  category: "ROOT" | "EMULATOR" | "DEBUGGER" | "INSTALLER" | "SCAM";
   severity: Severity;
   explanation: string;
 };
 
-/** The collector's eight checks, in its order. */
+/** The collector's eleven checks, in its order. */
 export const deviceChecks: DeviceCheck[] = [
-  { id: "root_su_path", name: "Suspicious su path", category: "ROOT", severity: "HIGH", explanation: "Known su binaries usually indicate a rooted or modified device." },
-  { id: "root_package", name: "Root management package", category: "ROOT", severity: "HIGH", explanation: "Root management tools can weaken assumptions about the app runtime." },
-  { id: "test_keys", name: "Test-keys build tags", category: "ROOT", severity: "MEDIUM", explanation: "Test builds can be easier to tamper with than normal production builds." },
-  { id: "system_partition_writable", name: "Writable system partition", category: "ROOT", severity: "MEDIUM", explanation: "A writable system partition can be a sign of device modification." },
-  { id: "emulator_fingerprint", name: "Known emulator build strings", category: "EMULATOR", severity: "MEDIUM", explanation: "Build properties line up with common emulator characteristics." },
-  { id: "debugger_connected", name: "Debugger attached", category: "DEBUGGER", severity: "HIGH", explanation: "A connected debugger can change runtime behavior and inspection visibility." },
-  { id: "app_debuggable", name: "App debuggable flag", category: "DEBUGGER", severity: "MEDIUM", explanation: "Debuggable builds are useful for development but reduce trust for sensitive actions." },
-  { id: "installer_source_unknown", name: "Installer source unknown", category: "INSTALLER", severity: "LOW", explanation: "Unknown install source is a signal to review, not an automatic block." },
+  { id: "root_su_path", name: "Rooted", category: "ROOT", severity: "HIGH", explanation: "A root tool is on this phone, so other apps could take full control of it." },
+  { id: "root_package", name: "Root app installed", category: "ROOT", severity: "HIGH", explanation: "Apps like Magisk give anything that asks full control of the phone." },
+  { id: "test_keys", name: "Test build of Android", category: "ROOT", severity: "MEDIUM", explanation: "The phone runs a test version of Android, which is easier to tamper with." },
+  { id: "system_partition_writable", name: "System files changeable", category: "ROOT", severity: "MEDIUM", explanation: "Android's own files can be changed, so the system may have been modified." },
+  { id: "emulator_fingerprint", name: "Emulator", category: "EMULATOR", severity: "MEDIUM", explanation: "This isn't a real phone, and an emulator can fake what it reports." },
+  { id: "debugger_connected", name: "Debugger attached", category: "DEBUGGER", severity: "HIGH", explanation: "A debugger can read and change the app while it runs." },
+  { id: "app_debuggable", name: "Debug version of the app", category: "DEBUGGER", severity: "MEDIUM", explanation: "This copy of the app was built for development, which lets tools look inside it." },
+  { id: "installer_source_unknown", name: "Not from an app store", category: "INSTALLER", severity: "LOW", explanation: "The app wasn't installed from a store, so it could be a modified copy." },
+  { id: "call_active", name: "On a call", category: "SCAM", severity: "MEDIUM", explanation: "Scammers often stay on the line and talk people through a payment." },
+  { id: "screen_reader_app", name: "App reading the screen", category: "SCAM", severity: "MEDIUM", explanation: "An app with accessibility access, other than a real accessibility tool, can read and tap anything on screen." },
+  { id: "screen_recording", name: "Screen being recorded", category: "SCAM", severity: "MEDIUM", explanation: "Something is recording or sharing this screen, so someone else may be watching." },
 ];
 
 /** The condition that says whether the phone has a screen lock, so a step-up key exists. */

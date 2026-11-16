@@ -141,6 +141,9 @@ export function deviceProofFor(run: DeviceAssessment, confirmation?: Confirmatio
     "The phone only reports what it found; the backend decides. RiskPolicy.assess takes each signal's severity from SignalCatalog (never from the report) and scores it with RiskScorer: LOW weighs 1, MEDIUM 2, HIGH 3. Any HIGH signal makes the level HIGH; otherwise 5 or more is HIGH and 2 to 4 is MEDIUM.",
     "ALLOW and REQUIRE_CONFIRMATION both get a one-time challenge bound to this payment. ALLOW is signed with the device key (P-256, kept in Android Keystore). REQUIRE_CONFIRMATION is signed with the step-up key behind the screen lock, or, with no screen lock, with the device key plus a signed tap. BLOCK gets no challenge, so nothing can be signed.",
   ];
+  if (run.found.some((check) => check.category === "SCAM")) {
+    notes.push("A SCAM signal also sets RiskPolicy's scamWarning, and the phone's Pay screen adds a scam warning to any result that is not a success. The warning does not change the score or the decision.");
+  }
   if (confirming) {
     notes.push("After the person confirms, TrustGateViewModel.confirm checks the phone again. If it has turned HIGH while the prompt waited, the app stops before signing and logs SENSITIVE_ACTION_BLOCKED.");
   }

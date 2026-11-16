@@ -80,6 +80,9 @@ const plainCheck: Record<string, string> = {
   debugger_connected: "Debugger attached",
   app_debuggable: "App is a debug build",
   installer_source_unknown: "Installed from outside the store",
+  call_active: "On a call",
+  screen_reader_app: "App reading the screen",
+  screen_recording: "Screen being recorded",
 };
 
 /**
