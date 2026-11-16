@@ -683,7 +683,7 @@ export function CounterfactualHome({
         ref={homeRef}
         tabIndex={-1}
       >
-        {paired && workspace.mode === "tablet" ? <SplitDivider host={() => homeRef.current} keep={(app) => { workspace.setPaired(false); workspace.focusApp(app); }} /> : null}
+        {paired && workspace.mode === "tablet" ? <SplitDivider host={() => homeRef.current} keep={(app) => { workspace.setPaired(false); workspace.focusApp(app); syncRouteToWindow(app); }} /> : null}
         <DesktopSurface onOpenCase={openCaseWindow} onOpenWindow={openWindow} />
         <WindowSnapPreview edge={activeSnapCandidate} key={activeSnapCandidate ?? "none"} />
         {hasOpenWindows ? (

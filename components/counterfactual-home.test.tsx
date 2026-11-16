@@ -260,6 +260,38 @@ describe("CounterfactualHome", () => {
     expect(overlap).toBe(false);
   });
 
+  it("names the app that remains when the tablet divider closes the other side", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1100 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 800 });
+    const clientWidth = vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1100);
+    function PairHarness() {
+      const workspace = useWorkspaceManager();
+      return <button onClick={() => { workspace.openWindow("work"); workspace.openWindow("experience"); workspace.setPaired(true); }} type="button">Pair</button>;
+    }
+    render(
+      <WorkspaceManagerProvider>
+        <SystemShell />
+        <CounterfactualHome />
+        <PairHarness />
+      </WorkspaceManagerProvider>,
+    );
+    act(() => vi.advanceTimersByTime(20));
+    fireEvent.click(screen.getByRole("button", { name: "Pair" }));
+    act(() => vi.advanceTimersByTime(20));
+    window.history.replaceState(null, "", "/#selected-work");
+
+    // Pushed to the left edge: Projects closes and Experience has the screen.
+    const divider = screen.getByRole("separator", { name: "Divider between Projects and Experience" });
+    fireEvent.pointerDown(divider, { button: 0, clientX: 550, isPrimary: true, pointerId: 5, timeStamp: 0 });
+    fireEvent.pointerMove(divider, { clientX: 40, pointerId: 5, timeStamp: 50 });
+    fireEvent.pointerUp(divider, { clientX: 20, pointerId: 5, timeStamp: 60 });
+    act(() => vi.advanceTimersByTime(20));
+
+    expect(window.location.pathname).toBe("/brief");
+    expect(document.title).toContain("Experience and CV");
+    clientWidth.mockRestore();
+  });
+
   it("keeps the immediate workspace contract when reduced motion is requested", () => {
     installBrowserStubs(true);
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
