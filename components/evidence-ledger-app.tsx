@@ -109,7 +109,7 @@ export function EvidenceLedgerApp() {
             <article className="claim-row" key={scenario.slug}>
               <div><span>{scenario.number}</span><h2>{scenario.shortTitle}</h2><p>{scenario.outcome}</p></div>
               <div className="claim-evidence">
-                <div className="claim-thumb"><Image src={scenario.evidence[0].src} alt="" fill sizes="180px" /></div>
+                <div className="claim-thumb"><Image src={scenario.evidence[0].src} alt="" fill sizes="180px" unoptimized /></div>
                 <div><p>{scenario.evidence[0].caption}</p><Link href={`/case/${scenario.slug}`}>Open case <ChevronIcon direction="right" /></Link></div>
               </div>
               <p>{scenario.limitation}</p>

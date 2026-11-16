@@ -869,7 +869,7 @@ export function DebuggerWorkspace({
                 <span className="evidence-number">Exhibit {scenario.number}.{index + 1}</span>
                 <span className="evidence-focus">{item.focus}</span>
                 <span className="evidence-thumb">
-                  <Image src={item.src} alt="" className="evidence-thumb-image" fill loading={index === 0 ? "eager" : "lazy"} sizes="(max-width: 800px) 90vw, 30vw" />
+                  <Image src={item.src} alt="" className="evidence-thumb-image" fill loading={index === 0 ? "eager" : "lazy"} sizes="(max-width: 800px) 90vw, 30vw" unoptimized />
                 </span>
                 <span className="evidence-caption">{item.caption}</span>
                 <span className="evidence-view">Open evidence <ChevronIcon direction="right" /></span>
