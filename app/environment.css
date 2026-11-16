@@ -415,6 +415,12 @@ html[data-system-mode="computer"] .desktop-object[data-dragging="true"] .case-fi
 }
 
 /* Case cover schematics (shared by desktop files, Home, and the Projects index). */
+/* Labels are 9-10 units on a 240-unit drawing, so they reach the 12 px floor only from 320 px
+ * wide; a smaller cover keeps the drawing without its words. */
+svg.case-cover { aspect-ratio: 240 / 150; block-size: auto; container: case-cover / inline-size; }
+@container case-cover (width < 320px) {
+  .case-cover text { display: none; }
+}
 .case-cover-ground { fill: #ffffff; }
 .case-cover-label { fill: var(--language); font: 500 9px var(--font-mono), monospace; letter-spacing: .04em; }
 .case-cover-note { fill: var(--ink); font: 600 10px var(--font-mono), monospace; }
@@ -438,7 +444,7 @@ html[data-system-mode="computer"] .desktop-object[data-dragging="true"] .case-fi
 .case-cover-health-text { fill: var(--confirmed); font: 700 9px var(--font-mono), monospace; }
 .case-cover-signal { fill: #fff; stroke: #97a3b4; stroke-width: 1.1; }
 .case-cover-signal-suspect { fill: var(--uncertain-wash); stroke: var(--uncertain); }
-.case-cover-signal-text { fill: var(--ink); font: 500 8.5px var(--font-mono), monospace; }
+.case-cover-signal-text { fill: var(--ink); font: 500 9px var(--font-mono), monospace; }
 .case-cover-decision { fill: var(--uncertain-wash); stroke: var(--uncertain); stroke-width: 1.4; }
 .case-cover-decision-text { fill: var(--uncertain); font: 700 9px var(--font-mono), monospace; }
 .case-cover-signal-clear { fill: var(--language); }
@@ -868,7 +874,8 @@ html[data-system-mode="computer"] .window-chrome :is(button, a, summary) { curso
 }
 
 @container projects-app (min-width: 72rem) {
-  .case-entry { grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr); }
+  /* Wide enough that the schematic reaches 320 px, where its labels read at the 12 px floor. */
+  .case-entry { grid-template-columns: minmax(16rem, 23.5rem) minmax(0, 1fr); }
   .case-entry-body { padding: 20px 28px; }
 }
 
