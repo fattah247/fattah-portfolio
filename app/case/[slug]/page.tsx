@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { PortfolioHeader } from "@/components/portfolio-header";
 import { PortfolioWorkspace } from "@/components/portfolio-workspace";
+import { getGithubProjects } from "@/lib/github-projects";
 import { getScenario, scenarios } from "@/lib/scenarios";
 import type { Metadata } from "next";
 
@@ -36,6 +37,7 @@ export default async function CasePage({ params, searchParams }: CasePageProps) 
     <>
       <PortfolioHeader />
       <PortfolioWorkspace
+        github={await getGithubProjects()}
         initialCaseConditions={initialConditions}
         initialCaseSlug={scenario.slug}
         key={scenario.slug}
