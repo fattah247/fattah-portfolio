@@ -313,6 +313,32 @@ describe("CounterfactualHome", () => {
     expect(document.activeElement).toBe(shortcuts()[1]);
   });
 
+  it("brings a blurred desktop window forward with one click, or when Tab lands in it", () => {
+    document.documentElement.dataset.systemMode = "computer";
+    render(<WorkspaceManagerProvider><SystemShell /><CounterfactualHome /></WorkspaceManagerProvider>);
+    act(() => vi.advanceTimersByTime(20));
+    const taskbar = within(screen.getByRole("navigation", { name: "System taskbar" }));
+    const openAll = () => {
+      for (const name of ["Projects", "Experience", "Product Links"]) fireEvent.click(taskbar.getByRole("button", { name: new RegExp(`^Open ${name}`, "i") }));
+      act(() => vi.advanceTimersByTime(50));
+    };
+    const projects = () => document.querySelector<HTMLElement>(".workspace-work-window")!;
+
+    openAll();
+    expect(projects().getAttribute("data-window-state")).toBe("blurred");
+    expect(projects().hasAttribute("inert")).toBe(false);
+    fireEvent.pointerDown(projects(), { button: 0 });
+    expect(projects().getAttribute("data-window-state")).toBe("active");
+
+    // Experience and Product Links come in front again; Projects falls behind both.
+    fireEvent.click(taskbar.getByRole("button", { name: /^Switch to Experience/i }));
+    fireEvent.click(taskbar.getByRole("button", { name: /^Switch to Product Links/i }));
+    act(() => vi.advanceTimersByTime(50));
+    expect(projects().getAttribute("data-window-state")).toBe("blurred");
+    act(() => projects().focus());
+    expect(projects().getAttribute("data-window-state")).toBe("active");
+  });
+
   it("keeps the immediate workspace contract when reduced motion is requested", () => {
     installBrowserStubs(true);
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
