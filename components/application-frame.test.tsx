@@ -64,6 +64,26 @@ describe("ApplicationFrame resize geometry", () => {
     expect(handleZ).toBeGreaterThan(chromeZ!);
   });
 
+  it("leaves a blurred desktop window reachable, so a click or Tab can bring it forward", () => {
+    function Harness() {
+      const { openWindow } = useWorkspaceManager();
+      useEffect(() => { openWindow("work"); openWindow("experience"); openWindow("products"); }, [openWindow]);
+      return (
+        <>
+          <ApplicationFrame windowId="work" className="portfolio-window work-frame">Projects</ApplicationFrame>
+          <ApplicationFrame windowId="experience" className="portfolio-window">Experience</ApplicationFrame>
+          <ApplicationFrame windowId="products" className="portfolio-window">Products</ApplicationFrame>
+        </>
+      );
+    }
+    render(<WorkspaceManagerProvider><Harness /></WorkspaceManagerProvider>);
+    const work = document.querySelector<HTMLElement>(".work-frame")!;
+    // Three apps open on a desktop: the oldest falls behind the two most recent and blurs.
+    expect(work.getAttribute("data-window-state")).toBe("blurred");
+    expect(work.hasAttribute("inert")).toBe(false);
+    expect(work.getAttribute("aria-hidden")).toBeNull();
+  });
+
   it("minimizes a desktop window toward its own dock icon", () => {
     let minimize: () => void = noop;
     function Harness() {

@@ -120,7 +120,8 @@ export function ApplicationFrame({ as: Element = "section", children, chrome, do
   // modeReady re-runs the lookup once the provider has published the device mode to the document.
   }, [documentId, mode, modeReady, ownedRef, readDocumentState, windowId, writeDocumentState]);
   const state = props["data-window-state"] ?? (initialVisible && !workspace?.modeReady ? "active" : workspace?.stateFor(windowId) ?? "active");
-  const hidden = state === "background" || state === "minimized" || state === "closed" || state === "blurred";
+  // A blurred desktop window is still on screen, like a Mac window behind the front one: it takes the click that brings it forward.
+  const hidden = state === "background" || state === "minimized" || state === "closed";
   // A desktop window minimizes into its own dock icon and restores out of it. The vector is
   // measured from the untransformed layout box, so a transition already in flight is irrelevant.
   useLayoutEffect(() => {
