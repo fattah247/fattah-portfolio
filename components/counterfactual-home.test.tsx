@@ -292,11 +292,11 @@ describe("CounterfactualHome", () => {
     clientWidth.mockRestore();
   });
 
-  it("takes the desktop shortcuts out of the Tab order while a window is in front, and returns them with the desktop", () => {
+  it("takes the desktop shortcuts and card links out of the Tab order while a window is in front, and returns them with the desktop", () => {
     document.documentElement.dataset.systemMode = "computer";
     render(<WorkspaceManagerProvider><SystemShell /><CounterfactualHome /></WorkspaceManagerProvider>);
     act(() => vi.advanceTimersByTime(20));
-    const shortcuts = () => Array.from(document.querySelectorAll<HTMLElement>(".desktop-object"));
+    const shortcuts = () => Array.from(document.querySelectorAll<HTMLElement>(".desktop-object, .desktop-identity a"));
     expect(shortcuts().length).toBeGreaterThan(0);
     expect(shortcuts().every((item) => item.getAttribute("tabindex") === null)).toBe(true);
 
@@ -308,9 +308,10 @@ describe("CounterfactualHome", () => {
     expect(shortcuts().every((item) => item.getAttribute("tabindex") === null)).toBe(true);
 
     // Arrow keys still move between shortcuts once one has focus.
-    shortcuts()[0].focus();
+    const icons = Array.from(document.querySelectorAll<HTMLElement>(".desktop-object"));
+    icons[0].focus();
     fireEvent.keyDown(screen.getByLabelText("Portfolio desktop shortcuts"), { key: "ArrowRight" });
-    expect(document.activeElement).toBe(shortcuts()[1]);
+    expect(document.activeElement).toBe(icons[1]);
   });
 
   it("brings a blurred desktop window forward with one click, or when Tab lands in it", () => {

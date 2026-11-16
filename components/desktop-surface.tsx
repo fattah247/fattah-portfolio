@@ -379,7 +379,7 @@ export function DesktopSurface({
     return false;
   }
 
-  // Behind an open window the shortcuts stay clickable but leave the Tab order, so Tab moves through the window and the taskbar.
+  // Behind an open window the desktop stays clickable but leaves the Tab order, so Tab moves through the window and the taskbar.
   const behindWindows = workspace.surface !== "home";
 
   function moveSelection(event: KeyboardEvent<HTMLDivElement>) {
@@ -408,8 +408,8 @@ export function DesktopSurface({
           <p className="desktop-identity-focus">{portfolioIdentity.focus}</p>
         </div>
         <div className="desktop-identity-actions">
-          <a className="desktop-identity-primary" href={portfolioIdentity.cv} download onClick={() => play("ui.download")}>Download CV <DownloadIcon /></a>
-          <a className="desktop-identity-email" href={`mailto:${portfolioIdentity.email}`}>{portfolioIdentity.email}</a>
+          <a className="desktop-identity-primary" href={portfolioIdentity.cv} download onClick={() => play("ui.download")} tabIndex={behindWindows ? -1 : undefined}>Download CV <DownloadIcon /></a>
+          <a className="desktop-identity-email" href={`mailto:${portfolioIdentity.email}`} tabIndex={behindWindows ? -1 : undefined}>{portfolioIdentity.email}</a>
         </div>
       </div>
       <div
