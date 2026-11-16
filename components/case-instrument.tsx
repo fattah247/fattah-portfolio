@@ -117,6 +117,7 @@ export function CaseInstrument({
   isDefault = true,
   onApproachChange,
   onChange,
+  onChanges,
   onReset,
   onTechnicalChange,
   scenario,
@@ -130,6 +131,8 @@ export function CaseInstrument({
   isDefault?: boolean;
   onApproachChange: (mode: ProjectionMode) => void;
   onChange: (key: string, value: string) => void;
+  /** Several changes made as one, such as a preset; falls back to one `onChange` each. */
+  onChanges?: (changes: Conditions) => void;
   onReset?: () => void;
   onTechnicalChange?: (technical: boolean) => void;
   scenario: Scenario;
@@ -144,7 +147,8 @@ export function CaseInstrument({
     onTechnicalChange?.(next);
   };
   const { play } = useSound();
-  const shared = { approach, conditions, isDefault, onApproachChange, onChange, onReset, scenario, selectedConditions, technical };
+  const changeMany = onChanges ?? ((changes: Conditions) => Object.entries(changes).forEach(([key, value]) => onChange(key, value)));
+  const shared = { approach, conditions, isDefault, onApproachChange, onChange, onChanges: changeMany, onReset, scenario, selectedConditions, technical };
   const technicalKey = (
     <button aria-pressed={technical} className="instrument-technical" onClick={() => { play(technical ? "ui.key-off" : "ui.key-on"); setTechnical(!technical); }} type="button">
       <i aria-hidden="true" />Technical details
@@ -174,6 +178,7 @@ type SimProps = {
   isDefault: boolean;
   onApproachChange: (mode: ProjectionMode) => void;
   onChange: (key: string, value: string) => void;
+  onChanges: (changes: Conditions) => void;
   onReset?: () => void;
   scenario: Scenario;
   selectedConditions: Conditions;
@@ -399,7 +404,7 @@ function checkCue(tick: Tick): CueId | null {
   return "svc.minute-too-slow";
 }
 
-function ServiceSim({ conditions, foreground, isDefault, onChange, onReset, scenario, selectedConditions, technical }: SimProps & { foreground: boolean }) {
+function ServiceSim({ conditions, foreground, isDefault, onChange, onChanges, onReset, scenario, selectedConditions, technical }: SimProps & { foreground: boolean }) {
   // The chart opens on the case's own first checks, then keeps running.
   const [ticks, setTicks] = useState<Tick[]>(() => runUptime(toUptimeConditions(conditions), 4));
   const [running, setRunning] = useState(true);
@@ -451,9 +456,7 @@ function ServiceSim({ conditions, foreground, isDefault, onChange, onReset, scen
     const found = serviceSituations.find((item) => item.value === value);
     if (!found) return;
     play("ui.key-on");
-    for (const [key, next] of Object.entries(found.conditions)) {
-      if (selectedConditions[key] !== next) onChange(key, next);
-    }
+    onChanges(found.conditions);
   };
 
   const skipToAlert = () => {
@@ -632,7 +635,7 @@ function plainResolution(result: ConfirmationResult): { title: string; detail: s
   };
 }
 
-function DeviceSim({ conditions, isDefault, onChange, onReset, scenario, selectedConditions, technical }: SimProps) {
+function DeviceSim({ conditions, isDefault, onChange, onChanges, onReset, scenario, selectedConditions, technical }: SimProps) {
   const run = useMemo(() => assessDevice(conditions), [conditions]);
   const [sends, setSends] = useState(0);
   const [history, setHistory] = useState<PaymentRecord[]>([]);
@@ -679,10 +682,7 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, scenario, selecte
   const applyProfile = (value: string) => {
     const preset = devicePresets.find((item) => item.value === value);
     if (!preset) return;
-    for (const check of deviceChecks) {
-      const next = preset.checks.includes(check.id) ? "found" : "clear";
-      if (selectedConditions[check.id] !== next) onChange(check.id, next);
-    }
+    onChanges(Object.fromEntries(deviceChecks.map((check) => [check.id, preset.checks.includes(check.id) ? "found" : "clear"])));
   };
 
   // Answers belong to a payment, not to its checks: the same checks sent again ask again.

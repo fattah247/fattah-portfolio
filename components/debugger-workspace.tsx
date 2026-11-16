@@ -699,13 +699,19 @@ export function DebuggerWorkspace({
     setStatusMessage(message);
   }
 
-  function changeCondition(key: string, value: string) {
-    if (targetConditions.current[key] === value) return;
-    const next = { ...targetConditions.current, [key]: value };
+  /** Applies one or several changes (a preset sets several at once) and announces them together. */
+  function changeConditions(changes: Conditions) {
+    const keys = Object.keys(changes).filter((key) => targetConditions.current[key] !== changes[key]);
+    if (!keys.length) return;
+    const next = { ...targetConditions.current, ...changes };
     targetConditions.current = next;
     setSelectedConditions(next);
-    const label = scenario.controls.find((control) => control.key === key)?.label ?? "Condition";
-    settle(next, `${label} changed. Result: ${resultFor(next, approach)}.`);
+    const what = keys.length > 1 ? `${keys.length} settings` : scenario.controls.find((control) => control.key === keys[0])?.label ?? "Condition";
+    settle(next, `${what} changed. Result: ${resultFor(next, approach)}.`);
+  }
+
+  function changeCondition(key: string, value: string) {
+    changeConditions({ [key]: value });
   }
 
   function changeApproach(mode: ProjectionMode) {
@@ -846,6 +852,7 @@ export function DebuggerWorkspace({
           isDefault={isDefault}
           onApproachChange={changeApproach}
           onChange={changeCondition}
+          onChanges={changeConditions}
           onReset={reset}
           onTechnicalChange={setTechnical}
           scenario={scenario}

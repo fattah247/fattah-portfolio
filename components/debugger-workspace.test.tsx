@@ -347,6 +347,18 @@ describe("DebuggerWorkspace", () => {
     expect(proof.getByRole("link", { name: /SensitiveActionGate\.kt/ }).getAttribute("href")).toContain("SensitiveActionGate.kt");
   });
 
+  it("announces a phone preset's changes together, not just the last check it set", () => {
+    render(
+      <WorkspaceManagerProvider>
+        <DebuggerWorkspace scenario={scenarios[2]} initialConditions={scenarios[2].defaults} onClose={vi.fn()} />
+      </WorkspaceManagerProvider>,
+    );
+    // From the story's phone (test build, outside the store) to a rooted phone with a debugger: four checks change.
+    fireEvent.click(key("Try a phone", "Rooted, debugger on"));
+    act(() => vi.advanceTimersByTime(0));
+    expect(document.querySelector('.sr-only[role="status"]')?.textContent).toMatch(/^4 settings changed\. Result: /);
+  });
+
   it("asks again for a later payment with the same checks as one already confirmed", () => {
     render(
       <WorkspaceManagerProvider>
