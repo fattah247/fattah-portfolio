@@ -2820,17 +2820,6 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-tec
 .instrument-option:active { background: var(--recessed); box-shadow: var(--bevel-inset); }
 .instrument-option:focus-visible { outline: 2px solid var(--focus); outline-offset: -5px; z-index: 2; }
 
-/* Once a group leaves the story's setting, the key it left is marked, so the visitor can see
- * where the case started. */
-.instrument-option[data-story][aria-pressed="false"]::after {
-  color: var(--ink-secondary);
-  content: "story";
-  font: var(--type-caption);
-  font-family: var(--font-mono), monospace;
-  margin-inline-start: auto;
-  padding-inline-start: 6px;
-}
-
 /* Touch modes keep 44 px keys; the switch stays one joined object. */
 html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-option { min-block-size: 44px; }
 
@@ -2856,8 +2845,6 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 .sd { background: #ffffff; border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); container: sd / inline-size; }
 /* The drawing reads like a figure: centred, and capped so its mono text stays near reading size. */
 .sd, .svc-screen { box-sizing: border-box; inline-size: 100%; justify-self: center; max-inline-size: 50rem; }
-/* A long two-way key has no room for the "story" tag; "Back to the story" marks the departure. */
-.sim-controls .instrument-keys[data-count="2"] .instrument-option[data-story]::after { display: none; }
 /* Preset bars (Try a situation / Try a phone) span across the full control strip above the individual knobs. */
 .sim-controls > .instrument-control:has(.instrument-keys[data-count="4"]) { grid-column: 1 / -1; }
 .sim-controls .instrument-keys[data-count="4"] { gap: 6px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.5rem), 1fr)); }
@@ -4603,9 +4590,6 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
   .sim-journal li > .sim-journal-badge { grid-row: auto; }
 }
 .sim-journal-contrast span { color: var(--ink-secondary); font: var(--type-caption); font-weight: 600; margin-inline-end: 6px; }
-
-/* A rule a visitor removed reads as a fault, not a feature. */
-.sim-mutations .instrument-option[aria-pressed="true"] { background: var(--adverse-wash) !important; color: var(--adverse-ink) !important; }
 
 /* The monitor's chart: lab-a solid, lab-b dashed, a slow check red, a failed check a cross. */
 .sd-svc .sd-trace { stroke: var(--designed); stroke-width: 2.4; }
