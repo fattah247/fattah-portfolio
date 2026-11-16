@@ -465,6 +465,27 @@ describe("DebuggerWorkspace", () => {
     expect(suggestedTrick()).toBe("Old message");
   });
 
+  it("keeps Technical details to the case it was turned on in", () => {
+    render(<ScenarioRoundTripHost />);
+    const technicalKey = () => screen.getByRole("button", { name: "Technical details" });
+
+    fireEvent.click(technicalKey());
+    act(() => vi.advanceTimersByTime(0));
+    expect(technicalKey().getAttribute("aria-pressed")).toBe("true");
+    expect(window.location.search).toBe("?technical=1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Next: Service observability" }));
+    act(() => vi.advanceTimersByTime(0));
+    window.history.replaceState(null, "", "/case/iyup");
+    act(() => vi.advanceTimersByTime(0));
+    expect(screen.getByRole("heading", { name: scenarios[1].title })).toBeTruthy();
+    expect(technicalKey().getAttribute("aria-pressed")).toBe("false");
+
+    fireEvent.click(screen.getByRole("button", { name: "Previous" }));
+    act(() => vi.advanceTimersByTime(0));
+    expect(technicalKey().getAttribute("aria-pressed")).toBe("true");
+  });
+
   it("persists reset controls when a case is reopened after switching scenarios", () => {
     render(<ScenarioRoundTripHost />);
 

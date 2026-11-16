@@ -507,7 +507,8 @@ export function DebuggerWorkspace({
       targetConditions.current = nextConditions;
       setConditions(nextConditions);
       setSelectedConditions(nextConditions);
-      if (typeof savedData?.technical === "boolean") setTechnical(savedData.technical);
+      // Technical belongs to each case: one never opened starts in everyday words.
+      setTechnical(savedData?.technical === true);
       setEvidence(null);
       setActiveSection("context");
       setStatusMessage("Replay ready.");
