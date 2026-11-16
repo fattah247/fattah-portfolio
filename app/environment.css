@@ -4787,7 +4787,7 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 .pw-result-actions .sim-primary svg { block-size: 14px; inline-size: 14px; }
 
 /* How Payflow decided: the proof for engineers, read from the repo. */
-.pw-proof { border-block-start: 1px solid var(--line-ink); display: grid; gap: 6px; min-inline-size: 0; padding: 10px; }
+.pw-proof { border-block-start: 1px solid var(--line-ink); display: grid; gap: 6px; grid-template-columns: minmax(0, 1fr); min-inline-size: 0; padding: 10px; }
 .sim > .pw-proof { padding-inline: 0; }
 .pw-proof p { margin: 0; }
 .pw-proof-lead { color: var(--ink); font: var(--type-label); font-weight: 700; }
@@ -4801,7 +4801,7 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 .pw-code-line { display: grid; gap: 8px; grid-template-columns: 3ch minmax(0, 1fr); min-inline-size: 0; }
 .pw-code-line::before { color: var(--ink-secondary); content: attr(data-n); text-align: end; }
 .pw-proof-note, .pw-proof-result { color: var(--ink); font: var(--type-label); }
-.pw-proof-result { font-family: var(--font-mono), monospace; font-size: .78rem; }
+.pw-proof-result { font-family: var(--font-mono), monospace; font-size: .78rem; overflow-wrap: anywhere; }
 .pw-proof-tests { display: grid; gap: 4px; list-style: none; margin: 0; padding: 0; }
 .pw-proof-tests li { color: var(--ink); font: var(--type-caption); overflow-wrap: anywhere; }
 .pw-proof-tests code { font-size: .75rem; }
