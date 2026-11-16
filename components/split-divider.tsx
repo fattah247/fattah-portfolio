@@ -38,7 +38,7 @@ export function SplitDivider({ host, keep }: {
   keep: (app: "work" | "experience") => void;
 }) {
   const [split, setSplit] = useState(0.5);
-  const drag = useRef<{ id: number; startX: number; trail: ReturnType<typeof pointerTrail> } | null>(null);
+  const drag = useRef<{ id: number; startX: number; lastX: number; trail: ReturnType<typeof pointerTrail> } | null>(null);
 
   const across = (element: HTMLElement, x: number) => Math.min(0.95, Math.max(0.05, x / element.clientWidth));
 
@@ -68,7 +68,7 @@ export function SplitDivider({ host, keep }: {
     for (const animation of element.getAnimations?.() ?? []) if (animation.id === "spring") animation.cancel();
     const trail = pointerTrail();
     trail.add(event.clientX, event.clientY, event.timeStamp);
-    drag.current = { id: event.pointerId, startX: event.clientX, trail };
+    drag.current = { id: event.pointerId, startX: event.clientX, lastX: event.clientX, trail };
     event.currentTarget.setPointerCapture(event.pointerId);
     element.dataset.splitting = "true";
   };
@@ -77,6 +77,7 @@ export function SplitDivider({ host, keep }: {
     const element = host();
     if (!element || drag.current?.id !== event.pointerId) return;
     drag.current.trail.add(event.clientX, event.clientY, event.timeStamp);
+    drag.current.lastX = event.clientX;
     element.style.setProperty("--split", String(across(element, event.clientX)));
   };
 
@@ -94,7 +95,8 @@ export function SplitDivider({ host, keep }: {
       settle(element, stops[(index + 1) % stops.length]);
       return;
     }
-    const at = across(element, event.clientX);
+    // A cancel can report clientX 0, which would read as a throw to the left edge; it rests where the finger last was.
+    const at = across(element, event.type === "pointercancel" ? state.lastX : event.clientX);
     const velocity = event.type === "pointercancel" ? 0 : state.trail.velocity(event.timeStamp).x / element.clientWidth;
     const rest = splitRest(at, velocity, element.clientWidth);
     if (rest === "close-left" || rest === "close-right") close(element, rest, velocity * 1000);
