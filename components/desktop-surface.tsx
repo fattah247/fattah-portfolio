@@ -72,6 +72,7 @@ function resolveDesktopOffset(
   boardWidth: number,
   boardHeight: number,
   desired: DesktopOffset,
+  placed: Record<string, DesktopRect> = {},
 ): DesktopOffset {
   if (width <= 0 || height <= 0 || boardWidth <= 0 || boardHeight <= 0) return desired;
   const boardRect = board.getBoundingClientRect();
@@ -95,6 +96,13 @@ function resolveDesktopOffset(
   }
   for (const item of Array.from(board.querySelectorAll<HTMLElement>(".desktop-object"))) {
     if (item.classList.contains(key)) continue;
+    // A shortcut already moved in this pass has not re-rendered; its new place is the obstacle.
+    const placedKey = Object.keys(placed).find((name) => item.classList.contains(name));
+    if (placedKey) {
+      const p = placed[placedKey];
+      obstacles.push({ bottom: p.bottom + 6, left: p.left - 6, right: p.right + 6, top: p.top - 6 });
+      continue;
+    }
     const r = item.getBoundingClientRect();
     if (r.width > 0 && r.height > 0) {
       obstacles.push({
@@ -194,6 +202,7 @@ export function DesktopSurface({
       setDesktopOffsets((current) => {
         let changed = false;
         const next = { ...current };
+        const placed: Record<string, DesktopRect> = {};
         for (const [key, offset] of Object.entries(current)) {
           const shortcut = board.querySelector<HTMLElement>(`.${key}`);
           if (!shortcut) continue;
@@ -203,19 +212,27 @@ export function DesktopSurface({
             x: offset.x + Math.max(0, boardRect.left - rect.left) - Math.max(0, rect.right - boardRect.right),
             y: offset.y + Math.max(0, boardRect.top - rect.top) - Math.max(0, rect.bottom - boardRect.bottom),
           };
+          const baseLeft = rect.left - boardRect.left - offset.x;
+          const baseTop = rect.top - boardRect.top - offset.y;
           const resolved = rect.width > 0 && rect.height > 0
             ? resolveDesktopOffset(
                 board,
                 key,
-                rect.left - boardRect.left - offset.x,
-                rect.top - boardRect.top - offset.y,
+                baseLeft,
+                baseTop,
                 rect.width,
                 rect.height,
                 boardRect.width,
                 boardRect.height,
                 clamped,
+                placed,
               )
             : clamped;
+          if (rect.width > 0 && rect.height > 0) {
+            const left = baseLeft + resolved.x;
+            const top = baseTop + resolved.y;
+            placed[key] = { bottom: top + rect.height, left, right: left + rect.width, top };
+          }
           if (resolved.x !== offset.x || resolved.y !== offset.y) {
             next[key] = resolved;
             changed = true;

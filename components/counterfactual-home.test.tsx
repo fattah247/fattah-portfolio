@@ -221,6 +221,45 @@ describe("CounterfactualHome", () => {
     expect(savedOffsets["surface-work"]).toEqual({ x: 492, y: 20, z: 1 });
   });
 
+  it("keeps two shortcuts pushed back onto a shrinking desktop from landing on each other", () => {
+    document.documentElement.dataset.systemMode = "computer";
+    window.sessionStorage.setItem("fattah.desktop.shortcuts.v1", JSON.stringify({
+      "surface-work": { x: 500, y: 400, z: 1 },
+      "surface-experience": { x: 500, y: 400, z: 2 },
+    }));
+    render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
+
+    const board = screen.getByLabelText("Portfolio desktop shortcuts");
+    vi.spyOn(board, "getBoundingClientRect").mockReturnValue({
+      bottom: 300, height: 300, left: 0, right: 400, top: 0, width: 400, x: 0, y: 0, toJSON: () => ({}),
+    });
+    // Both rest at (32, 32) and are drawn at their offset, which starts past the board's bottom-right corner.
+    for (const name of ["Projects", "Experience"]) {
+      const shortcut = screen.getByRole("link", { name });
+      vi.spyOn(shortcut, "getBoundingClientRect").mockImplementation(() => {
+        const left = 32 + parseFloat(shortcut.style.getPropertyValue("--desktop-offset-x") || "0");
+        const top = 32 + parseFloat(shortcut.style.getPropertyValue("--desktop-offset-y") || "0");
+        return { bottom: top + 136, height: 136, left, right: left + 148, top, width: 148, x: left, y: top, toJSON: () => ({}) };
+      });
+    }
+
+    act(() => vi.advanceTimersByTime(50));
+    act(() => { window.dispatchEvent(new Event("resize")); });
+
+    const saved = JSON.parse(window.sessionStorage.getItem("fattah.desktop.shortcuts.v1") ?? "{}");
+    const box = (offset: { x: number; y: number }) => ({ left: 32 + offset.x, top: 32 + offset.y, right: 32 + offset.x + 148, bottom: 32 + offset.y + 136 });
+    const work = box(saved["surface-work"]);
+    const experience = box(saved["surface-experience"]);
+    for (const placed of [work, experience]) {
+      expect(placed.left).toBeGreaterThanOrEqual(0);
+      expect(placed.right).toBeLessThanOrEqual(400);
+      expect(placed.top).toBeGreaterThanOrEqual(0);
+      expect(placed.bottom).toBeLessThanOrEqual(300);
+    }
+    const overlap = work.left < experience.right && work.right > experience.left && work.top < experience.bottom && work.bottom > experience.top;
+    expect(overlap).toBe(false);
+  });
+
   it("keeps the immediate workspace contract when reduced motion is requested", () => {
     installBrowserStubs(true);
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
