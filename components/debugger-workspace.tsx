@@ -7,7 +7,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from "react-dom";
 import { ArrowIcon, ChevronIcon } from "./icons";
 import { CaseCover } from "./case-cover";
-import { CaseInstrument } from "./case-instrument";
+import { CaseInstrument, controlLabel } from "./case-instrument";
 import { useSound } from "./sound-provider";
 import { readableOutcome } from "../lib/instruments";
 import { fadeOutCopy, leaveSpring, pointerTrail, project, rubberband, sheetSpring, springTo } from "../lib/motion";
@@ -706,7 +706,7 @@ export function DebuggerWorkspace({
     const next = { ...targetConditions.current, ...changes };
     targetConditions.current = next;
     setSelectedConditions(next);
-    const what = keys.length > 1 ? `${keys.length} settings` : scenario.controls.find((control) => control.key === keys[0])?.label ?? "Condition";
+    const what = keys.length > 1 ? `${keys.length} settings` : controlLabel(scenario, keys[0], technical);
     settle(next, `${what} changed. Result: ${resultFor(next, approach)}.`);
   }
 

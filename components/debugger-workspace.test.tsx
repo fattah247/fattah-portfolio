@@ -347,6 +347,37 @@ describe("DebuggerWorkspace", () => {
     expect(proof.getByRole("link", { name: /SensitiveActionGate\.kt/ }).getAttribute("href")).toContain("SensitiveActionGate.kt");
   });
 
+  it("announces a single change by the name its key shows, in either voice", () => {
+    const status = () => document.querySelector('.sr-only[role="status"]')?.textContent;
+    render(
+      <WorkspaceManagerProvider>
+        <DebuggerWorkspace scenario={scenarios[2]} initialConditions={scenarios[2].defaults} onClose={vi.fn()} />
+      </WorkspaceManagerProvider>,
+    );
+    const check = (name: RegExp) => within(screen.getByRole("group", { name: /^What the phone/ })).getByRole("button", { name });
+
+    fireEvent.click(check(/^Looks like an emulator/));
+    act(() => vi.advanceTimersByTime(0));
+    expect(status()).toMatch(/^Looks like an emulator changed\. Result: /);
+
+    // With Technical details the key shows the repo's signal id, and the announcement follows it.
+    fireEvent.click(screen.getByRole("button", { name: "Technical details" }));
+    fireEvent.click(check(/^emulator_fingerprint/));
+    act(() => vi.advanceTimersByTime(0));
+    expect(status()).toMatch(/^emulator_fingerprint changed\. Result: /);
+    cleanup();
+
+    // iYup's keys keep their plain labels in both voices.
+    render(
+      <WorkspaceManagerProvider>
+        <DebuggerWorkspace scenario={scenarios[1]} initialConditions={scenarios[1].defaults} onClose={vi.fn()} />
+      </WorkspaceManagerProvider>,
+    );
+    fireEvent.click(key("The page", "Answers 503"));
+    act(() => vi.advanceTimersByTime(0));
+    expect(status()).toMatch(/^The page changed\. Result: /);
+  });
+
   it("announces a phone preset's changes together, not just the last check it set", () => {
     render(
       <WorkspaceManagerProvider>

@@ -85,6 +85,12 @@ const plainCheck: Record<string, string> = {
   screen_recording: "Screen being recorded",
 };
 
+/** The name a condition's key shows right now, so a change is announced by the same words. */
+export function controlLabel(scenario: Scenario, key: string, technical: boolean) {
+  if (key in plainCheck) return technical ? key : plainCheck[key];
+  return plainControls[key]?.label ?? scenario.controls.find((control) => control.key === key)?.label ?? "Condition";
+}
+
 /**
  * Which named values changed in the latest update, so the view can mark them once. Each mark is
  * the update's parity ("odd" / "even"): a value that changes again flips parity, which restarts
