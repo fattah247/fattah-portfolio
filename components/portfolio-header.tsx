@@ -6,7 +6,9 @@ import { CopyEmailButton } from "@/components/copy-email-button";
 import { SystemShell } from "@/components/system-shell";
 import { useWindowFrame } from "@/components/use-window-frame";
 import { ApplicationFrame } from "./application-frame";
-import { displayHandle, portfolioIdentity } from "../lib/portfolio-identity";
+import { displayHandle, portfolioIdentity, portfolioTitle } from "../lib/portfolio-identity";
+import { workspaceHistory } from "../lib/workspace-navigation";
+import { portfolioApp } from "./app-registry";
 import { WindowChrome } from "@/components/window-chrome";
 import { useWorkspaceManager } from "@/components/workspace-manager";
 import { OwnerMark } from "@/components/app-icons";
@@ -162,6 +164,14 @@ export function PortfolioHeader() {
   const contactOpen = workspace.isOpen("contact");
 
   useEffect(() => workspace.registerAppLauncher("contact", () => workspace.openWindow("contact")), [workspace]);
+
+  // The other apps route as they come forward; Contact has no host doing that, so it names itself.
+  // The phone's history stack writes its own entries.
+  const contactInFront = workspace.activeWindow === "contact" && workspace.surface === "application" && workspace.mode !== "phone";
+  useEffect(() => {
+    if (!contactInFront || (window.location.pathname === "/" && window.location.hash === "#contact")) return;
+    workspaceHistory.replaceState(null, portfolioTitle.for(portfolioApp("contact").documentTitle), "/#contact");
+  }, [contactInFront]);
 
   return (
     <>

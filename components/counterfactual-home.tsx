@@ -165,6 +165,8 @@ export function CounterfactualHome({
   }, [isWorkOpen]);
   const hasOpenWindows = openWindows.length > 0 || isWorkOpen || isExperienceOpen || isProductsOpen;
   const activeWindow = workspace.activeWindow;
+  const latestActiveWindow = useRef(activeWindow);
+  useEffect(() => { latestActiveWindow.current = activeWindow; }, [activeWindow]);
   useEffect(() => {
     if (workspace.isAppOpen("work")) workspace.writeDocumentState("work", "session", { data: { view: workView, slug: selectedCaseSlug, repository: selectedGithubProjectId } });
   }, [selectedCaseSlug, selectedGithubProjectId, workView, workspace]);
@@ -325,7 +327,11 @@ export function CounterfactualHome({
   }
 
   function focusWindowControl(windowName: WorkspaceWindow) {
-    window.requestAnimationFrame(() => window.requestAnimationFrame(() => frameFor(windowName)?.focus({ preventScroll: true })));
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      // Another app brought forward in the meantime (Contact lives outside this host) keeps the focus.
+      if (latestActiveWindow.current !== windowName) return;
+      frameFor(windowName)?.focus({ preventScroll: true });
+    }));
   }
 
   function preferredScrollBehavior(): ScrollBehavior {
