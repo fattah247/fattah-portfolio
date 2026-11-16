@@ -173,7 +173,7 @@ describe("sound", () => {
     fireEvent.click(taskbar.getByRole("button", { name: /Open Experience\. Not running/i }));
     expect(cues()).toEqual(["sys.open"]);
     // Opening the overview is navigation, and silent; closing a card there closes the app.
-    fireEvent.click(screen.getByRole("button", { name: "Application overview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Recents" }));
     expect(cues()).toEqual(["sys.open"]);
     fireEvent.click(screen.getByRole("button", { name: "Close Experience" }));
     expect(cues()).toEqual(["sys.open", "sys.close"]);

@@ -157,7 +157,7 @@ describe("SystemShell", () => {
     const taskbar = within(screen.getByRole("navigation", { name: "System taskbar" }));
 
     fireEvent.click(taskbar.getByRole("button", { name: /Open Projects\. Not running/i }));
-    fireEvent.click(taskbar.getByRole("button", { name: "Application overview" }));
+    fireEvent.click(taskbar.getByRole("button", { name: "Recents" }));
     fireEvent.click(screen.getByRole("button", { name: "Close Projects" }));
 
     expect(screen.getByText("No apps open")).toBeTruthy();

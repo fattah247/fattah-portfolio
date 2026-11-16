@@ -791,7 +791,7 @@ export function CounterfactualHome({
             <WindowChrome
               app="experience"
               className="portfolio-window-chrome"
-              closeLabel="Close experience window"
+              closeLabel="Close Experience window"
               closeRef={experienceCloseRef}
               label="Experience"
               maximized={experienceMaximized}
@@ -822,7 +822,7 @@ export function CounterfactualHome({
             <WindowChrome
               app="products"
               className="portfolio-window-chrome product-links-window-chrome"
-              closeLabel="Close product links"
+              closeLabel="Close Product Links window"
               closeRef={productsCloseRef}
               label="Product Links"
               maximized={productsMaximized}

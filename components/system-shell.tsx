@@ -556,7 +556,7 @@ export function SystemShell() {
           {runningApps.map((app) => {
             const entry = portfolioApp(app);
             const current = workspace.activeApp === app && !workspace.isMinimized(app);
-            const status = current ? "Active" : workspace.isMinimized(app) ? "Minimized" : "Background";
+            const status = current ? "Active" : workspace.isMinimized(app) ? "Minimized" : "Open in background";
             return (
               <article className="system-recent-card" data-app={app} data-current={current} key={app} {...flickAway}>
                 <button className="system-recent-open" onClick={(event) => { noteLaunchOrigin(event.currentTarget); launchApp(app); }} type="button" aria-label={`Switch to ${entry.label}. ${status}`}>
@@ -609,7 +609,7 @@ export function SystemShell() {
             </button>
           )})}
         </div>
-        <button className="taskbar-overview" data-active={workspace.surface === "recents"} data-label="Overview" onClick={workspace.openRecents} type="button" aria-label="Application overview"><SystemIcon name="overview" /></button>
+        <button className="taskbar-overview" data-active={workspace.surface === "recents"} data-label="Recents" onClick={workspace.openRecents} type="button" aria-label="Recents"><SystemIcon name="overview" /></button>
       </nav> : null}
 
       {workspace.mode === "tablet" ? <nav className="tablet-shelf" aria-label="Tablet application shelf" {...homeGesture}>

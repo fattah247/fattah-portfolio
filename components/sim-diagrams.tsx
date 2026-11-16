@@ -92,7 +92,7 @@ function alertLamp(tick: Tick): { state: AlertLamp; plain: string; technical: st
   const active = firing(tick);
   const top = active[0];
   if (top && alertSeverity[top.name] === "critical") return { state: "paging", plain: "alarm: engineers paged", technical: `${top.name}: page`, compact: "paged" };
-  if (top) return { state: "warning", plain: "warning: engineers told", technical: `${top.name}: notify`, compact: "warning sent" };
+  if (top) return { state: "warning", plain: "warning: engineers notified", technical: `${top.name}: notify`, compact: "warning sent" };
   const waiting = tick.alerts.filter((alert) => alert.pendingFor > 0).sort((a, b) => (alertFor[a.name] - a.pendingFor) - (alertFor[b.name] - b.pendingFor))[0];
   if (waiting) {
     const left = (alertFor[waiting.name] - waiting.pendingFor) * CHECK_INTERVAL_S;

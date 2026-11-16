@@ -16,7 +16,7 @@ type CasePageProps = {
 
 export async function generateMetadata({ params }: CasePageProps): Promise<Metadata> {
   const scenario = getScenario((await params).slug);
-  return scenario ? { title: scenario.category, description: `${scenario.title}. ${scenario.consequence}` } : { title: "Project not found" };
+  return scenario ? { title: scenario.category, description: `${scenario.title}. ${scenario.consequence}` } : { title: "Case not found" };
 }
 
 export default async function CasePage({ params, searchParams }: CasePageProps) {

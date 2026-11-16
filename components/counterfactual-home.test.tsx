@@ -831,7 +831,7 @@ describe("CounterfactualHome", () => {
     );
     expect(screen.getByRole("region", { name: "Projects window" }).getAttribute("data-view")).toBe("full-case");
 
-    fireEvent.click(screen.getByRole("button", { name: "Application overview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Recents" }));
     fireEvent.click(screen.getByRole("button", { name: "Close Projects" }));
 
     expect(screen.queryByRole("region", { name: "Projects window" })).toBeNull();

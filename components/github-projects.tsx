@@ -38,7 +38,7 @@ function ProjectImage({
  * language, description, and last update, opened inside Projects. A live product with private
  * source leads the list and reads "Live site" and its starting year instead.
  */
-const rowLanguage = (project: GithubProject) => (project.kind === "site" ? "Live site" : project.language ?? "Repository");
+const rowLanguage = (project: GithubProject) => (project.kind === "site" ? "Live site" : project.language ?? "GitHub repository");
 
 export function GithubProjectsIndex({
   onOpenProject,
@@ -112,7 +112,7 @@ export function GithubProjectPreview({
     <div className="github-project-preview" data-project={project.id}>
       <section className="github-project-preview-intro" aria-labelledby="github-project-preview-title">
         <div>
-          <p>{project.kind === "site" ? "Live site" : project.language ?? "Public repository"}</p>
+          <p>{project.kind === "site" ? "Live site" : project.language ?? "GitHub repository"}</p>
           <h2 id="github-project-preview-title">{project.displayName}</h2>
           <span>{project.description}</span>
         </div>

@@ -104,13 +104,13 @@ export function EvidenceLedgerApp() {
         </section>
 
         <section className="claim-ledger">
-          <div className="claim-header"><span>Claim</span><span>Evidence</span><span>Boundary</span></div>
+          <div className="claim-header"><span>Claim</span><span>Evidence</span><span>Limits</span></div>
           {scenarios.map((scenario) => (
             <article className="claim-row" key={scenario.slug}>
               <div><span>{scenario.number}</span><h2>{scenario.shortTitle}</h2><p>{scenario.outcome}</p></div>
               <div className="claim-evidence">
                 <div className="claim-thumb"><Image src={scenario.evidence[0].src} alt="" fill sizes="180px" /></div>
-                <div><p>{scenario.evidence[0].caption}</p><Link href={`/case/${scenario.slug}`}>Replay case <ChevronIcon direction="right" /></Link></div>
+                <div><p>{scenario.evidence[0].caption}</p><Link href={`/case/${scenario.slug}`}>Open case <ChevronIcon direction="right" /></Link></div>
               </div>
               <p>{scenario.limitation}</p>
             </article>

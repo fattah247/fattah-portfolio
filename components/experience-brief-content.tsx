@@ -25,7 +25,7 @@ export function ExperienceBriefContent({
             Download CV <DownloadIcon />
           </a>
           <a className="experience-brief-action" href={portfolioIdentity.github} target="_blank" rel="noopener noreferrer">
-            GitHub <span className="sr-only">opens in a new tab</span>
+            GitHub<span className="sr-only">, opens in a new tab</span>
           </a>
           <button className="experience-brief-action" onClick={onOpenContact} type="button">Contact</button>
         </nav>
