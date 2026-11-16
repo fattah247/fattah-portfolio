@@ -2111,7 +2111,8 @@ html[data-system-mode="computer"] .editorial-home {
   min-height: 100svh !important;
   overflow: hidden !important;
   padding: 0 !important;
-  position: fixed;
+  /* Absolute, not fixed: a fixed parent would stack its windows apart from Contact, which lives outside it. */
+  position: absolute;
   width: 100%;
 }
 
@@ -2539,7 +2540,7 @@ html[data-system-mode="computer"][data-system-surface="recents"] .contact-window
   z-index: var(--window-layer-z, 40) !important;
 }
 
-.contact-window-layer:not([data-window-state="active"]),
+/* Only the evidence sheet hides when it loses focus; Contact is an app window and stays in the stack. */
 .evidence-dialog:not([data-window-state="active"]) {
   opacity: 0;
   pointer-events: none !important;
