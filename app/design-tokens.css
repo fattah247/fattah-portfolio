@@ -13,7 +13,7 @@
   --paper-warm: #e3e7ec;
   --surface: var(--paper-raised);
   --ink: #252b34;
-  --ink-secondary: #59616d;
+  --ink-secondary: #555d69;
   --ink-tertiary: #5f6773;
   --rule: #c4ccd6;
   --rule-strong: #8d98a7;
@@ -24,9 +24,9 @@
   --designed: #3a5f9f;
   --designed-bright: #536fa3;
   --designed-wash: #dbe4f3;
-  --confirmed: #3a7a6c;
+  --confirmed: #336d60;
   --confirmed-wash: #d6e9e4;
-  --uncertain: #85621f;
+  --uncertain: #76571a;
   --uncertain-wash: #efe6d3;
   --adverse: #b84f55;
   --adverse-ink: #a3434a;
@@ -71,16 +71,20 @@
   --control-shadow-pressed: inset 1px 1px 0 #8d98a7, inset -1px -1px 0 #ffffff;
   --icon-shadow: none;
 
-  /* Motion */
+  /* Motion: everything eases out (most of the travel at the start), so it reads as quick. */
   --duration-micro: 140ms;
   --duration-focus: 180ms;
-  --duration-window: 160ms;
-  --duration-navigation: 180ms;
-  --duration-causal: 380ms;
-  --duration-boot: 720ms;
   --ease-event: cubic-bezier(0.32, 0.72, 0, 1);
-  --ease-rewind: cubic-bezier(0.65, 0, 0.78, 0);
   --ease-decision: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Springs, copied from nature: generated from lib/motion.ts (a test keeps these equal). Windows
+   * and launches settle with a 0.6% overshoot you feel more than see; sheets are a touch calmer. */
+  --spring-window: linear(0, 0.0321, 0.1099, 0.2118, 0.3228, 0.4328, 0.5356, 0.6279, 0.7079, 0.7756, 0.8315, 0.8766, 0.9123, 0.9399, 0.9608, 0.9763, 0.9874, 0.9951, 1.0003, 1.0035, 1.0053, 1.0061, 1.0063, 1.006, 1.0055, 1.0048, 1.0041, 1.0034, 1.0028, 1.0022, 1.0017, 1.0013, 1);
+  --spring-window-duration: 530ms;
+  --spring-sheet: linear(0, 0.0293, 0.1005, 0.1938, 0.2959, 0.398, 0.4944, 0.5821, 0.6595, 0.7264, 0.783, 0.8301, 0.8688, 0.9001, 0.925, 0.9447, 0.9599, 0.9716, 0.9805, 0.9871, 0.9919, 0.9953, 0.9977, 0.9994, 1.0004, 1.001, 1.0014, 1.0015, 1.0015, 1.0014, 1.0013, 1.0012, 1);
+  --spring-sheet-duration: 427ms;
+  /* Small objects landing, stamping or changing: a visible bounce, as a dropped object has. */
+  --spring-pop: linear(0, 0.0443, 0.1541, 0.2996, 0.4573, 0.6101, 0.747, 0.8616, 0.9513, 1.0166, 1.0599, 1.0844, 1.0941, 1.0929, 1.0844, 1.0715, 1.0568, 1.042, 1.0284, 1.0167, 1.0074, 1.0004, 0.9956, 0.9926, 0.9913, 0.9911, 0.9917, 0.9928, 0.9941, 0.9955, 0.9969, 0.998, 1);
+  --spring-pop-duration: 518ms;
   --os-ease: var(--ease-decision);
 }
 

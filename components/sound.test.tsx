@@ -81,36 +81,43 @@ describe("sound", () => {
     expect(screen.queryByRole("group", { name: "Sound" })).toBeNull();
   });
 
-  it("plays the payment's own outcomes, timed to the event landing, and marks the knock and the jolt", () => {
+  it("lands each receipt's sound as it reaches Payflow, marks the guess, and jolts the missing money", () => {
     const { play, cues } = withSound(caseOf(0));
     expect(cues()).toEqual(["sys.file-open"]);
-    const state = () => document.querySelector(".sd-pay .sd-wide .sd-state")?.getAttribute("data-hit");
+    const until = (phase: string) => {
+      for (let turn = 0; turn < 160 && document.querySelector(".pay-world")?.getAttribute("data-phase") !== phase; turn += 1) act(() => vi.advanceTimersByTime(500));
+      act(() => vi.advanceTimersByTime(0));
+    };
+    const trick = (name: string) => fireEvent.click(within(screen.getByRole("group", { name: "Pick a trick" })).getByRole("button", { name: new RegExp(`^${name}`) }));
 
-    fireEvent.click(screen.getByRole("button", { name: /^“Paid”the payment/ }));
-    expect(play).toHaveBeenLastCalledWith("pay.let-in", expect.closeTo(0.32, 3));
-    expect(state()).toBe("land");
-    fireEvent.click(screen.getByRole("button", { name: /The same event again/ }));
-    expect(play).toHaveBeenLastCalledWith("pay.stopped", expect.closeTo(0.32, 3));
-    fireEvent.click(screen.getByRole("button", { name: /^“Paid”, wrong amount/ }));
-    expect(cues().at(-1)).toBe("pay.report-differs");
-    fireEvent.click(screen.getByRole("button", { name: /A person releases it/ }));
-    expect(cues().at(-1)).toBe("pay.check-on");
-    fireEvent.click(screen.getByRole("button", { name: /the day's settlement run/ }));
-    expect(cues().at(-1)).toBe("pay.book-back");
-    fireEvent.click(screen.getByRole("button", { name: /Provider’s report matches/ }));
-    expect(cues().at(-1)).toBe("sys.file-open");
-    fireEvent.click(screen.getByRole("button", { name: /^Credit arrives/ }));
-    expect(play).toHaveBeenLastCalledWith("pay.report-matches", 0);
-    // A removed rule that lets something through lands sour, with the buzz and the jolt.
-    fireEvent.click(screen.getByRole("button", { name: "Accept a statement twice" }));
-    expect(cues().at(-1)).toBe("pay.check-off");
-    fireEvent.click(screen.getByRole("button", { name: /Same statement again/ }));
-    expect(cues().at(-1)).toBe("pay.twice");
-    expect(state()).toBe("bad");
-    fireEvent.click(screen.getByRole("button", { name: "Start over" }));
+    trick("Sent twice");
     expect(cues().at(-1)).toBe("pay.start-over");
-    fireEvent.click(screen.getByRole("button", { name: "Technical details" }));
-    expect(cues().at(-1)).toBe("ui.key-on");
+    until("ask");
+    // Message #1 is heard as it lands in Payflow's notebook.
+    expect(play).toHaveBeenCalledWith("pay.let-in");
+    play.mockClear();
+    // The two resends go out 0.45 s apart, each crossing in 1.8 s and turned away as it lands: each cue
+    // starts 120 ms ahead of its knock.
+    fireEvent.click(screen.getByRole("button", { name: "750,000" }));
+    const stopped = () => cues().filter((cue) => cue === "pay.stopped").length;
+    act(() => vi.advanceTimersByTime(1_679));
+    expect(stopped()).toBe(0);
+    act(() => vi.advanceTimersByTime(2));
+    expect(stopped()).toBe(1);
+    act(() => vi.advanceTimersByTime(450));
+    expect(stopped()).toBe(2);
+    until("result");
+    expect(cues().at(-1)).toBe("pay.check-on");
+
+    // Lost money: Payflow's payout request reaches the card company, its report reaches Payflow, and the missing credit lands sour, with a jolt.
+    fireEvent.click(screen.getByRole("button", { name: "All tricks" }));
+    trick("Lost money");
+    until("ask");
+    expect(cues().slice(-2)).toEqual(["pay.book-back", "sys.file-open"]);
+    fireEvent.click(screen.getByRole("button", { name: "Yes, the report says it was sent" }));
+    until("result");
+    expect(cues().slice(-2)).toEqual(["pay.book-down", "pay.check-off"]);
+    expect(document.querySelector(".pw-bubble")?.getAttribute("data-hit")).toBe("bad");
   });
 
   it("keeps the live monitor silent, lands stepped checks, and sounds iYup's verdicts and alerts once", () => {
@@ -134,23 +141,30 @@ describe("sound", () => {
     expect(cues().filter((cue) => cue === "svc.alarm")).toHaveLength(1);
   });
 
-  it("ticks once for each found check, then lands the server's answer, in time with the drawing", () => {
+  it("answers a toggled check at once, and ticks each found check in time with the drawing when the payment is sent again", () => {
     const { cues } = withSound(caseOf(2));
     expect(cues()).toEqual(["sys.file-open"]);
     fireEvent.click(within(screen.getByRole("group", { name: /^What the phone/ })).getByRole("button", { name: /^Root app installed/ }));
-    // The case settles the change first; the walk starts from the new payment: root app, test build, installer.
-    for (let waited = 0; waited < 2_000 && !cues().includes("pol.rule-1"); waited += 10) act(() => vi.advanceTimersByTime(10));
-    expect(cues().slice(1)).toEqual(["pol.rule-1"]);
-    act(() => vi.advanceTimersByTime(270));
-    expect(cues().slice(1)).toEqual(["pol.rule-1"]);
+    // A toggled check answers quickly: the answer alone, a quarter of a second later (three checks found).
+    act(() => vi.advanceTimersByTime(230));
+    expect(cues().slice(1)).toEqual([]);
     act(() => vi.advanceTimersByTime(20));
-    expect(cues().slice(1)).toEqual(["pol.rule-1", "pol.rule-2"]);
+    expect(cues().slice(1)).toEqual(["pol.block"]);
+    // "Send again" teaches the walk at its full pace: root app, test build, installer, then the answer.
+    fireEvent.click(screen.getByRole("button", { name: /Send the payment again/ }));
+    const sent = () => cues().slice(2);
+    act(() => vi.advanceTimersByTime(310));
+    expect(sent()).toEqual([]);
+    act(() => vi.advanceTimersByTime(20));
+    expect(sent()).toEqual(["pol.rule-1"]);
     act(() => vi.advanceTimersByTime(280));
-    expect(cues().slice(1)).toEqual(["pol.rule-1", "pol.rule-2", "pol.rule-3"]);
+    expect(sent()).toEqual(["pol.rule-1", "pol.rule-2"]);
+    act(() => vi.advanceTimersByTime(280));
+    expect(sent()).toEqual(["pol.rule-1", "pol.rule-2", "pol.rule-3"]);
     act(() => vi.advanceTimersByTime(540));
-    expect(cues().slice(1)).toEqual(["pol.rule-1", "pol.rule-2", "pol.rule-3"]);
+    expect(sent()).toEqual(["pol.rule-1", "pol.rule-2", "pol.rule-3"]);
     act(() => vi.advanceTimersByTime(20));
-    expect(cues().slice(1)).toEqual(["pol.rule-1", "pol.rule-2", "pol.rule-3", "pol.block"]);
+    expect(sent()).toEqual(["pol.rule-1", "pol.rule-2", "pol.rule-3", "pol.block"]);
   });
 
   it("hears every way of opening and closing an app the same, from the workspace's own state", () => {
@@ -159,7 +173,7 @@ describe("sound", () => {
     fireEvent.click(taskbar.getByRole("button", { name: /Open Experience\. Not running/i }));
     expect(cues()).toEqual(["sys.open"]);
     // Opening the overview is navigation, and silent; closing a card there closes the app.
-    fireEvent.click(screen.getByRole("button", { name: "Application overview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Recents" }));
     expect(cues()).toEqual(["sys.open"]);
     fireEvent.click(screen.getByRole("button", { name: "Close Experience" }));
     expect(cues()).toEqual(["sys.open", "sys.close"]);

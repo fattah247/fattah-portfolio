@@ -79,9 +79,14 @@ export function SoundProvider({ children, createPlayer = createSoundPlayer }: { 
   useEffect(() => {
     levelRef.current = level;
     playerRef.current?.setLevel(level);
+    if (level !== "off") playerRef.current?.prewarm();
   }, [level]);
 
   useEffect(() => {
+    // The sounds are drawn (off the main thread) as the page settles, so the first press has its
+    // sound ready and never waits for one; nothing is drawn while sound is off.
+    playerRef.current ??= createPlayer({ level: levelRef.current });
+    if (levelRef.current !== "off") playerRef.current.prewarm();
     let warmed = false;
     const unlock = () => {
       playerRef.current ??= createPlayer({ level: levelRef.current });

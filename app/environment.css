@@ -15,7 +15,7 @@
   --shell-ground: #dce3ea;
   --shell-ground-deep: #c9d2dc;
   --shell-ink: #252b34;
-  --shell-ink-muted: #59616d;
+  --shell-ink-muted: #555d69;
 
   /* Surfaces */
   --surface: #f1f3f5;
@@ -29,7 +29,7 @@
   --title-active: #455d83;
   --title-active-ink: #ffffff;
   --title-inactive: #d3d9e1;
-  --title-inactive-ink: #59616d;
+  --title-inactive-ink: #555d69;
 
   /* Accent roles */
   --accent: #536fa3;
@@ -71,7 +71,6 @@
   --object-shadow-lifted: 4px 4px 0 rgb(37 43 52 / 28%);
 
   --focus: #536fa3;
-  --env-spring: cubic-bezier(.2, .8, .2, 1);
   --env-settle: cubic-bezier(.2, .8, .2, 1);
 
   /* Type scale: IBM Plex Sans for every interface and reading role; IBM Plex Mono only for
@@ -226,6 +225,9 @@ html[data-system-mode="computer"] .desktop-identity {
   margin: 0;
   padding: 5px 10px;
 }
+
+/* The card's title bar keeps the 12px floor over the older desktop rule for the card's paragraphs. */
+html[data-system-mode="computer"] .desktop-identity > p.desktop-identity-title { font-size: .75rem; }
 
 .desktop-identity-mark { block-size: 44px; inline-size: 44px; }
 html[data-system-mode="computer"] .desktop-identity-mark { grid-column: 2; margin-top: 14px; }
@@ -413,8 +415,14 @@ html[data-system-mode="computer"] .desktop-object[data-dragging="true"] .case-fi
 }
 
 /* Case cover schematics (shared by desktop files, Home, and the Projects index). */
+/* Labels are 9-10 units on a 240-unit drawing, so they reach the 12 px floor only from 320 px
+ * wide; a smaller cover keeps the drawing without its words. */
+svg.case-cover { aspect-ratio: 240 / 150; block-size: auto; container: case-cover / inline-size; }
+@container case-cover (width < 320px) {
+  .case-cover text { display: none; }
+}
 .case-cover-ground { fill: #ffffff; }
-.case-cover-label { fill: #8593a6; font: 500 9px var(--font-mono), monospace; letter-spacing: .04em; }
+.case-cover-label { fill: var(--language); font: 500 9px var(--font-mono), monospace; letter-spacing: .04em; }
 .case-cover-note { fill: var(--ink); font: 600 10px var(--font-mono), monospace; }
 .case-cover-rule { stroke: #dce3ec; stroke-width: 1; }
 .case-cover-flow { fill: none; stroke: #6b7a90; stroke-width: 1.6; }
@@ -436,10 +444,10 @@ html[data-system-mode="computer"] .desktop-object[data-dragging="true"] .case-fi
 .case-cover-health-text { fill: var(--confirmed); font: 700 9px var(--font-mono), monospace; }
 .case-cover-signal { fill: #fff; stroke: #97a3b4; stroke-width: 1.1; }
 .case-cover-signal-suspect { fill: var(--uncertain-wash); stroke: var(--uncertain); }
-.case-cover-signal-text { fill: var(--ink); font: 500 8.5px var(--font-mono), monospace; }
+.case-cover-signal-text { fill: var(--ink); font: 500 9px var(--font-mono), monospace; }
 .case-cover-decision { fill: var(--uncertain-wash); stroke: var(--uncertain); stroke-width: 1.4; }
 .case-cover-decision-text { fill: var(--uncertain); font: 700 9px var(--font-mono), monospace; }
-.case-cover-signal-clear { fill: #8593a6; }
+.case-cover-signal-clear { fill: var(--language); }
 .case-cover-cell { fill: #fff; stroke: #97a3b4; stroke-width: 1.1; }
 .case-cover-cell-on { fill: var(--uncertain); stroke: var(--line-ink); }
 .case-cover-mark { stroke: var(--ink); stroke-dasharray: 2 2; stroke-width: 1.2; }
@@ -570,7 +578,10 @@ html[data-system-mode="computer"] .taskbar-app[data-active="true"] > i { backgro
 html[data-system-mode="computer"] .taskbar-home svg,
 html[data-system-mode="computer"] .taskbar-overview svg { block-size: 18px; inline-size: 18px; stroke: var(--shell-ink) !important; }
 
-/* Hover and focus caption: a plain tooltip box above the button. */
+/* Hover and focus caption: a plain tooltip box above the button. It never slides. The first one
+ * waits 480ms, so passing over the taskbar doesn't flash it; once one has shown (the bar is "warm"),
+ * the next answer at once while the visitor reads along the bar. Keyboard focus shows it at once,
+ * and it goes the moment the pointer leaves. */
 html[data-system-mode="computer"] .taskbar-app > .taskbar-app-preview {
   background: var(--raised) !important;
   border: 1px solid var(--line-ink) !important;
@@ -578,7 +589,16 @@ html[data-system-mode="computer"] .taskbar-app > .taskbar-app-preview {
   bottom: calc(100% + 8px) !important;
   box-shadow: var(--object-shadow) !important;
   color: var(--shell-ink) !important;
+  transform: translate(-50%, 0) !important;
+  transition: none !important;
 }
+html[data-system-mode="computer"] .taskbar-app:hover > .taskbar-app-preview { transition: opacity 0s linear 480ms, visibility 0s linear 480ms !important; }
+html[data-system-mode="computer"] .taskbar-apps[data-warm] .taskbar-app:hover > .taskbar-app-preview,
+html[data-system-mode="computer"] .taskbar-app:focus-visible > .taskbar-app-preview { transition: none !important; }
+/* The caption reads at the 12px floor, its status line in secondary ink (they were 10px and 9px, the
+ * status a pale rule grey left over from a dark caption). */
+html[data-system-mode="computer"] .taskbar-app > .taskbar-app-preview :is(strong, small) { font-size: .75rem !important; }
+html[data-system-mode="computer"] .taskbar-app > .taskbar-app-preview small { color: var(--ink-secondary) !important; }
 
 html[data-system-mode="computer"] .desktop-taskbar button::after { display: none !important; }
 
@@ -704,6 +724,12 @@ html[data-system-mode="computer"] .window-snap-preview {
   border: 2px dashed var(--accent-deep) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+}
+
+/* The zone a window would snap into grows in where the pointer meets the edge, as a Mac's does. */
+@keyframes snap-zone-in { from { opacity: 0; scale: .94; } }
+@media (prefers-reduced-motion: no-preference) {
+  html[data-system-mode="computer"] .window-snap-preview { animation: snap-zone-in var(--spring-sheet-duration) var(--spring-sheet); }
 }
 
 /* Window manager cursors follow desktop convention. */
@@ -842,15 +868,14 @@ html[data-system-mode="computer"] .window-chrome :is(button, a, summary) { curso
   margin-top: 4px;
 }
 
-.case-entry-result { color: var(--ink); }
-
 @container projects-app (min-width: 40rem) {
   .case-entry { grid-template-columns: minmax(13rem, 21rem) minmax(0, 1fr); }
   .case-entry .case-entry-cover { border-bottom: 0; border-right: 1px solid var(--border); }
 }
 
 @container projects-app (min-width: 72rem) {
-  .case-entry { grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr); }
+  /* Wide enough that the schematic reaches 320 px, where its labels read at the 12 px floor. */
+  .case-entry { grid-template-columns: minmax(16rem, 23.5rem) minmax(0, 1fr); }
   .case-entry-body { padding: 20px 28px; }
 }
 
@@ -866,7 +891,6 @@ html[data-system-mode="computer"] .window-chrome :is(button, a, summary) { curso
   .case-entry-body > strong { font-size: 1.12rem; }
   .case-entry-summary { font-size: .92rem; }
   .case-entry-facts { margin-top: 2px; }
-  .case-entry-result { display: none; }
   .home-window .projects-index .work-intro { margin-bottom: 12px !important; }
 }
 
@@ -947,7 +971,7 @@ html[data-system-mode="computer"] .window-chrome :is(button, a, summary) { curso
 }
 
 .github-projects-index .github-project-list .github-project-row {
-  --language: #8593a6;
+  --language: #5f6d82;
   align-items: baseline;
   background: transparent !important;
   border: 0 !important;
@@ -1078,6 +1102,13 @@ html[data-system-mode="phone"] .contact-window > .window-chrome {
 html[data-system-mode="phone"] .selected-work-window,
 html[data-system-mode="phone"] .embedded-case-workspace {
   --case-progress-height: 44px;
+}
+
+/* A phone on its side has room for the title bar or the chapters, not both: the case reads as one
+ * scroll and the chapters return in portrait. In rem, so a larger text setting reaches it sooner. */
+@media (orientation: landscape) and (max-height: 27rem) {
+  html[data-system-mode="phone"] :is(.selected-work-window, .embedded-case-workspace) { --case-progress-height: 0px; }
+  html[data-system-mode="phone"] .selected-work-window .case-progress { display: none !important; }
 }
 
 /* Chapters become a segmented control: one row, labels only, 44px targets. */
@@ -1533,6 +1564,39 @@ html[data-system-mode="tablet"] .workspace-experience-window .experience-glimpse
   }
 
   .workspace-experience-window .experience-entry-meta > * { grid-column: 1 !important; grid-row: auto !important; text-align: start !important; }
+
+}
+
+/* The roles stack where the older stylesheet stacks them (a container under 720px). */
+@container (max-width: 720px) {
+  /* Stacked, a role reads as the tablet's Home lists it: the title first, then one line of company,
+   * dates and stage, the timeline running down the whole role with its node beside the title. */
+  .workspace-experience-window .experience-entry { border-inline-start: 1px solid var(--border) !important; padding-inline-start: 16px !important; row-gap: 4px !important; }
+  .workspace-experience-window .experience-main { display: contents; }
+  .workspace-experience-window .experience-main h3 { order: -1; position: relative; }
+  .workspace-experience-window .experience-main h3::before {
+    background: #ffffff;
+    block-size: 9px;
+    border: 1px solid var(--line-ink);
+    box-sizing: border-box;
+    content: "";
+    inline-size: 9px;
+    inset-block-start: .5em;
+    inset-inline-start: -21px;
+    position: absolute;
+  }
+  .workspace-experience-window .experience-entry[data-current="true"] .experience-main h3::before { background: var(--accent); }
+  .workspace-experience-window .experience-entry-meta {
+    border-inline-start: 0;
+    column-gap: 0 !important;
+    display: flex !important;
+    flex-wrap: wrap;
+    margin-block-end: 6px;
+    padding-inline-start: 0;
+  }
+  .workspace-experience-window .experience-entry-meta::before { display: none; }
+  .workspace-experience-window .experience-entry-meta > .experience-company { font-size: .92rem !important; order: -1; }
+  .workspace-experience-window .experience-entry-meta > :not(.experience-company)::before { color: var(--ink-secondary); content: "\00a0·\00a0"; }
 }
 
 html[data-system-mode="computer"] .window-management-menu {
@@ -1890,16 +1954,44 @@ html[data-system-mode="computer"] .desktop-object:active .desktop-app-glyph {
 html[data-system-mode="computer"] .desktop-object:active { background: rgb(32 43 58 / 5%); }
 html[data-system-mode="computer"] .desktop-object[data-dragging="true"] { background: transparent !important; z-index: 5; }
 
+/* ------------------------------------------------- Windows on springs */
+
+/* A window's frame is four registered lengths, so a seat change (snapping to an edge, maximizing,
+ * restoring, Reset position) can spring them from where the window was to where it goes, the way
+ * a physical thing settles into place. Dragging and resizing stay 1:1 with the pointer. */
+@property --window-x { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@property --window-y { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@property --window-width { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@property --window-height { syntax: "<length>"; inherits: true; initial-value: 0px; }
+/* A window at the front has its opacity pinned with !important, which no animation can move, so it
+ * reads this number instead (1 at rest): an open, a sheet, a close's fading copy, and a phone's
+ * launch and leave fade by animating it, on the same spring as their scale, and one interrupted
+ * midway turns around from where it was. */
+@property --window-fade { syntax: "<number>"; inherits: false; initial-value: 1; }
+/* A launch fades on its spring alone, not also on the quick fade of a window coming back to the front. */
+html[data-launching]:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.portfolio-window, .contact-window) { transition: none !important; }
+
+/* A closed window's fading copy (lib/motion.ts) plays nothing of its own. */
+html[data-system-mode] [data-closing-copy][data-closing-copy] { animation: none !important; transition: none !important; }
+
+/* The item chosen in a window menu blinks once, then the menu closes and the action runs: the menu
+ * confirms the choice on its way out instead of animating on its way in. */
+.window-management-options button[data-chosen] { animation: menu-chosen 120ms steps(2, end); }
+@keyframes menu-chosen { 0%, 100% { background: var(--accent); color: #ffffff; } 50% { background: transparent; color: inherit; } }
+
 /* ------------------------------------------------- Minimize into the dock */
 
+/* Minimize and restore travel between the window and its taskbar button, easing out both ways:
+ * most of the travel happens at the start, so it reads as quick (an ease-in would hang first). */
 html[data-system-mode="computer"] .portfolio-window,
 html[data-system-mode="computer"] .contact-window {
   transition:
-    border-color .18s,
-    box-shadow .22s var(--env-settle),
-    filter .22s,
-    opacity 260ms ease,
-    transform 380ms var(--env-settle),
+    border-color 180ms ease-out,
+    box-shadow 220ms var(--env-settle),
+    filter 180ms ease-out,
+    opacity 160ms ease-out,
+    transform var(--spring-window-duration) var(--spring-window),
+    translate var(--spring-pop-duration) var(--spring-pop),
     visibility 0s linear 0s !important;
 }
 
@@ -1908,17 +2000,21 @@ html[data-system-mode="computer"] .contact-window[data-window-state="minimized"]
   opacity: 0 !important;
   transform: translate3d(var(--minimize-dx, 0px), var(--minimize-dy, 240px), 0) scale(.06) !important;
   transition:
-    opacity 170ms ease-in 210ms,
-    transform 380ms cubic-bezier(.5, 0, .75, .4),
-    visibility 0s linear 380ms !important;
+    opacity 120ms ease-out 140ms,
+    transform 260ms var(--ease-event),
+    visibility 0s linear 260ms !important;
 }
 
+/* Reduced motion keeps only a short fade: shown at once on restore, gone when its fade ends. */
 @media (prefers-reduced-motion: reduce) {
   html[data-system-mode="computer"] .portfolio-window,
-  html[data-system-mode="computer"] .contact-window,
+  html[data-system-mode="computer"] .contact-window {
+    transition: opacity 120ms ease-out, visibility 0s linear 0s !important;
+  }
+
   html[data-system-mode="computer"] .portfolio-window[data-window-state="minimized"],
   html[data-system-mode="computer"] .contact-window[data-window-state="minimized"] {
-    transition: opacity 120ms ease, visibility 0s linear 120ms !important;
+    transition: opacity 120ms ease-out, visibility 0s linear 120ms !important;
   }
 
   html[data-system-mode="computer"] .portfolio-window[data-window-state="minimized"],
@@ -1929,9 +2025,14 @@ html[data-system-mode="computer"] .contact-window[data-window-state="minimized"]
  * and the minimize, restore, and Home transitions can never run. */
 @media (prefers-reduced-motion: no-preference) {
   html[data-system-mode="computer"] .portfolio-window,
-  html[data-system-mode="computer"] .contact-window,
-  html[data-system-mode="computer"] .evidence-dialog:not([data-closing="true"]) .evidence-sheet {
-    animation: os-window-open 300ms var(--env-settle) backwards !important;
+  html[data-system-mode="computer"] .contact-window {
+    animation: os-window-open var(--spring-window-duration) var(--spring-window) backwards !important;
+  }
+
+  /* Attached evidence grows out of the evidence card that opened it. */
+  html[data-system-mode="computer"] .evidence-dialog .evidence-sheet {
+    animation: sheet-from-card var(--spring-sheet-duration) var(--spring-sheet) backwards !important;
+    transform-origin: var(--from-origin, 50% 50%);
   }
 }
 
@@ -1969,6 +2070,12 @@ html:not([data-system-mode="phone"]) .selected-work-window .case-progress a {
   min-width: 0 !important;
   padding: 0 14px !important;
 }
+
+/* A tablet is touched: its tabs reach 44 px, and chapter anchors clear the taller strip. */
+html[data-system-mode="tablet"] .selected-work-window { --case-progress-height: 51px; }
+/* The strip clips the 1px each tab overlaps its rule, so the tab is 45 and the strip's top padding 5. */
+html[data-system-mode="tablet"] .selected-work-window .case-progress { padding-top: 5px !important; }
+html[data-system-mode="tablet"] .selected-work-window .case-progress a { min-height: 45px !important; }
 
 html:not([data-system-mode="phone"]) .selected-work-window .case-progress a:hover { background: var(--raised) !important; border-color: var(--border) !important; }
 html:not([data-system-mode="phone"]) .selected-work-window .case-progress a::after { display: none !important; }
@@ -2267,7 +2374,7 @@ html:not([data-system-mode="phone"]) .selected-work-window .case-progress a[aria
 
 .evidence-zoom::after { content: ""; inset: -2px; position: absolute; }
 .evidence-zoom[aria-pressed="true"] { background: rgb(103 133 200 / 24%); border-color: rgb(103 133 200 / 60%); }
-.evidence-zoom:disabled { cursor: default; opacity: .5; }
+.evidence-zoom:disabled { cursor: not-allowed; opacity: .5; }
 
 .evidence-image-wrap {
   background: transparent !important;
@@ -2280,7 +2387,7 @@ html:not([data-system-mode="phone"]) .selected-work-window .case-progress a[aria
   justify-items: start !important;
   overflow: auto !important;
   overscroll-behavior: contain;
-  touch-action: pan-x pan-y;
+  touch-action: pan-x pan-y pinch-zoom;
 }
 
 .evidence-stage[data-zoomed] .evidence-stage-tools {
@@ -2413,53 +2520,6 @@ html[data-system-mode="computer"] .evidence-sheet[data-snap] {
 
 html[data-system-mode="phone"] .product-links-intro { padding-top: 18px !important; }
 
-/* ------------------------------------------------------------- Motion audit */
-
-/* Entrance choreography removed: documents, rows, icons, and window contents no longer
- * fade up in staggered sequence. Motion that carries meaning stays: opening and closing
- * apps, window focus and minimize, the evidence sheet, the chapter marker, and every
- * simulation state change. */
-.evidence-image,
-.case-workspace-chrome,
-.case-intro .case-index-block,
-.case-intro .case-thesis,
-.case-interaction,
-.evidence-inspector,
-.evidence-stage-label,
-.evidence-image-wrap,
-.evidence-image-wrap::before,
-.evidence-image-wrap::after,
-.brief-actions .brief-action,
-.contact-window-body > *,
-.desktop-object,
-.portfolio-window-chrome,
-.portfolio-window-content > *,
-.experience-window > .brief-section,
-.portfolio-window-chrome::after,
-.case-workspace-chrome::after,
-.portfolio-window-content > .editorial-work,
-.portfolio-window-content > .editorial-footer,
-.selected-work-window .case-intro,
-.selected-work-window .case-interaction,
-.selected-work-window .mobile-outcome-strip,
-.selected-work-window .case-evidence,
-.selected-work-window .case-handoff,
-.editorial-home .portfolio-window .portfolio-window-chrome,
-.editorial-home .experience-window .portfolio-window-chrome,
-.editorial-home .workspace-case-window .portfolio-window-chrome,
-.case-page.selected-work-window .case-workspace-chrome,
-.editorial-home .portfolio-window .portfolio-window-chrome::after,
-.editorial-home .experience-window .portfolio-window-chrome::after,
-.editorial-home .workspace-case-window .portfolio-window-chrome::after,
-.case-page.selected-work-window .case-workspace-chrome::after,
-.window-close-action:active > span,
-.case-close-action:active > span,
-.portfolio-window > :not(.window-chrome):not(.window-resize-handle),
-.selected-work-window > :not(.window-chrome):not(.window-resize-handle)
- {
-  animation: none !important;
-}
-
 /* Evidence ledger: a document heading, not a poster. */
 .evidence-route-window .evidence-route-content { background: var(--doc) !important; }
 
@@ -2501,6 +2561,10 @@ html[data-system-mode="phone"] .product-links-intro { padding-top: 18px !importa
 }
 
 .evidence-route-window .claim-evidence a { color: var(--accent-deep) !important; }
+/* The link keeps its line; its pointer target still reaches 24 px (WCAG 2.5.8). */
+.claim-evidence a { position: relative; }
+.claim-evidence a::before { content: ""; inset-block: min(0px, calc(50% - 12px)); inset-inline: 0; position: absolute; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .claim-evidence a { min-block-size: 44px; }
 
 /* The embedded case is its own scroll owner, so it must also contain its absolutely
  * positioned children (the screen-reader status line); otherwise they extend the outer
@@ -2761,24 +2825,11 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-tec
 .instrument-option:active { background: var(--recessed); box-shadow: var(--bevel-inset); }
 .instrument-option:focus-visible { outline: 2px solid var(--focus); outline-offset: -5px; z-index: 2; }
 
-/* Once a group leaves the story's setting, the key it left is marked, so the visitor can see
- * where the case started. */
-.instrument-option[data-story][aria-pressed="false"]::after {
-  color: var(--ink-secondary);
-  content: "story";
-  font: var(--type-caption);
-  font-family: var(--font-mono), monospace;
-  margin-inline-start: auto;
-  padding-inline-start: 6px;
-}
-
 /* Touch modes keep 44 px keys; the switch stays one joined object. */
 html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-option { min-block-size: 44px; }
 
 @keyframes instrument-mark-odd { 0%, 45% { outline-color: var(--accent); } 100% { outline-color: transparent; } }
 @keyframes instrument-mark-even { 0%, 45% { outline-color: var(--accent); } 100% { outline-color: transparent; } }
-@keyframes pay-arrive-odd { from { background: var(--accent-soft); } to { background: transparent; } }
-@keyframes pay-arrive-even { from { background: var(--accent-soft); } to { background: transparent; } }
 
 
 @media (prefers-reduced-motion: reduce) {
@@ -2794,14 +2845,15 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 .instrument-control legend small { color: var(--ink-secondary); display: block; font: var(--type-caption); font-weight: 400; margin-top: 1px; }
 
 .sim { display: grid; gap: 16px; min-inline-size: 0; padding: 14px var(--instrument-pad) var(--instrument-pad); transition: opacity 160ms ease; }
-.instrument[data-phase="rewind"] .sim { opacity: .7; }
 
 /* ---- Diagram */
 .sd { background: #ffffff; border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); container: sd / inline-size; }
 /* The drawing reads like a figure: centred, and capped so its mono text stays near reading size. */
 .sd, .svc-screen { box-sizing: border-box; inline-size: 100%; justify-self: center; max-inline-size: 50rem; }
-/* A long two-way key has no room for the "story" tag; "Back to the story" marks the departure. */
-.sim-controls .instrument-keys[data-count="2"] .instrument-option[data-story]::after { display: none; }
+/* Preset bars (Try a situation / Try a phone) span across the full control strip above the individual knobs. */
+.sim-controls > .instrument-control:has(.instrument-keys[data-count="4"]) { grid-column: 1 / -1; }
+.sim-controls .instrument-keys[data-count="4"] { gap: 6px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.5rem), 1fr)); }
+.sim-controls .instrument-keys[data-count="4"] > .instrument-option + .instrument-option { margin-block-start: 0; }
 /* Case 03's checks: eight keys, each found or not, with the points it adds in its severity's colour
  * (red for a high-severity check, which blocks on its own; amber otherwise). */
 .sim-controls > .dev-checks { grid-column: 1 / -1; }
@@ -2827,73 +2879,13 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 /* With technical details on, the raw machine state sits under the drawing as one mono line. */
 .sim-wire { background: var(--doc-sunken); border: 1px dashed #97a3b4; box-sizing: border-box; color: var(--ink-secondary); font: 500 .75rem/1.45 var(--font-mono), monospace; inline-size: 100%; justify-self: center; max-inline-size: 50rem; overflow-wrap: anywhere; padding: 6px 10px; }
 .sd-ground { fill: #ffffff; }
-.sd-label { fill: #8593a6; font: 500 12px var(--font-mono), monospace; letter-spacing: .04em; }
+.sd-label { fill: var(--language); font: 500 12px var(--font-mono), monospace; letter-spacing: .04em; }
 .sd-rule { stroke: #dce3ec; stroke-width: 1; }
-.sd-hint { fill: #8593a6; font: 500 12px var(--font-mono), monospace; }
-.sd-small { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
 .sd-note { fill: var(--ink); font: 600 13px var(--font-mono), monospace; }
 .sd-compact .sd-note { font-size: 12px; }
 .sd-note-bad { fill: var(--adverse-ink); }
-.sd-note-arrow { fill: #8593a6; }
+.sd-note-arrow { fill: var(--language); }
 .sd-flow { fill: none; stroke: #6b7a90; stroke-width: 1.8; }
-.sd-arrow { fill: none; stroke: #6b7a90; stroke-width: 1.8; }
-.sd-flow-faint { stroke: #c3cbd6; stroke-dasharray: 3 3; }
-.sd-stop { stroke: var(--adverse); stroke-width: 3; }
-
-/* Payment */
-.sd-event rect { fill: #ffffff; stroke: #6b7a90; stroke-width: 1.4; }
-.sd-event text { fill: var(--ink); font: 600 12px var(--font-mono), monospace; }
-.sd-event .sd-event-seq { fill: #8593a6; font: 500 12px var(--font-mono), monospace; }
-/* Compact lists each message with what happened to it, since only the newest one travels. */
-.sd-event .sd-event-tag { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
-.sd-row[data-flow="stop"] .sd-event-tag { fill: var(--uncertain); }
-.sd-row[data-flow="pass-bad"] .sd-event-tag { fill: var(--adverse-ink); }
-.sd-row[data-flow="stop"] .sd-flow { stroke: var(--uncertain); stroke-dasharray: 5 4; }
-.sd-row[data-flow="stop"] .sd-event rect { stroke: var(--uncertain); }
-.sd-row[data-flow="pass-bad"] :is(.sd-flow, .sd-arrow) { stroke: var(--adverse); }
-.sd-row[data-flow="pass-bad"] .sd-event rect { fill: var(--adverse-wash); stroke: var(--adverse); }
-.sd-row:not(.sd-row-new) { opacity: .62; }
-.sd-gate { fill: var(--designed-wash); stroke: var(--designed); stroke-width: 1.6; }
-.sd-gate[data-check="off"] { fill: #ffffff; stroke: #97a3b4; stroke-dasharray: 5 4; }
-.sd-gate-text { fill: var(--designed); font: 600 12px var(--font-mono), monospace; }
-.sd-svg[data-check="off"] .sd-gate-text { fill: var(--ink-secondary); }
-.sd-flow-out, .sd-arrow-out { stroke: var(--designed); stroke-width: 2; }
-.sd-svg[data-check="off"] :is(.sd-flow-out, .sd-arrow-out) { stroke: #6b7a90; }
-.sd-state rect { fill: #ffffff; stroke: #97a3b4; stroke-width: 1.6; }
-.sd-state text { fill: var(--ink-secondary); font: 700 15px var(--font-mono), monospace; }
-/* Everyday state names run longer ("Needs checking"), so they step down a size. */
-.sd-svg:not([data-technical]) .sd-state text { font-size: 13px; }
-.sd-state[data-state="paid"] rect { fill: var(--confirmed-wash); stroke: var(--confirmed); }
-.sd-state[data-state="paid"] text { fill: var(--confirmed); }
-.sd-state[data-state="review"] rect { fill: var(--uncertain-wash); stroke: var(--uncertain); }
-.sd-state[data-state="review"] text { fill: var(--uncertain); }
-.sd-badge rect { fill: var(--adverse); stroke: var(--line-ink); }
-.sd-badge text { fill: #ffffff; font: 700 12px var(--font-mono), monospace; }
-.sd-settle rect { fill: #ffffff; stroke: #97a3b4; stroke-width: 1.2; }
-.sd-settle text { fill: var(--ink-secondary); font: 600 12px var(--font-mono), monospace; }
-.sd-settle[data-outcome="matched"] rect { stroke: var(--confirmed); }
-.sd-settle[data-outcome="matched"] text { fill: var(--confirmed); }
-.sd-settle[data-outcome="mismatched"] rect { fill: var(--uncertain-wash); stroke: var(--uncertain); }
-.sd-settle[data-outcome="mismatched"] text { fill: var(--uncertain); }
-.sd-record { fill: var(--confirmed); stroke: var(--line-ink); stroke-width: 1; }
-.sd-record[data-status="pending"] { fill: #ffffff; stroke: var(--uncertain); stroke-dasharray: 2 2; stroke-width: 1.6; }
-.sd-store rect { fill: var(--confirmed); stroke: var(--line-ink); }
-.sd-store[data-online="false"] rect { fill: var(--uncertain); }
-.sd-store text { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
-
-/* Packets travel one straight leg each; the boundary and the state answer when they arrive. */
-.sd-packet { animation: sd-travel 440ms steps(12, end) both; fill: var(--designed); stroke: #ffffff; stroke-width: 1.5; }
-.sd-row[data-flow="stop"] .sd-packet { fill: var(--uncertain); }
-.sd-row[data-flow="pass-bad"] .sd-packet { fill: var(--adverse); }
-.sd-row-new .sd-event { animation: sd-slide 260ms steps(4, end) both; }
-.sd-row-new .sd-stop { animation: sd-flash 600ms steps(3, end) 380ms both; }
-.sd-gate { animation: sd-hit 500ms steps(4, end) 380ms both; }
-.sd-state rect, .sd-badge, .sd-record-new { animation: sd-pop 360ms steps(3, end) both; transform-box: fill-box; transform-origin: center; }
-@keyframes sd-travel { 0% { opacity: 0; transform: translate(0, 0); } 6% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)); } }
-@keyframes sd-slide { from { opacity: 0; transform: translateX(-18px); } }
-@keyframes sd-flash { 0% { opacity: 0; } 34% { opacity: 1; stroke-width: 6; } 100% { opacity: 1; stroke-width: 3; } }
-@keyframes sd-hit { 0%, 100% { stroke-width: 1.6; } 40% { stroke-width: 4; } }
-@keyframes sd-pop { from { opacity: .3; transform: scale(1.12); } }
 
 /* Service */
 .sd-clock { fill: var(--ink); font: 700 15px var(--font-mono), monospace; }
@@ -2906,21 +2898,15 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 .sd-trace { fill: none; stroke: var(--adverse); stroke-linejoin: round; stroke-width: 2.8; }
 .sd-point { fill: #ffffff; stroke: #6b7a90; stroke-width: 1.4; }
 .sd-point[data-over] { fill: var(--adverse-wash); stroke: var(--adverse); }
-.sd-breach { fill: #ffffff; stroke: var(--adverse); stroke-width: 2.4; }
-.sd-breach[data-firing] { animation: sd-ring 1100ms steps(2, end) infinite; }
 .sd-threshold { stroke: var(--uncertain); stroke-dasharray: 6 4; stroke-width: 1.5; }
 .sd-threshold-label { fill: var(--uncertain); font: 600 12px var(--font-mono), monospace; }
 /* A white halo keeps the label legible where the trace crosses it in a narrow drawing. */
 .sd-threshold-label { paint-order: stroke; stroke: #ffffff; stroke-linejoin: round; stroke-width: 4px; }
-.sd-overlay rect { fill: var(--doc-sunken); stroke: #97a3b4; stroke-dasharray: 4 3; }
-.sd-overlay text { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
-.sd-health { stroke: var(--confirmed); stroke-width: 2.8; }
-.sd-health[data-state="fail"] { stroke: var(--adverse); stroke-dasharray: 6 4; }
-.sd-health-text { fill: var(--confirmed); font: 700 12px var(--font-mono), monospace; }
 .sd-health-text[data-state="fail"] { fill: var(--adverse-ink); }
 .sd-pager rect { fill: var(--confirmed); stroke: var(--line-ink); }
 .sd-pager text { fill: var(--ink); font: 600 12px var(--font-mono), monospace; }
-.sd-pager[data-state="paging"] rect { animation: sd-blink 1100ms steps(2, end) infinite; fill: var(--adverse); }
+/* The pager pulses three times when it starts paging, then stays lit: an alarm, not a loop. */
+.sd-pager[data-state="paging"] rect { animation: sd-blink 1100ms ease-in-out 3; fill: var(--adverse); }
 .sd-pager[data-state="paging"] text { fill: var(--adverse-ink); }
 .sd-pager:is([data-state="nodata"], [data-state="silent"]) rect { fill: var(--uncertain); }
 .sd-pager:is([data-state="nodata"], [data-state="silent"]) text { fill: var(--uncertain); }
@@ -2930,17 +2916,15 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 .sd-legend text { fill: var(--ink-secondary); font: 500 12px var(--font-mono), monospace; }
 .sd-legend-measured { stroke: var(--adverse); stroke-width: 2.8; }
 .sd-legend-actual { stroke: #8593a6; stroke-dasharray: 5 5; stroke-width: 1.8; }
-/* Each minute the chart steps one slot to the left, so time is seen to pass. */
-.sd-scroll { animation: sd-scroll 700ms steps(7, end) both; }
-@keyframes sd-scroll { from { transform: translateX(var(--slot)); } }
-@keyframes sd-ring { 50% { stroke-width: 5; } }
+/* Each minute the chart moves one slot to the left in a single step, as a ticker does: time is
+ * seen to pass without anything gliding on its own. */
 @keyframes sd-blink { 50% { fill: #ffffff; } }
 
 /* Device trust (TrustGate's scorer): each found check lights in turn and drops its points onto the
  * track, whose marks are the two thresholds; then the risk level and the server's answer land. A
  * check is amber for a medium or low severity and red for a high one, which blocks on its own. */
 .sd-check rect { fill: #ffffff; stroke: #c3cbd6; stroke-width: 1.2; }
-.sd-check text { fill: #8593a6; font: 600 12px var(--font-mono), monospace; }
+.sd-check text { fill: var(--language); font: 600 12px var(--font-mono), monospace; }
 .sd-check .sd-check-status { font-weight: 500; }
 .sd-check[data-found] { animation: sd-reveal 1ms linear var(--d) backwards; }
 .sd-check[data-found][data-tone="uncertain"] rect { fill: var(--uncertain-wash); stroke: var(--uncertain); }
@@ -2963,7 +2947,7 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 .sd-decision[data-tone="uncertain"] text { fill: var(--uncertain); }
 .sd-decision[data-tone="adverse"] rect { fill: var(--adverse-wash); stroke: var(--adverse); }
 .sd-decision[data-tone="adverse"] text { fill: var(--adverse-ink); }
-.sd-decision { animation: sd-stamp 300ms steps(3, end) var(--d) backwards; transform-box: fill-box; transform-origin: center; }
+.sd-decision { animation: sd-stamp var(--spring-pop-duration) var(--spring-pop) var(--d) backwards; transform-box: fill-box; transform-origin: center; }
 .sd-walk .sd-flow-out { animation: sd-reveal 1ms linear var(--d) backwards; stroke: var(--designed); }
 @keyframes sd-reveal { from { opacity: .25; } }
 @keyframes sd-stamp { from { opacity: 0; transform: scale(1.15); } }
@@ -2993,24 +2977,12 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .instrument-opt
 .sim-send small code { font: 500 .75rem/1.2 var(--font-mono), monospace; }
 .sim-send:hover:not(:disabled) { background: #ffffff; }
 .sim-send:active:not(:disabled) { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
-.sim-send:disabled { cursor: default; opacity: .5; }
+.sim-send:disabled { cursor: not-allowed; opacity: .5; }
 html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sim-send { min-block-size: 44px; }
 .sim-send:focus-visible, .sim-primary:focus-visible, .sim-secondary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 /* ---- Readout: the same state as text, on one line. */
 .sim-readout { align-items: center; border-block: 1px solid var(--rule); display: flex; flex-wrap: wrap; gap: 6px 22px; padding: 8px 0; }
-.pay-states { display: flex; flex-wrap: wrap; gap: 4px 14px; list-style: none; margin: 0; padding: 0; }
-.pay-states li { align-items: center; color: var(--ink-secondary); display: flex; font: var(--type-label); gap: 7px; outline: 2px solid transparent; outline-offset: 1px; padding: 2px 3px; }
-.pay-states li i { background: #ffffff; block-size: 11px; border: 1px solid var(--line-ink); flex: none; inline-size: 11px; }
-.pay-states li[data-current] { color: var(--ink); font-weight: 650; }
-.pay-states li[data-current][data-state="pending"] i { background: var(--border); }
-.pay-states li[data-current][data-state="paid"] i { background: var(--confirmed); }
-.pay-states li[data-current][data-state="review"] i { background: var(--uncertain); }
-.sim-counts { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0; }
-.sim-counts div { align-items: baseline; display: flex; gap: 8px; outline: 2px solid transparent; outline-offset: 1px; padding: 2px 3px; }
-.sim-counts dt { color: var(--ink-secondary); font: var(--type-label); }
-.sim-counts dd { color: var(--ink); font: 700 .92rem var(--font-mono), monospace; margin: 0; }
-.sim-counts div[data-tone="adverse"] dd { background: var(--adverse-wash); border: 1px solid var(--adverse); color: var(--adverse-ink); padding: 0 6px; }
 
 .sim-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px 10px; }
 .sim-primary, .sim-secondary {
@@ -3027,9 +2999,9 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sim-send { min
 .sim-primary:hover:not(:disabled) { background: var(--accent-deep); }
 .sim-primary:active:not(:disabled) { background: var(--accent-deep); box-shadow: var(--bevel-primary-inset); transform: translate(1px, 1px); }
 .sim-secondary { background: var(--raised); box-shadow: var(--bevel-raised); color: var(--ink); }
-.sim-secondary:hover:not(:disabled) { background: #ffffff; }
-.sim-secondary:active:not(:disabled) { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
-.sim-primary:disabled, .sim-secondary:disabled { cursor: default; opacity: .55; }
+.sim-secondary:hover:not(:disabled, [aria-disabled="true"]) { background: #ffffff; }
+.sim-secondary:active:not(:disabled, [aria-disabled="true"]) { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
+.sim-primary:disabled, .sim-secondary:is(:disabled, [aria-disabled="true"]) { cursor: not-allowed; opacity: .55; }
 .sim-primary svg, .sim-secondary svg { block-size: 14px; inline-size: 14px; }
 html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.sim-primary, .sim-secondary) { min-block-size: 44px; }
 .sim-compare { color: var(--ink-secondary); font: var(--type-body); font-size: .9rem; margin: 0; }
@@ -3038,11 +3010,11 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.sim-primar
 
 /* ---- Journal: newest first; the newest entry arrives once. */
 .sim-journal { display: grid; gap: 8px; }
-.sim-journal > h3 { border-bottom: 1px solid #dce3ec; color: #8593a6; font: 500 .75rem/1.2 var(--font-mono), monospace; letter-spacing: .04em; margin: 0; padding-bottom: 6px; }
-.sim-journal > h3 small { font: inherit; letter-spacing: 0; margin-inline-start: 8px; opacity: .8; }
+.sim-journal > h3 { border-bottom: 1px solid #dce3ec; color: var(--language); font: 500 .75rem/1.2 var(--font-mono), monospace; letter-spacing: .04em; margin: 0; padding-bottom: 6px; }
+.sim-journal > h3 small { font: inherit; letter-spacing: 0; margin-inline-start: 8px; }
 .sim-journal ol { display: grid; list-style: none; margin: 0; padding: 0; }
 .sim-journal li { border-bottom: 1px solid var(--rule); column-gap: 12px; display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); padding: 7px 0; row-gap: 2px; }
-.sim-journal li:first-child { animation: sim-arrive 240ms steps(4, end) backwards; }
+.sim-journal li:first-child { animation: sim-arrive var(--spring-sheet-duration) var(--spring-sheet) backwards; }
 .sim-journal-badge { align-items: center; color: var(--ink-secondary); display: inline-flex; font: 600 .75rem var(--font-mono), monospace; gap: 6px; grid-row: span 2; }
 .sim-journal-badge i { background: var(--border); block-size: 10px; border: 1px solid var(--line-ink); flex: none; inline-size: 10px; }
 .sim-journal li[data-tone="confirmed"] .sim-journal-badge i { background: var(--confirmed); }
@@ -3080,15 +3052,25 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.sim-primar
 
 /* ---- Device trust: the decision as text under the drawing. */
 .pol-decision { border: 1.5px solid var(--border); display: grid; gap: 2px; padding: 10px 12px; }
-.pol-decision span { color: var(--ink-secondary); font: var(--type-caption); }
-.pol-decision strong { font: var(--type-app-heading); font-size: 1.15rem; }
-.pol-decision p { color: var(--ink-secondary); font: var(--type-body); font-size: .9rem; margin: 0; }
+.pol-decision > span { color: var(--ink-secondary); font: var(--type-caption); }
+.pol-decision > strong { font: var(--type-app-heading); font-size: 1.15rem; }
+.pol-decision > p { color: var(--ink-secondary); font: var(--type-body); font-size: .9rem; margin: 0; }
 .pol-decision[data-tone="confirmed"] { background: var(--confirmed-wash); border-color: var(--confirmed); }
-.pol-decision[data-tone="confirmed"] strong { color: var(--confirmed); }
+.pol-decision[data-tone="confirmed"] > strong { color: var(--confirmed); }
 .pol-decision[data-tone="uncertain"] { background: var(--uncertain-wash); border-color: var(--uncertain); }
-.pol-decision[data-tone="uncertain"] strong { color: var(--uncertain); }
+.pol-decision[data-tone="uncertain"] > strong { color: var(--uncertain); }
 .pol-decision[data-tone="adverse"] { background: var(--adverse-wash); border-color: var(--adverse); }
-.pol-decision[data-tone="adverse"] strong { color: var(--adverse-ink); }
+.pol-decision[data-tone="adverse"] > strong { color: var(--adverse-ink); }
+.pol-confirm-actions { align-items: center; border-top: 1px solid var(--rule); display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; padding-top: 8px; }
+.pol-resolution { background: #ffffff; border: 1px solid var(--line-ink); display: grid; gap: 3px; margin-top: 6px; padding: 8px 10px; }
+.pol-resolution > span { align-items: center; color: var(--ink); display: flex; font: var(--type-app-heading); font-size: 1rem; gap: 7px; }
+.pol-resolution > span i { background: var(--border); block-size: 10px; border: 1px solid var(--line-ink); flex: none; inline-size: 10px; }
+.pol-resolution > p { color: var(--ink-secondary); font: var(--type-body); font-size: .88rem; margin: 0; }
+.pol-resolution[data-tone="confirmed"] > span { color: var(--confirmed); }
+.pol-resolution[data-tone="confirmed"] > span i { background: var(--confirmed); }
+.pol-resolution[data-tone="adverse"] > span { color: var(--adverse-ink); }
+.pol-resolution[data-tone="adverse"] > span i { background: var(--adverse); }
+.pol-resolution[data-tone="designed"] > span i { background: var(--designed); }
 
 @container instrument (max-width: 36rem) {
   .svc-screen { grid-template-columns: minmax(0, 1fr); }
@@ -3098,12 +3080,21 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.sim-primar
 }
 
 /* Cause and effect: whatever changed in the last update is outlined in the accent once. */
-[data-changed="odd"]:is(.pay-states li, .sim-counts div, .svc-status) { animation: instrument-mark-odd 1100ms steps(4, end); }
-[data-changed="even"]:is(.pay-states li, .sim-counts div, .svc-status) { animation: instrument-mark-even 1100ms steps(4, end); }
+.svc-status[data-changed="odd"] { animation: instrument-mark-odd 1100ms ease-out; }
+.svc-status[data-changed="even"] { animation: instrument-mark-even 1100ms ease-out; }
+
+/* Reduced motion keeps what a jolt means: where something would shake because it went wrong, it
+ * flashes red twice instead, without moving (as an old game still shakes when you take a hit with
+ * its animations off). */
+@keyframes still-alert { 0%, 100% { outline-color: var(--adverse); } 50% { outline-color: transparent; } }
+@keyframes still-alert-fill { 0%, 100% { stroke: var(--adverse); stroke-width: 3.2; } 50% { stroke-width: 1.8; } }
+@media (prefers-reduced-motion: reduce) {
+  .svc-status[data-jolt], .pw-bubble[data-hit="bad"] { animation: still-alert 400ms steps(2, end) 2 !important; outline: 2px solid transparent; outline-offset: 2px; }
+  .sd .sd-decision[data-tone="adverse"] rect { animation: still-alert-fill 400ms steps(2, end) 2 !important; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .sd *, .sim-journal li:first-child { animation: none !important; }
-  .sd-packet { display: none; }
 }
 
 /* On a phone the sticky chapter bar spans the case at every width, so the chapters scrolling under
@@ -3114,30 +3105,65 @@ html[data-system-mode="phone"] .case-page.selected-work-window .case-progress { 
 
 /* ------------------------------------------------- Phone and tablet app launch */
 
-/* An app grows out of the icon or row that opened it. `scale` is animated rather than
- * `transform`, which legacy phone rules pin; the old sideways content slide is retired so
- * there is one motion, not two. */
+/* An app grows out of the icon, row, shelf button or Recents card that launched it, once, as it
+ * launches (the shell marks the moment with `data-launching`). An app that surfaces again (a sheet
+ * closed over it, Recents dismissed, Back) simply appears: animation teaches where an app lives
+ * the first time and only makes you wait after that. Nothing else on these windows animates, and
+ * hidden windows never do. `scale` is animated rather than `transform`, which legacy phone rules
+ * pin. The evidence sheet rises into place the same way, once, as it opens. */
 @media (prefers-reduced-motion: no-preference) {
-  html[data-system-mode="phone"] .portfolio-window[data-window-state="active"],
-  html[data-system-mode="phone"] .contact-window[data-window-state="active"],
-  html[data-system-mode="tablet"] .portfolio-window[data-window-state="active"],
-  html[data-system-mode="tablet"] .contact-window[data-window-state="active"] {
-    animation: app-launch 280ms var(--env-settle) backwards !important;
-    transform-origin: var(--launch-x, 50%) calc(var(--launch-y, 100%) - var(--os-topbar));
-  }
-
-  html[data-system-mode="phone"] .portfolio-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle),
-  html[data-system-mode="phone"] .contact-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle),
-  html[data-system-mode="tablet"] .portfolio-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle),
-  html[data-system-mode="tablet"] .contact-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle) {
+  html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.portfolio-window, .contact-window, .selected-work-window),
+  html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.portfolio-window, .contact-window) > :not(.window-chrome):not(.window-resize-handle) {
     animation: none !important;
   }
+
+  html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .evidence-dialog .evidence-sheet {
+    animation: sheet-from-card var(--spring-sheet-duration) var(--spring-sheet) backwards !important;
+    transform-origin: var(--from-origin, 50% 100%);
+  }
+
+  /* Going Home sends the app back into its Home icon (a tablet's shelf button), the way it came
+   * out. The shell marks the window it left for that one moment; it stays visible above Home
+   * while it shrinks and fades away (the fade rides the spring too, through --window-fade), then
+   * it's simply hidden like any background window. */
+  html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.portfolio-window, .contact-window)[data-leaving],
+  html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .contact-window-layer[data-leaving] {
+    opacity: var(--window-fade) !important;
+    pointer-events: none !important;
+    transition: none !important;
+    visibility: visible !important;
+    z-index: 4500 !important;
+  }
+
 }
 
-@keyframes app-launch {
-  from { opacity: .4; scale: .9; }
-  to { opacity: 1; scale: 1; }
+/* On a phone or tablet attached evidence is a sheet you can pull down by its title bar or grabber:
+ * the browser leaves that drag to the sheet instead of scrolling. */
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .evidence-dialog :is(.evidence-sheet-head, .evidence-grabber) { touch-action: pinch-zoom; }
+.evidence-grabber { display: none; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .evidence-grabber {
+  background: var(--line-ink);
+  block-size: 4px;
+  display: block;
+  inline-size: 36px;
+  inset-block-start: 4px;
+  inset-inline-start: calc(50% - 18px);
+  position: absolute;
+  z-index: 6;
 }
+
+/* A window that goes into the background hides at once (it has just shrunk away, or something
+ * now covers it); only coming back to the front fades in. */
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.portfolio-window, .contact-window, .selected-work-window):is([data-window-state="background"], [data-window-state="minimized"]):not([data-leaving]) {
+  transition: none !important;
+}
+
+@keyframes sheet-from-card {
+  from { --window-fade: 0; opacity: 0; scale: .9; }
+  to { --window-fade: 1; opacity: 1; scale: 1; }
+}
+
+
 
 
 html[data-system-mode="computer"] .desktop-object .desktop-object-copy strong {
@@ -3280,6 +3306,9 @@ html[data-system-mode="computer"] .system-home-screen { display: none !important
 }
 
 .home-work-head button svg { block-size: 14px; inline-size: 14px; }
+/* Where Home is too short for a 44 px header, the button's touch area still reaches 44 px. */
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .home-work-head button { position: relative; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .home-work-head button::before { content: ""; inset-block: min(0px, calc(50% - 22px)); inset-inline: 0; position: absolute; }
 .home-work ol { display: grid; list-style: none; margin: 0; padding: 0; }
 .home-work li + li { border-top: 1px solid var(--rule); }
 
@@ -3632,7 +3661,7 @@ html[data-system-mode="tablet"] nav.tablet-shelf button[data-running="true"] { b
 html[data-system-mode="tablet"] nav.tablet-shelf button[data-active="true"],
 html[data-system-mode="tablet"] nav.tablet-shelf button:not(:disabled):active { background: var(--recessed) !important; border-color: var(--line-ink) !important; box-shadow: var(--bevel-inset) !important; }
 html[data-system-mode="tablet"] nav.tablet-shelf button:focus-visible { outline: 2px solid var(--focus) !important; outline-offset: -2px; }
-html[data-system-mode="tablet"] nav.tablet-shelf button:disabled { cursor: default; opacity: 1 !important; }
+html[data-system-mode="tablet"] nav.tablet-shelf button:disabled { cursor: not-allowed; opacity: 1 !important; }
 html[data-system-mode="tablet"] nav.tablet-shelf button:disabled svg { stroke: var(--border) !important; }
 html[data-system-mode="tablet"] nav.tablet-shelf button:disabled .tablet-app-label { color: var(--border) !important; }
 /* Pixel icons are shown at whole multiples of their grid (32 px here), never resampled. */
@@ -3720,7 +3749,7 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .system-recents
 
 .system-recent-card[data-current="true"] .system-recent-preview-bar { background: var(--title-active) !important; color: var(--title-active-ink); }
 .system-recent-preview-bar > span { font: var(--type-system); }
-.system-recent-preview-bar small { color: inherit !important; font: var(--type-caption) !important; letter-spacing: 0 !important; opacity: .85; text-transform: none !important; }
+.system-recent-preview-bar small { color: inherit !important; font: var(--type-caption) !important; letter-spacing: 0 !important; text-transform: none !important; }
 .system-recent-preview-bar .system-app-mark { background: transparent !important; block-size: 16px !important; border: 0 !important; box-shadow: none !important; inline-size: 16px !important; }
 .system-recent-preview-bar .app-icon { block-size: 16px; inline-size: 16px; }
 .system-recent-preview-body { align-content: start !important; display: grid; padding: 0 !important; }
@@ -3736,6 +3765,11 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .system-recents
 .recent-preview-dossier li { border-top: 1px solid var(--rule); display: grid; gap: 2px; padding-top: 6px; }
 .recent-preview-contact li { border: 1px solid var(--border); color: var(--ink); font: var(--type-label); padding: 6px 8px; }
 
+/* A card's close sits in its title bar like a window's: the same 20 px bevelled square, centred
+ * in a 44 px target that fills the bar's right end, so it never rides over the card's corner. */
+.system-recent-card { position: relative; }
+.system-recent-preview-bar { box-sizing: border-box; min-block-size: 45px; padding-block: 0 !important; padding-inline-end: 44px !important; }
+
 .system-recent-close {
   background: transparent !important;
   block-size: 44px !important;
@@ -3744,23 +3778,29 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .system-recents
   display: grid !important;
   inline-size: 44px !important;
   place-items: center;
-  right: -8px !important;
-  top: -12px !important;
+  position: absolute !important;
+  right: 1px !important;
+  top: 1px !important;
 }
 
 .system-recent-close > span {
   background: var(--raised);
-  block-size: 24px;
+  block-size: 20px;
   border: 1px solid var(--line-ink);
   box-shadow: var(--bevel-raised);
-  color: var(--ink);
+  box-sizing: border-box;
+  color: var(--line-ink);
   display: grid;
-  inline-size: 24px;
+  inline-size: 20px;
+  padding: 1px;
   place-items: center;
 }
 
-.system-recent-close:hover > span { background: var(--adverse); color: #ffffff; }
-.system-recent-close svg { block-size: 12px; inline-size: 12px; }
+.system-recent-close:is(:hover, :focus-visible) > span { background: var(--adverse); color: #ffffff; }
+.system-recent-close:active > span { background: var(--recessed); box-shadow: var(--bevel-inset); }
+.system-recent-close:focus-visible { outline: 2px solid var(--ink) !important; outline-offset: -8px; }
+.system-recent-card[data-current="true"] .system-recent-close:focus-visible { outline-color: #ffffff !important; }
+.system-recent-close svg { block-size: 16px; inline-size: 16px; }
 
 html[data-system-mode="phone"] .system-recents-list {
   box-sizing: border-box;
@@ -3820,11 +3860,11 @@ html[data-system-mode="phone"] .system-recents-list::-webkit-scrollbar { display
   text-transform: none !important;
 }
 
-:is(.home-action, .contact-directory-action, .experience-brief-action, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom, .case-preview-titlebar-actions .case-back-action, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button):hover { background: #ffffff !important; }
+:is(.home-action, .contact-directory-action, .experience-brief-action, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom:not(:disabled), .case-preview-titlebar-actions .case-back-action, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button):hover { background: #ffffff !important; }
 
 :is(.desktop-identity-primary, .home-action:first-child, .contact-directory-action.is-primary, .experience-brief-action.is-primary, .github-project-actions .primary-action):hover { background: var(--accent-deep) !important; }
 
-:is(.home-action, .contact-directory-action, .experience-brief-action, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom, .case-preview-titlebar-actions .case-back-action, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button):active {
+:is(.home-action, .contact-directory-action, .experience-brief-action, .product-marketplace-link, .github-project-actions .inline-link, .evidence-original, .evidence-zoom:not(:disabled), .case-preview-titlebar-actions .case-back-action, .product-links-search button, .github-project-switcher button, .solid-link, .system-recents > header > button):active {
   background: var(--recessed) !important;
   box-shadow: var(--bevel-inset) !important;
   transform: translate(1px, 1px);
@@ -3928,13 +3968,16 @@ html[data-system-mode="tablet"] .window-compact-back-action {
   flex: 0 0 auto;
   font: var(--type-button) !important;
   gap: 2px;
-  min-block-size: 36px;
+  min-block-size: 44px;
   padding: 0 12px 0 6px !important;
 }
 
 html[data-system-mode="tablet"] .window-compact-back-action svg { block-size: 18px; fill: none; inline-size: 18px; stroke: currentColor; stroke-width: 2; }
 html[data-system-mode="tablet"] .window-compact-back-action:active { background: var(--recessed) !important; box-shadow: var(--bevel-inset) !important; transform: translate(1px, 1px); }
 html[data-system-mode="tablet"] .window-compact-back-action:focus-visible { outline: 2px solid #ffffff !important; outline-offset: 2px; }
+/* A title bar's white focus ring is for the active blue bar; on an inactive grey bar it turns ink, so
+ * it never drops to 1.4:1 (focus normally activates the window first; this covers the moment between). */
+html:is([data-system-mode="computer"], [data-system-mode="tablet"]) :is(.portfolio-window, .contact-window, .selected-work-window, .evidence-sheet):not([data-window-state="active"]) :is(.window-close-action, .evidence-close-action, .case-close-action, .window-system-control, .window-management-menu > summary, .window-compact-back-action):focus-visible { outline-color: var(--ink) !important; }
 .window-compact-back-text { display: none; }
 html[data-system-mode="tablet"] .window-compact-back-text { display: inline; }
 html[data-system-mode="tablet"] .window-chrome .window-location:has(strong) .micro-label { display: none !important; }
@@ -4264,6 +4307,8 @@ html[data-system-mode="phone"] .recent-preview { gap: 8px; padding: 14px; }
 html[data-system-mode="phone"] .recent-preview-case > span { color: var(--ink-secondary); font: var(--type-label); }
 html[data-system-mode="phone"] .recent-preview-index b { font-size: .92rem; }
 html[data-system-mode="phone"] .recent-preview-index b > span { color: var(--accent-deep); font: 500 .8rem/1 var(--font-mono), monospace; }
+/* A phone's Recents card is tall: the case list carries each case's consequence, as the app's own first screen does. */
+html[data-system-mode="phone"] .recent-preview-index .recent-preview-line { color: var(--ink-secondary); font: 400 .82rem/1.35 var(--font-body), sans-serif; margin-top: -4px; }
 html[data-system-mode="phone"] .recent-preview-catalog li { border-top: 1px solid var(--rule); font: var(--type-label); padding-top: 6px; }
 
 /* Contact on a phone: each channel row is one target; the arrow still says it opens a new tab. */
@@ -4282,7 +4327,7 @@ html[data-system-mode="phone"] .contact-directory > li:not(.contact-primary) .co
 }
 
 /* The phone's Back rests disabled on Home, where nothing is behind it. */
-html[data-system-mode="phone"] .phone-system-navigation button:disabled { cursor: default; }
+html[data-system-mode="phone"] .phone-system-navigation button:disabled { cursor: not-allowed; }
 html[data-system-mode="phone"] .phone-system-navigation button:disabled svg { stroke: var(--border) !important; }
 /* Recents keeps its heading at the reading edge, as before the cards grew. */
 html[data-system-mode="phone"] .system-recents > header { box-sizing: border-box; inline-size: 100% !important; justify-self: stretch; margin-inline: 0 !important; max-inline-size: none !important; text-align: start; }
@@ -4311,26 +4356,52 @@ html[data-system-mode="phone"] .system-recents > header { box-sizing: border-box
   html[data-system-mode="phone"] .system-resume-app { align-self: start; }
 }
 
+/* A very short Home (a laptop zoomed to 300-400%, a tiny landscape window) shows less rather than
+ * scrolling or cutting things off: the name, the four apps across the whole width with their labels
+ * clear of each other, and the bar below. CV and Contact stay a tap away in Experience and Contact,
+ * a running app in Recents. Every real phone stays above this height. */
+@container home (max-height: 16rem) {
+  html[data-system-mode="phone"] .system-home-screen > .home-layout,
+  html[data-system-mode="phone"] .system-home-screen > .home-layout:not([data-resume]) {
+    align-content: center;
+    grid-template-areas: "identity" "launcher";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    max-inline-size: 640px;
+    padding-block: 8px;
+    row-gap: 10px;
+  }
+  html[data-system-mode="phone"] .system-home-screen :is(.home-identity-mark, .home-identity-copy > p, .home-identity-actions, .home-work, .system-resume-app, .home-clock) { display: none !important; }
+  html[data-system-mode="phone"] .system-home-screen .home-identity { grid-template-columns: minmax(0, 1fr); padding: 8px 12px; }
+  html[data-system-mode="phone"] .system-home-screen .system-launcher { align-self: start; }
+}
+/* Narrower still, the apps need two rows, and the name steps aside for them. */
+@container home (max-height: 16rem) and (max-width: 19rem) {
+  html[data-system-mode="phone"] .system-home-screen .home-identity { display: none !important; }
+  html[data-system-mode="phone"] .system-home-screen > .home-layout { grid-template-areas: "launcher" !important; grid-template-rows: auto !important; }
+}
+
 /* The screenshot fills the evidence stage's width; no reserved rows above or below it. */
 html[data-system-mode="phone"] .evidence-stage:not([data-zoomed]) { align-content: start !important; grid-template-rows: auto auto !important; }
 html[data-system-mode="phone"] .evidence-stage:not([data-zoomed]) .evidence-image { padding: 0 !important; }
 
-/* A short phone with something running: Continue joins the column, so the panels close up
- * (targets keep 44 px) rather than pushing the launcher under the system bar. */
-@container home (max-height: 32rem) {
+/* A phone with something running: Continue joins the column, so the panels close up (targets
+ * keep 44 px) rather than pushing the launcher under the system bar. Up to 50rem, case summaries
+ * and Continue together need the room. */
+@container home (max-height: 50rem) {
   html[data-system-mode="phone"] .system-home-screen > .home-layout[data-resume] { padding-top: 10px; row-gap: 8px; }
   html[data-system-mode="phone"] .home-layout[data-resume] .home-case { padding-block: 6px; }
 }
 
-/* Phone touch targets: links that stand on their own line and the search field reach 44 px;
- * the case panel's "All projects" does too wherever Home has the height for it. */
-html[data-system-mode="phone"] :is(.github-projects-github-link, .home-window .editorial-footer a, .workspace-experience-window .experience-work-handoff a, .contact-primary .contact-channel > a) {
+/* Touch targets on phone and tablet: links that stand on their own line and the search field
+ * reach 44 px; the case panel's "All projects" does too wherever Home has the height for it. */
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.github-projects-github-link, .home-window .editorial-footer a, .workspace-experience-window .experience-work-handoff a, .contact-primary .contact-channel > a) {
   align-items: center;
   display: inline-flex !important;
   min-block-size: 44px;
 }
 
-html[data-system-mode="phone"] .product-links-search input { min-height: 44px; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .product-links-search input { min-height: 44px; }
 
 @container home (min-height: 36rem) {
   html[data-system-mode="phone"] .home-work-head,
@@ -4403,7 +4474,9 @@ html[data-system-mode="phone"] .product-links-search input { min-height: 44px; }
 .sound-control-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .sound-glyph { block-size: 16px; fill: currentColor; inline-size: 16px; }
 .sound-control[data-level="off"] .sound-glyph { color: var(--shell-ink-muted); }
-html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sound-control-toggle::before { content: ""; inset: -10px -8px; position: absolute; }
+/* The bar starts at the screen's top edge, so the touch area grows downward to stay 44 px on screen. */
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sound-control-toggle { z-index: 1; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sound-control-toggle::before { content: ""; inset: -10px -9px -20px; position: absolute; }
 
 .sound-control-panel {
   background: var(--raised);
@@ -4450,21 +4523,16 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sound-control-
  * message lands on it and jolts with the buzz when one is handled twice; an answer knocks once it
  * is stamped, and a Block jolts; the monitor jolts when the site goes down; a dropped desktop icon
  * knocks into place. Timings come from the drawing (--hit-delay, --d), so they meet the sound. */
-@keyframes sd-knock { 0%, 100% { transform: translate(0, 0); } 34% { transform: translate(0, 2px); } }
-@keyframes sd-jolt { 0%, 100% { transform: translate(0, 0); } 17%, 50% { transform: translate(-2px, 0); } 33%, 67% { transform: translate(2px, 0); } 83% { transform: translate(-1px, 0); } }
-@keyframes fx-knock-odd { 0%, 100% { translate: 0 0; } 34% { translate: 0 2px; } }
-@keyframes fx-knock-even { 0%, 100% { translate: 0 0; } 34% { translate: 0 2px; } }
-@keyframes fx-jolt-odd { 0%, 100% { translate: 0 0; } 17%, 50% { translate: -2px 0; } 33%, 67% { translate: 2px 0; } 83% { translate: -1px 0; } }
-@keyframes fx-jolt-even { 0%, 100% { translate: 0 0; } 17%, 50% { translate: -2px 0; } 33%, 67% { translate: 2px 0; } 83% { translate: -1px 0; } }
+/* What went wrong shakes the way a Mac password field does: side to side a few times, each swing
+ * smaller, over 420 ms. What lands presses down from a touch larger and settles with a small bounce
+ * (the stamp's own pop spring); nothing knocks. */
+@keyframes sd-jolt { 0%, 100% { transform: translate(0, 0); } 12% { transform: translate(-6px, 0); } 27% { transform: translate(5px, 0); } 42% { transform: translate(-4px, 0); } 57% { transform: translate(3px, 0); } 72% { transform: translate(-1.5px, 0); } 86% { transform: translate(.5px, 0); } }
+@keyframes fx-jolt-odd { 0%, 100% { translate: 0 0; } 12% { translate: -6px 0; } 27% { translate: 5px 0; } 42% { translate: -4px 0; } 57% { translate: 3px 0; } 72% { translate: -1.5px 0; } 86% { translate: .5px 0; } }
+@keyframes fx-jolt-even { 0%, 100% { translate: 0 0; } 12% { translate: -6px 0; } 27% { translate: 5px 0; } 42% { translate: -4px 0; } 57% { translate: 3px 0; } 72% { translate: -1.5px 0; } 86% { translate: .5px 0; } }
 
-.sd-state[data-hit="land"] { animation: sd-knock 150ms steps(3, end) var(--hit-delay); }
-.sd-state[data-hit="bad"] { animation: sd-jolt 255ms steps(6, end) var(--hit-delay); }
-.sd-decision { animation: sd-stamp 300ms steps(3, end) var(--d) backwards, sd-knock 150ms steps(3, end) calc(var(--d) + 300ms); }
-.sd-decision[data-tone="adverse"] { animation: sd-stamp 300ms steps(3, end) var(--d) backwards, sd-jolt 255ms steps(6, end) calc(var(--d) + 300ms); }
-.svc-status[data-changed="odd"][data-jolt="odd"] { animation: instrument-mark-odd 1100ms steps(4, end), fx-jolt-odd 255ms steps(6, end); }
-.svc-status[data-changed="even"][data-jolt="even"] { animation: instrument-mark-even 1100ms steps(4, end), fx-jolt-even 255ms steps(6, end); }
-html[data-system-mode="computer"] .desktop-object[data-landed="odd"] { animation: fx-knock-odd 150ms steps(3, end) !important; }
-html[data-system-mode="computer"] .desktop-object[data-landed="even"] { animation: fx-knock-even 150ms steps(3, end) !important; }
+.sd-decision[data-tone="adverse"] { animation: sd-stamp var(--spring-pop-duration) var(--spring-pop) var(--d) backwards, sd-jolt 420ms ease-out calc(var(--d) + 240ms); }
+.svc-status[data-changed="odd"][data-jolt="odd"] { animation: instrument-mark-odd 1100ms ease-out, fx-jolt-odd 420ms ease-out; }
+.svc-status[data-changed="even"][data-jolt="even"] { animation: instrument-mark-even 1100ms ease-out, fx-jolt-even 420ms ease-out; }
 
 /* Lift: what is held casts a longer, lighter hard shadow down-right and rises a little up-left,
  * by the film's light rule (one key light from the upper left). It returns to rest on release. */
@@ -4474,7 +4542,6 @@ html[data-system-mode="computer"] .desktop-object[data-dragging="true"] .case-fi
 html[data-system-mode="computer"] .desktop-object[data-dragging="true"] .desktop-app-glyph { filter: drop-shadow(3px 4px 0 rgb(37 43 52 / 22%)); translate: -1px -2px; }
 
 @media (prefers-reduced-motion: reduce) {
-  html[data-system-mode="computer"] .desktop-object[data-landed] { animation: none !important; }
   html[data-system-mode="computer"] :is(.portfolio-window, .selected-work-window, .contact-window, .evidence-sheet)[data-dragging="true"],
   html[data-system-mode="computer"] .desktop-object[data-dragging="true"] :is(.case-file-sheet, .desktop-app-glyph) { translate: none; }
 }
@@ -4529,9 +4596,6 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 }
 .sim-journal-contrast span { color: var(--ink-secondary); font: var(--type-caption); font-weight: 600; margin-inline-end: 6px; }
 
-/* A rule a visitor removed reads as a fault, not a feature. */
-.sim-mutations .instrument-option[aria-pressed="true"] { background: var(--adverse-wash) !important; color: var(--adverse-ink) !important; }
-
 /* The monitor's chart: lab-a solid, lab-b dashed, a slow check red, a failed check a cross. */
 .sd-svc .sd-trace { stroke: var(--designed); stroke-width: 2.4; }
 .sd-svc .sd-legend-measured { stroke: var(--designed); stroke-width: 2.4; }
@@ -4552,3 +4616,307 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 /* Case 02's cover: the verdict is slow, so its line is amber. */
 .case-cover-iyup .case-cover-health { stroke: var(--uncertain); }
 .case-cover-iyup .case-cover-health-text { fill: var(--uncertain); }
+
+/* ================================================================ Case toys */
+
+/* The pixel objects the toys are drawn with (components/pixel-objects): whole multiples of their
+ * 16-pixel drawings, crisp, never stroked by the legacy svg rules. A comparison's ghost is the
+ * same object in graphite ink only. */
+.pixel-object { display: block; flex: none; image-rendering: pixelated; }
+.pixel-object path { stroke: none !important; }
+.pixel-object[data-ghost] { color: #59616d; }
+
+/* ------------------------------------------------------------- Pay world */
+
+/* Case 01, "try to break the payment": four tricks that go wrong in real payments, played in a
+ * small world from a shop to a bank, drawn in the pixel family on checked tiles. One frame holds
+ * the bands: the goal (then the trick and the readings) on top, the world, then the band where the
+ * tricks, the question, and the result sit; under a result, the proof for engineers. Only one
+ * line is ever said in the world at a time: a bubble over whoever speaks, or the narrator's card. */
+.pay-world { display: grid; gap: 10px; min-inline-size: 0; padding: 12px var(--instrument-pad) var(--instrument-pad); position: relative; }
+
+.pw-frame { background: var(--raised); border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); container-type: inline-size; display: grid; min-inline-size: 0; scroll-margin-top: calc(var(--window-chrome-height) + var(--case-progress-height, 46px) + 16px); }
+.pw-hud { align-items: center; border-block-end: 1px solid var(--line-ink); display: flex; flex-wrap: wrap; gap: 6px 14px; min-block-size: 52px; padding: 6px 10px; }
+.pw-goal { color: var(--ink); font: var(--type-label); margin: 0; }
+.pw-goal b { color: var(--accent-deep); }
+.pw-chip { align-items: center; display: inline-flex; gap: 6px; min-inline-size: 0; }
+.pw-chip > span { display: grid; }
+.pw-chip small { color: var(--ink-secondary); font: var(--type-caption); }
+.pw-chip b { animation: pw-roll var(--spring-sheet-duration) var(--spring-sheet); color: var(--ink); font: 700 .84rem/1.25 var(--font-mono), monospace; transform-origin: 0 50%; }
+.pw-chip[data-chip="trick"] b { font-family: var(--font-body), system-ui, sans-serif; }
+@container (max-width: 359px) { .pw-chip .pixel-object { display: none; } }
+
+.pw-view { background: #ffffff; overflow: hidden; position: relative; }
+.pw-world { position: relative; transition: transform 420ms cubic-bezier(.3, .7, .3, 1); }
+.pw-ground { block-size: 100%; inline-size: 100%; inset: 0; position: absolute; }
+.pw-line { stroke: #8d98a7; stroke-dasharray: 2 3; stroke-linecap: square; stroke-width: 1.5; }
+/* Only the line something is travelling along lights up, so the eye follows it. */
+.pw-line[data-active] { stroke: var(--accent); stroke-width: 2.2; }
+.pw-actor, .pw-prop { display: block; pointer-events: none; position: absolute; z-index: 2; }
+.pw-actor .pixel-sprite, .pw-prop .pixel-sprite { block-size: 100%; display: block; inline-size: 100%; }
+
+/* Payflow's notebook: each receipt number it has written down; one sent again lights up. */
+.pw-notebook { background: #ffffff; border: 1px solid var(--line-ink); box-shadow: var(--object-shadow); display: grid; gap: 1px; min-inline-size: 64px; padding: 3px 6px 4px; pointer-events: none; position: absolute; z-index: 3; }
+.pw-notebook-title { border-block-end: 1px solid var(--doc-edge); color: var(--ink-secondary); font: 700 .75rem/1.3 var(--font-body), system-ui, sans-serif; padding-block-end: 1px; }
+.pw-note { animation: pw-appear 1ms backwards; color: var(--ink); font: 600 .75rem/1.35 var(--font-mono), monospace; white-space: nowrap; }
+.pw-note b { color: var(--accent-deep); }
+.pw-note[data-empty] { color: var(--ink-secondary); font-weight: 500; }
+.pw-note[data-flash] { animation: pw-flash 900ms ease-in-out; }
+.pay-world[data-technical] .pw-notebook-title { font-family: var(--font-mono), monospace; }
+
+.pw-move { inset-block-start: 0; inset-inline-start: 0; pointer-events: none; position: absolute; z-index: 4; }
+.pw-move .pixel-sprite { display: block; inline-size: 100%; }
+.pw-move-tag { background: #ffffff; border: 1px solid var(--line-ink); color: var(--ink); font: 700 .75rem/1.2 var(--font-mono), monospace; inset-block-start: -2px; inset-inline-start: 100%; padding: 0 3px; position: absolute; white-space: nowrap; }
+
+/* The one line: a bubble over whoever speaks, kept inside the view, its tail at the speaker. */
+.pw-bubble {
+  animation: pw-pop var(--spring-pop-duration) var(--spring-pop);
+  background: #ffffff;
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--object-shadow);
+  color: var(--ink);
+  display: grid;
+  gap: 2px;
+  inline-size: max-content;
+  margin: 0;
+  max-inline-size: min(var(--most, 18rem), 18rem);
+  padding: 6px 10px 7px;
+  pointer-events: none;
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 10px));
+  transform-origin: 50% 100%;
+  z-index: 5;
+}
+.pw-bubble::after { background: inherit; block-size: 9px; border-block-end: 1px solid var(--line-ink); border-inline-end: 1px solid var(--line-ink); content: ""; inline-size: 9px; inset-block-end: -6px; inset-inline-start: clamp(8px, calc(50% + var(--tail, 0px) - 5px), calc(100% - 17px)); position: absolute; rotate: 45deg; }
+.pw-bubble-head { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; }
+.pw-bubble-head b { color: var(--ink-secondary); font: 700 .75rem/1.3 var(--font-body), system-ui, sans-serif; }
+.pw-bubble[data-speaker="server"] .pw-bubble-head b, .pw-bubble[data-speaker="operator"] .pw-bubble-head b { color: var(--accent-deep); }
+.pw-bubble-stamp { border: 1px solid currentColor; color: var(--ink-secondary); font: 700 .75rem/1.3 var(--font-mono), monospace; padding: 0 4px; }
+.pw-bubble-stamp[data-tone="confirmed"] { background: var(--confirmed-wash); color: var(--confirmed); }
+.pw-bubble-stamp[data-tone="uncertain"] { background: var(--uncertain-wash); color: var(--uncertain); }
+.pw-bubble-stamp[data-tone="adverse"] { background: var(--adverse-wash); color: var(--adverse-ink); }
+.pw-bubble-text { font: 500 .94rem/1.35 var(--font-body), system-ui, sans-serif; }
+/* A line whose speaker the view turns to waits for the turn. */
+.pw-bubble[data-turn] { animation: pw-appear 1ms 420ms backwards, pw-pop var(--spring-pop-duration) var(--spring-pop) 420ms backwards; }
+.pw-bubble[data-hit="bad"] { animation: pw-pop var(--spring-pop-duration) var(--spring-pop), pw-jolt 420ms ease-out 160ms; }
+/* A bubble grows out of its tail, the way a popover grows out of what it points at. */
+.pw-bubble { transform-origin: clamp(12px, calc(50% + var(--tail, 0px)), calc(100% - 12px)) 100%; }
+
+/* The narrator: what no one in the world says, on a card in the sky. */
+.pw-narration {
+  animation: pw-appear 1ms backwards;
+  background: var(--raised);
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--object-shadow);
+  color: var(--ink);
+  font: 500 .9rem/1.35 var(--font-body), system-ui, sans-serif;
+  inline-size: max-content;
+  inset-block-start: 6px;
+  inset-inline-start: 50%;
+  margin: 0;
+  max-inline-size: min(26rem, calc(100% - 24px));
+  padding: 5px 10px;
+  pointer-events: none;
+  position: absolute;
+  text-align: center;
+  transform: translateX(-50%);
+  z-index: 5;
+}
+
+/* The band: the tricks, a round's question, or its result. Always there, so the frame keeps its height. */
+.pw-band { border-block-start: 1px solid var(--line-ink); display: grid; min-block-size: 64px; padding: 10px; }
+.pw-band-note { color: var(--ink-secondary); font: var(--type-label); margin: 0; }
+.pw-playing { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; }
+
+.pw-tricks { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
+.pw-trick, .pw-choice {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--bevel-raised);
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  font: var(--type-label);
+  gap: 8px;
+  min-block-size: 46px;
+  padding: 6px 12px 6px 8px;
+  position: relative;
+  text-align: start;
+}
+.pw-trick > span { display: grid; flex: 1; gap: 1px; }
+.pw-trick b { font-weight: 700; }
+.pw-trick small { color: var(--ink-secondary); font: var(--type-caption); }
+.pw-trick[data-tried] { background: var(--raised); }
+.pw-trick-tick { flex: none; }
+.pw-trick:hover, .pw-choice:hover { background: var(--accent-soft); }
+.pw-trick:active, .pw-choice:active { background: var(--recessed); box-shadow: var(--bevel-inset); transform: translate(1px, 1px); }
+.pw-trick:focus-visible, .pw-choice:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pw-trick[data-suggested] { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pw-option-hand { animation: pw-appear 1ms 200ms backwards; inset-block-end: -14px; inset-inline-end: -10px; position: absolute; }
+
+.pw-ask { display: grid; gap: 10px; }
+.pw-question { color: var(--ink); font: 700 1rem/1.35 var(--font-body), system-ui, sans-serif; margin: 0; }
+.pw-choices { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); }
+.pw-choice { font-weight: 600; justify-content: center; text-align: center; }
+
+/* The result slides up into the band, like a language game's answer bar. */
+.pw-result { animation: pw-result-in 200ms var(--env-settle) backwards; display: grid; gap: 8px; }
+.pw-verdict { color: var(--ink); font: 700 1.05rem/1.3 var(--font-body), system-ui, sans-serif; margin: 0; }
+.pw-result[data-right] .pw-verdict { color: var(--confirmed); }
+.pw-why { color: var(--ink); font: var(--type-label); margin: 0; max-inline-size: 60ch; }
+.pw-compare { align-items: stretch; display: flex; flex-wrap: wrap; gap: 6px 10px; }
+.pw-compare-measure { align-self: center; color: var(--ink-secondary); flex-basis: 100%; font: var(--type-caption); }
+/* Side by side, a label that wraps would lift its neighbour's value; values sit on the bottom line. */
+.pw-compare-side { align-content: space-between; background: #ffffff; border: 1px solid var(--line-ink); display: grid; flex: 1 1 9rem; padding: 4px 10px; }
+.pw-compare-side small { color: var(--ink-secondary); font: var(--type-caption); }
+.pw-compare-side b { font: 700 .95rem/1.3 var(--font-mono), monospace; }
+.pw-compare-side[data-side="basic"] { border-style: dashed; }
+.pw-compare-side[data-side="payflow"] { border-color: var(--confirmed); box-shadow: inset 0 0 0 1px var(--confirmed); }
+.pw-result-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; }
+.pw-result-actions .sim-primary svg { block-size: 14px; inline-size: 14px; }
+
+/* How Payflow decided: the proof for engineers, read from the repo. */
+.pw-proof { border-block-start: 1px solid var(--line-ink); display: grid; gap: 6px; grid-template-columns: minmax(0, 1fr); min-inline-size: 0; padding: 10px; }
+.sim > .pw-proof { padding-inline: 0; }
+.pw-proof p { margin: 0; }
+.pw-proof-lead { color: var(--ink); font: var(--type-label); font-weight: 700; }
+.pw-proof-label { color: var(--ink-secondary); font: 700 .75rem/1.3 var(--font-body), system-ui, sans-serif; margin-block-start: 4px !important; }
+.pw-proof pre { background: #ffffff; border: 1px solid var(--doc-edge); color: var(--ink); font: 500 .75rem/1.45 var(--font-mono), monospace; margin: 0; min-inline-size: 0; overflow-wrap: anywhere; padding: 6px 8px; white-space: pre-wrap; }
+.pw-code { display: grid; margin: 0; min-inline-size: 0; }
+.pw-code figcaption, .pw-proof-tests a { font: 600 .75rem/1.4 var(--font-mono), monospace; }
+.pw-proof a { align-items: center; color: var(--accent-deep); display: inline-flex; gap: 3px; }
+.pw-proof a svg { block-size: 12px; inline-size: 12px; }
+.pw-code pre code { display: grid; min-inline-size: 0; }
+.pw-code-line { display: grid; gap: 8px; grid-template-columns: 3ch minmax(0, 1fr); min-inline-size: 0; }
+.pw-code-line::before { color: var(--ink-secondary); content: attr(data-n); text-align: end; }
+.pw-proof-note, .pw-proof-result { color: var(--ink); font: var(--type-label); }
+.pw-proof-result { font-family: var(--font-mono), monospace; font-size: .78rem; overflow-wrap: anywhere; }
+.pw-proof-tests { display: grid; gap: 8px; list-style: none; margin: 0; padding: 0; }
+/* With a mouse each repo link still has a 24 px target (WCAG 2.5.8); rows sit 24 px apart so targets never overlap. */
+:is(.pw-code figcaption, .pw-proof-tests li) > a { position: relative; }
+:is(.pw-code figcaption, .pw-proof-tests li) > a::before { content: ""; inset-block: min(0px, calc(50% - 12px)); inset-inline: 0; position: absolute; }
+.pw-proof-tests li { color: var(--ink); font: var(--type-caption); overflow-wrap: anywhere; }
+.pw-proof-tests code { font-size: .75rem; }
+/* Touch: each file link is a 44 px row, and each test a ruled row, so stacked links never merge. */
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.pw-code figcaption, .pw-proof-tests li) > a { min-block-size: 44px; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .pw-proof-tests { gap: 0; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .pw-proof-tests li { align-items: center; column-gap: 8px; display: flex; flex-wrap: wrap; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .pw-proof-tests li + li { border-block-start: 1px solid var(--rule); }
+.pw-proof-compare { border-block-start: 1px dashed var(--doc-edge); color: var(--ink-secondary); font: var(--type-caption); padding-block-start: 6px; }
+
+.pw-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.pw-actions .instrument-technical { margin-inline-start: auto; }
+
+@keyframes pw-appear { from { visibility: hidden; } }
+@keyframes pw-pop { from { opacity: 0; scale: .6; } to { opacity: 1; scale: 1; } }
+/* A number that changes rolls in from below, as Apple's counters do. */
+@keyframes pw-roll { from { opacity: 0; translate: 0 .5em; } }
+@keyframes pw-jolt { 0%, 100% { translate: 0 0; } 12% { translate: -6px 0; } 27% { translate: 5px 0; } 42% { translate: -4px 0; } 57% { translate: 3px 0; } 72% { translate: -1.5px 0; } 86% { translate: .5px 0; } }
+@keyframes pw-result-in { from { opacity: 0; translate: 0 12px; } }
+@keyframes pw-flash { 0%, 33%, 67% { background: var(--accent-soft); } 17%, 50%, 100% { background: transparent; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pay-world *, .pay-world *::before, .pay-world *::after { animation: none !important; }
+  .pw-world { transition: none; }
+  .pw-move { display: none; }
+}
+
+/* ================================================================== Feel */
+
+/* What is seen is retro; how it answers is Apple's. Whatever is touched or clicked answers in the
+ * same frame, and lets go on a spring; whatever is held lifts quickly and settles with a small
+ * bounce when it's put down; whatever takes the keyboard's focus is shown it the way a Mac does. */
+
+/* Held and put down: a window or a desktop object rises a little toward the light as it's picked up
+ * (120 ms), and settles onto the desk on the pop spring when it's let go. */
+html[data-system-mode="computer"] :is(.portfolio-window, .contact-window)[data-dragging="true"] {
+  transition:
+    border-color 180ms ease-out,
+    box-shadow 120ms ease-out,
+    filter 180ms ease-out,
+    opacity 160ms ease-out,
+    transform var(--spring-window-duration) var(--spring-window),
+    translate 120ms ease-out,
+    visibility 0s linear 0s !important;
+}
+html[data-system-mode="computer"] .desktop-object :is(.case-file-sheet, .desktop-app-glyph) { transition: box-shadow 240ms ease-out, filter 240ms ease-out, translate var(--spring-pop-duration) var(--spring-pop); }
+html[data-system-mode="computer"] .desktop-object[data-dragging="true"] :is(.case-file-sheet, .desktop-app-glyph) { transition: box-shadow 120ms ease-out, filter 120ms ease-out, translate 120ms ease-out; }
+
+/* Touched: a card or row sinks a little the moment a finger lands and springs back as it lifts; a
+ * Home icon darkens, as an iPhone's does. (On an iPhone a page only shows :active once something
+ * listens for touches; the shell does.) */
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.system-recent-open, .home-case, .system-resume-app, .case-entry, .selected-work-window .evidence-card, .home-action) {
+  transition: background-color 200ms ease-out, scale var(--spring-pop-duration) var(--spring-pop);
+}
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.system-recent-open, .home-case, .system-resume-app, .case-entry, .selected-work-window .evidence-card, .home-action):active {
+  scale: .97;
+  transition: background-color 0s, scale 100ms ease-out;
+}
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .system-launcher-app .system-app-mark { transition: filter 240ms ease-out !important; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .system-launcher-app:active .system-app-mark { filter: brightness(.55) !important; transition: none !important; }
+
+/* Side by side on a tablet, as on an iPad: each app keeps its side whichever one has the focus
+ * (Projects on the left, Experience on the right), and the left one's share of the width is --split,
+ * which the divider between them drags and springs (components/split-divider.tsx). */
+@property --split { syntax: "<number>"; inherits: true; initial-value: .5; }
+@media (orientation: landscape) {
+  html[data-system-mode="tablet"] .editorial-home[data-workspace-paired="true"]:has(.portfolio-window[data-window-state="clear"]) .workspace-work-window.portfolio-window {
+    border-inline-end: 1px solid var(--line-ink) !important;
+    inset: var(--os-topbar) auto var(--os-shelf) 0 !important;
+    left: 0 !important;
+    right: auto !important;
+    width: calc(var(--split) * 100%) !important;
+  }
+  html[data-system-mode="tablet"] .editorial-home[data-workspace-paired="true"]:has(.portfolio-window[data-window-state="clear"]) .workspace-experience-window.portfolio-window {
+    border-inline-end: 0 !important;
+    inset: var(--os-topbar) 0 var(--os-shelf) auto !important;
+    left: auto !important;
+    right: 0 !important;
+    width: calc((1 - var(--split)) * 100%) !important;
+  }
+}
+/* Its grip is a small bevelled bar on the seam. */
+html[data-system-mode="tablet"] .split-divider {
+  cursor: ew-resize;
+  inline-size: 28px;
+  inset-block: var(--os-topbar) var(--os-shelf);
+  inset-inline-start: calc(var(--split) * 100% - 14px);
+  position: fixed;
+  touch-action: pinch-zoom;
+  z-index: 33;
+}
+html[data-system-mode="tablet"] .split-divider-grip {
+  background: #ffffff;
+  block-size: 56px;
+  border: 1px solid var(--line-ink);
+  box-shadow: var(--bevel-raised);
+  inline-size: 8px;
+  inset-block-start: calc(50% - 28px);
+  inset-inline-start: 10px;
+  position: absolute;
+  transition: scale 120ms ease-out;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html[data-system-mode="tablet"] .split-divider:is(:active, :focus-visible) .split-divider-grip { scale: 1.25 1.15; }
+}
+html[data-system-mode="tablet"] .split-divider:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; }
+/* While the divider is held, the two windows follow it without easing. */
+html[data-system-mode="tablet"] .editorial-home[data-splitting] :is(.workspace-work-window, .workspace-experience-window) { transition: none !important; }
+
+/* The phone's bar and the tablet's shelf take a push up as the home gesture (components/
+ * use-home-gesture.ts) instead of letting the browser scroll or zoom. */
+html[data-system-mode="phone"] .phone-system-navigation, html[data-system-mode="tablet"] .tablet-shelf { touch-action: pinch-zoom; }
+/* A Recents card takes a flick up (components/use-flick-away.ts); the row still scrolls sideways. */
+.system-recent-card { touch-action: pan-x pinch-zoom; }
+
+/* Focus: the ring arrives from a little outside the control and closes in on it, as a Mac's does. */
+@keyframes focus-ring-in { from { outline-color: transparent; outline-offset: 8px; } }
+@media (prefers-reduced-motion: no-preference) {
+  :where(a, button, summary, input, select, textarea, [tabindex]):focus-visible { animation: focus-ring-in 200ms cubic-bezier(.32, .72, 0, 1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.system-recent-open, .home-case, .system-resume-app, .case-entry, .selected-work-window .evidence-card, .home-action):active { scale: none; }
+}
+

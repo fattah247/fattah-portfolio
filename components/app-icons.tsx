@@ -25,7 +25,7 @@ export const appIconPalette: Record<string, string> = {
   h: "#2b2523", H: "#5a4a40",
 };
 
-type PixelMap = readonly string[];
+export type PixelMap = readonly string[];
 
 export const appIconDrawings: Record<PortfolioAppId, { large: PixelMap; small: PixelMap }> = {
   work: {
@@ -247,7 +247,7 @@ export const appIconDrawings: Record<PortfolioAppId, { large: PixelMap; small: P
 };
 
 /** One path per colour: each horizontal run of a colour becomes a one-pixel-high rectangle. */
-function compile(rows: PixelMap) {
+export function compilePixels(rows: PixelMap, palette: Record<string, string> = appIconPalette) {
   const runs = new Map<string, string>();
   rows.forEach((row, y) => {
     for (let x = 0; x < row.length;) {
@@ -258,10 +258,10 @@ function compile(rows: PixelMap) {
       x = end;
     }
   });
-  return Array.from(runs, ([colour, d]) => ({ d, fill: appIconPalette[colour] }));
+  return Array.from(runs, ([colour, d]) => ({ colour, d, fill: palette[colour] }));
 }
 
-const compiled = Object.fromEntries(Object.entries(appIconDrawings).map(([app, { large, small }]) => [app, { large: compile(large), small: compile(small) }])) as Record<PortfolioAppId, { large: ReturnType<typeof compile>; small: ReturnType<typeof compile> }>;
+const compiled = Object.fromEntries(Object.entries(appIconDrawings).map(([app, { large, small }]) => [app, { large: compilePixels(large), small: compilePixels(small) }])) as Record<PortfolioAppId, { large: ReturnType<typeof compilePixels>; small: ReturnType<typeof compilePixels> }>;
 
 export function AppIcon({ app, className = "", size, variant = "large" }: { app: PortfolioAppId; className?: string; size?: number; variant?: "large" | "small" }) {
   const grid = variant === "large" ? 32 : 16;
@@ -315,7 +315,7 @@ export const ownerPortrait: PixelMap = [
   "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk",
 ];
 
-const compiledPortrait = compile(ownerPortrait);
+const compiledPortrait = compilePixels(ownerPortrait);
 
 export function OwnerMark({ className = "" }: { className?: string }) {
   return (

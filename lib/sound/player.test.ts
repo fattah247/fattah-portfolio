@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createSoundPlayer } from "./player";
+import { createSoundPlayer, type CueRenderer } from "./player";
+import type { CueId, Stereo } from "./engine";
 
 /** Just enough of an AudioContext to see what would play, when, and how loud. */
 function fakeContext() {
@@ -49,6 +50,30 @@ describe("sound player", () => {
     player.unlock();
     return { context, player };
   };
+
+  it("draws its sounds in a worker, first takes first, so a press never waits on one", () => {
+    const asked: Array<{ id: CueId; take: number }> = [];
+    let deliver: (id: CueId, take: number, sound: Stereo) => void = () => {};
+    const renderer: CueRenderer = { onRendered: (handle) => { deliver = handle; }, request: (jobs) => asked.push(...jobs) };
+    const context = fakeContext();
+    const player = createSoundPlayer({ createContext: () => context as unknown as AudioContext, createRenderer: () => renderer });
+    player.prewarm();
+    expect(asked.every(({ take }) => take === 0)).toBe(true);
+    const firstOther = asked.findIndex(({ id }) => !id.startsWith("sys.") && !id.startsWith("ui."));
+    expect(asked.slice(firstOther).some(({ id }) => id.startsWith("sys."))).toBe(false);
+    player.unlock();
+    // Not drawn yet: silent rather than late.
+    expect(player.play("sys.open")).toBe(false);
+    const sound = { L: new Float32Array(8), R: new Float32Array(8) } as Stereo;
+    deliver("sys.open", 0, sound);
+    now += 100;
+    expect(player.play("sys.open")).toBe(true);
+    // Heard once, its other takes are asked for; until they come, the drawn one plays again.
+    expect(asked.filter(({ id }) => id === "sys.open").map(({ take }) => take).sort()).toEqual([0, 1, 2]);
+    now += 400;
+    expect(player.play("sys.open")).toBe(true);
+    expect(context.started).toHaveLength(2);
+  });
 
   it("stays silent until the visitor's first press starts audio", () => {
     const context = fakeContext();

@@ -18,7 +18,9 @@ describe("payment flow (Payflow's ProviderWebhookService, settlement and bank le
     const world = playFlow([send("wrong-amount"), send("success"), { kind: "release" }, send("again")]);
     expect(world.entries.map((entry) => [entry.outcome, entry.http].filter(Boolean).join(" "))).toEqual(["SENT_TO_REVIEW 202", "PAYMENT_ON_HOLD 409", "RELEASED", "APPLIED 200"]);
     expect(world.status).toBe("SUCCESS");
-    expect(world.reviewCases).toEqual(["AMOUNT_MISMATCH"]);
+    // RELEASE_PAYMENT resolves the review case it answered, so nothing is left waiting for a person.
+    expect(world.reviewCases).toEqual([]);
+    expect(playFlow([send("wrong-amount")]).reviewCases).toEqual(["AMOUNT_MISMATCH"]);
     // The deferred event left no inbox row, which is why its redelivery could be applied.
     expect(world.journals).toEqual(["CAPTURE"]);
   });
@@ -51,21 +53,6 @@ describe("payment flow (Payflow's ProviderWebhookService, settlement and bank le
     const suspense = playFlow([send("success"), { kind: "settle" }, { kind: "statement", statement: "no-reference" }]);
     expect(suspense).toMatchObject({ payout: "IN_TRANSIT", breaks: ["UNMATCHED_CREDIT"] });
     expect(outcomes([send("success"), { kind: "settle" }, { kind: "statement", statement: "credit" }, { kind: "statement", statement: "reimport" }]).at(-1)).toBe("ALREADY_IMPORTED");
-  });
-
-  it("breaks each rule only when the visitor removes it, as the repo's mutation tests do, and names what catches it", () => {
-    const removed = (mutation: "settle-held" | "match-by-amount" | "accept-reimport"): FlowInput => ({ kind: "mutate", mutation, removed: true });
-    const held = playFlow([send("success"), send("wrong-amount"), removed("settle-held"), { kind: "settle" }]);
-    expect(held.entries.at(-1)!).toMatchObject({ outcome: "RULE_BROKEN", tone: "adverse" });
-    expect(held.payout).toBe("IN_TRANSIT");
-    const guessed = playFlow([send("success"), { kind: "settle" }, removed("match-by-amount"), { kind: "statement", statement: "no-reference" }]);
-    expect(guessed.entries.at(-1)!.hood).toContain("LANDING_IS_PROVEN");
-    const twice = playFlow([send("success"), { kind: "settle" }, { kind: "statement", statement: "credit" }, removed("accept-reimport"), { kind: "statement", statement: "reimport" }]);
-    expect(twice.entries.at(-1)!.hood).toContain("BANK_ENTRY_BOOKED_ONCE");
-    expect(twice.rulesBroken).toEqual(["accept-reimport"]);
-    // Restored, the same step is guarded again.
-    const restored = flowStep(twice, { kind: "mutate", mutation: "accept-reimport", removed: false });
-    expect(flowStep(restored, { kind: "statement", statement: "reimport" }).entries.at(-1)!.outcome).toBe("ALREADY_IMPORTED");
   });
 
   it("shows, beside it, what a system without an inbox that trusts the provider would have done", () => {

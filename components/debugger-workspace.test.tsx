@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { REPO_AT, roundEnd, rounds } from "../lib/pay-rounds";
 import { scenarios } from "../lib/scenarios";
 import { caseSections, DebuggerWorkspace } from "./debugger-workspace";
 import { WorkspaceManagerProvider } from "./workspace-manager";
@@ -22,6 +23,32 @@ function installBrowserStubs() {
 
 /** A key inside one control group; several groups share "Yes" and "No". */
 const key = (group: string, option: string) => within(screen.getByRole("group", { name: new RegExp(`^${group.replace(/[?]/g, "\\?")}`) })).getByRole("button", { name: option });
+
+/** Lets the pay world play until it reaches a phase: the question ("ask") or the "result". */
+function untilPhase(phase: string) {
+  for (let turn = 0; turn < 160 && document.querySelector(".pay-world")?.getAttribute("data-phase") !== phase; turn += 1) act(() => vi.advanceTimersByTime(500));
+  // One act holds every render until it ends, so the last beat's render needs one more.
+  act(() => vi.advanceTimersByTime(0));
+}
+
+/** Picks a trick in the pay world, answers its question, and plays on to the result. */
+function playTrick(trick: string, answer: string) {
+  fireEvent.click(within(screen.getByRole("group", { name: "Pick a trick" })).getByRole("button", { name: new RegExp(`^${trick}`) }));
+  untilPhase("ask");
+  fireEvent.click(screen.getByRole("button", { name: answer }));
+  untilPhase("result");
+}
+
+/** The one line the pay world says now: who says it, the stamp on Payflow's answer, and the words. */
+function lineNow() {
+  const bubble = document.querySelector(".pw-bubble");
+  if (!bubble) return document.querySelector(".pw-narration")?.textContent ?? "";
+  const stamp = bubble.querySelector(".pw-bubble-stamp")?.textContent;
+  return `${bubble.querySelector(".pw-bubble-head b")?.textContent}${stamp ? ` [${stamp}]` : ""}: ${bubble.querySelector(".pw-bubble-text")?.textContent}`;
+}
+
+const text = (selector: string) => document.querySelector(selector)?.textContent;
+const suggestedTrick = () => text(".pw-trick[data-suggested] b");
 
 function ScenarioRoundTripHost() {
   const [slug, setSlug] = useState(scenarios[0].slug);
@@ -82,101 +109,111 @@ describe("DebuggerWorkspace", () => {
     expect(screen.getByRole("navigation", { name: "Case chapters" }).querySelector('a[href="#evidence"]')?.getAttribute("aria-current")).toBe("step");
   });
 
-  it.each([
-    ["the provider sending it twice", { delivery: "duplicate", amount: "matches", bank: "landed" }, { state: "Reconciled", payout: "in the bank", shadow: ["Charged twice", "2"] }],
-    ["a late “authorized”", { delivery: "out-of-order", amount: "matches", bank: "landed" }, { state: "Reconciled", payout: "in the bank", shadow: ["Newer news overwritten", "1"] }],
-    ["a wrong amount", { delivery: "once", amount: "differs", bank: "landed" }, { state: "Reconciled", payout: "in the bank", shadow: ["Wrong amount taken", "1"] }],
-    ["a credit that never arrives", { delivery: "once", amount: "matches", bank: "missing" }, { state: "Paid out", payout: "credit missing", shadow: ["Reconciled with no money in the bank", "1"] }],
-  ] as const)("plays the payment story through Payflow's rules, with the comparison beside it, for %s", (_name, initialConditions, expected) => {
-    render(
-      <WorkspaceManagerProvider>
-        <DebuggerWorkspace scenario={scenarios[0]} initialConditions={initialConditions} onClose={vi.fn()} />
-      </WorkspaceManagerProvider>,
-    );
-    const current = () => screen.getByRole("list", { name: "Payment state" }).querySelector("[data-current]")?.firstChild?.nextSibling?.textContent;
-    const count = (label: string) => screen.getByText(label).nextElementSibling?.textContent;
-    fireEvent.click(screen.getByRole("button", { name: "Play the example" }));
-    expect(screen.getByRole("button", { name: "Playing the example…" }).hasAttribute("disabled")).toBe(true);
-    act(() => vi.advanceTimersByTime(8_000));
+  /** The pay world: pick a trick, answer its question, and read the result back. */
+  const notebookLines = () => Array.from(document.querySelectorAll(".pw-note"), (note) => note.textContent);
+  const textOnScreen = () => document.querySelectorAll(".pw-bubble, .pw-narration").length;
+  const result = () => ({ verdict: text(".pw-verdict"), basic: text('.pw-compare-side[data-side="basic"] b'), payflow: text('.pw-compare-side[data-side="payflow"] b') });
+  const renderPayflow = (initialConditions: Record<string, string> = scenarios[0].defaults) => render(
+    <WorkspaceManagerProvider>
+      <DebuggerWorkspace scenario={scenarios[0]} initialConditions={initialConditions} onClose={vi.fn()} />
+    </WorkspaceManagerProvider>,
+  );
 
-    expect(current()).toBe(expected.state);
-    expect(count("Money captured")).toBe("once");
-    expect(count("Payout")).toBe(expected.payout);
-    expect(within(document.querySelector<HTMLElement>(".sim-shadow")!).getByText(expected.shadow[0]).nextElementSibling?.textContent).toBe(expected.shadow[1]);
-    // The Result chapter reports the story's own conditions: the comparison, then Payflow.
-    expect(Array.from(document.querySelectorAll(".mobile-outcome-strip strong")).map((item) => item.textContent)).toEqual(["Charged twice", "Captured once, reconciled at the bank"]);
-    // There is no switch that turns Payflow's rules off.
-    expect(screen.queryByRole("button", { name: "Off" })).toBeNull();
+  it("offers four tricks, sets the scene one line at a time, asks, then shows Payflow next to a basic system", () => {
+    renderPayflow();
+    expect(Array.from(document.querySelectorAll(".pw-trick b"), (name) => name.textContent)).toEqual(["Sent twice", "Old message", "Wrong amount", "Lost money"]);
+    expect(suggestedTrick()).toBe("Sent twice");
+    expect(document.querySelector(".pw-trick[data-suggested] .pw-option-hand")).toBeTruthy();
+    expect(text(".pw-goal")).toBe("Try to break the payment. Get Payflow’s books wrong, or lose the shop’s money.");
+    expect(notebookLines()).toEqual(["empty"]);
+
+    // The scene plays one line at a time, each held long enough to read: the card company charges the card and tells Payflow, which writes #1 down.
+    fireEvent.click(within(screen.getByRole("group", { name: "Pick a trick" })).getByRole("button", { name: /^Sent twice/ }));
+    const heard: string[] = [];
+    for (let turn = 0; turn < 120 && document.querySelector(".pay-world")?.getAttribute("data-phase") !== "ask"; turn += 1) {
+      act(() => vi.advanceTimersByTime(250));
+      expect(textOnScreen()).toBeLessThanOrEqual(1);
+      const now = lineNow();
+      if (now && heard.at(-1) !== now) heard.push(now);
+    }
+    act(() => vi.advanceTimersByTime(0));
+    expect(heard).toEqual([
+      "Customer: Here's my card: 750,000.",
+      "Card company: Card charged: 750,000. Telling Payflow.",
+      "Payflow [New]: New message #1. I note it and record the 750,000.",
+      "Payflow's “got it” never reaches the card company: the line is weak.",
+      "Card company: No reply… I'll send #1 again. And again.",
+    ]);
+    expect(notebookLines()).toEqual(["#1 paid"]);
+    expect(textOnScreen()).toBe(0);
+    expect(text(".pw-question")).toBe("The card company sends #1 two more times. How much will Payflow's books say the shop got?");
+    expect(Array.from(document.querySelectorAll(".pw-choice"), (choice) => choice.textContent)).toEqual(["750,000", "1,500,000", "2,250,000"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "1,500,000" }));
+    untilPhase("result");
+    expect(lineNow()).toBe("Payflow [Already noted]: #1 is already in my notebook. Nothing changes.");
+    expect(result()).toEqual({ verdict: "Not quite: it's “750,000”.", basic: "2,250,000", payflow: "750,000" });
+    expect(text('.pw-chip[data-chip="books"] b')).toBe("750,000");
+    expect(screen.getByRole("button", { name: /^Next trick: old message/ })).toBeTruthy();
+
+    // How Payflow decided: the repo's lines that decided it, its answer, and the test that holds it, linked at one commit.
+    expect(screen.queryByRole("region", { name: "How Payflow decided" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "How Payflow decided" }));
+    const proof = within(screen.getByRole("region", { name: "How Payflow decided" }));
+    expect(proof.getByRole("link", { name: /^ProviderWebhookService\.java:93–98/ }).getAttribute("href")).toBe(`${REPO_AT}/src/main/java/id/fatarc/portfolio/payflowreliability/payment/ProviderWebhookService.java#L93-L98`);
+    expect(proof.getByText("shouldIgnoreAnExactRedeliveryWithoutOpeningAReviewCaseOrPostingTwice")).toBeTruthy();
+    expect(proof.getByText(/^evt1: 200 APPLIED/)).toBeTruthy();
+
+    // The next trick doesn't make the visitor sit through the same opening: the sale is recalled in one line.
+    fireEvent.click(screen.getByRole("button", { name: /^Next trick: old message/ }));
+    const next: string[] = [];
+    for (let turn = 0; turn < 120 && document.querySelector(".pay-world")?.getAttribute("data-phase") !== "ask"; turn += 1) {
+      act(() => vi.advanceTimersByTime(250));
+      const now = lineNow();
+      if (now && next.at(-1) !== now) next.push(now);
+    }
+    expect(next).toEqual([
+      "Same sale again: the card company charged 750,000, and #1 is in Payflow's notebook.",
+      "The card company's earlier message, “card approved”, got stuck on a slow line.",
+    ]);
+    expect(notebookLines()).toEqual(["#1 paid"]);
   });
 
-  it("runs the provider's events through the inbox, holds a wrong amount for a person, and lets a removed rule fail as the repo's tests do", () => {
-    render(
-      <WorkspaceManagerProvider>
-        <DebuggerWorkspace scenario={scenarios[0]} initialConditions={scenarios[0].defaults} onClose={vi.fn()} />
-      </WorkspaceManagerProvider>,
-    );
-    const current = () => screen.getByRole("list", { name: "Payment state" }).querySelector("[data-current]")?.firstChild?.nextSibling?.textContent;
-    const count = (label: string) => screen.getByText(label).nextElementSibling?.textContent;
-    const journal = () => document.querySelector(".sim-journal li p")?.textContent ?? "";
-    const paid = () => screen.getByRole("button", { name: /^“Paid”the payment/ });
-    // Payment state is an indicator panel, never a set of controls.
-    expect(screen.getByRole("list", { name: "Payment state" }).querySelectorAll("button")).toHaveLength(0);
-    expect(screen.getByRole("button", { name: /The same event again/ }).hasAttribute("disabled")).toBe(true);
+  it("finishes a moving message at a tap on the world", () => {
+    renderPayflow();
+    fireEvent.click(within(screen.getByRole("group", { name: "Pick a trick" })).getByRole("button", { name: /^Sent twice/ }));
+    // Wait for message #1 to set off from the card company, then tap the world.
+    for (let turn = 0; turn < 200 && !document.querySelector('.pw-move [class="pw-move-tag"]'); turn += 1) act(() => vi.advanceTimersByTime(50));
+    expect(notebookLines()).toEqual(["empty"]);
+    fireEvent.click(document.querySelector(".pw-view")!);
+    expect(document.querySelector(".pw-move")).toBeNull();
+    expect(notebookLines()).toEqual(["#1 paid"]);
+    expect(lineNow()).toBe("Payflow [New]: New message #1. I note it and record the 750,000.");
+  });
 
-    fireEvent.click(paid());
-    fireEvent.click(screen.getByRole("button", { name: /The same event again/ }));
-    fireEvent.click(screen.getByRole("button", { name: /The same event again/ }));
-    expect(current()).toBe("Paid");
-    expect([count("Events received"), count("Money captured")]).toEqual(["3", "once"]);
-    expect(journal()).toMatch(/already in the inbox/);
-    expect(document.querySelector(".sim-journal-contrast")?.textContent).toMatch(/captured again/);
-    fireEvent.click(screen.getByRole("button", { name: /^“Paid”, new id/ }));
-    expect(journal()).toMatch(/already recorded/);
-    expect(within(document.querySelector<HTMLElement>(".sim-shadow")!).getByText("Charged twice").nextElementSibling?.textContent).toBe("3");
-
-    // A wrong amount waits for a person; the corrected event is deferred (409) until release.
-    fireEvent.click(screen.getByRole("button", { name: "Start over" }));
-    fireEvent.click(screen.getByRole("button", { name: /^“Paid”, wrong amount/ }));
-    expect(current()).toBe("On hold");
-    expect(count("Waiting for a person")).toBe("1");
-    fireEvent.click(paid());
-    expect(document.querySelector(".sim-journal-badge")?.textContent).toMatch(/409/);
-    fireEvent.click(screen.getByRole("button", { name: /A person releases it/ }));
-    expect(current()).toBe("Waiting");
-    fireEvent.click(screen.getByRole("button", { name: /The same event again/ }));
-    expect(current()).toBe("Paid");
-
-    // Removing a rule, as the repo's mutation tests do, lets the step through and names what catches it.
-    fireEvent.click(screen.getByRole("button", { name: /the day's settlement run/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Match a credit by amount alone" }));
-    fireEvent.click(screen.getByRole("button", { name: /Credit, no reference/ }));
-    expect(journal()).toMatch(/every landed payout carries its reference/);
-    expect(count("Rules broken")).toBe("1");
+  it.each(rounds.map((round) => [round.trick, round] as const))("says Right when the guess for “%s” matches what Payflow does", (trick, round) => {
+    renderPayflow();
+    const end = roundEnd(round);
+    playTrick(trick, round.choices.find((choice) => choice.id === round.answer(end))!.label);
+    const { basic, payflow } = round.compare(end);
+    expect(result()).toEqual({ verdict: "Right.", basic, payflow });
+    // The trick's conditions become the case's, so the Result chapter and the address follow it.
+    expect(Object.entries(round.conditions).every(([key, value]) => new URLSearchParams(window.location.search).get(key) === value || scenarios[0].defaults[key as keyof typeof scenarios[0]["defaults"]] === value)).toBe(true);
   });
 
   it("speaks in everyday words until the visitor asks for technical details", () => {
-    render(
-      <WorkspaceManagerProvider>
-        <DebuggerWorkspace scenario={scenarios[0]} initialConditions={scenarios[0].defaults} onClose={vi.fn()} />
-      </WorkspaceManagerProvider>,
-    );
-    const drawing = () => document.querySelector(".sd-pay .sd-wide")?.textContent ?? "";
+    renderPayflow();
     const toggle = screen.getByRole("button", { name: "Technical details" });
-    fireEvent.click(screen.getByRole("button", { name: /^“Paid”the payment/ }));
-
+    playTrick("Sent twice", "750,000");
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
-    expect(drawing()).toContain("“paid”");
-    expect(drawing()).toContain("Paid");
-    expect(drawing()).not.toMatch(/evt\d|SUCCESS/);
-    expect(document.querySelector(".sim-wire")).toBeNull();
-    expect(document.querySelector(".sim-journal code")).toBeNull();
+    expect(text(".pw-frame")).not.toMatch(/evt\d|SUCCESS|APPLIED|DUPLICATE|\b200\b|inbox/);
 
     fireEvent.click(toggle);
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
-    expect(drawing()).toContain("evt1");
-    expect(drawing()).toContain("SUCCESS");
-    expect(document.querySelector(".sim-wire")?.textContent).toMatch(/inbox \[evt1\]/);
-    expect(document.querySelector(".sim-journal code")?.textContent).toMatch(/evt1 new/);
+    expect([text(".pw-notebook-title"), ...notebookLines()]).toEqual(["provider_events", "evt1 SUCCESS 750000"]);
+    expect(text(".pw-bubble-stamp")).toBe("200 DUPLICATE_IGNORED");
+    // With technical details, the proof is open from the start.
+    expect(screen.getByRole("region", { name: "How Payflow decided" })).toBeTruthy();
   });
 
   it("replays a condition, opens and closes evidence, and switches projects", () => {
@@ -192,7 +229,8 @@ describe("DebuggerWorkspace", () => {
       </WorkspaceManagerProvider>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "A late “authorized”" }));
+    // Picking a trick sets its conditions, and the workspace reports the result.
+    fireEvent.click(within(screen.getByRole("group", { name: "Pick a trick" })).getByRole("button", { name: /^Old message/ }));
     act(() => vi.advanceTimersByTime(900));
     expect(screen.getByRole("status").textContent).toMatch(/Result:/);
 
@@ -254,6 +292,125 @@ describe("DebuggerWorkspace", () => {
     expect(clock()).toBe(paused);
     fireEvent.click(screen.getByRole("button", { name: "Next check" }));
     expect(clock()).not.toBe(paused);
+  });
+
+  it("lets visitors jump to pending iYup alerts, switch presets, and inspect the repo proof", () => {
+    render(
+      <WorkspaceManagerProvider>
+        <DebuggerWorkspace scenario={scenarios[1]} initialConditions={scenarios[1].defaults} onClose={vi.fn()} />
+      </WorkspaceManagerProvider>,
+    );
+    const alerts = () => document.querySelector(".svc-users strong")?.textContent;
+    expect(alerts()).toBe("Waiting");
+
+    fireEvent.click(screen.getByRole("button", { name: "Skip to 5 min" }));
+    expect(alerts()).toBe("Warning");
+
+    fireEvent.click(key("Try a situation", "Outage in both"));
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(document.querySelector(".svc-status strong")?.textContent).toBe("Nope.");
+
+    fireEvent.click(screen.getByRole("button", { name: "How iYup decided" }));
+    const proof = within(screen.getByRole("region", { name: "How iYup decided" }));
+    expect(proof.getByRole("link", { name: /^probe\.go:/ }).getAttribute("href")).toContain("services/ping-agent/probe.go");
+    expect(proof.getByRole("link", { name: /^snapshot\.py:/ }).getAttribute("href")).toContain("services/api-gateway/snapshot.py");
+    expect(proof.getByRole("link", { name: /^alert\.rules\.yml:/ }).getAttribute("href")).toContain("config/alert.rules.yml");
+  });
+
+  it("walks through TrustGate step-up confirmation, re-checks before signing, and opens repo proof", () => {
+    render(
+      <WorkspaceManagerProvider>
+        <DebuggerWorkspace scenario={scenarios[2]} initialConditions={scenarios[2].defaults} onClose={vi.fn()} />
+      </WorkspaceManagerProvider>,
+    );
+
+    expect(document.querySelector(".pol-decision strong")?.textContent).toBe("Confirm with the screen lock");
+    fireEvent.click(screen.getByRole("button", { name: "Confirm with the screen lock" }));
+    expect(document.querySelector(".pol-resolution-badge")?.textContent).toBe("Confirmed and sent");
+
+    fireEvent.click(screen.getByRole("button", { name: /Send the payment again/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Attach a debugger, then confirm" }));
+    expect(document.querySelector(".pol-resolution-badge")?.textContent).toBe("Stopped by the app before signing");
+
+    fireEvent.click(screen.getByRole("button", { name: /Send the payment again/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel payment" }));
+    expect(document.querySelector(".pol-resolution-badge")?.textContent).toBe("Cancelled at confirmation");
+
+    fireEvent.click(key("Try a phone", "Five points of smaller checks"));
+    act(() => vi.advanceTimersByTime(500));
+    expect(document.querySelector(".pol-decision span")?.textContent).toMatch(/high risk, 5 points/);
+    expect(document.querySelector(".pol-decision strong")?.textContent).toBe("Blocked");
+
+    fireEvent.click(screen.getByRole("button", { name: "How TrustGate decided" }));
+    const proof = within(screen.getByRole("region", { name: "How TrustGate decided" }));
+    expect(proof.getByRole("link", { name: /RiskScorer\.kt/ }).getAttribute("href")).toContain("RiskScorer.kt");
+    expect(proof.getByRole("link", { name: /SensitiveActionGate\.kt/ }).getAttribute("href")).toContain("SensitiveActionGate.kt");
+  });
+
+  it("announces a single change by the name its key shows, in either voice", () => {
+    const status = () => document.querySelector('.sr-only[role="status"]')?.textContent;
+    render(
+      <WorkspaceManagerProvider>
+        <DebuggerWorkspace scenario={scenarios[2]} initialConditions={scenarios[2].defaults} onClose={vi.fn()} />
+      </WorkspaceManagerProvider>,
+    );
+    const check = (name: RegExp) => within(screen.getByRole("group", { name: /^What the phone/ })).getByRole("button", { name });
+
+    fireEvent.click(check(/^Looks like an emulator/));
+    act(() => vi.advanceTimersByTime(0));
+    expect(status()).toMatch(/^Looks like an emulator changed\. Result: /);
+
+    // With Technical details the key shows the repo's signal id, and the announcement follows it.
+    fireEvent.click(screen.getByRole("button", { name: "Technical details" }));
+    fireEvent.click(check(/^emulator_fingerprint/));
+    act(() => vi.advanceTimersByTime(0));
+    expect(status()).toMatch(/^emulator_fingerprint changed\. Result: /);
+    cleanup();
+
+    // iYup's keys keep their plain labels in both voices.
+    render(
+      <WorkspaceManagerProvider>
+        <DebuggerWorkspace scenario={scenarios[1]} initialConditions={scenarios[1].defaults} onClose={vi.fn()} />
+      </WorkspaceManagerProvider>,
+    );
+    fireEvent.click(key("The page", "Answers 503"));
+    act(() => vi.advanceTimersByTime(0));
+    expect(status()).toMatch(/^The page changed\. Result: /);
+  });
+
+  it("announces a phone preset's changes together, not just the last check it set", () => {
+    render(
+      <WorkspaceManagerProvider>
+        <DebuggerWorkspace scenario={scenarios[2]} initialConditions={scenarios[2].defaults} onClose={vi.fn()} />
+      </WorkspaceManagerProvider>,
+    );
+    // From the story's phone (test build, outside the store) to a rooted phone with a debugger: four checks change.
+    fireEvent.click(key("Try a phone", "Rooted, debugger on"));
+    act(() => vi.advanceTimersByTime(0));
+    expect(document.querySelector('.sr-only[role="status"]')?.textContent).toMatch(/^4 settings changed\. Result: /);
+  });
+
+  it("asks again for a later payment with the same checks as one already confirmed", () => {
+    render(
+      <WorkspaceManagerProvider>
+        <DebuggerWorkspace scenario={scenarios[2]} initialConditions={scenarios[2].defaults} onClose={vi.fn()} />
+      </WorkspaceManagerProvider>,
+    );
+    const check = (name: RegExp) => within(screen.getByRole("group", { name: /^What the phone/ })).getByRole("button", { name });
+    fireEvent.click(screen.getByRole("button", { name: "Confirm with the screen lock" }));
+    expect(document.querySelector(".pol-resolution-badge")?.textContent).toBe("Confirmed and sent");
+
+    fireEvent.click(check(/^Root app installed/));
+    act(() => vi.advanceTimersByTime(500));
+    fireEvent.click(check(/^Root app installed/));
+    act(() => vi.advanceTimersByTime(500));
+
+    expect(document.querySelector(".pol-decision span")?.textContent).toMatch(/^Payment #3: medium risk/);
+    expect(document.querySelector(".pol-resolution-badge")).toBeNull();
+    expect(screen.getByRole("button", { name: "Confirm with the screen lock" })).toBeTruthy();
+    const journal = Array.from(document.querySelectorAll(".sim-journal li"), (item) => item.textContent ?? "");
+    expect(journal[0]).not.toMatch(/confirmed and sent/);
+    expect(journal[2]).toMatch(/confirmed and sent/);
   });
 
   it("scores the story's phone as the repo does, with no old-rules toggle, and returns to the story on request", () => {
@@ -336,11 +493,11 @@ describe("DebuggerWorkspace", () => {
   it("round-trips non-default controls with their owning scenario only", () => {
     render(<ScenarioRoundTripHost />);
 
-    fireEvent.click(screen.getByRole("button", { name: "A late “authorized”" }));
-    act(() => vi.advanceTimersByTime(900));
-    expect(screen.getByRole("button", { name: "A late “authorized”" }).getAttribute("aria-pressed")).toBe("true");
+    playTrick("Old message", "Paid");
+    // The late “authorized” trick is now the case's setting, so the next one on offer is the wrong amount.
+    expect(screen.getByRole("button", { name: /^Next trick: wrong amount/ })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Next: Detect degradation" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next: Service observability" }));
     act(() => vi.advanceTimersByTime(0));
     expect(screen.getByRole("heading", { name: scenarios[1].title })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Slow (1.2–1.8 s)" }).getAttribute("aria-pressed")).toBe("true");
@@ -348,29 +505,48 @@ describe("DebuggerWorkspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Previous" }));
     act(() => vi.advanceTimersByTime(0));
     expect(screen.getByRole("heading", { name: scenarios[0].title })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "A late “authorized”" }).getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByRole("button", { name: "The provider sends it twice" }).getAttribute("aria-pressed")).toBe("false");
+    expect(suggestedTrick()).toBe("Old message");
+  });
+
+  it("keeps Technical details to the case it was turned on in", () => {
+    render(<ScenarioRoundTripHost />);
+    const technicalKey = () => screen.getByRole("button", { name: "Technical details" });
+
+    fireEvent.click(technicalKey());
+    act(() => vi.advanceTimersByTime(0));
+    expect(technicalKey().getAttribute("aria-pressed")).toBe("true");
+    expect(window.location.search).toBe("?technical=1");
+
+    fireEvent.click(screen.getByRole("button", { name: "Next: Service observability" }));
+    act(() => vi.advanceTimersByTime(0));
+    window.history.replaceState(null, "", "/case/iyup");
+    act(() => vi.advanceTimersByTime(0));
+    expect(screen.getByRole("heading", { name: scenarios[1].title })).toBeTruthy();
+    expect(technicalKey().getAttribute("aria-pressed")).toBe("false");
+
+    fireEvent.click(screen.getByRole("button", { name: "Previous" }));
+    act(() => vi.advanceTimersByTime(0));
+    expect(technicalKey().getAttribute("aria-pressed")).toBe("true");
   });
 
   it("persists reset controls when a case is reopened after switching scenarios", () => {
     render(<ScenarioRoundTripHost />);
 
-    fireEvent.click(screen.getByRole("button", { name: "A late “authorized”" }));
-    act(() => vi.advanceTimersByTime(900));
-    expect(screen.getByRole("button", { name: "A late “authorized”" }).getAttribute("aria-pressed")).toBe("true");
+    playTrick("Old message", "Paid");
+    expect(screen.getByRole("button", { name: "Reset" })).toBeTruthy();
 
+    // Reset returns the case to its story, and the tricks are offered again from the first.
     fireEvent.click(screen.getByRole("button", { name: "Reset" }));
     act(() => vi.advanceTimersByTime(900));
-    expect(screen.getByRole("button", { name: "The provider sends it twice" }).getAttribute("aria-pressed")).toBe("true");
+    expect(suggestedTrick()).toBe("Sent twice");
     expect(screen.queryByRole("button", { name: "Reset" })).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Next: Detect degradation" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next: Service observability" }));
     act(() => vi.advanceTimersByTime(0));
     fireEvent.click(screen.getByRole("button", { name: "Previous" }));
     act(() => vi.advanceTimersByTime(0));
 
-    expect(screen.getByRole("button", { name: "The provider sends it twice" }).getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByRole("button", { name: "A late “authorized”" }).getAttribute("aria-pressed")).toBe("false");
+    expect(suggestedTrick()).toBe("Sent twice");
   });
 
   it.each(scenarios)("renders the complete $slug chapter and evidence journey", (scenario) => {
@@ -396,14 +572,14 @@ describe("DebuggerWorkspace", () => {
     // The story reads in order without eyebrow labels: failure, constraint, situation, decision.
     expect(screen.queryByText("Failure")).toBeNull();
     expect(screen.queryByText("Constraint")).toBeNull();
-    expect(screen.getByText("Test the decision")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Try it" })).toBeTruthy();
     const intro = document.querySelector<HTMLElement>(".case-intro")!;
     expect(intro.querySelector("h1")?.textContent).toBe(scenario.title);
     expect(intro.querySelector(".case-consequence")?.textContent).toBe(scenario.consequence);
     expect(intro.querySelector(".case-situation")?.textContent).toBe(scenario.premise);
     expect(intro.querySelector(".case-decision-line")?.textContent).toBe(`Decision${scenario.decision}`);
     // Limits close the result, after the outcome they qualify.
-    const result = screen.getByRole("group", { name: "Outcome comparison" });
+    const result = screen.getByRole("group", { name: "Result" });
     expect(result.querySelector(".case-limits")?.textContent).toBe(`Limits${scenario.limitation}`);
     expect(result.querySelector(".case-result-note")?.textContent).toBe(scenario.outcome);
     expect(document.querySelector(".case-index-block")).toBeNull();

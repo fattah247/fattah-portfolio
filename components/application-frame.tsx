@@ -28,6 +28,34 @@ export function findScrollOwner(frame: HTMLElement | null) {
   return candidates.find((node) => /auto|scroll|overlay/.test(window.getComputedStyle(node).overflowY)) ?? frame;
 }
 
+const anchorSelector = "h1, h2, h3, h4, p, li, figure, pre, blockquote, dt, dd";
+
+function pinned(node: HTMLElement, owner: HTMLElement) {
+  for (let at: HTMLElement | null = node; at && at !== owner; at = at.parentElement) {
+    if (/sticky|fixed/.test(window.getComputedStyle(at).position)) return true;
+  }
+  return false;
+}
+
+/** The first block of text crossing the owner's top edge, and how far from that edge its top sits. */
+function readingAnchor(owner: HTMLElement) {
+  const edge = owner.getBoundingClientRect().top;
+  const nodes = owner.querySelectorAll<HTMLElement>(anchorSelector);
+  let low = 0;
+  let high = nodes.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (nodes[middle].getBoundingClientRect().bottom <= edge) low = middle + 1;
+    else high = middle;
+  }
+  for (let index = low; index < nodes.length; index += 1) {
+    const rect = nodes[index].getBoundingClientRect();
+    if (rect.height === 0 || pinned(nodes[index], owner)) continue;
+    return { node: nodes[index], offset: rect.top - edge };
+  }
+  return null;
+}
+
 /**
  * One lifecycle/accessibility boundary; documents never choose their device shell.
  *
@@ -54,13 +82,46 @@ export function ApplicationFrame({ as: Element = "section", children, chrome, do
     // Restore synchronously so later in-document alignment (chapter hashes, pending
     // section scrolls) scheduled by children on the next frame still wins.
     owner.scrollTo({ top: saved ?? 0, behavior: "auto" });
-    const remember = () => writeDocumentState(app, documentId, { scroll: owner.scrollTop });
+
+    // Resizing a window reflows the text above the reading position; like a Mac window, keep
+    // what was at the top edge there. Browser scroll anchoring does not fire for an ancestor's resize.
+    let anchor: ReturnType<typeof readingAnchor> = null;
+    let width = owner.clientWidth;
+    let measureFrame = 0;
+    const measure = () => {
+      measureFrame = 0;
+      // A width the observer hasn't seen yet means the text already reflowed; measuring now would lose the place.
+      if (owner.clientWidth !== width) return;
+      anchor = owner.scrollTop > 0 ? readingAnchor(owner) : null;
+    };
+    const remeasure = () => { if (!measureFrame) measureFrame = window.requestAnimationFrame(measure); };
+    const observer = typeof ResizeObserver === "function" ? new ResizeObserver(() => {
+      if (owner.clientWidth === width) return;
+      width = owner.clientWidth;
+      if (anchor?.node.isConnected) {
+        const drift = anchor.node.getBoundingClientRect().top - owner.getBoundingClientRect().top - anchor.offset;
+        if (Math.abs(drift) >= 1) owner.scrollTop += drift;
+      }
+      remeasure();
+    }) : null;
+    observer?.observe(owner);
+    remeasure();
+
+    const remember = () => {
+      writeDocumentState(app, documentId, { scroll: owner.scrollTop });
+      remeasure();
+    };
     owner.addEventListener("scroll", remember, { passive: true });
-    return () => owner.removeEventListener("scroll", remember);
+    return () => {
+      owner.removeEventListener("scroll", remember);
+      observer?.disconnect();
+      if (measureFrame) window.cancelAnimationFrame(measureFrame);
+    };
   // modeReady re-runs the lookup once the provider has published the device mode to the document.
   }, [documentId, mode, modeReady, ownedRef, readDocumentState, windowId, writeDocumentState]);
   const state = props["data-window-state"] ?? (initialVisible && !workspace?.modeReady ? "active" : workspace?.stateFor(windowId) ?? "active");
-  const hidden = state === "background" || state === "minimized" || state === "closed" || state === "blurred";
+  // A blurred desktop window is still on screen, like a Mac window behind the front one: it takes the click that brings it forward.
+  const hidden = state === "background" || state === "minimized" || state === "closed";
   // A desktop window minimizes into its own dock icon and restores out of it. The vector is
   // measured from the untransformed layout box, so a transition already in flight is irrelevant.
   useLayoutEffect(() => {

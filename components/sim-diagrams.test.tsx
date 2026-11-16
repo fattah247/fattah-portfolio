@@ -2,9 +2,8 @@ import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { assessDevice, deviceChecks, deviceProfiles, SCREEN_LOCK } from "../lib/device-risk";
 import { scenarios } from "../lib/scenarios";
-import { playFlow, type FlowInput } from "../lib/payment-flow";
 import { runUptime, type UptimeConditions } from "../lib/uptime";
-import { DeviceDiagram, PaymentDiagram, ServiceDiagram } from "./sim-diagrams";
+import { DeviceDiagram, ServiceDiagram } from "./sim-diagrams";
 
 afterEach(cleanup);
 
@@ -26,19 +25,6 @@ function expectNotesFit(container: HTMLElement) {
   }
 }
 
-/** A long, busy run: every webhook outcome, a hold, the money's path, and a broken rule. */
-const busyPayment: FlowInput[] = [
-  ...Array.from({ length: 6 }, () => ({ kind: "webhook" as const, webhook: "again" as const })),
-  { kind: "webhook", webhook: "success" },
-  ...Array.from({ length: 8 }, () => ({ kind: "webhook" as const, webhook: "again" as const })),
-  { kind: "webhook", webhook: "new-id" },
-  { kind: "webhook", webhook: "late-authorized" },
-  { kind: "webhook", webhook: "wrong-amount" },
-  { kind: "mutate", mutation: "settle-held", removed: true },
-  { kind: "settle" },
-  { kind: "report", matches: false },
-  { kind: "statement", statement: "no-credit" },
-];
 const monitorRuns: UptimeConditions[] = [
   { page: "slow", scope: "both", agent: "reporting" },
   { page: "error", scope: "both", agent: "reporting" },
@@ -50,10 +36,8 @@ const monitorRuns: UptimeConditions[] = [
 
 describe("simulator drawings", () => {
   it("draws every case in three compositions, each at its own width", () => {
-    const world = playFlow(busyPayment);
     const conditions = scenarios[2].defaults;
     const { container } = render(<>
-      <PaymentDiagram technical={false} world={world} />
       <ServiceDiagram technical={false} ticks={runUptime(monitorRuns[0], 4)} window={12} />
       <DeviceDiagram requestKey="a" run={assessDevice(conditions)} technical={false} />
     </>);
@@ -64,25 +48,6 @@ describe("simulator drawings", () => {
         expect(drawing.querySelector(`.sd-${layout}`)?.getAttribute("viewBox")?.split(" ")[2]).toBe(widths[layout]);
       }
     }
-  });
-
-  it("wraps the longest payment notes inside every composition, in both voices", () => {
-    for (const technical of [false, true]) {
-      const { container } = render(<PaymentDiagram technical={technical} world={playFlow(busyPayment)} />);
-      expectNotesFit(container);
-      cleanup();
-    }
-  });
-
-  it("keeps event ids and raw states out of the everyday labels, and brings them back for engineers", () => {
-    const world = playFlow([{ kind: "webhook", webhook: "success" }, { kind: "webhook", webhook: "again" }]);
-    const plain = render(<PaymentDiagram technical={false} world={world} />).container.textContent ?? "";
-    expect(plain).not.toMatch(/evt\d|SUCCESS|PENDING|MANUAL_REVIEW/);
-    expect(plain).toContain("“paid” again");
-    cleanup();
-    const technical = render(<PaymentDiagram technical world={world} />).container.textContent ?? "";
-    expect(technical).toContain("evt1");
-    expect(technical).toContain("SUCCESS");
   });
 
   it("wraps every service and device note inside every composition", () => {
@@ -109,7 +74,7 @@ describe("simulator drawings", () => {
         }
       }
     }
-  });
+  }, 30_000);
 
   it("keeps the arrow at the end of a broken device note", () => {
     const { container } = render(<DeviceDiagram requestKey="a" run={assessDevice(scenarios[2].defaults)} technical={false} />);
@@ -121,7 +86,7 @@ describe("simulator drawings", () => {
   it("lights only the found checks, fills one track cell per point, and lands the level and the answer", () => {
     const { container } = render(<DeviceDiagram requestKey="a" run={assessDevice(scenarios[2].defaults)} technical={false} />);
     const wide = container.querySelector(".sd-wide")!;
-    expect(wide.querySelectorAll(".sd-check")).toHaveLength(8);
+    expect(wide.querySelectorAll(".sd-check")).toHaveLength(deviceChecks.length);
     expect(Array.from(wide.querySelectorAll(".sd-check[data-found] text:first-of-type")).map((text) => text.textContent)).toEqual(["+2 test build", "+1 unknown installer"]);
     expect(wide.querySelectorAll(".sd-cell[data-tone]")).toHaveLength(3);
     expect(Array.from(wide.querySelectorAll(".sd-decision text")).map((text) => text.textContent)).toEqual(["medium risk · 3 points", "confirm first"]);

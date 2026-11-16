@@ -51,6 +51,16 @@ describe("environment stylesheet contract", () => {
     for (const query of queries) expect(query, query).not.toMatch(/\d+px/);
   });
 
+  it("shows less on a very short Home instead of scrolling or cutting things off", () => {
+    // A laptop zoomed to 300-400% gives Home a tiny landscape screen: it keeps the name and the four
+    // apps (the rest stays a tap away) rather than clipping them.
+    const short = environment.match(/@container home \(max-height: 16rem\) \{([\s\S]*?)\n\}/)?.[1] ?? "";
+    expect(short).toMatch(/\.home-identity-actions[\s\S]*?display:\s*none/);
+    expect(short).toMatch(/\.home-work[\s\S]*?display:\s*none/);
+    expect(short).toMatch(/grid-template-areas:\s*"identity"\s*"launcher"/);
+    expect(short).not.toMatch(/overflow(-y)?\s*:\s*(auto|scroll)/);
+  });
+
   it("never lets the taskbar, shelf, launcher, or phone bar scroll", () => {
     const bars = /\.(desktop-taskbar|taskbar-apps|tablet-shelf|phone-system-navigation|system-launcher)\b(?![-\w])/;
     for (const { css, name } of sheets) {

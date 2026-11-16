@@ -123,7 +123,7 @@ describe("CounterfactualHome", () => {
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
 
     expect(screen.queryByRole("region", { name: "Opening portfolio workspace" })).toBeNull();
-    expect(screen.getByRole("region", { name: "Engineering workspace" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Desktop" })).toBeTruthy();
     expect(document.querySelector(".environment-wallpaper")?.getAttribute("aria-hidden")).toBe("true");
     expect(screen.queryByText("Second Attempt")).toBeNull();
     expect(screen.queryByRole("link", { name: "Selected work" })).toBeNull();
@@ -194,6 +194,152 @@ describe("CounterfactualHome", () => {
     expect(workShortcut.style.zIndex).toBe("1");
   });
 
+  it("nudges a dropped desktop shortcut clear of the identity accessory or another shortcut", () => {
+    document.documentElement.dataset.systemMode = "computer";
+    render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
+
+    const board = screen.getByLabelText("Portfolio desktop shortcuts");
+    const identity = document.querySelector<HTMLElement>(".desktop-identity")!;
+    const workShortcut = screen.getByRole("link", { name: "Projects" });
+    vi.spyOn(board, "getBoundingClientRect").mockReturnValue({
+      bottom: 700, height: 700, left: 0, right: 1000, top: 0, width: 1000, x: 0, y: 0, toJSON: () => ({}),
+    });
+    vi.spyOn(identity, "getBoundingClientRect").mockReturnValue({
+      bottom: 240, height: 200, left: 680, right: 960, top: 40, width: 280, x: 680, y: 40, toJSON: () => ({}),
+    });
+    vi.spyOn(workShortcut, "getBoundingClientRect").mockReturnValue({
+      bottom: 168, height: 136, left: 32, right: 180, top: 32, width: 148, x: 32, y: 32, toJSON: () => ({}),
+    });
+
+    // Drag the shortcut (width 148, baseLeft 32) so its right edge (32 + 620 + 148 = 800) overlaps identity (left 680, margin 8 -> 672).
+    fireEvent.pointerDown(workShortcut, { button: 0, clientX: 100, clientY: 100, pointerId: 9 });
+    fireEvent.pointerMove(workShortcut, { clientX: 720, clientY: 120, pointerId: 9 });
+    fireEvent.pointerUp(workShortcut, { clientX: 720, clientY: 120, pointerId: 9 });
+
+    const savedOffsets = JSON.parse(window.sessionStorage.getItem("fattah.desktop.shortcuts.v1") ?? "{}");
+    // Nudged to the left of identity: left = 672 - 148 = 524 -> offset.x = 524 - 32 = 492.
+    expect(savedOffsets["surface-work"]).toEqual({ x: 492, y: 20, z: 1 });
+  });
+
+  it("keeps two shortcuts pushed back onto a shrinking desktop from landing on each other", () => {
+    document.documentElement.dataset.systemMode = "computer";
+    window.sessionStorage.setItem("fattah.desktop.shortcuts.v1", JSON.stringify({
+      "surface-work": { x: 500, y: 400, z: 1 },
+      "surface-experience": { x: 500, y: 400, z: 2 },
+    }));
+    render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
+
+    const board = screen.getByLabelText("Portfolio desktop shortcuts");
+    vi.spyOn(board, "getBoundingClientRect").mockReturnValue({
+      bottom: 300, height: 300, left: 0, right: 400, top: 0, width: 400, x: 0, y: 0, toJSON: () => ({}),
+    });
+    // Both rest at (32, 32) and are drawn at their offset, which starts past the board's bottom-right corner.
+    for (const name of ["Projects", "Experience"]) {
+      const shortcut = screen.getByRole("link", { name });
+      vi.spyOn(shortcut, "getBoundingClientRect").mockImplementation(() => {
+        const left = 32 + parseFloat(shortcut.style.getPropertyValue("--desktop-offset-x") || "0");
+        const top = 32 + parseFloat(shortcut.style.getPropertyValue("--desktop-offset-y") || "0");
+        return { bottom: top + 136, height: 136, left, right: left + 148, top, width: 148, x: left, y: top, toJSON: () => ({}) };
+      });
+    }
+
+    act(() => vi.advanceTimersByTime(50));
+    act(() => { window.dispatchEvent(new Event("resize")); });
+
+    const saved = JSON.parse(window.sessionStorage.getItem("fattah.desktop.shortcuts.v1") ?? "{}");
+    const box = (offset: { x: number; y: number }) => ({ left: 32 + offset.x, top: 32 + offset.y, right: 32 + offset.x + 148, bottom: 32 + offset.y + 136 });
+    const work = box(saved["surface-work"]);
+    const experience = box(saved["surface-experience"]);
+    for (const placed of [work, experience]) {
+      expect(placed.left).toBeGreaterThanOrEqual(0);
+      expect(placed.right).toBeLessThanOrEqual(400);
+      expect(placed.top).toBeGreaterThanOrEqual(0);
+      expect(placed.bottom).toBeLessThanOrEqual(300);
+    }
+    const overlap = work.left < experience.right && work.right > experience.left && work.top < experience.bottom && work.bottom > experience.top;
+    expect(overlap).toBe(false);
+  });
+
+  it("names the app that remains when the tablet divider closes the other side", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1100 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 800 });
+    const clientWidth = vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1100);
+    function PairHarness() {
+      const workspace = useWorkspaceManager();
+      return <button onClick={() => { workspace.openWindow("work"); workspace.openWindow("experience"); workspace.setPaired(true); }} type="button">Pair</button>;
+    }
+    render(
+      <WorkspaceManagerProvider>
+        <SystemShell />
+        <CounterfactualHome />
+        <PairHarness />
+      </WorkspaceManagerProvider>,
+    );
+    act(() => vi.advanceTimersByTime(20));
+    fireEvent.click(screen.getByRole("button", { name: "Pair" }));
+    act(() => vi.advanceTimersByTime(20));
+    window.history.replaceState(null, "", "/#selected-work");
+
+    // Pushed to the left edge: Projects closes and Experience has the screen.
+    const divider = screen.getByRole("separator", { name: "Divider between Projects and Experience" });
+    fireEvent.pointerDown(divider, { button: 0, clientX: 550, isPrimary: true, pointerId: 5, timeStamp: 0 });
+    fireEvent.pointerMove(divider, { clientX: 40, pointerId: 5, timeStamp: 50 });
+    fireEvent.pointerUp(divider, { clientX: 20, pointerId: 5, timeStamp: 60 });
+    act(() => vi.advanceTimersByTime(20));
+
+    expect(window.location.pathname).toBe("/brief");
+    expect(document.title).toContain("Experience and CV");
+    clientWidth.mockRestore();
+  });
+
+  it("takes the desktop shortcuts and card links out of the Tab order while a window is in front, and returns them with the desktop", () => {
+    document.documentElement.dataset.systemMode = "computer";
+    render(<WorkspaceManagerProvider><SystemShell /><CounterfactualHome /></WorkspaceManagerProvider>);
+    act(() => vi.advanceTimersByTime(20));
+    const shortcuts = () => Array.from(document.querySelectorAll<HTMLElement>(".desktop-object, .desktop-identity a"));
+    expect(shortcuts().length).toBeGreaterThan(0);
+    expect(shortcuts().every((item) => item.getAttribute("tabindex") === null)).toBe(true);
+
+    const taskbar = within(screen.getByRole("navigation", { name: "System taskbar" }));
+    fireEvent.click(taskbar.getByRole("button", { name: /Open Projects\. Not running/i }));
+    expect(shortcuts().every((item) => item.getAttribute("tabindex") === "-1" && !item.closest("[inert]"))).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show desktop" }));
+    expect(shortcuts().every((item) => item.getAttribute("tabindex") === null)).toBe(true);
+
+    // Arrow keys still move between shortcuts once one has focus.
+    const icons = Array.from(document.querySelectorAll<HTMLElement>(".desktop-object"));
+    icons[0].focus();
+    fireEvent.keyDown(screen.getByLabelText("Portfolio desktop shortcuts"), { key: "ArrowRight" });
+    expect(document.activeElement).toBe(icons[1]);
+  });
+
+  it("brings a blurred desktop window forward with one click, or when Tab lands in it", () => {
+    document.documentElement.dataset.systemMode = "computer";
+    render(<WorkspaceManagerProvider><SystemShell /><CounterfactualHome /></WorkspaceManagerProvider>);
+    act(() => vi.advanceTimersByTime(20));
+    const taskbar = within(screen.getByRole("navigation", { name: "System taskbar" }));
+    const openAll = () => {
+      for (const name of ["Projects", "Experience", "Product Links"]) fireEvent.click(taskbar.getByRole("button", { name: new RegExp(`^Open ${name}`, "i") }));
+      act(() => vi.advanceTimersByTime(50));
+    };
+    const projects = () => document.querySelector<HTMLElement>(".workspace-work-window")!;
+
+    openAll();
+    expect(projects().getAttribute("data-window-state")).toBe("blurred");
+    expect(projects().hasAttribute("inert")).toBe(false);
+    fireEvent.pointerDown(projects(), { button: 0 });
+    expect(projects().getAttribute("data-window-state")).toBe("active");
+
+    // Experience and Product Links come in front again; Projects falls behind both.
+    fireEvent.click(taskbar.getByRole("button", { name: /^Switch to Experience/i }));
+    fireEvent.click(taskbar.getByRole("button", { name: /^Switch to Product Links/i }));
+    act(() => vi.advanceTimersByTime(50));
+    expect(projects().getAttribute("data-window-state")).toBe("blurred");
+    act(() => projects().focus());
+    expect(projects().getAttribute("data-window-state")).toBe("active");
+  });
+
   it("keeps the immediate workspace contract when reduced motion is requested", () => {
     installBrowserStubs(true);
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
@@ -226,7 +372,7 @@ describe("CounterfactualHome", () => {
 
     expect(workIndex).toBeTruthy();
     expect(within(workIndex).getByRole("heading", { name: "Engineering cases" })).toBeTruthy();
-    expect(within(workIndex).getByText(/Three small public projects, each built around one failure/)).toBeTruthy();
+    expect(within(workIndex).getByText(/Three small public cases, each built around one failure/)).toBeTruthy();
     expect(Array.from(caseList.querySelectorAll(".case-entry-open"), (line) => line.textContent?.trim())).toEqual(["Open case", "Open case", "Open case"]);
     expect(Array.from(caseList.querySelectorAll<HTMLAnchorElement>("a")).map((link) => link.getAttribute("href"))).toEqual(
       scenarios.map((scenario) => `/case/${scenario.slug}`),
@@ -265,7 +411,7 @@ describe("CounterfactualHome", () => {
 
     const projectsWindow = screen.getByRole("region", { name: "Projects window" });
     expect(within(projectsWindow).getByRole("heading", { name: "Side projects" })).toBeTruthy();
-    expect(within(projectsWindow).getByRole("link", { name: /public repositories on GitHub/ })).toBeTruthy();
+    expect(within(projectsWindow).getByRole("link", { name: /public repos? on GitHub/ })).toBeTruthy();
 
     fireEvent.click(within(projectsWindow).getByRole("link", { name: /TrustGate Android/i }));
 
@@ -350,7 +496,7 @@ describe("CounterfactualHome", () => {
     const list = within(sideProjects).getByRole("list", { name: "Side projects" });
     expect(list.children).toHaveLength(rollingGithubProjects.length);
     expect(within(sideProjects).queryAllByRole("button")).toHaveLength(0);
-    expect(within(sideProjects).getByRole("link", { name: `All ${rollingGithubProjects.length} public repositories on GitHub` }).getAttribute("target")).toBe("_blank");
+    expect(within(sideProjects).getByRole("link", { name: `${rollingGithubProjects.length} public repos on GitHub, opens in a new tab` }).getAttribute("target")).toBe("_blank");
 
     act(() => vi.advanceTimersByTime(12_000));
     expect(Array.from(list.querySelectorAll("a")).map((link) => link.getAttribute("href"))).toEqual(
@@ -400,11 +546,11 @@ describe("CounterfactualHome", () => {
     const shelf = within(screen.getByRole("navigation", { name: "Tablet application shelf" }));
     fireEvent.click(shelf.getByRole("button", { name: "Open Projects. Not running" }));
     const workWindow = screen.getByRole("region", { name: "Projects window" });
-    expect(within(workWindow).queryByRole("button", { name: "Return to project list" })).toBeNull();
+    expect(within(workWindow).queryByRole("button", { name: "Back to Projects" })).toBeNull();
 
     fireEvent.click(screen.getByRole("link", { name: /A payment callback arrived twice/i }));
     expect(workWindow.getAttribute("data-view")).toBe("full-case");
-    const back = within(workWindow).getByRole("button", { name: "Return to project list" });
+    const back = within(workWindow).getByRole("button", { name: "Back to Projects" });
     expect(back.textContent).toBe("Projects");
     fireEvent.click(back);
     act(() => vi.advanceTimersByTime(400));
@@ -427,14 +573,14 @@ describe("CounterfactualHome", () => {
     expect(within(experienceWindow).queryByText("Roles, scope, and responsibility.")).toBeNull();
     expect(within(experienceWindow).getByRole("link", { name: /Download CV/i })).toBeTruthy();
     expect(within(experienceWindow).getByRole("link", { name: /GitHub/i })).toBeTruthy();
-    expect(within(experienceWindow).getByRole("link", { name: "Contact" })).toBeTruthy();
+    expect(within(experienceWindow).getByRole("button", { name: "Contact" })).toBeTruthy();
     expect(within(experienceWindow).getByRole("link", { name: "Projects" })).toBeTruthy();
     expect(within(experienceWindow).queryByRole("heading", { name: "Engineering cases" })).toBeNull();
     expect(within(experienceWindow).queryByText("fattahmuhammad17@gmail.com")).toBeNull();
     expect(within(experienceWindow).queryByRole("link", { name: /Open full brief/i })).toBeNull();
     expect(document.querySelectorAll('[data-app-id="experience"]')).toHaveLength(1);
     expect(window.location.pathname).toBe("/brief");
-    expect(document.title).toBe("Experience and CV — Muhammad A. Fattah");
+    expect(document.title).toBe("Experience and CV · Muhammad A. Fattah");
   });
 
   it("hands off from Experience to the existing Work application instead of repeating cases", () => {
@@ -459,7 +605,7 @@ describe("CounterfactualHome", () => {
     fireEvent.click(within(workWindow).getByRole("link", { name: "Experience" }));
 
     const experienceWindow = screen.getByRole("region", { name: "Experience window" });
-    fireEvent.click(within(experienceWindow).getByRole("link", { name: "Contact" }));
+    fireEvent.click(within(experienceWindow).getByRole("button", { name: "Contact" }));
 
     const contactWindow = screen.getByRole("dialog", { name: "Contact" });
     expect(contactWindow.getAttribute("data-active-window")).toBe("true");
@@ -489,20 +635,20 @@ describe("CounterfactualHome", () => {
     expect(screen.getByRole("heading", { name: scenarios[0].title })).toBeTruthy();
     scrollTo.mockClear();
     workWindow.scrollTop = 640;
-    fireEvent.click(within(activeSelectedWindow()).getByRole("button", { name: "Next: Detect degradation" }));
+    fireEvent.click(within(activeSelectedWindow()).getByRole("button", { name: "Next: Service observability" }));
     expect(screen.getByRole("region", { name: "Projects window" })).toBe(workWindow);
     expect(screen.getByRole("heading", { name: scenarios[1].title })).toBeTruthy();
     act(() => vi.advanceTimersByTime(20));
     expect(scrollTo).toHaveBeenCalledWith({ behavior: "auto", top: 0 });
-    expect(document.activeElement?.textContent).not.toBe("Next: Detect degradation");
+    expect(document.activeElement?.textContent).not.toBe("Next: Service observability");
     scrollTo.mockClear();
     workWindow.scrollTop = 640;
-    fireEvent.click(within(activeSelectedWindow()).getByRole("button", { name: "Next: Evaluate device trust" }));
+    fireEvent.click(within(activeSelectedWindow()).getByRole("button", { name: "Next: Android device trust" }));
     expect(screen.getByRole("region", { name: "Projects window" })).toBe(workWindow);
     expect(screen.getByRole("heading", { name: scenarios[2].title })).toBeTruthy();
     act(() => vi.advanceTimersByTime(20));
     expect(scrollTo).toHaveBeenCalledWith({ behavior: "auto", top: 0 });
-    expect(document.activeElement?.textContent).not.toBe("Next: Evaluate device trust");
+    expect(document.activeElement?.textContent).not.toBe("Next: Android device trust");
     expect(document.querySelectorAll('.portfolio-window[data-app-id="work"]')).toHaveLength(1);
     expect(activeSelectedWindow().getAttribute("data-view")).toBe("full-case");
   });
@@ -717,13 +863,12 @@ describe("CounterfactualHome", () => {
     const evidenceDialog = screen.getByRole("dialog", { name: /Exhibit 01\.1/i });
     expect(evidenceDialog.getAttribute("data-window-state")).toBe("active");
 
+    // Closing is immediate: Back takes the evidence away at once.
     fireEvent.click(phoneNavigation.getByRole("button", { name: "Back" }));
-    act(() => vi.advanceTimersByTime(400));
     expect(screen.queryByRole("dialog", { name: /Exhibit 01\.1/i })).toBeNull();
     expect(document.querySelector('.workspace-work-window[data-view="full-case"]')).toBeTruthy();
 
     fireEvent.click(phoneNavigation.getByRole("button", { name: "Back" }));
-    act(() => vi.advanceTimersByTime(340));
     expect(screen.getByRole("region", { name: "Projects window" }).getAttribute("data-view")).toBe("index");
     const workWindow = screen.getByRole("region", { name: "Projects window" });
     const selectedWork = workWindow.querySelector<HTMLElement>("#selected-work")!;
@@ -805,7 +950,7 @@ describe("CounterfactualHome", () => {
     );
     expect(screen.getByRole("region", { name: "Projects window" }).getAttribute("data-view")).toBe("full-case");
 
-    fireEvent.click(screen.getByRole("button", { name: "Application overview" }));
+    fireEvent.click(screen.getByRole("button", { name: "Recents" }));
     fireEvent.click(screen.getByRole("button", { name: "Close Projects" }));
 
     expect(screen.queryByRole("region", { name: "Projects window" })).toBeNull();

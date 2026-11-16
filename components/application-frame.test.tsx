@@ -64,6 +64,26 @@ describe("ApplicationFrame resize geometry", () => {
     expect(handleZ).toBeGreaterThan(chromeZ!);
   });
 
+  it("leaves a blurred desktop window reachable, so a click or Tab can bring it forward", () => {
+    function Harness() {
+      const { openWindow } = useWorkspaceManager();
+      useEffect(() => { openWindow("work"); openWindow("experience"); openWindow("products"); }, [openWindow]);
+      return (
+        <>
+          <ApplicationFrame windowId="work" className="portfolio-window work-frame">Projects</ApplicationFrame>
+          <ApplicationFrame windowId="experience" className="portfolio-window">Experience</ApplicationFrame>
+          <ApplicationFrame windowId="products" className="portfolio-window">Products</ApplicationFrame>
+        </>
+      );
+    }
+    render(<WorkspaceManagerProvider><Harness /></WorkspaceManagerProvider>);
+    const work = document.querySelector<HTMLElement>(".work-frame")!;
+    // Three apps open on a desktop: the oldest falls behind the two most recent and blurs.
+    expect(work.getAttribute("data-window-state")).toBe("blurred");
+    expect(work.hasAttribute("inert")).toBe(false);
+    expect(work.getAttribute("aria-hidden")).toBeNull();
+  });
+
   it("minimizes a desktop window toward its own dock icon", () => {
     let minimize: () => void = noop;
     function Harness() {
@@ -91,5 +111,53 @@ describe("ApplicationFrame resize geometry", () => {
     // Window centre (500, 360) to icon centre (700, 855).
     expect(frame.style.getPropertyValue("--minimize-dx")).toBe("200px");
     expect(frame.style.getPropertyValue("--minimize-dy")).toBe("495px");
+  });
+
+  it("keeps the paragraph at the top edge in place when a window is resized narrower", () => {
+    vi.useFakeTimers();
+    let observed: () => void = noop;
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: () => void) { observed = callback; }
+      observe() {}
+      disconnect() {}
+    });
+    let width = 800;
+    let top = 0;
+    const lineHeight = () => (width >= 800 ? 100 : 200);
+    render(
+      <WorkspaceManagerProvider>
+        <ApplicationFrame windowId="work" className="portfolio-window">
+          <div className="portfolio-window-content" style={{ overflowY: "auto" }}>
+            {[0, 1, 2, 3, 4, 5].map((index) => <p data-index={index} key={index}>Paragraph {index}</p>)}
+          </div>
+        </ApplicationFrame>
+      </WorkspaceManagerProvider>,
+    );
+    const owner = document.querySelector<HTMLElement>(".portfolio-window-content")!;
+    Object.defineProperty(owner, "clientWidth", { configurable: true, get: () => width });
+    Object.defineProperty(owner, "scrollTop", { configurable: true, get: () => top, set: (value: number) => { top = value; } });
+    owner.getBoundingClientRect = () => ({ bottom: 700, height: 600, left: 0, right: width, top: 100, width, x: 0, y: 100, toJSON: noop }) as DOMRect;
+    for (const paragraph of Array.from(owner.querySelectorAll<HTMLElement>("p"))) {
+      const index = Number(paragraph.dataset.index);
+      paragraph.getBoundingClientRect = () => {
+        const y = 100 + index * lineHeight() - top;
+        return { bottom: y + lineHeight(), height: lineHeight(), left: 0, right: width, top: y, width, x: 0, y, toJSON: noop } as DOMRect;
+      };
+    }
+
+    // The observer's first report, as a browser sends one on observe().
+    act(() => observed());
+    // Paragraph 2 starts 50px above the top edge.
+    top = 250;
+    act(() => { owner.dispatchEvent(new Event("scroll")); vi.advanceTimersByTime(20); });
+
+    // Narrower, every paragraph is twice as tall; paragraph 2 must still start 50px above the edge.
+    width = 400;
+    act(() => observed());
+    expect(top).toBe(450);
+    expect(owner.querySelector<HTMLElement>('[data-index="2"]')!.getBoundingClientRect().top).toBe(50);
+
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 });

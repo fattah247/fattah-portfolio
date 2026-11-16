@@ -31,7 +31,7 @@ function ProductRow({ product }: { product: IndexedProductLink }) {
       <div className="product-link-offers" role="group" aria-label={`Buy ${product.name}`}>
         {product.offers.map((offer) => (
           <a
-            aria-label={`Open ${product.name} on ${marketplaceLabel(offer.marketplace)}`}
+            aria-label={`Open ${product.name} on ${marketplaceLabel(offer.marketplace)}, opens in a new tab`}
             className="product-marketplace-link"
             data-marketplace={offer.marketplace}
             href={offer.href}
@@ -74,7 +74,7 @@ export function ProductLinksDirectory({ links }: { links: ProductLink[] }) {
   const visibleOfferCount = results.reduce((total, product) => total + product.offers.length, 0);
 
   return (
-    <section className="product-links-directory" aria-label="Affiliate product links">
+    <section className="product-links-directory" aria-label="Product links">
       <div className="product-links-search">
         <label htmlFor="product-link-search">Find a product</label>
         <input

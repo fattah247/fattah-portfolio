@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { ChevronIcon } from "@/components/icons";
 import { PortfolioHeader } from "@/components/portfolio-header";
 import { useWindowFrame } from "@/components/use-window-frame";
@@ -19,9 +19,7 @@ export function EvidenceLedgerApp() {
   const closeEvidenceWindow = workspace.closeWindow;
   const openEvidenceWindow = workspace.openWindow;
   const closeRef = useRef<HTMLButtonElement>(null);
-  const closeTimerRef = useRef<number | null>(null);
   const wasOpenRef = useRef(false);
-  const [isClosing, setIsClosing] = useState(false);
   const {
     dragging,
     frameRef,
@@ -36,10 +34,7 @@ export function EvidenceLedgerApp() {
 
   useEffect(() => {
     openEvidenceWindow("evidence");
-    return () => {
-      if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
-      closeEvidenceWindow("evidence");
-    };
+    return () => closeEvidenceWindow("evidence");
   }, [closeEvidenceWindow, openEvidenceWindow]);
 
   useEffect(() => {
@@ -54,18 +49,16 @@ export function EvidenceLedgerApp() {
   // This route has no Home host, so a session closed from Recents must leave the address itself.
   useEffect(() => {
     if (workspace.isOpen("evidence")) { wasOpenRef.current = true; return; }
-    if (!wasOpenRef.current || isClosing) return;
+    if (!wasOpenRef.current) return;
     wasOpenRef.current = false;
     router.push("/#selected-work");
-  }, [isClosing, router, workspace]);
+  }, [router, workspace]);
 
+  // Closing is immediate; the effect above doesn't leave the address a second time.
   function requestClose() {
-    if (isClosing) return;
-    setIsClosing(true);
-    closeTimerRef.current = window.setTimeout(() => {
-      workspace.closeWindow("evidence");
-      router.push("/#selected-work");
-    }, 240);
+    wasOpenRef.current = false;
+    workspace.closeWindow("evidence");
+    router.push("/#selected-work");
   }
 
   return (
@@ -76,7 +69,6 @@ export function EvidenceLedgerApp() {
         className="evidence-page portfolio-window evidence-route-window"
         data-active-window={workspace.activeWindow === "evidence"}
         data-app-id="work"
-        data-closing={isClosing}
         data-dragging={dragging}
         data-resizing={resizing}
         data-snap={snap ?? undefined}
@@ -105,20 +97,20 @@ export function EvidenceLedgerApp() {
         />
         <div className="evidence-route-content">
         <section className="evidence-hero">
-          <h1>Evidence for the three public labs</h1>
+          <h1>Evidence for the three public cases</h1>
           <p>
-            Public labs support the technical claims below. Professional experience is described separately and does not imply access to employer source code.
+            The public cases support the technical claims below. Professional experience is described separately and does not imply access to employer source code.
           </p>
         </section>
 
         <section className="claim-ledger">
-          <div className="claim-header"><span>Claim</span><span>Evidence</span><span>Boundary</span></div>
+          <div className="claim-header"><span>Claim</span><span>Evidence</span><span>Limits</span></div>
           {scenarios.map((scenario) => (
             <article className="claim-row" key={scenario.slug}>
               <div><span>{scenario.number}</span><h2>{scenario.shortTitle}</h2><p>{scenario.outcome}</p></div>
               <div className="claim-evidence">
-                <div className="claim-thumb"><Image src={scenario.evidence[0].src} alt="" fill sizes="180px" /></div>
-                <div><p>{scenario.evidence[0].caption}</p><Link href={`/case/${scenario.slug}`}>Replay case <ChevronIcon direction="right" /></Link></div>
+                <div className="claim-thumb"><Image src={scenario.evidence[0].src} alt="" fill sizes="180px" unoptimized /></div>
+                <div><p>{scenario.evidence[0].caption}</p><Link href={`/case/${scenario.slug}`}>Open case <ChevronIcon direction="right" /></Link></div>
               </div>
               <p>{scenario.limitation}</p>
             </article>

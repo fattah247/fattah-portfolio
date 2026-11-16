@@ -17,6 +17,14 @@ function reduce(
 }
 
 describe("workspaceReducer", () => {
+  it("blurs a window only on a desktop, so phone and tablet windows behind the front one stay hidden", () => {
+    const three: WorkspaceState = { ...initialWorkspaceState, open: ["work", "experience", "products"], focus: ["work", "experience", "products"], surface: "application" };
+    expect(workspaceWindowState({ ...three, mode: "computer" }, "work")).toBe("blurred");
+    for (const mode of ["tablet", "phone"] as const) {
+      for (const id of ["work", "experience"] as const) expect(workspaceWindowState({ ...three, mode }, id)).toBe("background");
+    }
+  });
+
   it("boots into an empty desktop session", () => {
     expect(initialWorkspaceState).toMatchObject({
       focus: [],

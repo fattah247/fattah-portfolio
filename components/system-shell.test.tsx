@@ -96,11 +96,11 @@ describe("SystemShell", () => {
     render(<WorkspaceManagerProvider><SystemShell /></WorkspaceManagerProvider>);
     const shelf = within(screen.getByRole("navigation", { name: "Tablet application shelf" }));
 
-    const product = shelf.getByRole("button", { name: "Open Product Links. Not running" });
+    const product = shelf.getByRole("button", { name: "Open Products. Not running" });
     fireEvent.click(product);
 
-    expect(shelf.getByRole("button", { name: "Switch to Product Links. Active" })).toBeTruthy();
-    expect(shelf.getAllByRole("button", { name: /Product Links/i })).toHaveLength(1);
+    expect(shelf.getByRole("button", { name: "Switch to Products. Active" })).toBeTruthy();
+    expect(shelf.getAllByRole("button", { name: /Products/i })).toHaveLength(1);
   });
 
   it("makes the tablet shelf the launcher: labelled groups, Back resting on Home, Recents toggling", () => {
@@ -147,7 +147,7 @@ describe("SystemShell", () => {
     fireEvent.click(phoneNavigation.getByRole("button", { name: "Recents" }));
     expect(recents?.getAttribute("aria-hidden")).toBe("false");
     expect(phoneNavigation.getByRole("button", { name: "Recents" }).getAttribute("data-active")).toBe("true");
-    expect(screen.getByText("No apps open.")).toBeTruthy();
+    expect(screen.getByText("No apps open")).toBeTruthy();
     expect(recents?.querySelector('[data-current="true"]')).toBeNull();
   });
 
@@ -157,10 +157,10 @@ describe("SystemShell", () => {
     const taskbar = within(screen.getByRole("navigation", { name: "System taskbar" }));
 
     fireEvent.click(taskbar.getByRole("button", { name: /Open Projects\. Not running/i }));
-    fireEvent.click(taskbar.getByRole("button", { name: "Application overview" }));
+    fireEvent.click(taskbar.getByRole("button", { name: "Recents" }));
     fireEvent.click(screen.getByRole("button", { name: "Close Projects" }));
 
-    expect(screen.getByText("No apps open.")).toBeTruthy();
+    expect(screen.getByText("No apps open")).toBeTruthy();
     expect(taskbar.getByRole("button", { name: /Open Projects\. Not running/i })).toBeTruthy();
     expect(push).not.toHaveBeenCalled();
   });

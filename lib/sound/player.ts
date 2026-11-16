@@ -1,9 +1,12 @@
-import { cues, renderCue, SAMPLE_RATE, type CueId } from "./engine";
+import { cues, renderCue, SAMPLE_RATE, type CueId, type Stereo } from "./engine";
 
 /*
  * Plays the portfolio's cues. Audio starts only after the visitor's first press (browsers require
- * it, and the site never makes a sound on its own). Each cue renders lazily into a few takes and a
- * different take plays each time. Guardrails keep sound from becoming too much:
+ * it, and the site never makes a sound on its own). Each cue is drawn into a few takes and a different
+ * take plays each time. The drawing happens in a worker (lib/sound/render-worker.ts), never on the
+ * main thread, so a sound can't hold up the frame a press is waiting for: the first take of every
+ * cue is drawn as the page loads, the others the first time their cue plays, and a take not drawn yet
+ * is played as one that is (a cue none of whose takes are ready yet stays silent). Guardrails keep sound from becoming too much:
  *
  * - the same cue within 80 ms plays once;
  * - window sounds (open, close, minimize, snap…) that land within 250 ms of each other are one
@@ -49,11 +52,40 @@ function defaultContext() {
   return new Context();
 }
 
-export function createSoundPlayer({ level: initial = "quiet", createContext = defaultContext }: { level?: SoundLevel; createContext?: () => AudioContext | null } = {}) {
+/** Draws takes off the main thread, or nothing where workers can't run (then they're drawn on demand). */
+export type CueRenderer = { request: (jobs: Array<{ id: CueId; take: number }>) => void; onRendered: (handle: (id: CueId, take: number, sound: Stereo) => void) => void };
+
+function defaultRenderer(): CueRenderer | null {
+  if (typeof Worker === "undefined") return null;
+  try {
+    const worker = new Worker(new URL("./render-worker.ts", import.meta.url), { type: "module" });
+    return {
+      onRendered: (handle) => { worker.onmessage = (event: MessageEvent<Stereo & { id: CueId; take: number }>) => handle(event.data.id, event.data.take, event.data); },
+      request: (jobs) => worker.postMessage(jobs),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function createSoundPlayer({ level: initial = "quiet", createContext = defaultContext, createRenderer = defaultRenderer }: { level?: SoundLevel; createContext?: () => AudioContext | null; createRenderer?: () => CueRenderer | null } = {}) {
   let level: SoundLevel = initial;
   let context: AudioContext | null = null;
   let master: GainNode | null = null;
   const takes = new Map<CueId, AudioBuffer[]>();
+  const drawn = new Map<CueId, Stereo[]>();
+  const requested = new Set<string>();
+  const renderer = createRenderer();
+  renderer?.onRendered((id, index, sound) => {
+    const list = drawn.get(id) ?? [];
+    list[index] = sound;
+    drawn.set(id, list);
+  });
+  const ask = (jobs: Array<{ id: CueId; take: number }>) => {
+    const fresh = jobs.filter(({ id, take }) => !requested.has(`${id}:${take}`));
+    for (const { id, take } of fresh) requested.add(`${id}:${take}`);
+    if (fresh.length) renderer?.request(fresh);
+  };
   const lastTake = new Map<CueId, number>();
   const lastPlayed = new Map<CueId, number>();
   let lastWindowSound = -Infinity;
@@ -69,14 +101,21 @@ export function createSoundPlayer({ level: initial = "quiet", createContext = de
     return context;
   };
 
-  const take = (id: CueId, index: number, ctx: AudioContext) => {
+  /** The take as a buffer: drawn in the worker (or the nearest drawn take), or, with no worker, drawn here. */
+  const take = (id: CueId, wanted: number, ctx: AudioContext): AudioBuffer | null => {
     let list = takes.get(id);
     if (!list) {
       list = [];
       takes.set(id, list);
     }
+    let index = wanted;
+    if (renderer && !list[index] && !drawn.get(id)?.[index]) {
+      const ready = [...Array(TAKES).keys()].find((other) => list![other] || drawn.get(id)?.[other]);
+      if (ready === undefined) return null;
+      index = ready;
+    }
     if (!list[index]) {
-      const rendered = renderCue(id, index);
+      const rendered = drawn.get(id)?.[index] ?? renderCue(id, index);
       const buffer = ctx.createBuffer(2, rendered.L.length, SAMPLE_RATE);
       buffer.copyToChannel(rendered.L, 0);
       buffer.copyToChannel(rendered.R, 1);
@@ -115,15 +154,20 @@ export function createSoundPlayer({ level: initial = "quiet", createContext = de
       const windowSound = id.startsWith("sys.");
       if (windowSound && now - lastWindowSound < ACTION_MS) return false;
       if (voices >= MAX_VOICES) return false;
+      // The first play uses the prewarmed take; after that, any take but the last one. The other
+      // takes are drawn the first time their cue is heard; a cue with none drawn yet stays silent
+      // (and doesn't count as played).
+      const previous = lastTake.get(id);
+      const index = previous === undefined ? 0 : (previous + 1 + Math.floor(Math.random() * (TAKES - 1))) % TAKES;
+      ask([...Array(TAKES).keys()].map((other) => ({ id, take: other })));
+      const buffer = take(id, index, context);
+      if (!buffer) return false;
       if (context.state === "suspended") void context.resume();
       lastPlayed.set(id, now);
       if (windowSound) lastWindowSound = now;
-      // The first play uses the prewarmed take; after that, any take but the last one.
-      const previous = lastTake.get(id);
-      const index = previous === undefined ? 0 : (previous + 1 + Math.floor(Math.random() * (TAKES - 1))) % TAKES;
       lastTake.set(id, index);
       const source = context.createBufferSource();
-      source.buffer = take(id, index, context);
+      source.buffer = buffer;
       let output: AudioNode = master;
       if (sincePlayed < SOFTER_MS) {
         const softer = context.createGain();
@@ -144,8 +188,16 @@ export function createSoundPlayer({ level: initial = "quiet", createContext = de
       source.start(context.currentTime + delaySeconds - early, skip);
       return true;
     },
-    /** Renders one take of each cue ahead of use, one per idle moment, so a first press never waits. */
+    /**
+     * Draws one take of each cue ahead of use, so a first press never waits: in the worker as the page
+     * loads (system sounds first), or, with no worker, one per idle moment once audio has started.
+     */
     prewarm(ids: CueId[] = Object.keys(cues) as CueId[]) {
+      if (renderer) {
+        const first = (id: CueId) => (id.startsWith("sys.") || id.startsWith("ui.") ? 0 : 1);
+        ask([...ids].sort((a, b) => first(a) - first(b)).map((id) => ({ id, take: 0 })));
+        return;
+      }
       const ctx = context;
       if (!ctx) return;
       const queue = [...ids];

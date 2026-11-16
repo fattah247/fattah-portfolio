@@ -15,8 +15,8 @@ export type PortfolioAppDefinition = {
 export const portfolioApps: PortfolioAppDefinition[] = [
   { id: "work", label: "Projects", description: "Engineering cases and evidence", defaultDocumentId: "work", href: "/#selected-work" },
   { id: "experience", label: "Experience", description: "Role history and CV", defaultDocumentId: "brief", href: "/brief", documentTitle: "Experience and CV" },
-  { id: "contact", label: "Contact", description: "Email and public profile", defaultDocumentId: "contact", href: "/" },
-  { id: "products", label: "Product Links", shortLabel: "Products", description: "Tools and products I use", defaultDocumentId: "products", href: "/products", documentTitle: "Product links" },
+  { id: "contact", label: "Contact", description: "Email and public profile", defaultDocumentId: "contact", href: "/", documentTitle: "Contact" },
+  { id: "products", label: "Product Links", shortLabel: "Products", description: "Products I use", defaultDocumentId: "products", href: "/products", documentTitle: "Product Links" },
 ];
 
 export function portfolioApp(id: PortfolioAppId) {

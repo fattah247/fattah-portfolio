@@ -19,7 +19,7 @@ function PaymentCover() {
     <g>
       <text className="case-cover-label" x="16" y="24">provider</text>
       <text className="case-cover-label" x="118" y="24">inbox</text>
-      <text className="case-cover-label" x="182" y="24">state</text>
+      <text className="case-cover-label" x="174" y="24">state</text>
       <path className="case-cover-rule" d="M16 34h208" />
       {/* First delivery passes the boundary and changes state once. */}
       <path className="case-cover-flow" d="M24 62h96" />
@@ -32,9 +32,9 @@ function PaymentCover() {
       <text className="case-cover-event-text" x="23" y="102">02</text>
       <path className="case-cover-stop" d="M110 88v20" />
       <rect className="case-cover-boundary" height="70" width="30" x="124" y="46" />
-      <path className="case-cover-flow case-cover-flow-designed" d="M154 62h28" />
-      <rect className="case-cover-state" height="26" width="44" x="182" y="49" />
-      <text className="case-cover-state-text" x="186" y="66">SUCCESS</text>
+      <path className="case-cover-flow case-cover-flow-designed" d="M154 62h20" />
+      <rect className="case-cover-state" height="26" width="50" x="174" y="49" />
+      <text className="case-cover-state-text" textAnchor="middle" x="199" y="66">SUCCESS</text>
       <text className="case-cover-note" x="16" y="138">2 deliveries · 1 state change</text>
     </g>
   );

@@ -33,7 +33,6 @@ export type Scenario = {
   category: string;
   shortcutLabel: string;
   indexTechnology: string;
-  indexResult: string;
   slug: ScenarioSlug;
   number: string;
   shortTitle: string;
@@ -65,7 +64,6 @@ export const scenarios: Scenario[] = [
     category: "Payment reliability",
     shortcutLabel: "Payment case",
     indexTechnology: "Spring Boot · PostgreSQL",
-    indexResult: "2 deliveries / 1 payment change",
     number: "01",
     shortTitle: "A payment callback arrived twice",
     title: "The same payment callback arrived twice",
@@ -75,7 +73,7 @@ export const scenarios: Scenario[] = [
     repo: "https://github.com/fattah247/payflow-reliability",
     technology: "Java 21 · Spring Boot · PostgreSQL · Flyway · Prometheus · Docker",
     designedLabel: "Payflow",
-    baselineLabel: "Without an event inbox, trusting the provider (comparison)",
+    baselineLabel: "Trusting every message (comparison)",
     decision: "Record every provider event in an inbox before it can change the payment, hold a payment whose amount disagrees, and land a payout only on a matching bank credit.",
     outcome: "Two deliveries are recorded. The payment changes once.",
     outcomeNodeId: "money",
@@ -138,22 +136,21 @@ export const scenarios: Scenario[] = [
       {
         src: "/projects/payflow/23-chaos-money-rules.png",
         alt: "Payflow chaos scenario output: a seeded run of 150 steps with lost and doubled webhooks, provider timeouts, racing payouts, bank faults, slowness and risky devices, after which all twelve money rules hold",
-        caption: "A seeded run of 150 steps throws lost and doubled webhooks, provider timeouts, racing payouts, bank faults, slowness and risky devices at the running app. Afterwards all twelve money rules hold, from balanced books to payouts sent once.",
+        caption: "A seeded run of 150 steps throws lost and doubled webhooks, provider timeouts, racing payouts, bank faults, slowness and risky devices at the running app. Afterwards all twelve money rules hold, including balanced books and payouts sent once.",
         focus: "Twelve money rules hold under chaos",
       },
     ],
     limitation:
-      "This public lab is built from common payment engineering practice; it does not represent the systems, code, or business rules of any employer, past or present. The provider, the bank and the customers are simulated, with one currency per payout, and payouts stop at the settlement account.",
+      "This public case is built from common payment engineering practice; it does not represent the systems, code, or business rules of any employer, past or present. The provider, the bank and the customers are simulated, with one currency per payout, and payouts stop at the settlement account.",
   },
   {
     slug: "iyup",
     category: "Service observability",
     shortcutLabel: "Service case",
     indexTechnology: "Prometheus · Grafana",
-    indexResult: "Slow warning, no false outage",
     number: "02",
     shortTitle: "The service was up, but getting slower",
-    title: "The service was responding, but getting slower",
+    title: "The service was up, but getting slower",
     consequence: "A page that still answers but makes visitors wait needs a warning, and a page failing in one place is not an outage.",
     premise:
       "Two agents check the page every 30 seconds from two regions. A check is slow when it takes longer than the page's own limit, here one second. The verdict is the majority: down only when most regions see it fail, slow only when most see it slow.",
@@ -224,7 +221,7 @@ export const scenarios: Scenario[] = [
       {
         src: "/projects/iyup/prometheus-targets.png",
         alt: "Prometheus targets page: the API gateway and both regions' ping agents being scraped, all up",
-        caption: "Collection is visible at the scrape boundary: both regions' agents and the API are scraped, so missing data reads as unknown, never as down or as zero.",
+        caption: "Prometheus scrapes both regions' agents and the API, so missing data reads as unknown, never as down or as zero.",
         focus: "Collection state at the scrape boundary",
       },
     ],
@@ -236,7 +233,6 @@ export const scenarios: Scenario[] = [
     category: "Android device trust",
     shortcutLabel: "Device case",
     indexTechnology: "Kotlin · Android Keystore",
-    indexResult: "3 points: confirmed first, not blocked",
     number: "03",
     shortTitle: "A phone looked suspicious, but not enough to block",
     title: "The phone looked suspicious, but not enough to block the payment",
@@ -280,7 +276,7 @@ export const scenarios: Scenario[] = [
       {
         src: "/projects/trustgate/02-device-risk-details.png",
         alt: "TrustGate Android Signals tab: three of eight checks flagged, with the points each adds to a high-risk score of 5",
-        caption: "Each flagged check shows the points it adds, so the risk verdict can be checked by hand before a sensitive action is evaluated.",
+        caption: "Each flagged check shows the points it adds, so you can check the risk verdict by hand before the gate evaluates a sensitive action. From an earlier build that had eight checks.",
         focus: "The points behind the verdict",
       },
       {
@@ -306,6 +302,9 @@ export const scenarios: Scenario[] = [
       "Client-side checks raise the cost of abuse but cannot prove device integrity. The demo's backend runs inside the app; a production server would decide from a Play Integrity verdict.",
   },
 ];
+
+/** The comparison's name for labels and sentences: its baseline label without the "(comparison)" tag or what follows a comma. */
+export const comparisonName = (scenario: Scenario) => (scenario.baselineLabel ?? "").replace(/ \(comparison\)$/, "").split(",")[0];
 
 export function getScenario(slug: string) {
   return scenarios.find((scenario) => scenario.slug === slug);
