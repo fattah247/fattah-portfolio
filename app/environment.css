@@ -2057,6 +2057,10 @@ html:not([data-system-mode="phone"]) .selected-work-window .case-progress a {
   padding: 0 14px !important;
 }
 
+/* A tablet is touched: its tabs reach 44 px, and chapter anchors clear the taller strip. */
+html[data-system-mode="tablet"] .selected-work-window { --case-progress-height: 51px; }
+html[data-system-mode="tablet"] .selected-work-window .case-progress a { min-height: 44px !important; }
+
 html:not([data-system-mode="phone"]) .selected-work-window .case-progress a:hover { background: var(--raised) !important; border-color: var(--border) !important; }
 html:not([data-system-mode="phone"]) .selected-work-window .case-progress a::after { display: none !important; }
 
@@ -2541,6 +2545,7 @@ html[data-system-mode="phone"] .product-links-intro { padding-top: 18px !importa
 }
 
 .evidence-route-window .claim-evidence a { color: var(--accent-deep) !important; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .claim-evidence a { min-block-size: 44px; }
 
 /* The embedded case is its own scroll owner, so it must also contain its absolutely
  * positioned children (the screen-reader status line); otherwise they extend the outer
@@ -3295,6 +3300,9 @@ html[data-system-mode="computer"] .system-home-screen { display: none !important
 }
 
 .home-work-head button svg { block-size: 14px; inline-size: 14px; }
+/* Where Home is too short for a 44 px header, the button's touch area still reaches 44 px. */
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .home-work-head button { position: relative; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .home-work-head button::before { content: ""; inset-block: min(0px, calc(50% - 22px)); inset-inline: 0; position: absolute; }
 .home-work ol { display: grid; list-style: none; margin: 0; padding: 0; }
 .home-work li + li { border-top: 1px solid var(--rule); }
 
@@ -3944,7 +3952,7 @@ html[data-system-mode="tablet"] .window-compact-back-action {
   flex: 0 0 auto;
   font: var(--type-button) !important;
   gap: 2px;
-  min-block-size: 36px;
+  min-block-size: 44px;
   padding: 0 12px 0 6px !important;
 }
 
@@ -4368,15 +4376,15 @@ html[data-system-mode="phone"] .evidence-stage:not([data-zoomed]) .evidence-imag
   html[data-system-mode="phone"] .home-layout[data-resume] .home-case { padding-block: 6px; }
 }
 
-/* Phone touch targets: links that stand on their own line and the search field reach 44 px;
- * the case panel's "All projects" does too wherever Home has the height for it. */
-html[data-system-mode="phone"] :is(.github-projects-github-link, .home-window .editorial-footer a, .workspace-experience-window .experience-work-handoff a, .contact-primary .contact-channel > a) {
+/* Touch targets on phone and tablet: links that stand on their own line and the search field
+ * reach 44 px; the case panel's "All projects" does too wherever Home has the height for it. */
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.github-projects-github-link, .home-window .editorial-footer a, .workspace-experience-window .experience-work-handoff a, .contact-primary .contact-channel > a) {
   align-items: center;
   display: inline-flex !important;
   min-block-size: 44px;
 }
 
-html[data-system-mode="phone"] .product-links-search input { min-height: 44px; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .product-links-search input { min-height: 44px; }
 
 @container home (min-height: 36rem) {
   html[data-system-mode="phone"] .home-work-head,
@@ -4449,7 +4457,9 @@ html[data-system-mode="phone"] .product-links-search input { min-height: 44px; }
 .sound-control-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .sound-glyph { block-size: 16px; fill: currentColor; inline-size: 16px; }
 .sound-control[data-level="off"] .sound-glyph { color: var(--shell-ink-muted); }
-html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sound-control-toggle::before { content: ""; inset: -10px -8px; position: absolute; }
+/* The bar starts at the screen's top edge, so the touch area grows downward to stay 44 px on screen. */
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sound-control-toggle { z-index: 1; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .sound-control-toggle::before { content: ""; inset: -10px -9px -20px; position: absolute; }
 
 .sound-control-panel {
   background: var(--raised);
@@ -4770,6 +4780,11 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 .pw-proof-tests { display: grid; gap: 4px; list-style: none; margin: 0; padding: 0; }
 .pw-proof-tests li { color: var(--ink); font: var(--type-caption); overflow-wrap: anywhere; }
 .pw-proof-tests code { font-size: .75rem; }
+/* Touch: each file link is a 44 px row, and each test a ruled row, so stacked links never merge. */
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.pw-code figcaption, .pw-proof-tests li) > a { min-block-size: 44px; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .pw-proof-tests { gap: 0; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .pw-proof-tests li { align-items: center; column-gap: 8px; display: flex; flex-wrap: wrap; }
+html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .pw-proof-tests li + li { border-block-start: 1px solid var(--rule); }
 .pw-proof-compare { border-block-start: 1px dashed var(--doc-edge); color: var(--ink-secondary); font: var(--type-caption); padding-block-start: 6px; }
 
 .pw-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
