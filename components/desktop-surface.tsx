@@ -379,6 +379,9 @@ export function DesktopSurface({
     return false;
   }
 
+  // Behind an open window the shortcuts stay clickable but leave the Tab order, so Tab moves through the window and the taskbar.
+  const behindWindows = workspace.surface !== "home";
+
   function moveSelection(event: KeyboardEvent<HTMLDivElement>) {
     const keys = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"];
     if (!keys.includes(event.key)) return;
@@ -426,6 +429,7 @@ export function DesktopSurface({
             data-grab-ready={grabReadyDesktopItem === item.className ? "true" : undefined}
             href={item.href}
             key={item.label}
+            tabIndex={behindWindows ? -1 : undefined}
             onDragStart={(event) => event.preventDefault()}
             onClick={(event) => {
               if (!shouldOpenFromClick(event, item.className)) return;

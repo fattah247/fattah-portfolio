@@ -292,6 +292,27 @@ describe("CounterfactualHome", () => {
     clientWidth.mockRestore();
   });
 
+  it("takes the desktop shortcuts out of the Tab order while a window is in front, and returns them with the desktop", () => {
+    document.documentElement.dataset.systemMode = "computer";
+    render(<WorkspaceManagerProvider><SystemShell /><CounterfactualHome /></WorkspaceManagerProvider>);
+    act(() => vi.advanceTimersByTime(20));
+    const shortcuts = () => Array.from(document.querySelectorAll<HTMLElement>(".desktop-object"));
+    expect(shortcuts().length).toBeGreaterThan(0);
+    expect(shortcuts().every((item) => item.getAttribute("tabindex") === null)).toBe(true);
+
+    const taskbar = within(screen.getByRole("navigation", { name: "System taskbar" }));
+    fireEvent.click(taskbar.getByRole("button", { name: /Open Projects\. Not running/i }));
+    expect(shortcuts().every((item) => item.getAttribute("tabindex") === "-1" && !item.closest("[inert]"))).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show desktop" }));
+    expect(shortcuts().every((item) => item.getAttribute("tabindex") === null)).toBe(true);
+
+    // Arrow keys still move between shortcuts once one has focus.
+    shortcuts()[0].focus();
+    fireEvent.keyDown(screen.getByLabelText("Portfolio desktop shortcuts"), { key: "ArrowRight" });
+    expect(document.activeElement).toBe(shortcuts()[1]);
+  });
+
   it("keeps the immediate workspace contract when reduced motion is requested", () => {
     installBrowserStubs(true);
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
