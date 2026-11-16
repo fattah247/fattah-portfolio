@@ -89,10 +89,10 @@ describe("product link directory", () => {
   it("groups marketplace destinations under one product with recognizable labels and filtering", () => {
     render(createElement(ProductLinksDirectory, { links }));
 
-    expect(screen.getByRole("link", { name: "Open Alpha Cable on Shopee" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Open Alpha Cable on Tokopedia" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Open Alpha Cable on TikTok Shop" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Open Zebra Stand on Amazon" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open Alpha Cable on Shopee, opens in a new tab" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open Alpha Cable on Tokopedia, opens in a new tab" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open Alpha Cable on TikTok Shop, opens in a new tab" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Open Zebra Stand on Amazon, opens in a new tab" })).toBeTruthy();
     expect(screen.getByText("2 products · 4 links")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Amazon" }));

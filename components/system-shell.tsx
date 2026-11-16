@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   useWorkspaceManager,
@@ -15,7 +15,10 @@ import { CaseCover } from "./case-cover";
 import { Wallpaper } from "./wallpaper";
 import { SoundControl } from "./sound-control";
 import { useSound } from "./sound-provider";
+import { hop, leaveSpring, springDuration, springTo, windowSpring } from "../lib/motion";
 import { useWorkspaceSounds } from "./use-workspace-sounds";
+import { useHomeGesture } from "./use-home-gesture";
+import { useFlickAway } from "./use-flick-away";
 import { experience } from "../lib/content";
 import { rowsThatFit } from "../lib/fit-rows";
 import { filterProductLinks, indexProductLinks, productLinks, searchProductLinks, type Marketplace } from "../lib/product-links";
@@ -55,7 +58,12 @@ function RecentPreview({ app }: { app: PortfolioAppId }) {
     return (
       <div className="recent-preview recent-preview-index">
         <small>Engineering cases</small>
-        {scenarios.map((item) => <b key={item.slug}><span className="recent-preview-extra">{item.number} </span>{item.shortTitle}</b>)}
+        {scenarios.map((item) => (
+          <Fragment key={item.slug}>
+            <b><span className="recent-preview-extra">{item.number} </span>{item.shortTitle}</b>
+            <span className="recent-preview-extra recent-preview-line">{item.consequence}</span>
+          </Fragment>
+        ))}
       </div>
     );
   }
@@ -81,12 +89,15 @@ function RecentPreview({ app }: { app: PortfolioAppId }) {
   const results = filterProductLinks(searchProductLinks(indexProductLinks(productLinks), directory?.query ?? ""), directory?.marketplace ?? "all");
   return (
     <div className="recent-preview recent-preview-catalog">
-      <small>{directory?.query ? `Search: ${directory.query}` : "Catalogue"}</small>
+      <small>{directory?.query ? `Search: ${directory.query}` : "Products I use"}</small>
       <b>{results.length} {results.length === 1 ? "product" : "products"}</b>
       <ul className="recent-preview-extra">{results.slice(0, 6).map((product) => <li key={product.id}>{product.name}</li>)}</ul>
     </div>
   );
 }
+
+/** How long the pointer rests on a taskbar button before its caption shows (the stylesheet waits as long). */
+const captionDelayMs = 480;
 
 export function SystemShell() {
   const pathname = usePathname();
@@ -104,6 +115,12 @@ export function SystemShell() {
   const activeEntry = portfolioApps.find((app) => app.id === (workspace.activeApp ?? routeOwner));
   const resumeApp = runningApps.at(-1) ?? "work";
   const recentsListRef = useRef<HTMLDivElement>(null);
+  const launchTimer = useRef(0);
+  // Taskbar captions: the first waits a moment; once one has shown, the next answer at once.
+  const [captionsWarm, setCaptionsWarm] = useState(false);
+  const captionTimer = useRef(0);
+  const warmCaptions = () => { window.clearTimeout(captionTimer.current); captionTimer.current = window.setTimeout(() => setCaptionsWarm(true), captionDelayMs); };
+  const coolCaptions = () => { window.clearTimeout(captionTimer.current); captionTimer.current = window.setTimeout(() => setCaptionsWarm(false), 400); };
 
   // Recents reads oldest to newest; entering it lands on the newest card with the previous one peeking.
   useLayoutEffect(() => {
@@ -145,20 +162,56 @@ export function SystemShell() {
     return () => observer.disconnect();
   }, [workspace.mode, workspace.surface, runningApps.length]);
 
+  /** Recents' own Return home where it's shown, else the phone bar's or the tablet shelf's Home. */
+  const recentsWayHome = () => [...document.querySelectorAll<HTMLElement>(".system-recents-home, .phone-system-navigation [aria-label='Home'], nav.tablet-shelf [aria-label='Home']")].find((button) => button.checkVisibility?.() ?? true) ?? null;
+
   // When an app closes and takes the keyboard focus with it, focus returns to that app's own
-  // taskbar or shelf button, so a keyboard user continues from where the app lived.
+  // taskbar or shelf button, so a keyboard user continues from where the app lived; closed from
+  // Recents, it goes to the card that slid into its place (or Return home when none is left).
   const previousRunning = useRef<PortfolioAppId[]>([]);
   useEffect(() => {
-    const closed = previousRunning.current.filter((app) => !runningApps.includes(app));
+    const before = previousRunning.current;
+    const closed = before.filter((app) => !runningApps.includes(app));
     previousRunning.current = runningApps;
     if (!closed.length) return;
+    const inRecents = workspace.surface === "recents";
     const frame = window.requestAnimationFrame(() => {
       const active = document.activeElement;
       if (active && active !== document.body && document.contains(active)) return;
+      if (inRecents) {
+        const cards = document.querySelectorAll<HTMLElement>(".system-recent-open");
+        (cards[Math.min(before.indexOf(closed[0]), cards.length - 1)] ?? recentsWayHome())?.focus({ preventScroll: true });
+        return;
+      }
       document.querySelector<HTMLElement>(`.taskbar-app[data-app="${closed[0]}"], nav.tablet-shelf button[data-app="${closed[0]}"]`)?.focus();
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [runningApps]);
+  }, [runningApps, workspace.surface]);
+
+  // On a phone or tablet, the keyboard's focus follows the visitor between surfaces: opening Recents
+  // from its button lands on the current card, and focus that a surface took away with it (Return
+  // home from inside Recents) lands on Home.
+  const surfaceBefore = useRef(workspace.surface);
+  useEffect(() => {
+    const before = surfaceBefore.current;
+    surfaceBefore.current = workspace.surface;
+    if (before === workspace.surface || workspace.mode === "computer") return;
+    const active = document.activeElement as HTMLElement | null;
+    const lost = !active || active === document.body || Boolean(active.closest("[inert]"));
+    const target = workspace.surface === "recents" && (lost || active?.matches("[aria-label='Recents']"))
+      ? document.querySelector<HTMLElement>(".system-recent-card[data-current='true'] .system-recent-open") ?? [...document.querySelectorAll<HTMLElement>(".system-recent-open")].at(-1) ?? recentsWayHome()
+      : workspace.surface === "home" && lost ? document.querySelector<HTMLElement>(".phone-system-navigation [aria-label='Home'], nav.tablet-shelf [aria-label='Home']") : null;
+    if (!target) return;
+    // A surface that fades in can't take focus until it's shown, so the move retries for a few frames.
+    let frame = 0;
+    let tries = 0;
+    const land = () => {
+      target.focus({ preventScroll: true });
+      if (document.activeElement !== target && ++tries < 20) frame = window.requestAnimationFrame(land);
+    };
+    land();
+    return () => window.cancelAnimationFrame(frame);
+  }, [workspace.mode, workspace.surface]);
 
   useEffect(() => {
     const update = () => {
@@ -193,6 +246,13 @@ export function SystemShell() {
     return () => window.clearInterval(timer);
   }, []);
 
+  // An iPhone shows a touched control's :active state only once the page listens for touches.
+  useEffect(() => {
+    const listen = () => undefined;
+    document.addEventListener("touchstart", listen, { passive: true });
+    return () => document.removeEventListener("touchstart", listen);
+  }, []);
+
   useEffect(() => {
     const preventPageContextMenu = (event: globalThis.MouseEvent) => {
       const target = event.target instanceof Element ? event.target : null;
@@ -202,13 +262,116 @@ export function SystemShell() {
     return () => document.removeEventListener("contextmenu", preventPageContextMenu);
   }, []);
 
-  /** Records where a launch began so the opening app can grow out of that icon or row. */
+  // A launch grows the app out of what launched it; going Home (by Home, Back, Recents or the home
+  // gesture) sends it back into its Home icon, or a tablet's shelf button, and opening Recents sends
+  // it into its card there. All of it rides springs from wherever the window is and at the speed it
+  // has, so tapping Home mid-launch (or the icon mid-leave) swings it round instead of jumping, and an
+  // app thrown up from the bar flies home at the speed it was thrown.
+  const leftFrom = useRef({ surface: workspace.surface, app: workspace.activeApp });
+  const thrown = useRef(0);
+  const launchFrom = useRef<DOMRect | null>(null);
+  useLayoutEffect(() => {
+    const before = leftFrom.current;
+    leftFrom.current = { surface: workspace.surface, app: workspace.activeApp };
+    if (workspace.mode === "computer") return;
+    const root = document.documentElement;
+    const windowOf = (app: string) => document.querySelector<HTMLElement>(`:is(.portfolio-window, .contact-window)[data-app-id="${app}"]`);
+
+    // The scale that makes a window `rect`'s width, about the one point that lands it on `rect`.
+    const onto = (element: HTMLElement, rect: DOMRect) => {
+      const size = Math.min(0.95, Math.max(0.06, rect.width / element.offsetWidth));
+      return { origin: `${Math.round((rect.left - element.offsetLeft) / (1 - size))}px ${Math.round((rect.top - element.offsetTop) / (1 - size))}px`, size };
+    };
+
+    // An app opens out of exactly what launched it, as an iPhone's does: from the icon's own size,
+    // or the card's, filling the screen on the window spring.
+    const launched = root.dataset.launching && workspace.surface === "application" && workspace.activeApp && (before.surface !== "application" || before.app !== workspace.activeApp);
+    if (launched) {
+      const launching = windowOf(workspace.activeApp!);
+      const from = launchFrom.current;
+      if (launching && from?.width && launching.offsetWidth) {
+        const { origin, size } = onto(launching, from);
+        launching.style.transformOrigin = origin;
+        springTo(launching, { scale: "1", "--window-fade": "1" }, windowSpring, { from: { scale: String(size), "--window-fade": "0" } });
+      }
+    }
+
+    if (before.surface !== "application" || !before.app || (workspace.surface !== "home" && workspace.surface !== "recents")) return;
+    const leaving = windowOf(before.app);
+    if (!leaving) return;
+    // Home takes it back into its icon (a tablet's shelf button); Recents into its card.
+    const target = workspace.surface === "home"
+      ? [...document.querySelectorAll<HTMLElement>(`.system-launcher-app[data-app="${before.app}"] .system-app-mark, .tablet-shelf [data-app="${before.app}"]`)]
+        .map((element) => element.getBoundingClientRect())
+        .find((rect) => rect.width > 0)
+      : document.querySelector<HTMLElement>(`.system-recent-preview[data-app="${before.app}"]`)?.getBoundingClientRect();
+    const { origin, size } = target?.width && leaving.offsetWidth ? onto(leaving, target) : { origin: "50% 100%", size: 0.12 };
+    // A window held by the home gesture is already off its seat: re-centre its scaling on the new
+    // point without moving it on screen, so it carries on from exactly where the finger left it.
+    const held = leaving.dataset.held === "true";
+    if (held) {
+      const style = getComputedStyle(leaving);
+      const scale = Number(style.scale) || 1;
+      const [shiftX = 0, shiftY = 0] = style.translate === "none" ? [] : style.translate.split(" ").map(parseFloat);
+      const [fromX, fromY] = style.transformOrigin.split(" ").map(parseFloat);
+      leaving.style.transformOrigin = origin;
+      const [toX, toY] = getComputedStyle(leaving).transformOrigin.split(" ").map(parseFloat);
+      leaving.style.translate = `${shiftX + (1 - scale) * (fromX - toX)}px ${shiftY + (1 - scale) * (fromY - toY)}px`;
+    } else leaving.style.transformOrigin = origin;
+    const layer = leaving.closest<HTMLElement>(".contact-window-layer");
+    const settle = () => {
+      delete leaving.dataset.leaving;
+      if (layer) delete layer.dataset.leaving;
+    };
+    leaving.dataset.leaving = "true";
+    if (layer) layer.dataset.leaving = "true";
+    // Shrinking away doesn't overshoot: the spring is fully damped.
+    const leave = springTo(leaving, { scale: String(size), translate: "0px 0px", "--window-fade": "0" }, leaveSpring, {
+      fill: "forwards",
+      from: held ? undefined : { scale: "1", translate: "0px 0px", "--window-fade": "1" },
+      velocity: held ? thrown.current : undefined,
+    });
+    thrown.current = 0;
+    leaving.style.removeProperty("translate");
+    leaving.style.removeProperty("scale");
+    delete leaving.dataset.held;
+    if (!leave) { settle(); return; }
+    leave.addEventListener("finish", () => { settle(); leave.cancel(); });
+    return settle;
+  }, [workspace.activeApp, workspace.mode, workspace.surface]);
+
+  /**
+   * Records where a launch began, so the opening app grows out of that icon, row, shelf button or
+   * Recents card, and marks the launch for its one animation. Only a launch plays it: an app that
+   * surfaces again (a sheet closed over it, Recents dismissed, Back) simply appears.
+   */
   function noteLaunchOrigin(target: EventTarget | null) {
     if (!(target instanceof HTMLElement)) return;
-    const rect = target.getBoundingClientRect();
-    document.documentElement.style.setProperty("--launch-x", `${Math.round(rect.left + rect.width / 2)}px`);
-    document.documentElement.style.setProperty("--launch-y", `${Math.round(rect.top + rect.height / 2)}px`);
+    // A Home icon launches from its glyph, not the label under it.
+    launchFrom.current = (target.querySelector<HTMLElement>(".system-app-mark") ?? target).getBoundingClientRect();
+    const root = document.documentElement;
+    root.dataset.launching = "true";
+    window.clearTimeout(launchTimer.current);
+    launchTimer.current = window.setTimeout(() => { delete root.dataset.launching; }, 400);
   }
+
+  // Tapping the status bar takes the open app back to its top, as on an iPhone or iPad.
+  function scrollAppToTop(event: ReactMouseEvent<HTMLElement>) {
+    if (workspace.mode === "computer" || workspace.surface !== "application" || !workspace.activeApp) return;
+    if ((event.target as HTMLElement).closest("button, a, [role='group']")) return;
+    const app = document.querySelector<HTMLElement>(`:is(.portfolio-window, .contact-window)[data-app-id="${workspace.activeApp}"]`);
+    if (!app) return;
+    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    for (const element of [app, ...app.querySelectorAll<HTMLElement>("*")]) {
+      if (element.scrollTop > 0) element.scrollTo({ behavior: still ? "auto" : "smooth", top: 0 });
+    }
+  }
+
+  const homeGesture = useHomeGesture({
+    app: () => (workspace.surface === "application" && workspace.activeApp ? document.querySelector<HTMLElement>(`:is(.portfolio-window, .contact-window)[data-app-id="${workspace.activeApp}"]`) : null),
+    home: (scaleVelocity) => { thrown.current = scaleVelocity; workspace.goHome(); },
+    recents: workspace.openRecents,
+  });
 
   function launchApp(app: PortfolioAppId) {
     if (workspace.launchApp(app)) return;
@@ -222,10 +385,44 @@ export function SystemShell() {
     router.push(`/case/${slug}`);
   }
 
+  // On the desktop, an app that starts running hops its taskbar button once, as a Mac's Dock does
+  // (not for apps a returning visitor finds already running).
+  const runningBefore = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const before = runningBefore.current;
+    runningBefore.current = new Set(runningApps);
+    if (!before || workspace.mode !== "computer") return;
+    for (const app of runningApps) if (!before.has(app)) hop(document.querySelector<HTMLElement>(`.taskbar-app[data-app="${app}"]`));
+  }, [runningApps, workspace.mode]);
+
+  // Closing a Recents card lets the cards beside it slide over into the gap on the window spring,
+  // from where they stood before, rather than jumping there.
+  const cardsBefore = useRef(new Map<string, DOMRect>());
   function closeRecent(app: PortfolioAppId) {
+    cardsBefore.current = new Map([...document.querySelectorAll<HTMLElement>(".system-recent-card[data-app]")].map((card) => [card.dataset.app!, card.getBoundingClientRect()]));
     // Each route host rewrites its own address once the session is gone.
     workspace.closeApp(app);
   }
+  const flickAway = useFlickAway((app) => closeRecent(app as PortfolioAppId));
+  useLayoutEffect(() => {
+    const before = cardsBefore.current;
+    if (!before.size) return;
+    cardsBefore.current = new Map();
+    // The row's snapping would pick a new card to centre while they slide; it waits until they land.
+    const list = recentsListRef.current;
+    if (list) {
+      list.style.scrollSnapType = "none";
+      list.scrollLeft = list.scrollWidth;
+      window.setTimeout(() => list.style.removeProperty("scroll-snap-type"), springDuration(windowSpring) + 40);
+    }
+    for (const card of document.querySelectorAll<HTMLElement>(".system-recent-card[data-app]")) {
+      const was = before.get(card.dataset.app!);
+      const now = card.getBoundingClientRect();
+      if (was && (Math.abs(was.left - now.left) > 1 || Math.abs(was.top - now.top) > 1)) {
+        springTo(card, { translate: "0px 0px" }, windowSpring, { from: { translate: `${was.left - now.left}px ${was.top - now.top}px` } });
+      }
+    }
+  }, [runningApps.length]);
 
   function activateFromTaskbar(app: PortfolioAppId) {
     if (workspace.surface === "application" && workspace.activeApp === app && !workspace.isMinimized(app)) {
@@ -237,7 +434,7 @@ export function SystemShell() {
 
   return (
     <>
-      <header className="system-status-bar" data-mode={workspace.mode}>
+      <header className="system-status-bar" data-mode={workspace.mode} onClick={scrollAppToTop}>
         <div className="system-brand">
           <span aria-hidden="true" />
           <strong>Fattah</strong>
@@ -289,7 +486,7 @@ export function SystemShell() {
           <section className="home-work" aria-labelledby="home-work-title">
             <div className="home-work-head">
               <h2 id="home-work-title">Engineering cases</h2>
-              <button onClick={(event) => { noteLaunchOrigin(event.currentTarget); launchApp("work"); }} type="button">All projects <ChevronIcon direction="right" /></button>
+              <button onClick={(event) => { noteLaunchOrigin(event.currentTarget); launchApp("work"); }} type="button">Open Projects <ChevronIcon direction="right" /></button>
             </div>
             <ol>
               {scenarios.map((scenario) => (
@@ -328,7 +525,7 @@ export function SystemShell() {
 
           <div className="system-launcher" role="group" aria-label="Applications">
             {portfolioApps.map((app) => (
-              <button aria-label={`${workspace.isAppOpen(app.id) ? "Switch to" : "Open"} ${app.label}${workspace.isAppOpen(app.id) ? ", application is running" : ""}`} className="system-launcher-app" data-app={app.id} key={app.id} onClick={(event) => { noteLaunchOrigin(event.currentTarget); launchApp(app.id); }} type="button">
+              <button aria-label={`${workspace.isAppOpen(app.id) ? "Switch to" : "Open"} ${app.shortLabel ?? app.label}${workspace.isAppOpen(app.id) ? ", application is running" : ""}`} className="system-launcher-app" data-app={app.id} key={app.id} onClick={(event) => { noteLaunchOrigin(event.currentTarget); launchApp(app.id); }} type="button">
                 <AppMark app={app.id} />
                 <strong><span className="system-app-label-full">{app.label}</span><span className="system-app-label-compact">{app.shortLabel ?? app.label}</span></strong>
                 {workspace.isAppOpen(app.id) ? <i aria-hidden="true" /> : null}
@@ -336,7 +533,7 @@ export function SystemShell() {
             ))}
           </div>
 
-          <p className="home-clock" aria-label={`${clock.date}, ${clock.time}, ${clock.utc}`}>
+          <p className="home-clock">
             <span>{clock.date}</span>
             <span>{clock.time} {clock.utc}</span>
           </p>
@@ -348,21 +545,21 @@ export function SystemShell() {
         <header>
           <div>
             <h2>Recents</h2>
-            <p>{runningApps.length ? `${runningApps.length} ${runningApps.length === 1 ? "app" : "apps"} open` : "No apps open."}</p>
+            <p>{runningApps.length ? `${runningApps.length} ${runningApps.length === 1 ? "app" : "apps"} open` : "No apps open"}</p>
           </div>
           {/* A landscape phone hides the status bar, so its sound level lives here instead. */}
           <SoundControl className="sound-control-recents" />
-          <button onClick={workspace.goHome} type="button">Return home</button>
+          <button className="system-recents-home" onClick={workspace.goHome} type="button">Return home</button>
         </header>
         {runningApps.length ? null : <p className="system-recents-empty">Nothing is running. Open an app from Home and it will wait here.</p>}
         <div className="system-recents-list" ref={recentsListRef}>
           {runningApps.map((app) => {
             const entry = portfolioApp(app);
             const current = workspace.activeApp === app && !workspace.isMinimized(app);
-            const status = current ? "Active" : workspace.isMinimized(app) ? "Minimized" : "Background";
+            const status = current ? "Active" : workspace.isMinimized(app) ? "Minimized" : "Open in background";
             return (
-              <article className="system-recent-card" data-current={current} key={app}>
-                <button className="system-recent-open" onClick={() => launchApp(app)} type="button" aria-label={`Switch to ${entry.label}. ${status}`}>
+              <article className="system-recent-card" data-app={app} data-current={current} key={app} {...flickAway}>
+                <button className="system-recent-open" onClick={(event) => { noteLaunchOrigin(event.currentTarget); launchApp(app); }} type="button" aria-label={`Switch to ${entry.label}. ${status}`}>
                   <div className="system-recent-preview" data-app={app}>
                     <div className="system-recent-preview-bar">
                       <AppMark app={app} small />
@@ -383,17 +580,15 @@ export function SystemShell() {
 
       {workspace.mode === "computer" ? <nav className="desktop-taskbar" aria-label="System taskbar">
         <button className="taskbar-home" data-active={workspace.surface === "home"} data-label="Desktop" onClick={workspace.goHome} type="button" aria-label="Show desktop"><SystemIcon name="home" /></button>
-        <div className="taskbar-apps">
+        <div className="taskbar-apps" data-warm={captionsWarm || undefined} onPointerEnter={warmCaptions} onPointerLeave={coolCaptions}>
           {portfolioApps.map((app) => {
             const running = workspace.isAppOpen(app.id);
             const active = workspace.surface === "application" && workspace.activeApp === app.id;
             const minimized = workspace.isMinimized(app.id);
-            const previewId = `taskbar-preview-${app.id}`;
             const status = minimized ? "Minimized" : active ? "Active" : running ? "Open in background" : "Not running";
             return (
             <button
               className="taskbar-app"
-              aria-describedby={previewId}
               data-active={active}
               data-app={app.id}
               data-label={app.label}
@@ -407,21 +602,21 @@ export function SystemShell() {
               <AppMark app={app.id} small />
               <span>{app.label}</span>
               <i aria-hidden="true" />
-              <span className="taskbar-app-preview" id={previewId} role="tooltip">
+              <span aria-hidden="true" className="taskbar-app-preview">
                 <strong>{app.label}</strong>
                 <small>{status}</small>
               </span>
             </button>
           )})}
         </div>
-        <button className="taskbar-overview" data-active={workspace.surface === "recents"} data-label="Overview" onClick={workspace.openRecents} type="button" aria-label="Application overview"><SystemIcon name="overview" /></button>
+        <button className="taskbar-overview" data-active={workspace.surface === "recents"} data-label="Recents" onClick={workspace.openRecents} type="button" aria-label="Recents"><SystemIcon name="overview" /></button>
       </nav> : null}
 
-      {workspace.mode === "tablet" ? <nav className="tablet-shelf" aria-label="Tablet application shelf">
+      {workspace.mode === "tablet" ? <nav className="tablet-shelf" aria-label="Tablet application shelf" {...homeGesture}>
         <div className="tablet-shelf-group" data-group="system">
           {/* Home has nothing behind it, so Back rests disabled there instead of doing nothing. */}
           <button disabled={workspace.surface === "home"} onClick={workspace.requestBack} type="button" aria-label="Back"><SystemIcon name="back" /><span className="tablet-app-label" aria-hidden="true">Back</span></button>
-          <button data-active={workspace.surface === "home"} onClick={workspace.goHome} type="button" aria-label="Home"><SystemIcon name="home" /><span className="tablet-app-label" aria-hidden="true">Home</span></button>
+          <button aria-current={workspace.surface === "home" ? "page" : undefined} data-active={workspace.surface === "home"} onClick={workspace.goHome} type="button" aria-label="Home"><SystemIcon name="home" /><span className="tablet-app-label" aria-hidden="true">Home</span></button>
         </div>
         <div className="tablet-shelf-group" data-group="apps">
         {portfolioApps.map((app) => {
@@ -431,13 +626,13 @@ export function SystemShell() {
           const state = minimized ? "Minimized" : active ? "Active" : running ? "Open in background" : "Not running";
           return (
             <button
-              aria-label={`${running ? "Switch to" : "Open"} ${app.label}. ${state}`}
+              aria-label={`${running ? "Switch to" : "Open"} ${app.shortLabel ?? app.label}. ${state}`}
               data-active={active}
               data-app={app.id}
               data-minimized={minimized}
               data-running={running}
               key={app.id}
-              onClick={() => launchApp(app.id)}
+              onClick={(event) => { if (!active) noteLaunchOrigin(event.currentTarget); launchApp(app.id); }}
               type="button"
             >
               <AppMark app={app.id} />
@@ -448,21 +643,21 @@ export function SystemShell() {
         })}
         </div>
         <div className="tablet-shelf-group" data-group="system">
-        <button data-active={workspace.surface === "recents"} onClick={workspace.surface === "recents" ? workspace.dismissRecents : workspace.openRecents} type="button" aria-label="Recents"><SystemIcon name="overview" /><span className="tablet-app-label" aria-hidden="true">Recents</span></button>
-        {workspace.capabilities.pairingEligible && workspace.isAppOpen("work") && workspace.isAppOpen("experience") ? <button className="tablet-pair-control" aria-label="Pair Projects and Experience" aria-pressed={workspace.paired} onClick={() => {
+        <button aria-pressed={workspace.surface === "recents"} data-active={workspace.surface === "recents"} onClick={workspace.surface === "recents" ? workspace.dismissRecents : workspace.openRecents} type="button" aria-label="Recents"><SystemIcon name="overview" /><span className="tablet-app-label" aria-hidden="true">Recents</span></button>
+        {workspace.capabilities.pairingEligible && workspace.isAppOpen("work") && workspace.isAppOpen("experience") ? <button className="tablet-pair-control" aria-pressed={workspace.paired} onClick={() => {
           workspace.setPaired(!workspace.paired);
           // Projects ends up focused, so its launcher also rewrites the address to the visible document.
           workspace.focusApp("experience");
           launchApp("work");
-        }} type="button"><PairIcon className="system-control-icon" /><span className="tablet-pair-label" aria-hidden="true">{workspace.paired ? "Single" : "Side by side"}</span></button> : null}
+        }} type="button"><PairIcon className="system-control-icon" /><span className="tablet-pair-label">Side by side</span></button> : null}
         </div>
       </nav> : null}
 
-      {workspace.mode === "phone" ? <nav className="phone-system-navigation" aria-label="Phone system navigation">
+      {workspace.mode === "phone" ? <nav className="phone-system-navigation" aria-label="Phone system navigation" {...homeGesture}>
         {/* Home is the bottom of the phone's stack, so Back rests disabled there, as on the tablet shelf. */}
         <button disabled={workspace.surface === "home"} onClick={workspace.requestBack} type="button" aria-label="Back"><SystemIcon name="back" /><span>Back</span></button>
-        <button data-active={workspace.surface === "home"} onClick={workspace.goHome} type="button" aria-label="Home"><SystemIcon name="home" /><span>Home</span></button>
-        <button data-active={workspace.surface === "recents"} onClick={workspace.surface === "recents" ? workspace.dismissRecents : workspace.openRecents} type="button" aria-label="Recents"><SystemIcon name="overview" /><span>Recents</span></button>
+        <button aria-current={workspace.surface === "home" ? "page" : undefined} data-active={workspace.surface === "home"} onClick={workspace.goHome} type="button" aria-label="Home"><SystemIcon name="home" /><span>Home</span></button>
+        <button aria-pressed={workspace.surface === "recents"} data-active={workspace.surface === "recents"} onClick={workspace.surface === "recents" ? workspace.dismissRecents : workspace.openRecents} type="button" aria-label="Recents"><SystemIcon name="overview" /><span>Recents</span></button>
       </nav> : null}
     </>
   );

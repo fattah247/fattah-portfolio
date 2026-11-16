@@ -43,7 +43,7 @@ describe("selected work scenario contracts", () => {
     const onlyInstaller = Object.fromEntries(scenarios[2].controls.map((control) => [control.key, control.key === "installer_source_unknown" ? "found" : control.options[0].value]));
     const projection = projectScenario("trustgate", onlyInstaller, "designed");
 
-    expect(projection.find((node) => node.id === "checks")?.value).toBe("1 OF 8 FOUND");
+    expect(projection.find((node) => node.id === "checks")?.value).toBe("1 OF 11 FOUND");
     expect(projection.find((node) => node.id === "level")?.value).toBe("LOW");
     expect(projection.find((node) => node.id === "decision")?.value).toBe("ALLOW");
   });

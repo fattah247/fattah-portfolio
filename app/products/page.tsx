@@ -5,7 +5,7 @@ import { PortfolioHeader } from "@/components/portfolio-header";
 
 export const metadata: Metadata = {
   title: portfolioApp("products").documentTitle,
-  description: "Products and tools used by Muhammad A. Fattah.",
+  description: "Products Muhammad A. Fattah uses.",
 };
 
 export default function ProductLinksPage() {

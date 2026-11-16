@@ -3,13 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties, MouseEvent, RefObject } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowIcon, ChevronIcon } from "./icons";
 import { CaseCover } from "./case-cover";
-import { CaseInstrument } from "./case-instrument";
+import { CaseInstrument, controlLabel } from "./case-instrument";
 import { useSound } from "./sound-provider";
 import { readableOutcome } from "../lib/instruments";
+import { fadeOutCopy, leaveSpring, pointerTrail, project, rubberband, sheetSpring, springTo } from "../lib/motion";
 import { findScrollOwner } from "./application-frame";
 import { useWindowFrame, windowResizeEdges } from "./use-window-frame";
 import { WindowChrome } from "./window-chrome";
@@ -26,7 +27,6 @@ import {
   type Scenario,
 } from "../lib/scenarios";
 
-type MotionPhase = "rest" | "rewind" | "reconstruct";
 type CaseSectionId = "context" | "replay" | "decision" | "evidence";
 
 /**
@@ -42,6 +42,15 @@ export const caseSections: Array<{ id: CaseSectionId; index: string; label: stri
 ];
 
 
+
+/**
+ * Whether a sheet let go `dy` px below where it was grabbed, moving at `velocity` px per ms, goes away:
+ * if the throw would carry it more than 40% of its height down, or it was let go a quarter of the way
+ * down and not on its way back up.
+ */
+export function sheetGoesAway(dy: number, velocity: number, height: number) {
+  return project(dy, velocity) > height * 0.4 || (dy > height / 4 && velocity >= 0);
+}
 
 function EvidenceDialog({
   evidence,
@@ -69,9 +78,6 @@ function EvidenceDialog({
     surface,
   } = workspace;
   const closeRef = useRef<HTMLButtonElement>(null);
-  const closeTimerRef = useRef<number | null>(null);
-  const closingRef = useRef(false);
-  const [isClosing, setIsClosing] = useState(false);
   // Screenshots are often wider than a phone; "Actual size" shows real pixels and pans.
   const [zoomed, setZoomed] = useState(false);
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
@@ -87,15 +93,79 @@ function EvidenceDialog({
     toggleMaximize,
   } = useWindowFrame({ defaultHeight: 780, defaultWidth: 1180, minHeight: 480, minWidth: 720 });
 
-  const requestClose = useCallback(() => {
-    if (closingRef.current) return;
-    closingRef.current = true;
-    setIsClosing(true);
-    closeTimerRef.current = window.setTimeout(() => {
-      closingRef.current = false;
-      onClose();
-    }, 380);
-  }, [onClose]);
+  // Closing is immediate: the sheet is gone the moment it's asked, and a copy of it fades out where it
+  // stood (150 ms, never in the way), so the close is seen to happen.
+  const requestClose = useCallback(() => { fadeOutCopy(frameRef.current); onClose(); }, [frameRef, onClose]);
+
+  // On a phone or tablet the sheet is a sheet: grab its title bar (or the grabber) and it follows the
+  // finger 1:1, even while it's still opening, the page behind brightening as it comes down; pulled up
+  // it gives like a rubber band. Let go and it goes where the throw would carry it: off the bottom at
+  // the speed it was thrown, or back up on a spring at that speed.
+  const pull = useRef<{ id: number; startY: number; trail: ReturnType<typeof pointerTrail> } | null>(null);
+  const offsetFor = (dy: number, height: number) => (dy > 0 ? dy : rubberband(dy, height));
+  const scrimOf = (sheet: HTMLElement) => sheet.parentElement?.querySelector<HTMLElement>(".evidence-scrim") ?? null;
+  const grabSheet = (event: React.PointerEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (workspace.mode === "computer" || !target.closest(".evidence-sheet-head, .evidence-grabber") || target.closest("button, a, summary")) return;
+    const sheet = frameRef.current;
+    if (!sheet) return;
+    // A slide it was already making stops under the finger; its opening (a scale) carries on.
+    for (const running of sheet.getAnimations?.() ?? []) if (!("animationName" in running)) running.cancel();
+    for (const running of scrimOf(sheet)?.getAnimations?.() ?? []) running.cancel();
+    const trail = pointerTrail();
+    trail.add(event.clientX, event.clientY, event.timeStamp);
+    pull.current = { id: event.pointerId, startY: event.clientY, trail };
+    sheet.dataset.pulling = "true";
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const dragSheet = (event: React.PointerEvent<HTMLDivElement>) => {
+    const state = pull.current;
+    const sheet = frameRef.current;
+    if (!state || state.id !== event.pointerId || !sheet) return;
+    state.trail.add(event.clientX, event.clientY, event.timeStamp);
+    const offset = offsetFor(event.clientY - state.startY, sheet.offsetHeight);
+    sheet.style.translate = `0px ${offset}px`;
+    const scrim = scrimOf(sheet);
+    if (scrim) scrim.style.opacity = String(1 - Math.max(0, Math.min(1, offset / sheet.offsetHeight)));
+  };
+  const releaseSheet = (event: React.PointerEvent<HTMLDivElement>) => {
+    const state = pull.current;
+    const sheet = frameRef.current;
+    if (!state || state.id !== event.pointerId || !sheet) return;
+    pull.current = null;
+    delete sheet.dataset.pulling;
+    const height = sheet.offsetHeight;
+    const dy = event.clientY - state.startY;
+    const velocity = event.type === "pointercancel" ? 0 : state.trail.velocity(event.timeStamp).y;
+    const scrim = scrimOf(sheet);
+    const shade = scrim ? Number(getComputedStyle(scrim).opacity) : 1;
+    scrim?.style.removeProperty("opacity");
+    if (event.type !== "pointercancel" && sheetGoesAway(dy, velocity, height)) {
+      const away = springTo(sheet, { translate: `0px ${height}px` }, leaveSpring, { fill: "forwards", velocity: velocity * 1000 });
+      sheet.style.removeProperty("translate");
+      scrim?.animate([{ opacity: shade }, { opacity: 0 }], { duration: 200, easing: "cubic-bezier(.32, .72, 0, 1)", fill: "forwards" });
+      if (away) away.addEventListener("finish", () => onClose());
+      else onClose();
+      return;
+    }
+    springTo(sheet, { translate: "0px 0px" }, sheetSpring, { velocity: velocity * 1000 });
+    sheet.style.removeProperty("translate");
+    scrim?.animate([{ opacity: shade }, { opacity: 1 }], { duration: 200, easing: "ease-out" });
+  };
+
+  // The sheet grows out of the evidence card that opened it, so it's seen to come from there.
+  useLayoutEffect(() => {
+    const sheet = frameRef.current;
+    if (!sheet || !returnFocus) return;
+    const card = returnFocus.getBoundingClientRect();
+    const box = sheet.getBoundingClientRect();
+    // A card out of sight (opened from the keyboard, say) grows the sheet from its nearest edge.
+    const x = Math.min(Math.max(card.left + card.width / 2 - box.left, 0), box.width);
+    const y = Math.min(Math.max(card.top + card.height / 2 - box.top, 0), box.height);
+    sheet.style.setProperty("--from-origin", `${Math.round(x)}px ${Math.round(y)}px`);
+  // Measured once, as the sheet opens.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (surface !== "application" || activeWindow !== evidenceWindowId) return;
@@ -150,10 +220,6 @@ function EvidenceDialog({
     return true;
   }), [activeWindow, evidenceWindowId, registerBackHandler, requestClose, surface]);
 
-  useEffect(() => () => {
-    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
-  }, []);
-
   useEffect(() => {
     openWindow(evidenceWindowId);
     return () => {
@@ -172,7 +238,6 @@ function EvidenceDialog({
       inert={workspace.stateFor(evidenceWindowId) === "background" || workspace.stateFor(evidenceWindowId) === "minimized"}
       className="evidence-dialog"
       data-app-id="work"
-      data-closing={isClosing}
       data-window-id={evidenceWindowId}
       data-window-state={workspace.stateFor(evidenceWindowId)}
       role="dialog"
@@ -191,9 +256,16 @@ function EvidenceDialog({
         data-resizing={resizing}
         data-snap={snap ?? undefined}
         data-window-state={workspace.stateFor(evidenceWindowId)}
+        onPointerCancel={releaseSheet}
+        onPointerDown={grabSheet}
+        onFocusCapture={() => {
+          if (activeWindow !== evidenceWindowId) focusWindow(evidenceWindowId);
+        }}
         onPointerDownCapture={() => {
           if (activeWindow !== evidenceWindowId) focusWindow(evidenceWindowId);
         }}
+        onPointerMove={dragSheet}
+        onPointerUp={releaseSheet}
         ref={(node) => {
           frameRef.current = node;
         }}
@@ -201,6 +273,7 @@ function EvidenceDialog({
         suppressHydrationWarning
         tabIndex={-1}
       >
+        {workspace.mode !== "computer" ? <span aria-hidden="true" className="evidence-grabber" /> : null}
         <WindowChrome
           app="work"
           className="evidence-sheet-head"
@@ -272,6 +345,7 @@ export function DebuggerWorkspace({
   onSelectScenario,
   scenario,
   initialConditions,
+  initialTechnical = false,
   scrollContainerRef,
   workspaceWindowId,
 }: {
@@ -280,6 +354,8 @@ export function DebuggerWorkspace({
   onSelectScenario?: (slug: Scenario["slug"]) => void;
   scenario: Scenario;
   initialConditions: Conditions;
+  /** Whether Technical starts on (`?technical=1`), passed from the server so hydration matches. */
+  initialTechnical?: boolean;
   scrollContainerRef?: RefObject<HTMLElement | null>;
   workspaceWindowId?: WorkspaceWindowId;
 }) {
@@ -304,23 +380,23 @@ export function DebuggerWorkspace({
   useEffect(() => () => play("sys.file-close"), [play]);
   const [conditions, setConditions] = useState<Conditions>(() => resolveScenarioConditions(scenario, (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.conditions as Conditions) ?? initialConditions));
   const [selectedConditions, setSelectedConditions] = useState<Conditions>(() => resolveScenarioConditions(scenario, (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.conditions as Conditions) ?? initialConditions));
-  const [phase, setPhase] = useState<MotionPhase>("rest");
   const [statusMessage, setStatusMessage] = useState("Replay ready.");
   // The simulators run only the repo's rules; the comparison is drawn beside them, never switched to.
   const [approach, setApproach] = useState<ProjectionMode>("designed");
+  const [technical, setTechnical] = useState<boolean>(() => {
+    const saved = workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.technical;
+    return typeof saved === "boolean" ? saved : initialTechnical;
+  });
   const [evidence, setEvidence] = useState<Evidence | null>(null);
   const [activeSection, setActiveSection] = useState<CaseSectionId>("context");
-  const [isClosing, setIsClosing] = useState(false);
   const [pageVisible, setPageVisible] = useState(true);
   const resolvedConditions = useMemo(() => resolveScenarioConditions(scenario, conditions), [conditions, scenario]);
   const resolvedSelectedConditions = useMemo(() => resolveScenarioConditions(scenario, selectedConditions), [scenario, selectedConditions]);
   const timers = useRef<number[]>([]);
   const caseScrollFrame = useRef<number | null>(null);
-  const closeTimerRef = useRef<number | null>(null);
   const embeddedFrameRef = useRef<HTMLDivElement>(null);
   const evidenceTriggerRef = useRef<HTMLElement | null>(null);
   const previousScenarioSlugRef = useRef(scenario.slug);
-  const workspaceClosingRef = useRef(false);
   const targetConditions = useRef<Conditions>(resolveScenarioConditions(scenario, (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.conditions as Conditions) ?? initialConditions));
   const workspaceTitleRef = useRef<HTMLHeadingElement>(null);
   const {
@@ -389,18 +465,19 @@ export function DebuggerWorkspace({
   const { readDocumentState, writeDocumentState } = workspace;
   useEffect(() => {
     if (previousScenarioSlugRef.current !== scenario.slug) return;
-    writeDocumentState("work", `case:${scenario.slug}`, { data: { approach, conditions: resolvedSelectedConditions } });
+    writeDocumentState("work", `case:${scenario.slug}`, { data: { approach, conditions: resolvedSelectedConditions, technical } });
     // A restored non-default selection must be addressable: keep the query in step so a refresh reconstructs it.
     if (window.location.pathname === `/case/${scenario.slug}`) {
       const params = new URLSearchParams();
       for (const control of scenario.controls) {
         if (resolvedSelectedConditions[control.key] !== scenario.defaults[control.key]) params.set(control.key, resolvedSelectedConditions[control.key]);
       }
+      if (technical) params.set("technical", "1");
       const query = params.toString();
       const next = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
       if (next !== `${window.location.pathname}${window.location.search}${window.location.hash}`) workspaceHistory.replaceState(null, "", next);
     }
-  }, [approach, resolvedSelectedConditions, scenario, writeDocumentState]);
+  }, [approach, resolvedSelectedConditions, scenario, technical, writeDocumentState]);
 
   useEffect(() => {
     // The host ApplicationFrame owns scroll records for embedded cases; only the
@@ -417,12 +494,12 @@ export function DebuggerWorkspace({
   useEffect(() => () => {
     timers.current.forEach(window.clearTimeout);
     if (caseScrollFrame.current) window.cancelAnimationFrame(caseScrollFrame.current);
-    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
   }, []);
 
   useEffect(() => {
     if (previousScenarioSlugRef.current === scenario.slug) return;
-    const nextConditions = resolveScenarioConditions(scenario, (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.conditions as Conditions) ?? initialConditions);
+    const savedData = workspace.readDocumentState("work", `case:${scenario.slug}`)?.data;
+    const nextConditions = resolveScenarioConditions(scenario, (savedData?.conditions as Conditions) ?? initialConditions);
     const resetTimer = window.setTimeout(() => {
       previousScenarioSlugRef.current = scenario.slug;
       timers.current.forEach(window.clearTimeout);
@@ -430,7 +507,8 @@ export function DebuggerWorkspace({
       targetConditions.current = nextConditions;
       setConditions(nextConditions);
       setSelectedConditions(nextConditions);
-      setPhase("rest");
+      // Technical belongs to each case: one never opened starts in everyday words.
+      setTechnical(savedData?.technical === true);
       setEvidence(null);
       setActiveSection("context");
       setStatusMessage("Replay ready.");
@@ -440,12 +518,7 @@ export function DebuggerWorkspace({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scenario.slug]);
 
-  const requestWorkspaceClose = useCallback(() => {
-    if (!onClose || workspaceClosingRef.current) return;
-    workspaceClosingRef.current = true;
-    setIsClosing(true);
-    closeTimerRef.current = window.setTimeout(onClose, 320);
-  }, [onClose]);
+  const requestWorkspaceClose = useCallback(() => { onClose?.(); }, [onClose]);
 
   const returnToWorkIndex = useCallback(() => {
     if (onClose) {
@@ -606,6 +679,7 @@ export function DebuggerWorkspace({
         params.set(control.key, next[control.key]);
       }
     }
+    if (technical) params.set("technical", "1");
     const query = params.toString();
     const hash = window.location.hash;
     workspaceHistory.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${hash}`);
@@ -616,38 +690,28 @@ export function DebuggerWorkspace({
     return readableOutcome(scenario.slug, value);
   }
 
-  /** Applies new conditions with a short settle so the change reads as cause, then effect. */
+  /** Applies new conditions at once: a key the visitor pressed answers immediately. */
   function settle(next: Conditions, message: string) {
     timers.current.forEach(window.clearTimeout);
     timers.current = [];
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setConditions(next);
-      updateUrl(next);
-      setPhase("rest");
-      setStatusMessage(message);
-      return;
-    }
-    setPhase("rewind");
-    timers.current.push(
-      window.setTimeout(() => {
-        setConditions(next);
-        updateUrl(next);
-        setPhase("reconstruct");
-      }, 120),
-      window.setTimeout(() => {
-        setPhase("rest");
-        setStatusMessage(message);
-      }, 420),
-    );
+    setConditions(next);
+    updateUrl(next);
+    setStatusMessage(message);
+  }
+
+  /** Applies one or several changes (a preset sets several at once) and announces them together. */
+  function changeConditions(changes: Conditions) {
+    const keys = Object.keys(changes).filter((key) => targetConditions.current[key] !== changes[key]);
+    if (!keys.length) return;
+    const next = { ...targetConditions.current, ...changes };
+    targetConditions.current = next;
+    setSelectedConditions(next);
+    const what = keys.length > 1 ? `${keys.length} settings` : controlLabel(scenario, keys[0], technical);
+    settle(next, `${what} changed. Result: ${resultFor(next, approach)}.`);
   }
 
   function changeCondition(key: string, value: string) {
-    if (targetConditions.current[key] === value) return;
-    const next = { ...targetConditions.current, [key]: value };
-    targetConditions.current = next;
-    setSelectedConditions(next);
-    const label = scenario.controls.find((control) => control.key === key)?.label ?? "Condition";
-    settle(next, `${label} changed. Result: ${resultFor(next, approach)}.`);
+    changeConditions({ [key]: value });
   }
 
   function changeApproach(mode: ProjectionMode) {
@@ -706,9 +770,7 @@ export function DebuggerWorkspace({
       <WorkspaceElement
         className={`case-page case-${scenario.slug} selected-work-window ${embedded ? "embedded-case-workspace" : ""}`.trim()}
         data-dragging={dragging}
-        data-closing={isClosing}
         data-app-id="work"
-        data-motion-phase={phase}
         data-resizing={resizing}
         data-snap={snap ?? undefined}
         data-window-state={workspace.stateFor(hostWindowId)}
@@ -727,16 +789,16 @@ export function DebuggerWorkspace({
         tabIndex={-1}
       >
         {!embedded ? <WindowChrome
-          actions={<div className="case-workspace-actions" aria-label="Move between projects">
+          actions={<div aria-label="Move between cases" className="case-workspace-actions" role="group">
             {onSelectScenario ? <button onClick={() => onSelectScenario(previousScenario.slug)} type="button">Previous</button> : <Link href={`/case/${previousScenario.slug}`}>Previous</Link>}
             {onSelectScenario ? <button onClick={() => onSelectScenario(nextScenario.slug)} type="button">Next</button> : <Link href={`/case/${nextScenario.slug}`}>Next</Link>}
           </div>}
           app="work"
-          aria-label="Project workspace"
+          aria-label="Case workspace"
           className="case-workspace-chrome"
           closeClassName="case-close-action"
           closeHref={onClose ? undefined : "/#selected-work"}
-          closeLabel={onClose ? "Close project detail" : "Close project and return to the project list"}
+          closeLabel={onClose ? "Close case" : "Close case and return to the project list"}
           label="Projects"
           locationClassName="case-location"
           maximized={maximized}
@@ -775,7 +837,7 @@ export function DebuggerWorkspace({
           </figure>
         </section>
 
-        <div className="mobile-outcome-strip case-result" id="decision" role="group" aria-label="Outcome comparison">
+        <div className="mobile-outcome-strip case-result" id="decision" role="group" aria-label="Result">
           <p className="case-result-note">{scenario.outcome}</p>
           {storyRows.map((row) => (
             <div data-path={row.path} data-tone={"tone" in row ? row.tone : undefined} key={row.path}><span>{row.label}</span><strong>{row.value}</strong></div>
@@ -790,10 +852,12 @@ export function DebuggerWorkspace({
           isDefault={isDefault}
           onApproachChange={changeApproach}
           onChange={changeCondition}
+          onChanges={changeConditions}
           onReset={reset}
-          phase={phase}
+          onTechnicalChange={setTechnical}
           scenario={scenario}
           selectedConditions={resolvedSelectedConditions}
+          technical={technical}
         />
 
         <p className="sr-only" role="status" aria-live="polite">{statusMessage}</p>
@@ -809,10 +873,10 @@ export function DebuggerWorkspace({
           <div className="evidence-grid">
             {scenario.evidence.map((item, index) => (
               <button className="evidence-card" key={item.src} onClick={(event) => openEvidence(item, event.currentTarget)} type="button">
-                <span className="evidence-number">EXHIBIT {scenario.number}.{index + 1}</span>
+                <span className="evidence-number">Exhibit {scenario.number}.{index + 1}</span>
                 <span className="evidence-focus">{item.focus}</span>
                 <span className="evidence-thumb">
-                  <Image src={item.src} alt="" className="evidence-thumb-image" fill loading={index === 0 ? "eager" : "lazy"} sizes="(max-width: 800px) 90vw, 30vw" />
+                  <Image src={item.src} alt="" className="evidence-thumb-image" fill loading={index === 0 ? "eager" : "lazy"} sizes="(max-width: 800px) 90vw, 30vw" unoptimized />
                 </span>
                 <span className="evidence-caption">{item.caption}</span>
                 <span className="evidence-view">Open evidence <ChevronIcon direction="right" /></span>
@@ -829,12 +893,12 @@ export function DebuggerWorkspace({
               </button>
             ) : (
               <button className="solid-link" onClick={() => onSelectScenario(nextScenario.slug)} type="button">
-                {scenario.slug === "payflow" ? "Next: Detect degradation" : "Next: Evaluate device trust"} <ChevronIcon direction="right" />
+                {scenario.slug === "payflow" ? "Next: Service observability" : "Next: Android device trust"} <ChevronIcon direction="right" />
               </button>
             )
           ) : (
             <Link className="solid-link" href={scenario.slug === "payflow" ? "/case/iyup" : scenario.slug === "iyup" ? "/case/trustgate" : "/brief"}>
-              {scenario.slug === "payflow" ? "Next: Detect degradation" : scenario.slug === "iyup" ? "Next: Evaluate device trust" : "Open Experience"} <ChevronIcon direction="right" />
+              {scenario.slug === "payflow" ? "Next: Service observability" : scenario.slug === "iyup" ? "Next: Android device trust" : "Open Experience"} <ChevronIcon direction="right" />
             </Link>
           )}
         </section>

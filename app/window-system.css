@@ -38,12 +38,11 @@ body {
   isolation: isolate;
   overscroll-behavior: contain;
   overflow-x: hidden !important;
-  scroll-behavior: smooth;
   transition:
-    border-color 180ms ease,
+    border-color 180ms ease-out,
     box-shadow 220ms var(--os-ease),
-    filter 220ms ease,
-    opacity 220ms ease;
+    filter 180ms ease-out,
+    opacity 140ms ease-out;
   z-index: var(--window-z, 24) !important;
 }
 
@@ -55,7 +54,7 @@ body {
   border-color: var(--ink) !important;
   box-shadow: var(--window-shadow-active) !important;
   filter: none !important;
-  opacity: 1 !important;
+  opacity: var(--window-fade) !important;
 }
 
 .portfolio-window:focus,
@@ -69,14 +68,14 @@ body {
 .selected-work-window[data-window-state="clear"],
 .contact-window[data-window-state="clear"] {
   filter: none !important;
-  opacity: 1 !important;
+  opacity: var(--window-fade) !important;
 }
 
 .portfolio-window[data-window-state="blurred"],
 .selected-work-window[data-window-state="blurred"],
 .contact-window[data-window-state="blurred"] {
   filter: none !important;
-  opacity: 1 !important;
+  opacity: var(--window-fade) !important;
 }
 
 .portfolio-window[data-window-state="blurred"]::after,
@@ -206,9 +205,7 @@ body {
   padding: 0 !important;
   position: relative;
   text-decoration: none;
-  transform-origin: center;
-  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 260ms var(--os-ease);
-  will-change: transform;
+  transition: none;
   width: 44px !important;
 }
 
@@ -221,15 +218,15 @@ body {
   background: var(--adverse) !important;
   border-color: var(--adverse) !important;
   color: white !important;
-  transform: rotate(45deg);
 }
 
+/* Close is a control like any other: its hover answers at once, and a press moves it 1px. */
 .window-close-action:active,
 .case-close-action:active,
 .evidence-close-action:active {
   background: var(--adverse) !important;
   border-color: var(--adverse) !important;
-  transform: rotate(45deg) scale(.9);
+  transform: translate(1px, 1px);
 }
 
 .window-close-action > span,
@@ -240,8 +237,8 @@ body {
   font-size: 1.35rem;
   height: auto !important;
   line-height: 1;
-  transform: rotate(0) !important;
-  transition: transform 260ms var(--os-ease) !important;
+  transform: none !important;
+  transition: none !important;
   width: auto !important;
 }
 
@@ -252,39 +249,10 @@ body {
 }
 
 /* Window lifecycle and snap */
-@media (prefers-reduced-motion: no-preference) {
-  .portfolio-window,
-  .contact-window,
-  .selected-work-window,
-  .evidence-sheet {
-    animation: os-window-open var(--duration-window) var(--os-ease) both !important;
-  }
-
-  .portfolio-window > :not(.window-chrome):not(.window-resize-handle),
-  .selected-work-window > :not(.window-chrome):not(.window-resize-handle) {
-    animation: os-content-arrive 470ms 70ms var(--os-ease) both;
-  }
-
-  [data-closing="true"] {
-    animation: os-window-close 320ms cubic-bezier(.55, 0, .85, .35) both !important;
-    pointer-events: none !important;
-  }
-}
-
+/* Two stops: the spring easing that plays it brings the slight settle past the end and back. */
 @keyframes os-window-open {
-  from { opacity: 0; transform: translateY(16px) scale(.965); }
-  60% { opacity: 1; transform: translateY(-2px) scale(1.002); }
-  to { opacity: 1; transform: none; }
-}
-
-@keyframes os-window-close {
-  from { opacity: 1; transform: none; }
-  to { opacity: 0; transform: translateY(18px) scale(.94); }
-}
-
-@keyframes os-content-arrive {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
+  from { --window-fade: 0; opacity: 0; transform: translateY(12px) scale(.97); }
+  to { --window-fade: 1; opacity: 1; transform: none; }
 }
 
 .window-snap-preview {
@@ -317,33 +285,6 @@ body {
   min-height: 0 !important;
   padding: clamp(28px, 4vw, 56px) !important;
   position: relative;
-}
-
-.window-close-action:hover > span,
-.window-close-action:focus-visible > span,
-.case-close-action:hover > span,
-.case-close-action:focus-visible > span,
-.evidence-close-action:hover > span,
-.evidence-close-action:focus-visible > span {
-  transform: rotate(-45deg) !important;
-}
-
-.window-close-action:active > span,
-.case-close-action:active > span,
-.evidence-close-action:active > span,
-[data-closing="true"] .window-close-action > span,
-[data-closing="true"] .case-close-action > span,
-[data-closing="true"] .evidence-close-action > span {
-  transform: rotate(-45deg) scale(.92) !important;
-}
-
-[data-closing="true"] .window-close-action,
-[data-closing="true"] .case-close-action,
-[data-closing="true"] .evidence-close-action {
-  background: var(--adverse) !important;
-  border-color: var(--adverse) !important;
-  color: white !important;
-  transform: rotate(45deg);
 }
 
 .desktop-board {
@@ -502,10 +443,6 @@ body {
 .contact-window {
   overflow: auto !important;
   pointer-events: auto !important;
-}
-
-.contact-window-layer[data-closing="true"] .contact-window {
-  animation: os-window-close 320ms cubic-bezier(.55, 0, .85, .35) both !important;
 }
 
 /* Evidence is a child inspector, not a full-page takeover. The layer itself is clear; the scrim
@@ -945,18 +882,6 @@ body {
 
 .taskbar-app::after {
   display: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .workspace-case-window[data-view="full-case"] > .embedded-case-workspace,
-  .product-links-window[data-window-state="active"] > .product-links-app-content {
-    animation: application-view-enter var(--duration-navigation) var(--ease-decision) both;
-  }
-}
-
-@keyframes application-view-enter {
-  from { opacity: 0; transform: translateY(var(--space-2)); }
-  to { opacity: 1; transform: none; }
 }
 
 @container product-directory (max-width: 720px) {
@@ -1859,7 +1784,7 @@ html[data-system-mode="computer"] .desktop-board {
   opacity: 1;
   overflow: auto;
   position: fixed;
-  transition: opacity 180ms ease, visibility 180ms ease;
+  transition: opacity 160ms ease-out, visibility 160ms ease-out;
   visibility: visible;
   z-index: 4000;
 }
@@ -2125,30 +2050,17 @@ html[data-system-mode="computer"] .desktop-board {
   position: absolute;
   right: 14px;
   top: 14px;
-  transition: background 160ms ease, transform 220ms var(--os-ease);
   width: 38px;
 }
 
 .system-recent-close:hover,
 .system-recent-close:focus-visible {
   background: var(--adverse);
-  transform: rotate(45deg);
 }
 
-.system-recent-close:active {
-  background: var(--adverse);
-  transform: rotate(45deg) scale(.96);
-}
+.system-recent-close:active { background: var(--adverse); }
 
-.system-recent-close > span {
-  display: block;
-  transition: transform var(--duration-focus) var(--ease-event);
-}
-
-.system-recent-close:hover > span,
-.system-recent-close:focus-visible > span {
-  transform: rotate(-45deg);
-}
+.system-recent-close > span { display: block; }
 
 .tablet-shelf,
 .phone-system-navigation {
@@ -2199,7 +2111,8 @@ html[data-system-mode="computer"] .editorial-home {
   min-height: 100svh !important;
   overflow: hidden !important;
   padding: 0 !important;
-  position: fixed;
+  /* Absolute, not fixed: a fixed parent would stack its windows apart from Contact, which lives outside it. */
+  position: absolute;
   width: 100%;
 }
 
@@ -2622,62 +2535,12 @@ html[data-system-mode="computer"][data-system-surface="recents"] .contact-window
 
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .system-home-screen:not([aria-hidden="true"]) .system-launcher-app {
-    animation: system-icon-arrive 420ms var(--os-ease) both;
-  }
-
-  .system-home-screen:not([aria-hidden="true"]) .system-launcher-app:nth-child(2) { animation-delay: 45ms; }
-  .system-home-screen:not([aria-hidden="true"]) .system-launcher-app:nth-child(3) { animation-delay: 90ms; }
-  .system-recents:not([aria-hidden="true"]) .system-recent-card { animation: system-card-arrive 320ms var(--os-ease) both; }
-
-  html[data-system-mode="computer"] .portfolio-window[data-window-state="active"]:not([data-dragging="true"]):not([data-resizing="true"]),
-  html[data-system-mode="computer"] .contact-window[data-window-state="active"] {
-    animation: computer-window-focus var(--duration-focus) var(--ease-event);
-  }
-
-  html[data-system-mode="tablet"] .portfolio-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle),
-  html[data-system-mode="tablet"] .contact-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle) {
-    animation: tablet-app-enter var(--duration-window) var(--ease-decision);
-  }
-
-  html[data-system-mode="phone"] .portfolio-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle),
-  html[data-system-mode="phone"] .contact-window[data-window-state="active"] > :not(.window-chrome):not(.window-resize-handle) {
-    animation: phone-app-enter var(--duration-navigation) var(--ease-decision);
-  }
-}
-
-@keyframes system-icon-arrive {
-  from { opacity: 0; transform: translateY(12px) scale(.94); }
-  to { opacity: 1; transform: none; }
-}
-
-@keyframes system-card-arrive {
-  from { opacity: 0; transform: translateY(16px) scale(.97); }
-  to { opacity: 1; transform: none; }
-}
-
-@keyframes computer-window-focus {
-  from { opacity: .82; transform: scale(.992); }
-  to { opacity: 1; transform: none; }
-}
-
-@keyframes tablet-app-enter {
-  from { opacity: .72; transform: translateY(18px) scale(.985); }
-  to { opacity: 1; transform: none; }
-}
-
-@keyframes phone-app-enter {
-  from { opacity: .7; transform: translateX(22px); }
-  to { opacity: 1; transform: none; }
-}
-
 .contact-window-layer,
 .evidence-dialog {
   z-index: var(--window-layer-z, 40) !important;
 }
 
-.contact-window-layer:not([data-window-state="active"]),
+/* Only the evidence sheet hides when it loses focus; Contact is an app window and stays in the stack. */
 .evidence-dialog:not([data-window-state="active"]) {
   opacity: 0;
   pointer-events: none !important;
@@ -3118,7 +2981,7 @@ html[data-system-mode="tablet"] .system-recents > header > button {
     filter: none;
     inset: calc(var(--os-topbar) + 14px) auto calc(var(--os-shelf) + 14px) 14px !important;
     left: 14px !important;
-    opacity: 1 !important;
+    opacity: var(--window-fade) !important;
     pointer-events: auto !important;
     right: auto !important;
     visibility: visible !important;
@@ -5584,7 +5447,7 @@ html[data-system-mode="computer"] .desktop-board {
     margin: 0 !important;
     max-inline-size: none !important;
     min-inline-size: 0 !important;
-    opacity: 1 !important;
+    opacity: var(--window-fade) !important;
     pointer-events: auto !important;
     position: fixed !important;
     top: calc(var(--os-topbar) + 14px) !important;

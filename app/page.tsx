@@ -1,11 +1,14 @@
 import { PortfolioHeader } from "@/components/portfolio-header";
 import { PortfolioWorkspace } from "@/components/portfolio-workspace";
+import { getGithubProjects } from "@/lib/github-projects";
 
-export default function Home() {
+export default async function Home() {
+  const github = await getGithubProjects();
+
   return (
     <>
       <PortfolioHeader />
-      <PortfolioWorkspace />
+      <PortfolioWorkspace github={github} />
     </>
   );
 }

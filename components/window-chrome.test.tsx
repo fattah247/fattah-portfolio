@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WindowChrome } from "./window-chrome";
 
@@ -96,7 +96,8 @@ describe("WindowChrome", () => {
     expect(container.querySelector('.window-management-menu > summary .app-icon[data-app="work"][data-variant="small"]')).toBeTruthy();
   });
 
-  it("offers every window action from the window menu and closes the menu after one", () => {
+  it("offers every window action from the window menu, blinks the chosen one, then closes the menu and runs it", () => {
+    vi.useFakeTimers();
     const onMinimize = vi.fn();
     const management = { begin: vi.fn(), cancel: vi.fn(), commit: vi.fn(), move: vi.fn(), reset: vi.fn(), resize: vi.fn(), snap: vi.fn() };
     const { container } = render(
@@ -108,12 +109,19 @@ describe("WindowChrome", () => {
     menu.open = true;
     const options = within(screen.getByRole("group", { name: "Experience window" }));
     expect(options.getAllByRole("button").map((button) => button.textContent)).toEqual(["Move with arrow keys", "Resize with arrow keys", "Snap left", "Snap right", "Reset position", "Minimize", "Maximize", "Close"]);
-    fireEvent.click(options.getByRole("button", { name: "Snap left" }));
+    const snapLeft = options.getByRole("button", { name: "Snap left" });
+    fireEvent.click(snapLeft);
+    expect(snapLeft.dataset.chosen).toBe("true");
+    expect(management.snap).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(120));
+    expect(snapLeft.dataset.chosen).toBeUndefined();
     expect(management.snap).toHaveBeenCalledWith("left");
     expect(menu.open).toBe(false);
     menu.open = true;
     fireEvent.click(options.getByRole("button", { name: "Minimize" }));
+    act(() => vi.advanceTimersByTime(120));
     expect(onMinimize).toHaveBeenCalledOnce();
     expect(menu.open).toBe(false);
+    vi.useRealTimers();
   });
 });

@@ -1,24 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { ArrowIcon } from "@/components/icons";
 import { CopyEmailButton } from "@/components/copy-email-button";
 import { SystemShell } from "@/components/system-shell";
 import { useWindowFrame } from "@/components/use-window-frame";
 import { ApplicationFrame } from "./application-frame";
-import { displayHandle, portfolioIdentity } from "../lib/portfolio-identity";
+import { displayHandle, portfolioIdentity, portfolioTitle } from "../lib/portfolio-identity";
+import { workspaceHistory } from "../lib/workspace-navigation";
+import { portfolioApp } from "./app-registry";
 import { WindowChrome } from "@/components/window-chrome";
 import { useWorkspaceManager } from "@/components/workspace-manager";
 import { OwnerMark } from "@/components/app-icons";
+import { fadeOutCopy } from "../lib/motion";
 
 function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }) {
   const workspace = useWorkspaceManager();
   const closeRef = useRef<HTMLButtonElement>(null);
-  const closeTimerRef = useRef<number | null>(null);
-  const closingRef = useRef(false);
   const foregroundRef = useRef(false);
   foregroundRef.current = workspace.activeWindow === "contact" && workspace.surface === "application";
-  const [isClosing, setIsClosing] = useState(false);
   const {
     dragging,
     frameRef,
@@ -58,19 +58,11 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
     });
   }, [open, workspace]);
 
-  useEffect(() => () => {
-    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
-  }, []);
-
+  // Closing is immediate: the window is gone the moment it's asked; on a desktop a copy of it fades
+  // out where it stood.
   function requestClose() {
-    if (closingRef.current) return;
-    closingRef.current = true;
-    setIsClosing(true);
-    closeTimerRef.current = window.setTimeout(() => {
-      closingRef.current = false;
-      setIsClosing(false);
-      onClose();
-    }, 320);
+    if (workspace.mode === "computer") fadeOutCopy(frameRef.current);
+    onClose();
   }
 
   if (!open) return null;
@@ -78,7 +70,6 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
   return (
     <div
       className="contact-window-layer"
-      data-closing={isClosing}
       data-window-state={workspace.stateFor("contact")}
       role="presentation"
       style={{ "--window-layer-z": workspace.zIndexFor("contact") } as CSSProperties}
@@ -93,6 +84,7 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
         data-resizing={resizing}
         data-snap={snap ?? undefined}
         data-window-state={workspace.stateFor("contact")}
+        onFocusCapture={() => { if (workspace.activeWindow !== "contact") workspace.focusWindow("contact"); }}
         onPointerDown={() => workspace.focusWindow("contact")}
         frameRef={frameRef}
         role="dialog"
@@ -106,7 +98,7 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
           app="contact"
           className="window-titlebar contact-titlebar"
           closeRef={closeRef}
-          closeLabel="Close contact window"
+          closeLabel="Close Contact window"
           label="Contact"
           maximized={maximized}
           onClose={requestClose}
@@ -138,7 +130,7 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
                 <span>LinkedIn</span>
                 <span>{displayHandle(portfolioIdentity.linkedin)}</span>
               </div>
-              <a className="contact-directory-action" href={portfolioIdentity.linkedin} target="_blank" rel="noopener noreferrer" aria-label="Open LinkedIn profile">
+              <a className="contact-directory-action" href={portfolioIdentity.linkedin} target="_blank" rel="noopener noreferrer" aria-label="Open LinkedIn profile, opens in a new tab">
                 <span className="contact-action-label">Open</span> <ArrowIcon />
               </a>
             </li>
@@ -147,7 +139,7 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
                 <span>WhatsApp</span>
                 <span>{portfolioIdentity.whatsappDisplay}</span>
               </div>
-              <a className="contact-directory-action" href={portfolioIdentity.whatsapp} target="_blank" rel="noopener noreferrer" aria-label="Open WhatsApp conversation">
+              <a className="contact-directory-action" href={portfolioIdentity.whatsapp} target="_blank" rel="noopener noreferrer" aria-label="Open WhatsApp conversation, opens in a new tab">
                 <span className="contact-action-label">Open</span> <ArrowIcon />
               </a>
             </li>
@@ -156,7 +148,7 @@ function ContactWindow({ open, onClose }: { open: boolean; onClose: () => void }
                 <span>GitHub</span>
                 <span>{displayHandle(portfolioIdentity.github)}</span>
               </div>
-              <a className="contact-directory-action" href={portfolioIdentity.github} target="_blank" rel="noopener noreferrer" aria-label="Open GitHub profile">
+              <a className="contact-directory-action" href={portfolioIdentity.github} target="_blank" rel="noopener noreferrer" aria-label="Open GitHub profile, opens in a new tab">
                 <span className="contact-action-label">Open</span> <ArrowIcon />
               </a>
             </li>
@@ -172,6 +164,14 @@ export function PortfolioHeader() {
   const contactOpen = workspace.isOpen("contact");
 
   useEffect(() => workspace.registerAppLauncher("contact", () => workspace.openWindow("contact")), [workspace]);
+
+  // The other apps route as they come forward; Contact has no host doing that, so it names itself.
+  // The phone's history stack writes its own entries.
+  const contactInFront = workspace.activeWindow === "contact" && workspace.surface === "application" && workspace.mode !== "phone";
+  useEffect(() => {
+    if (!contactInFront || (window.location.pathname === "/" && window.location.hash === "#contact")) return;
+    workspaceHistory.replaceState(null, portfolioTitle.for(portfolioApp("contact").documentTitle), "/#contact");
+  }, [contactInFront]);
 
   return (
     <>

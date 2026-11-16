@@ -4,7 +4,7 @@ export const experience = [
   {
     company: "Bank Central Asia",
     role: "Software Engineer / IT Specialist",
-    period: "Sep 2023 — Present",
+    period: "Sep 2023–Present",
     stage: "Production reliability",
     scope: "Android POS delivery, merchant payment recovery, and operational reliability under live transaction load.",
     details: [
@@ -16,7 +16,7 @@ export const experience = [
   {
     company: "Canoe",
     role: "Founder",
-    period: "2019 — Present",
+    period: "2019–Present",
     stage: "Independent studio",
     scope: "Founded and runs Canoe, an independent studio in Indonesia that makes wedding invitations, company profiles, and campaign microsites.",
     details: [
@@ -29,7 +29,7 @@ export const experience = [
   {
     company: "Telkom Indonesia",
     role: "iOS Engineer Intern",
-    period: "Apr 2023 — Sep 2023",
+    period: "Apr 2023–Sep 2023",
     stage: "Reusable systems",
     scope: "Shared SwiftUI components for teams delivering government-facing application surfaces.",
     details: [
@@ -41,7 +41,7 @@ export const experience = [
   {
     company: "Apple Developer Academy",
     role: "iOS Developer",
-    period: "Feb 2022 — Dec 2022",
+    period: "Feb 2022–Dec 2022",
     stage: "Prototype delivery",
     scope: "Cross-functional SwiftUI products taken from discovery through demo-ready prototypes.",
     details: [

@@ -56,6 +56,98 @@ function storeDesktopOffsets(offsets: DesktopOffsets) {
   }
 }
 
+type DesktopRect = { bottom: number; left: number; right: number; top: number };
+
+function rectsOverlap(a: DesktopRect, b: DesktopRect) {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+function resolveDesktopOffset(
+  board: HTMLElement,
+  key: string,
+  baseLeft: number,
+  baseTop: number,
+  width: number,
+  height: number,
+  boardWidth: number,
+  boardHeight: number,
+  desired: DesktopOffset,
+  placed: Record<string, DesktopRect> = {},
+): DesktopOffset {
+  if (width <= 0 || height <= 0 || boardWidth <= 0 || boardHeight <= 0) return desired;
+  const boardRect = board.getBoundingClientRect();
+  const clampLeft = (left: number) => Math.min(Math.max(0, left), Math.max(0, boardWidth - width));
+  const clampTop = (top: number) => Math.min(Math.max(0, top), Math.max(0, boardHeight - height));
+  const desiredLeft = clampLeft(baseLeft + desired.x);
+  const desiredTop = clampTop(baseTop + desired.y);
+
+  const obstacles: DesktopRect[] = [];
+  const identity = board.parentElement?.querySelector<HTMLElement>(".desktop-identity");
+  if (identity) {
+    const r = identity.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) {
+      obstacles.push({
+        bottom: r.bottom - boardRect.top + 8,
+        left: r.left - boardRect.left - 8,
+        right: r.right - boardRect.left + 8,
+        top: r.top - boardRect.top - 8,
+      });
+    }
+  }
+  for (const item of Array.from(board.querySelectorAll<HTMLElement>(".desktop-object"))) {
+    if (item.classList.contains(key)) continue;
+    // A shortcut already moved in this pass has not re-rendered; its new place is the obstacle.
+    const placedKey = Object.keys(placed).find((name) => item.classList.contains(name));
+    if (placedKey) {
+      const p = placed[placedKey];
+      obstacles.push({ bottom: p.bottom + 6, left: p.left - 6, right: p.right + 6, top: p.top - 6 });
+      continue;
+    }
+    const r = item.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) {
+      obstacles.push({
+        bottom: r.bottom - boardRect.top + 6,
+        left: r.left - boardRect.left - 6,
+        right: r.right - boardRect.left + 6,
+        top: r.top - boardRect.top - 6,
+      });
+    }
+  }
+
+  const clearAt = (left: number, top: number) => {
+    const box: DesktopRect = { bottom: top + height, left, right: left + width, top };
+    return obstacles.every((obs) => !rectsOverlap(box, obs));
+  };
+
+  if (clearAt(desiredLeft, desiredTop)) {
+    return { x: Math.round(desiredLeft - baseLeft), y: Math.round(desiredTop - baseTop), z: desired.z };
+  }
+
+  const xs = [desiredLeft, ...obstacles.flatMap((obs) => [clampLeft(obs.left - width), clampLeft(obs.right)])];
+  const ys = [desiredTop, ...obstacles.flatMap((obs) => [clampTop(obs.top - height), clampTop(obs.bottom)])];
+  let bestLeft = desiredLeft;
+  let bestTop = desiredTop;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (const cx of xs) {
+    for (const cy of ys) {
+      if (!clearAt(cx, cy)) continue;
+      const dist = Math.hypot(cx - desiredLeft, cy - desiredTop);
+      if (dist < bestDistance) {
+        bestDistance = dist;
+        bestLeft = cx;
+        bestTop = cy;
+      }
+    }
+  }
+
+  return {
+    x: Math.round(bestLeft - baseLeft),
+    y: Math.round(bestTop - baseTop),
+    z: desired.z,
+  };
+}
+
 export function DesktopSurface({
   onOpenCase,
   onOpenWindow,
@@ -86,7 +178,6 @@ export function DesktopSurface({
   const [desktopOffsets, setDesktopOffsets] = useState<DesktopOffsets>({});
   const [draggingDesktopItem, setDraggingDesktopItem] = useState<string | null>(null);
   // The last drop, with a count whose parity restarts the landing knock on every drop.
-  const [landedDesktopItem, setLandedDesktopItem] = useState<{ key: string; count: number } | null>(null);
   const { play } = useSound();
   const [grabReadyDesktopItem, setGrabReadyDesktopItem] = useState<string | null>(null);
   // Desktop convention: one click selects a shortcut, a double click (or Enter, or a touch tap)
@@ -111,14 +202,39 @@ export function DesktopSurface({
       setDesktopOffsets((current) => {
         let changed = false;
         const next = { ...current };
+        const placed: Record<string, DesktopRect> = {};
         for (const [key, offset] of Object.entries(current)) {
           const shortcut = board.querySelector<HTMLElement>(`.${key}`);
           if (!shortcut) continue;
           const rect = shortcut.getBoundingClientRect();
-          const x = offset.x + Math.max(0, boardRect.left - rect.left) - Math.max(0, rect.right - boardRect.right);
-          const y = offset.y + Math.max(0, boardRect.top - rect.top) - Math.max(0, rect.bottom - boardRect.bottom);
-          if (x !== offset.x || y !== offset.y) {
-            next[key] = { ...offset, x, y };
+          const clamped: DesktopOffset = {
+            ...offset,
+            x: offset.x + Math.max(0, boardRect.left - rect.left) - Math.max(0, rect.right - boardRect.right),
+            y: offset.y + Math.max(0, boardRect.top - rect.top) - Math.max(0, rect.bottom - boardRect.bottom),
+          };
+          const baseLeft = rect.left - boardRect.left - offset.x;
+          const baseTop = rect.top - boardRect.top - offset.y;
+          const resolved = rect.width > 0 && rect.height > 0
+            ? resolveDesktopOffset(
+                board,
+                key,
+                baseLeft,
+                baseTop,
+                rect.width,
+                rect.height,
+                boardRect.width,
+                boardRect.height,
+                clamped,
+                placed,
+              )
+            : clamped;
+          if (rect.width > 0 && rect.height > 0) {
+            const left = baseLeft + resolved.x;
+            const top = baseTop + resolved.y;
+            placed[key] = { bottom: top + rect.height, left, right: left + rect.width, top };
+          }
+          if (resolved.x !== offset.x || resolved.y !== offset.y) {
+            next[key] = resolved;
             changed = true;
           }
         }
@@ -218,9 +334,22 @@ export function DesktopSurface({
     if (drag.moved) {
       suppressClickRef.current = drag.key;
       play(drag.key.startsWith("surface-shot-") ? "sys.drop-file" : "sys.drop-icon");
-      setLandedDesktopItem((current) => ({ key: drag.key, count: (current?.count ?? 0) + 1 }));
+      const board = boardRef.current;
+      const settled = board
+        ? resolveDesktopOffset(
+            board,
+            drag.key,
+            drag.baseLeft,
+            drag.baseTop,
+            drag.width,
+            drag.height,
+            drag.boardWidth,
+            drag.boardHeight,
+            drag.latest,
+          )
+        : drag.latest;
       setDesktopOffsets((current) => {
-        const next = { ...current, [drag.key]: drag.latest };
+        const next = { ...current, [drag.key]: settled };
         storeDesktopOffsets(next);
         return next;
       });
@@ -250,6 +379,9 @@ export function DesktopSurface({
     return false;
   }
 
+  // Behind an open window the desktop stays clickable but leaves the Tab order, so Tab moves through the window and the taskbar.
+  const behindWindows = workspace.surface !== "home";
+
   function moveSelection(event: KeyboardEvent<HTMLDivElement>) {
     const keys = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"];
     if (!keys.includes(event.key)) return;
@@ -264,7 +396,7 @@ export function DesktopSurface({
   return (
     <section className="desktop-surface" aria-labelledby="desktop-surface-title">
       <Wallpaper />
-      <h2 className="sr-only" id="desktop-surface-title">Engineering workspace</h2>
+      <h2 className="sr-only" id="desktop-surface-title">Desktop</h2>
       {/* A pinned desk accessory, in the chrome language of the windows: it names whose computer
           this is and carries the two things a visitor most often wants, the CV and an address. */}
       <div className="desktop-identity" role="group" aria-label={`${portfolioIdentity.name}, ${portfolioIdentity.role}`}>
@@ -276,8 +408,8 @@ export function DesktopSurface({
           <p className="desktop-identity-focus">{portfolioIdentity.focus}</p>
         </div>
         <div className="desktop-identity-actions">
-          <a className="desktop-identity-primary" href={portfolioIdentity.cv} download onClick={() => play("ui.download")}>Download CV <DownloadIcon /></a>
-          <a className="desktop-identity-email" href={`mailto:${portfolioIdentity.email}`}>{portfolioIdentity.email}</a>
+          <a className="desktop-identity-primary" href={portfolioIdentity.cv} download onClick={() => play("ui.download")} tabIndex={behindWindows ? -1 : undefined}>Download CV <DownloadIcon /></a>
+          <a className="desktop-identity-email" href={`mailto:${portfolioIdentity.email}`} tabIndex={behindWindows ? -1 : undefined}>{portfolioIdentity.email}</a>
         </div>
       </div>
       <div
@@ -292,12 +424,12 @@ export function DesktopSurface({
           <Link
             className={`desktop-object ${item.type === "folder" ? "desktop-folder" : "desktop-evidence desktop-case-file"} ${item.className}`}
             data-dragging={draggingDesktopItem === item.className ? "true" : undefined}
-            data-landed={landedDesktopItem?.key === item.className ? (landedDesktopItem.count % 2 ? "odd" : "even") : undefined}
             data-selected={selectedDesktopItem === item.className ? "true" : undefined}
             onFocus={() => setSelectedDesktopItem(item.className)}
             data-grab-ready={grabReadyDesktopItem === item.className ? "true" : undefined}
             href={item.href}
             key={item.label}
+            tabIndex={behindWindows ? -1 : undefined}
             onDragStart={(event) => event.preventDefault()}
             onClick={(event) => {
               if (!shouldOpenFromClick(event, item.className)) return;

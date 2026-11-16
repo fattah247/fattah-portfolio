@@ -19,7 +19,7 @@ export function displayHandle(url: string) {
 
 /** Document titles follow the route metadata template so in-app URL changes keep the tab honest. */
 export const portfolioTitle = {
-  default: `${portfolioIdentity.name} — ${portfolioIdentity.role}`,
-  template: `%s — ${portfolioIdentity.name}`,
+  default: `${portfolioIdentity.name}, ${portfolioIdentity.role}`,
+  template: `%s · ${portfolioIdentity.name}`,
   for: (label?: string | null) => label ? portfolioTitle.template.replace("%s", label) : portfolioTitle.default,
 };

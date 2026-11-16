@@ -38,7 +38,7 @@ function ProjectImage({
  * language, description, and last update, opened inside Projects. A live product with private
  * source leads the list and reads "Live site" and its starting year instead.
  */
-const rowLanguage = (project: GithubProject) => (project.kind === "site" ? "Live site" : project.language ?? "Repository");
+const rowLanguage = (project: GithubProject) => (project.kind === "site" ? "Live site" : project.language ?? "GitHub repository");
 
 export function GithubProjectsIndex({
   onOpenProject,
@@ -55,13 +55,12 @@ export function GithubProjectsIndex({
       <header className="github-projects-heading">
         <h2 id="github-projects-heading">Side projects</h2>
         <a
-          aria-label={`All ${repositoryCount} public repositories on GitHub`}
           className="github-projects-github-link"
           href="https://github.com/fattah247?tab=repositories"
           rel="noopener noreferrer"
           target="_blank"
         >
-          <span className="github-project-count">{repositoryCount} public {repositoryCount === 1 ? "repo" : "repos"}</span> on GitHub <ArrowIcon />
+          <span className="github-project-count">{repositoryCount} public {repositoryCount === 1 ? "repo" : "repos"}</span> on GitHub<span className="sr-only">, opens in a new tab</span> <ArrowIcon />
         </a>
       </header>
 
@@ -113,14 +112,14 @@ export function GithubProjectPreview({
     <div className="github-project-preview" data-project={project.id}>
       <section className="github-project-preview-intro" aria-labelledby="github-project-preview-title">
         <div>
-          <p>{project.kind === "site" ? "Live site" : project.language ?? "Public repository"}</p>
+          <p>{project.kind === "site" ? "Live site" : project.language ?? "GitHub repository"}</p>
           <h2 id="github-project-preview-title">{project.displayName}</h2>
           <span>{project.description}</span>
         </div>
         <dl>
           {project.since ? <div><dt>Since</dt><dd>{project.since}</dd></div> : <div><dt>Updated</dt><dd>{project.updatedLabel}</dd></div>}
           <div><dt>{project.repositoryUrl ? "Repository" : "Source"}</dt><dd>{project.repositoryUrl ? "Public" : "Private"}</dd></div>
-          <div><dt>Topics</dt><dd>{project.topics.length ? project.topics.join(" · ") : "Project source"}</dd></div>
+          {project.topics.length ? <div><dt>Topics</dt><dd>{project.topics.join(" · ")}</dd></div> : null}
         </dl>
       </section>
 
@@ -145,12 +144,12 @@ export function GithubProjectPreview({
       <div className="github-project-actions">
         {project.repositoryUrl ? (
           <a className="primary-action" href={project.repositoryUrl} rel="noopener noreferrer" target="_blank">
-            View source <ArrowIcon />
+            View source<span className="sr-only">, opens in a new tab</span> <ArrowIcon />
           </a>
         ) : null}
         {project.homepageUrl ? (
           <a className={project.repositoryUrl ? "inline-link" : "primary-action"} href={project.homepageUrl} rel="noopener noreferrer" target="_blank">
-            {project.repositoryUrl ? "Open live site" : `Visit ${project.displayName}`} <ArrowIcon />
+            {project.repositoryUrl ? "Open live site" : `Visit ${project.displayName}`}<span className="sr-only">, opens in a new tab</span> <ArrowIcon />
           </a>
         ) : null}
       </div>

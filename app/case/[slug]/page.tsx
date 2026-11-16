@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { PortfolioHeader } from "@/components/portfolio-header";
 import { PortfolioWorkspace } from "@/components/portfolio-workspace";
+import { getGithubProjects } from "@/lib/github-projects";
 import { getScenario, scenarios } from "@/lib/scenarios";
 import type { Metadata } from "next";
 
@@ -15,7 +16,7 @@ type CasePageProps = {
 
 export async function generateMetadata({ params }: CasePageProps): Promise<Metadata> {
   const scenario = getScenario((await params).slug);
-  return scenario ? { title: scenario.category, description: `${scenario.title} ${scenario.consequence}` } : { title: "Project not found" };
+  return scenario ? { title: scenario.category, description: `${scenario.title}. ${scenario.consequence}` } : { title: "Case not found" };
 }
 
 export default async function CasePage({ params, searchParams }: CasePageProps) {
@@ -36,8 +37,10 @@ export default async function CasePage({ params, searchParams }: CasePageProps) 
     <>
       <PortfolioHeader />
       <PortfolioWorkspace
+        github={await getGithubProjects()}
         initialCaseConditions={initialConditions}
         initialCaseSlug={scenario.slug}
+        initialCaseTechnical={query.technical === "1"}
         key={scenario.slug}
       />
     </>
