@@ -2073,7 +2073,9 @@ html:not([data-system-mode="phone"]) .selected-work-window .case-progress a {
 
 /* A tablet is touched: its tabs reach 44 px, and chapter anchors clear the taller strip. */
 html[data-system-mode="tablet"] .selected-work-window { --case-progress-height: 51px; }
-html[data-system-mode="tablet"] .selected-work-window .case-progress a { min-height: 44px !important; }
+/* The strip clips the 1px each tab overlaps its rule, so the tab is 45 and the strip's top padding 5. */
+html[data-system-mode="tablet"] .selected-work-window .case-progress { padding-top: 5px !important; }
+html[data-system-mode="tablet"] .selected-work-window .case-progress a { min-height: 45px !important; }
 
 html:not([data-system-mode="phone"]) .selected-work-window .case-progress a:hover { background: var(--raised) !important; border-color: var(--border) !important; }
 html:not([data-system-mode="phone"]) .selected-work-window .case-progress a::after { display: none !important; }
@@ -2559,6 +2561,9 @@ html[data-system-mode="phone"] .product-links-intro { padding-top: 18px !importa
 }
 
 .evidence-route-window .claim-evidence a { color: var(--accent-deep) !important; }
+/* The link keeps its line; its pointer target still reaches 24 px (WCAG 2.5.8). */
+.claim-evidence a { position: relative; }
+.claim-evidence a::before { content: ""; inset-block: min(0px, calc(50% - 12px)); inset-inline: 0; position: absolute; }
 html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .claim-evidence a { min-block-size: 44px; }
 
 /* The embedded case is its own scroll owner, so it must also contain its absolutely
@@ -4762,7 +4767,8 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 .pw-why { color: var(--ink); font: var(--type-label); margin: 0; max-inline-size: 60ch; }
 .pw-compare { align-items: stretch; display: flex; flex-wrap: wrap; gap: 6px 10px; }
 .pw-compare-measure { align-self: center; color: var(--ink-secondary); flex-basis: 100%; font: var(--type-caption); }
-.pw-compare-side { background: #ffffff; border: 1px solid var(--line-ink); display: grid; flex: 1 1 9rem; padding: 4px 10px; }
+/* Side by side, a label that wraps would lift its neighbour's value; values sit on the bottom line. */
+.pw-compare-side { align-content: space-between; background: #ffffff; border: 1px solid var(--line-ink); display: grid; flex: 1 1 9rem; padding: 4px 10px; }
 .pw-compare-side small { color: var(--ink-secondary); font: var(--type-caption); }
 .pw-compare-side b { font: 700 .95rem/1.3 var(--font-mono), monospace; }
 .pw-compare-side[data-side="basic"] { border-style: dashed; }
@@ -4786,7 +4792,10 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) :is(.phone-syst
 .pw-code-line::before { color: var(--ink-secondary); content: attr(data-n); text-align: end; }
 .pw-proof-note, .pw-proof-result { color: var(--ink); font: var(--type-label); }
 .pw-proof-result { font-family: var(--font-mono), monospace; font-size: .78rem; overflow-wrap: anywhere; }
-.pw-proof-tests { display: grid; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.pw-proof-tests { display: grid; gap: 8px; list-style: none; margin: 0; padding: 0; }
+/* With a mouse each repo link still has a 24 px target (WCAG 2.5.8); rows sit 24 px apart so targets never overlap. */
+:is(.pw-code figcaption, .pw-proof-tests li) > a { position: relative; }
+:is(.pw-code figcaption, .pw-proof-tests li) > a::before { content: ""; inset-block: min(0px, calc(50% - 12px)); inset-inline: 0; position: absolute; }
 .pw-proof-tests li { color: var(--ink); font: var(--type-caption); overflow-wrap: anywhere; }
 .pw-proof-tests code { font-size: .75rem; }
 /* Touch: each file link is a 44 px row, and each test a ruled row, so stacked links never merge. */
