@@ -42,7 +42,7 @@ export const emptyWorld: World = { flow: emptyFlow, naive: emptyNaive };
 
 /** One input through both systems; the basic one reads it first, as it sees the same redelivery. */
 export function step(world: World, input: FlowInput): World {
-  const naive = input.kind === "release" || input.kind === "mutate" ? world.naive : naiveStep(world.naive, input, world.flow);
+  const naive = input.kind === "release" ? world.naive : naiveStep(world.naive, input, world.flow);
   return { flow: flowStep(world.flow, input), naive };
 }
 

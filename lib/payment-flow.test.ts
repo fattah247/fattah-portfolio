@@ -55,21 +55,6 @@ describe("payment flow (Payflow's ProviderWebhookService, settlement and bank le
     expect(outcomes([send("success"), { kind: "settle" }, { kind: "statement", statement: "credit" }, { kind: "statement", statement: "reimport" }]).at(-1)).toBe("ALREADY_IMPORTED");
   });
 
-  it("breaks each rule only when the visitor removes it, as the repo's mutation tests do, and names what catches it", () => {
-    const removed = (mutation: "settle-held" | "match-by-amount" | "accept-reimport"): FlowInput => ({ kind: "mutate", mutation, removed: true });
-    const held = playFlow([send("success"), send("wrong-amount"), removed("settle-held"), { kind: "settle" }]);
-    expect(held.entries.at(-1)!).toMatchObject({ outcome: "RULE_BROKEN", tone: "adverse" });
-    expect(held.payout).toBe("IN_TRANSIT");
-    const guessed = playFlow([send("success"), { kind: "settle" }, removed("match-by-amount"), { kind: "statement", statement: "no-reference" }]);
-    expect(guessed.entries.at(-1)!.hood).toContain("LANDING_IS_PROVEN");
-    const twice = playFlow([send("success"), { kind: "settle" }, { kind: "statement", statement: "credit" }, removed("accept-reimport"), { kind: "statement", statement: "reimport" }]);
-    expect(twice.entries.at(-1)!.hood).toContain("BANK_ENTRY_BOOKED_ONCE");
-    expect(twice.rulesBroken).toEqual(["accept-reimport"]);
-    // Restored, the same step is guarded again.
-    const restored = flowStep(twice, { kind: "mutate", mutation: "accept-reimport", removed: false });
-    expect(flowStep(restored, { kind: "statement", statement: "reimport" }).entries.at(-1)!.outcome).toBe("ALREADY_IMPORTED");
-  });
-
   it("shows, beside it, what a system without an inbox that trusts the provider would have done", () => {
     const { flow, naive } = playBoth(paymentStory({ delivery: "duplicate", amount: "matches", bank: "landed" }));
     expect(flow.journals.filter((journal) => journal === "CAPTURE")).toHaveLength(1);

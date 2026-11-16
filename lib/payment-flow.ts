@@ -19,9 +19,7 @@
  * - a payment is RECONCILED only with both a matching row in the provider's report and a landed
  *   payout (`PaymentReconciler`); a report row that disagrees opens a review case and holds nothing.
  *
- * The repo has no switch that turns any of this off. It proves the rules by removing them in its
- * tests (docs/settlement-certainty.md §5.3, README "checked by mutation"); `mutations` lists the
- * three a visitor can reach here, each with what catches it.
+ * The repo has no switch that turns any of this off, so neither does the simulator.
  *
  * Alongside it, `naive` runs the same inputs through a system without an event inbox that trusts
  * the provider's report. It is a comparison for the site, not code from the repo.
@@ -43,23 +41,20 @@ export type PayoutStatus = "NONE" | "IN_TRANSIT" | "LANDED" | "BROKEN";
 /** The provider's webhooks a visitor can send. */
 export type WebhookKind = "success" | "again" | "new-id" | "late-authorized" | "wrong-amount";
 export type StatementKind = "credit" | "no-credit" | "no-reference" | "reimport";
-export type MutationId = "settle-held" | "match-by-amount" | "accept-reimport";
 
 export type FlowInput =
   | { kind: "webhook"; webhook: WebhookKind }
   | { kind: "release" }
   | { kind: "settle" }
   | { kind: "report"; matches: boolean }
-  | { kind: "statement"; statement: StatementKind }
-  | { kind: "mutate"; mutation: MutationId; removed: boolean };
+  | { kind: "statement"; statement: StatementKind };
 
-/** The repo's own outcome names; `RULE_BROKEN` marks a step that only happened because a rule was removed. */
+/** The repo's own outcome names. */
 export type FlowOutcome =
   | "APPLIED" | "DUPLICATE_IGNORED" | "STALE_IGNORED" | "SENT_TO_REVIEW" | "PAYMENT_ON_HOLD"
   | "RELEASED" | "BATCH_CREATED" | "NOTHING_TO_SETTLE"
   | "MATCHED_AWAITING_BANK" | "RECONCILED" | "MATCHED_NO_ACTION" | "ALREADY_RECONCILED" | "MISMATCH"
-  | "LANDED" | "MISSING_CREDIT" | "UNMATCHED_CREDIT" | "ALREADY_IMPORTED" | "NO_PAYOUT_YET"
-  | "RULE_REMOVED" | "RULE_RESTORED" | "RULE_BROKEN";
+  | "LANDED" | "MISSING_CREDIT" | "UNMATCHED_CREDIT" | "ALREADY_IMPORTED" | "NO_PAYOUT_YET";
 
 export type FlowTone = "neutral" | "confirmed" | "uncertain" | "adverse";
 
@@ -99,8 +94,6 @@ export type FlowWorld = {
   reportMatched: boolean;
   statementImported: boolean;
   bankLines: number;
-  removed: MutationId[];
-  rulesBroken: MutationId[];
   entries: FlowEntry[];
 };
 
@@ -119,31 +112,7 @@ export const emptyFlow: FlowWorld = {
   reportMatched: false,
   statementImported: false,
   bankLines: 0,
-  removed: [],
-  rulesBroken: [],
   entries: [],
-};
-
-/** The tests that remove a rule on purpose, and what catches each one. */
-export const mutations: Record<MutationId, { plain: string; technical: string; caughtBy: string; plainCaught: string }> = {
-  "settle-held": {
-    plain: "Pay out held payments",
-    technical: "settle held payments",
-    caughtBy: "the test suite fails (README, “checked by mutation”)",
-    plainCaught: "the repo's tests fail with this rule removed",
-  },
-  "match-by-amount": {
-    plain: "Match a credit by amount alone",
-    technical: "match a bank credit by amount when the reference is missing",
-    caughtBy: "LANDING_IS_PROVEN, in the property test and ThreeWayReconciliationTest",
-    plainCaught: "the rule that every landed payout carries its reference catches it",
-  },
-  "accept-reimport": {
-    plain: "Accept a statement twice",
-    technical: "accept a re-imported statement",
-    caughtBy: "BANK_ENTRY_BOOKED_ONCE, in the property test and ThreeWayReconciliationTest",
-    plainCaught: "the rule that a bank entry is booked once catches it",
-  },
 };
 
 export const statusWord: Record<PaymentStatus, string> = {
@@ -190,16 +159,8 @@ function record(world: FlowWorld, input: FlowInput, step: Step, next: Partial<Fl
   return { ...updated, entries: [...updated.entries, entry] };
 }
 
-/** One input against the payment, through the repo's rules (with any rule a visitor removed). */
+/** One input against the payment, through the repo's rules. */
 export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
-  if (input.kind === "mutate") {
-    const removed = input.removed ? [...new Set([...world.removed, input.mutation])] : world.removed.filter((id) => id !== input.mutation);
-    const rule = mutations[input.mutation];
-    return record(world, input, input.removed
-      ? { outcome: "RULE_REMOVED", tone: "uncertain", plain: `Rule removed, as the repo's tests do on purpose: “${rule.plain.toLowerCase()}”. Try the step it guards.`, hood: `mutation: ${rule.technical} · caught by ${rule.caughtBy}` }
-      : { outcome: "RULE_RESTORED", tone: "neutral", plain: `Rule restored: “${rule.plain.toLowerCase()}” is guarded again.`, hood: `mutation reverted: ${rule.technical}` }, { removed });
-  }
-
   if (input.kind === "webhook") {
     const event = eventFor(world, input.webhook);
     if (!event) return world;
@@ -276,14 +237,6 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
 
   if (input.kind === "settle") {
     const held = world.status === "MANUAL_REVIEW";
-    const settleHeld = held && world.removed.includes("settle-held") && world.journals.includes("CAPTURE") && world.payout === "NONE";
-    if (settleHeld) {
-      return record(world, input, {
-        outcome: "RULE_BROKEN", tone: "adverse",
-        plain: `With the rule removed, the held payment was paid out anyway: money left while a person was still checking it. ${mutations["settle-held"].plainCaught}.`,
-        hood: `mutation “settle held payments”: MANUAL_REVIEW included in the batch → PAYOUT sent · caught by ${mutations["settle-held"].caughtBy}`,
-      }, { payout: "IN_TRANSIT", journals: [...world.journals, "PAYOUT"], rulesBroken: [...new Set([...world.rulesBroken, "settle-held" as const])] });
-    }
     if (world.status !== "SUCCESS" || world.payout !== "NONE") {
       return record(world, input, {
         outcome: "NOTHING_TO_SETTLE", tone: held ? "confirmed" : "neutral",
@@ -331,13 +284,6 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
   const statement = input.statement;
   if (statement === "reimport") {
     if (!world.statementImported) return record(world, input, { outcome: "NO_PAYOUT_YET", tone: "neutral", plain: "No statement has been imported yet.", hood: "no statement to re-import" }, {});
-    if (world.removed.includes("accept-reimport")) {
-      return record(world, input, {
-        outcome: "RULE_BROKEN", tone: "adverse",
-        plain: `With the rule removed, the same statement was booked again: the books now show the money twice. ${mutations["accept-reimport"].plainCaught}.`,
-        hood: `mutation “accept a re-imported statement”: line booked again (${world.bankLines + 1} lines for 1 credit) · caught by ${mutations["accept-reimport"].caughtBy}`,
-      }, { bankLines: world.bankLines + 1, journals: [...world.journals, "PAYOUT_LANDED"], rulesBroken: [...new Set([...world.rulesBroken, "accept-reimport" as const])] });
-    }
     return record(world, input, {
       outcome: "ALREADY_IMPORTED", tone: "confirmed",
       plain: "The bank sent the same statement again. It was already imported, so nothing is booked twice.",
@@ -364,7 +310,7 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
     }, { payout: "BROKEN", statementImported: true, breaks: [...world.breaks, "MISSING_CREDIT"] });
   }
   const referenced = statement === "credit";
-  if (!referenced && !world.removed.includes("match-by-amount")) {
+  if (!referenced) {
     return record(world, input, {
       outcome: "UNMATCHED_CREDIT", tone: "uncertain",
       plain: `${idr(PAYOUT_NET)} arrived with no reference. The amount fits, but the amount alone proves nothing: it waits in suspense with an open break.`,
@@ -374,20 +320,13 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
   }
   if (world.payout === "LANDED") return record(world, input, { outcome: "ALREADY_IMPORTED", tone: "neutral", plain: "That credit is already booked.", hood: "line already matched" }, {});
   const landed = reconcile({ ...world, payout: "LANDED", statementImported: true, bankLines: world.bankLines + 1, journals: [...world.journals, "PAYOUT_LANDED"] });
-  const broken = !referenced;
-  return record(world, input, broken
-    ? {
-      outcome: "RULE_BROKEN", tone: "adverse",
-      plain: `With the rule removed, a credit with no reference landed the payout on its amount alone. ${mutations["match-by-amount"].plainCaught}.`,
-      hood: `mutation “match by amount”: credit ${PAYOUT_NET} without EndToEndId → LANDED · caught by ${mutations["match-by-amount"].caughtBy}`,
-    }
-    : {
-      outcome: "LANDED", tone: "confirmed",
-      plain: landed.status === "RECONCILED"
-        ? `The bank shows ${idr(PAYOUT_NET)} with the payout's reference: the money landed, and with the report already matching, the payment is reconciled.`
-        : `The bank shows ${idr(PAYOUT_NET)} with the payout's reference: the money landed. It's reconciled once the provider's report matches too.`,
-      hood: `credit EndToEndId ${PAYOUT_REFERENCE}, ${PAYOUT_NET} = provider net, value date in window → LANDED · ledger PAYOUT_LANDED (bank_cash + provider_fees = gross)${landed.status === "RECONCILED" ? " · SETTLED → RECONCILED" : ""}`,
-    }, { ...landed, entries: world.entries, rulesBroken: broken ? [...new Set([...world.rulesBroken, "match-by-amount" as const])] : world.rulesBroken });
+  return record(world, input, {
+    outcome: "LANDED", tone: "confirmed",
+    plain: landed.status === "RECONCILED"
+      ? `The bank shows ${idr(PAYOUT_NET)} with the payout's reference: the money landed, and with the report already matching, the payment is reconciled.`
+      : `The bank shows ${idr(PAYOUT_NET)} with the payout's reference: the money landed. It's reconciled once the provider's report matches too.`,
+    hood: `credit EndToEndId ${PAYOUT_REFERENCE}, ${PAYOUT_NET} = provider net, value date in window → LANDED · ledger PAYOUT_LANDED (bank_cash + provider_fees = gross)${landed.status === "RECONCILED" ? " · SETTLED → RECONCILED" : ""}`,
+  }, { ...landed, entries: world.entries });
 }
 
 export const playFlow = (inputs: readonly FlowInput[], from: FlowWorld = emptyFlow) => inputs.reduce(flowStep, from);
