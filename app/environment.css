@@ -4376,9 +4376,10 @@ html[data-system-mode="phone"] .system-recents > header { box-sizing: border-box
 html[data-system-mode="phone"] .evidence-stage:not([data-zoomed]) { align-content: start !important; grid-template-rows: auto auto !important; }
 html[data-system-mode="phone"] .evidence-stage:not([data-zoomed]) .evidence-image { padding: 0 !important; }
 
-/* A short phone with something running: Continue joins the column, so the panels close up
- * (targets keep 44 px) rather than pushing the launcher under the system bar. */
-@container home (max-height: 32rem) {
+/* A phone with something running: Continue joins the column, so the panels close up (targets
+ * keep 44 px) rather than pushing the launcher under the system bar. Up to 50rem, case summaries
+ * and Continue together need the room. */
+@container home (max-height: 50rem) {
   html[data-system-mode="phone"] .system-home-screen > .home-layout[data-resume] { padding-top: 10px; row-gap: 8px; }
   html[data-system-mode="phone"] .home-layout[data-resume] .home-case { padding-block: 6px; }
 }
