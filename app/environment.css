@@ -3766,6 +3766,11 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .system-recents
 .recent-preview-dossier li { border-top: 1px solid var(--rule); display: grid; gap: 2px; padding-top: 6px; }
 .recent-preview-contact li { border: 1px solid var(--border); color: var(--ink); font: var(--type-label); padding: 6px 8px; }
 
+/* A card's close sits in its title bar like a window's: the same 20 px bevelled square, centred
+ * in a 44 px target that fills the bar's right end, so it never rides over the card's corner. */
+.system-recent-card { position: relative; }
+.system-recent-preview-bar { box-sizing: border-box; min-block-size: 45px; padding-block: 0 !important; padding-inline-end: 44px !important; }
+
 .system-recent-close {
   background: transparent !important;
   block-size: 44px !important;
@@ -3774,24 +3779,29 @@ html:is([data-system-mode="phone"], [data-system-mode="tablet"]) .system-recents
   display: grid !important;
   inline-size: 44px !important;
   place-items: center;
-  right: -8px !important;
-  top: -12px !important;
+  position: absolute !important;
+  right: 1px !important;
+  top: 1px !important;
 }
 
 .system-recent-close > span {
   background: var(--raised);
-  block-size: 24px;
+  block-size: 20px;
   border: 1px solid var(--line-ink);
   box-shadow: var(--bevel-raised);
-  color: var(--ink);
+  box-sizing: border-box;
+  color: var(--line-ink);
   display: grid;
-  inline-size: 24px;
+  inline-size: 20px;
+  padding: 1px;
   place-items: center;
 }
 
 .system-recent-close:is(:hover, :focus-visible) > span { background: var(--adverse); color: #ffffff; }
-.system-recent-close:active > span { box-shadow: var(--bevel-inset); translate: 1px 1px; }
-.system-recent-close svg { block-size: 12px; inline-size: 12px; }
+.system-recent-close:active > span { background: var(--recessed); box-shadow: var(--bevel-inset); }
+.system-recent-close:focus-visible { outline: 2px solid var(--ink) !important; outline-offset: -8px; }
+.system-recent-card[data-current="true"] .system-recent-close:focus-visible { outline-color: #ffffff !important; }
+.system-recent-close svg { block-size: 16px; inline-size: 16px; }
 
 html[data-system-mode="phone"] .system-recents-list {
   box-sizing: border-box;
