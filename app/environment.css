@@ -1104,6 +1104,13 @@ html[data-system-mode="phone"] .embedded-case-workspace {
   --case-progress-height: 44px;
 }
 
+/* A phone on its side has room for the title bar or the chapters, not both: the case reads as one
+ * scroll and the chapters return in portrait. In rem, so a larger text setting reaches it sooner. */
+@media (orientation: landscape) and (max-height: 27rem) {
+  html[data-system-mode="phone"] :is(.selected-work-window, .embedded-case-workspace) { --case-progress-height: 0px; }
+  html[data-system-mode="phone"] .selected-work-window .case-progress { display: none !important; }
+}
+
 /* Chapters become a segmented control: one row, labels only, 44px targets. */
 html[data-system-mode="phone"] .selected-work-window .case-progress {
   background: var(--glass-light-strong) !important;
