@@ -194,6 +194,33 @@ describe("CounterfactualHome", () => {
     expect(workShortcut.style.zIndex).toBe("1");
   });
 
+  it("nudges a dropped desktop shortcut clear of the identity accessory or another shortcut", () => {
+    document.documentElement.dataset.systemMode = "computer";
+    render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);
+
+    const board = screen.getByLabelText("Portfolio desktop shortcuts");
+    const identity = document.querySelector<HTMLElement>(".desktop-identity")!;
+    const workShortcut = screen.getByRole("link", { name: "Projects" });
+    vi.spyOn(board, "getBoundingClientRect").mockReturnValue({
+      bottom: 700, height: 700, left: 0, right: 1000, top: 0, width: 1000, x: 0, y: 0, toJSON: () => ({}),
+    });
+    vi.spyOn(identity, "getBoundingClientRect").mockReturnValue({
+      bottom: 240, height: 200, left: 680, right: 960, top: 40, width: 280, x: 680, y: 40, toJSON: () => ({}),
+    });
+    vi.spyOn(workShortcut, "getBoundingClientRect").mockReturnValue({
+      bottom: 168, height: 136, left: 32, right: 180, top: 32, width: 148, x: 32, y: 32, toJSON: () => ({}),
+    });
+
+    // Drag the shortcut (width 148, baseLeft 32) so its right edge (32 + 620 + 148 = 800) overlaps identity (left 680, margin 8 -> 672).
+    fireEvent.pointerDown(workShortcut, { button: 0, clientX: 100, clientY: 100, pointerId: 9 });
+    fireEvent.pointerMove(workShortcut, { clientX: 720, clientY: 120, pointerId: 9 });
+    fireEvent.pointerUp(workShortcut, { clientX: 720, clientY: 120, pointerId: 9 });
+
+    const savedOffsets = JSON.parse(window.sessionStorage.getItem("fattah.desktop.shortcuts.v1") ?? "{}");
+    // Nudged to the left of identity: left = 672 - 148 = 524 -> offset.x = 524 - 32 = 492.
+    expect(savedOffsets["surface-work"]).toEqual({ x: 492, y: 20, z: 1 });
+  });
+
   it("keeps the immediate workspace contract when reduced motion is requested", () => {
     installBrowserStubs(true);
     render(<WorkspaceManagerProvider><CounterfactualHome /></WorkspaceManagerProvider>);

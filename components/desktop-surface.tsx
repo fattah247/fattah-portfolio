@@ -56,6 +56,90 @@ function storeDesktopOffsets(offsets: DesktopOffsets) {
   }
 }
 
+type DesktopRect = { bottom: number; left: number; right: number; top: number };
+
+function rectsOverlap(a: DesktopRect, b: DesktopRect) {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+function resolveDesktopOffset(
+  board: HTMLElement,
+  key: string,
+  baseLeft: number,
+  baseTop: number,
+  width: number,
+  height: number,
+  boardWidth: number,
+  boardHeight: number,
+  desired: DesktopOffset,
+): DesktopOffset {
+  if (width <= 0 || height <= 0 || boardWidth <= 0 || boardHeight <= 0) return desired;
+  const boardRect = board.getBoundingClientRect();
+  const clampLeft = (left: number) => Math.min(Math.max(0, left), Math.max(0, boardWidth - width));
+  const clampTop = (top: number) => Math.min(Math.max(0, top), Math.max(0, boardHeight - height));
+  const desiredLeft = clampLeft(baseLeft + desired.x);
+  const desiredTop = clampTop(baseTop + desired.y);
+
+  const obstacles: DesktopRect[] = [];
+  const identity = board.parentElement?.querySelector<HTMLElement>(".desktop-identity");
+  if (identity) {
+    const r = identity.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) {
+      obstacles.push({
+        bottom: r.bottom - boardRect.top + 8,
+        left: r.left - boardRect.left - 8,
+        right: r.right - boardRect.left + 8,
+        top: r.top - boardRect.top - 8,
+      });
+    }
+  }
+  for (const item of Array.from(board.querySelectorAll<HTMLElement>(".desktop-object"))) {
+    if (item.classList.contains(key)) continue;
+    const r = item.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) {
+      obstacles.push({
+        bottom: r.bottom - boardRect.top + 6,
+        left: r.left - boardRect.left - 6,
+        right: r.right - boardRect.left + 6,
+        top: r.top - boardRect.top - 6,
+      });
+    }
+  }
+
+  const clearAt = (left: number, top: number) => {
+    const box: DesktopRect = { bottom: top + height, left, right: left + width, top };
+    return obstacles.every((obs) => !rectsOverlap(box, obs));
+  };
+
+  if (clearAt(desiredLeft, desiredTop)) {
+    return { x: Math.round(desiredLeft - baseLeft), y: Math.round(desiredTop - baseTop), z: desired.z };
+  }
+
+  const xs = [desiredLeft, ...obstacles.flatMap((obs) => [clampLeft(obs.left - width), clampLeft(obs.right)])];
+  const ys = [desiredTop, ...obstacles.flatMap((obs) => [clampTop(obs.top - height), clampTop(obs.bottom)])];
+  let bestLeft = desiredLeft;
+  let bestTop = desiredTop;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (const cx of xs) {
+    for (const cy of ys) {
+      if (!clearAt(cx, cy)) continue;
+      const dist = Math.hypot(cx - desiredLeft, cy - desiredTop);
+      if (dist < bestDistance) {
+        bestDistance = dist;
+        bestLeft = cx;
+        bestTop = cy;
+      }
+    }
+  }
+
+  return {
+    x: Math.round(bestLeft - baseLeft),
+    y: Math.round(bestTop - baseTop),
+    z: desired.z,
+  };
+}
+
 export function DesktopSurface({
   onOpenCase,
   onOpenWindow,
@@ -114,10 +198,26 @@ export function DesktopSurface({
           const shortcut = board.querySelector<HTMLElement>(`.${key}`);
           if (!shortcut) continue;
           const rect = shortcut.getBoundingClientRect();
-          const x = offset.x + Math.max(0, boardRect.left - rect.left) - Math.max(0, rect.right - boardRect.right);
-          const y = offset.y + Math.max(0, boardRect.top - rect.top) - Math.max(0, rect.bottom - boardRect.bottom);
-          if (x !== offset.x || y !== offset.y) {
-            next[key] = { ...offset, x, y };
+          const clamped: DesktopOffset = {
+            ...offset,
+            x: offset.x + Math.max(0, boardRect.left - rect.left) - Math.max(0, rect.right - boardRect.right),
+            y: offset.y + Math.max(0, boardRect.top - rect.top) - Math.max(0, rect.bottom - boardRect.bottom),
+          };
+          const resolved = rect.width > 0 && rect.height > 0
+            ? resolveDesktopOffset(
+                board,
+                key,
+                rect.left - boardRect.left - offset.x,
+                rect.top - boardRect.top - offset.y,
+                rect.width,
+                rect.height,
+                boardRect.width,
+                boardRect.height,
+                clamped,
+              )
+            : clamped;
+          if (resolved.x !== offset.x || resolved.y !== offset.y) {
+            next[key] = resolved;
             changed = true;
           }
         }
@@ -217,8 +317,22 @@ export function DesktopSurface({
     if (drag.moved) {
       suppressClickRef.current = drag.key;
       play(drag.key.startsWith("surface-shot-") ? "sys.drop-file" : "sys.drop-icon");
+      const board = boardRef.current;
+      const settled = board
+        ? resolveDesktopOffset(
+            board,
+            drag.key,
+            drag.baseLeft,
+            drag.baseTop,
+            drag.width,
+            drag.height,
+            drag.boardWidth,
+            drag.boardHeight,
+            drag.latest,
+          )
+        : drag.latest;
       setDesktopOffsets((current) => {
-        const next = { ...current, [drag.key]: drag.latest };
+        const next = { ...current, [drag.key]: settled };
         storeDesktopOffsets(next);
         return next;
       });
