@@ -347,6 +347,29 @@ describe("DebuggerWorkspace", () => {
     expect(proof.getByRole("link", { name: /SensitiveActionGate\.kt/ }).getAttribute("href")).toContain("SensitiveActionGate.kt");
   });
 
+  it("asks again for a later payment with the same checks as one already confirmed", () => {
+    render(
+      <WorkspaceManagerProvider>
+        <DebuggerWorkspace scenario={scenarios[2]} initialConditions={scenarios[2].defaults} onClose={vi.fn()} />
+      </WorkspaceManagerProvider>,
+    );
+    const check = (name: RegExp) => within(screen.getByRole("group", { name: /^What the phone/ })).getByRole("button", { name });
+    fireEvent.click(screen.getByRole("button", { name: "Approve with screen lock" }));
+    expect(document.querySelector(".pol-resolution-badge")?.textContent).toBe("Confirmed and sent");
+
+    fireEvent.click(check(/^Root app installed/));
+    act(() => vi.advanceTimersByTime(500));
+    fireEvent.click(check(/^Root app installed/));
+    act(() => vi.advanceTimersByTime(500));
+
+    expect(document.querySelector(".pol-decision span")?.textContent).toMatch(/^Payment #3: medium risk/);
+    expect(document.querySelector(".pol-resolution-badge")).toBeNull();
+    expect(screen.getByRole("button", { name: "Approve with screen lock" })).toBeTruthy();
+    const journal = Array.from(document.querySelectorAll(".sim-journal li"), (item) => item.textContent ?? "");
+    expect(journal[0]).not.toMatch(/confirmed and sent/);
+    expect(journal[2]).toMatch(/confirmed and sent/);
+  });
+
   it("scores the story's phone as the repo does, with no old-rules toggle, and returns to the story on request", () => {
     render(
       <WorkspaceManagerProvider>

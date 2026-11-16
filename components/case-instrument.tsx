@@ -633,7 +633,7 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
   const run = useMemo(() => assessDevice(conditions), [conditions]);
   const [sends, setSends] = useState(0);
   const [history, setHistory] = useState<PaymentRecord[]>([]);
-  const [confirmations, setConfirmations] = useState<Record<string, ConfirmationResult>>({});
+  const [confirmations, setConfirmations] = useState<Record<number, ConfirmationResult>>({});
   const [proofOpen, setProofOpen] = useState<boolean | null>(null);
   const requestKey = `${JSON.stringify(conditions)}:${sends}`;
   // The walk teaches at full pace on the first payment and on "Send again"; a check toggled after
@@ -682,10 +682,13 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
     }
   };
 
-  const currentConfirmation = confirmations[requestKey] ?? null;
+  // Answers belong to a payment, not to its checks: the same checks sent again ask again.
+  const currentPayment = history[0]?.key === requestKey ? history[0].n : null;
+  const currentConfirmation = currentPayment === null ? null : confirmations[currentPayment] ?? null;
   const resolveConfirmation = (result: ConfirmationResult) => {
+    if (currentPayment === null) return;
     play(result.outcome === "SENT" ? "pol.let-through" : result.outcome === "BLOCKED" ? "pol.block" : "ui.key-off");
-    setConfirmations((current) => ({ ...current, [requestKey]: result }));
+    setConfirmations((current) => ({ ...current, [currentPayment]: result }));
   };
 
   const showProof = proofOpen ?? technical;
@@ -774,7 +777,7 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
       <Journal
         empty="Each payment you make is listed here, as the phone logs it."
         entries={history.map((record) => {
-          const confirmed = confirmations[record.key];
+          const confirmed = confirmations[record.n];
           const confirmedSummary = confirmed ? ` → ${plainResolution(confirmed).title.toLowerCase()}` : "";
           const confirmedHood = confirmed ? ` → confirm(${confirmed.method}): ${confirmed.outcome} · ${confirmed.signing.toLowerCase()} · ${confirmed.event}` : "";
           return {
