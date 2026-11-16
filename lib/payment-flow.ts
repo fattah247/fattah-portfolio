@@ -70,8 +70,6 @@ export type FlowEntry = {
   tone: FlowTone;
   /** What happened, in everyday words. */
   plain: string;
-  /** What a system without these rules would have done at this moment (a comparison). */
-  contrast?: string;
   /** The mechanism, in the repo's terms. */
   hood: string;
 };
@@ -173,7 +171,6 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
       return record(world, input, {
         outcome: "DUPLICATE_IGNORED", http: 200, event, tone: "confirmed",
         plain: `The provider sent ${says} again. It's already in the inbox, so we answered “got it” and changed nothing.`,
-        contrast: event.status === "SUCCESS" && event.amount === PAYMENT_AMOUNT ? "Without an inbox, the capture would be booked again." : undefined,
         hood: `inbox has ${event.id}, same payload → 200 DUPLICATE_IGNORED · audit DUPLICATE_WEBHOOK_IGNORED`,
       }, { ...base, audit: [...world.audit, "DUPLICATE_WEBHOOK_IGNORED"] });
     }
@@ -192,7 +189,6 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
       return record(world, input, {
         outcome: "SENT_TO_REVIEW", http: 202, event, tone: "uncertain",
         plain: `The provider says ${idr(event.amount)} was paid, but the payment is ${idr(PAYMENT_AMOUNT)}. It's on hold until a person checks it.`,
-        contrast: "Without the check, the wrong amount would be taken as paid in full.",
         hood: `${event.id} amount ${event.amount} ≠ ${PAYMENT_AMOUNT} → 202 SENT_TO_REVIEW AMOUNT_MISMATCH · ${holdable ? `${world.status} → MANUAL_REVIEW` : "already final"} · review case · audit WEBHOOK_SENT_TO_REVIEW`,
       }, { ...base, inbox, status: holdable ? "MANUAL_REVIEW" : world.status, heldFrom: holdable ? world.status : world.heldFrom, reviewCases: [...world.reviewCases, "AMOUNT_MISMATCH"], audit: [...world.audit, "WEBHOOK_SENT_TO_REVIEW"] });
     }
@@ -201,7 +197,6 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
       return record(world, input, {
         outcome: "DUPLICATE_IGNORED", http: 200, event, tone: "confirmed",
         plain: `The provider restated ${says} under a new message id. That status is already recorded, so nothing changed.`,
-        contrast: event.status === "SUCCESS" ? "Without the check, a second capture would be booked." : undefined,
         hood: `${event.id} new, status ${event.status} already recorded on the transaction → 200 DUPLICATE_IGNORED · inbox row · audit WEBHOOK_IGNORED`,
       }, { ...base, inbox, audit: [...world.audit, "WEBHOOK_IGNORED"] });
     }
@@ -211,7 +206,6 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
       return record(world, input, {
         outcome: "STALE_IGNORED", http: 200, event, tone: "confirmed",
         plain: `A late ${says} arrived after the payment was already paid. Old news: noted, and the payment stays paid.`,
-        contrast: "Without the check, the older news would overwrite the newer.",
         hood: `${event.id} AUTHORIZED after capture → 200 STALE_IGNORED · inbox row · audit WEBHOOK_IGNORED`,
       }, { ...base, inbox, recorded: [...world.recorded, event.status], audit: [...world.audit, "WEBHOOK_IGNORED"] });
     }
@@ -241,7 +235,6 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
       return record(world, input, {
         outcome: "NOTHING_TO_SETTLE", tone: held ? "confirmed" : "neutral",
         plain: held ? "Settlement skipped the payment: it's on hold, so it waits for a person, not for the money." : world.payout !== "NONE" ? "Already paid out: nothing settles twice." : "Nothing to pay out yet: the payment hasn't been paid.",
-        contrast: held ? "A system that pays out holds would send the money now." : undefined,
         hood: `settlement run → 409 NOTHING_TO_SETTLE${held ? " · held payment skipped, not failed" : ""}`,
       }, {});
     }
@@ -275,7 +268,6 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
       : {
         outcome: "MATCHED_AWAITING_BANK", tone: "neutral",
         plain: "The provider's report matches. That's its word, not the money: the payment waits for the bank statement.",
-        contrast: "A system that trusts the report would call it reconciled now.",
         hood: "report row matches, payout not landed → MATCHED_AWAITING_BANK · stays SETTLED",
       }, { reportMatched: true, status: after.status, audit: after.audit });
   }
@@ -287,7 +279,6 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
     return record(world, input, {
       outcome: "ALREADY_IMPORTED", tone: "confirmed",
       plain: "The bank sent the same statement again. It was already imported, so nothing is booked twice.",
-      contrast: "Without the check, the credit would be booked a second time.",
       hood: "statement id + line references seen → ALREADY_IMPORTED/0",
     }, {});
   }
@@ -305,7 +296,6 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
     return record(world, input, {
       outcome: "MISSING_CREDIT", tone: "adverse",
       plain: `Every statement up to the value date plus ${VALUE_DATE_WINDOW_DAYS} days is in, and the money never arrived. The payout is broken, treasury owns the break, and the payment stays paid out, not reconciled.`,
-      contrast: "A system that trusts the report could already have marked it reconciled.",
       hood: `statements through value date + ${VALUE_DATE_WINDOW_DAYS}d, no credit → IN_TRANSIT → BROKEN(MISSING_CREDIT) · break MISSING_CREDIT, owner TREASURY, due 24h · payment stays SETTLED`,
     }, { payout: "BROKEN", statementImported: true, breaks: [...world.breaks, "MISSING_CREDIT"] });
   }
@@ -314,7 +304,6 @@ export function flowStep(world: FlowWorld, input: FlowInput): FlowWorld {
     return record(world, input, {
       outcome: "UNMATCHED_CREDIT", tone: "uncertain",
       plain: `${idr(PAYOUT_NET)} arrived with no reference. The amount fits, but the amount alone proves nothing: it waits in suspense with an open break.`,
-      contrast: "Matching by amount would land the payout on a guess.",
       hood: `credit ${PAYOUT_NET}, no EndToEndId → bank_suspense · break UNMATCHED_CREDIT (48h) · payout stays ${world.payout}`,
     }, { statementImported: true, bankLines: world.bankLines + 1, breaks: [...world.breaks, "UNMATCHED_CREDIT"] });
   }
