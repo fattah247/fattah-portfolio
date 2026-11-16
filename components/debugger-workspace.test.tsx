@@ -294,6 +294,59 @@ describe("DebuggerWorkspace", () => {
     expect(clock()).not.toBe(paused);
   });
 
+  it("lets visitors jump to pending iYup alerts, switch presets, and inspect the repo proof", () => {
+    render(
+      <WorkspaceManagerProvider>
+        <DebuggerWorkspace scenario={scenarios[1]} initialConditions={scenarios[1].defaults} onClose={vi.fn()} />
+      </WorkspaceManagerProvider>,
+    );
+    const alerts = () => document.querySelector(".svc-users strong")?.textContent;
+    expect(alerts()).toBe("Waiting");
+
+    fireEvent.click(screen.getByRole("button", { name: "Skip to 5 min" }));
+    expect(alerts()).toBe("Warning");
+
+    fireEvent.click(key("Try a situation", "Outage in both"));
+    act(() => vi.advanceTimersByTime(1_000));
+    expect(document.querySelector(".svc-status strong")?.textContent).toBe("Nope.");
+
+    fireEvent.click(screen.getByRole("button", { name: "How iYup decided" }));
+    const proof = within(screen.getByRole("region", { name: "How iYup decided" }));
+    expect(proof.getByRole("link", { name: /^probe\.go:/ }).getAttribute("href")).toContain("services/ping-agent/probe.go");
+    expect(proof.getByRole("link", { name: /^snapshot\.py:/ }).getAttribute("href")).toContain("services/api-gateway/snapshot.py");
+    expect(proof.getByRole("link", { name: /^alert\.rules\.yml:/ }).getAttribute("href")).toContain("config/alert.rules.yml");
+  });
+
+  it("walks through TrustGate step-up confirmation, re-checks before signing, and opens repo proof", () => {
+    render(
+      <WorkspaceManagerProvider>
+        <DebuggerWorkspace scenario={scenarios[2]} initialConditions={scenarios[2].defaults} onClose={vi.fn()} />
+      </WorkspaceManagerProvider>,
+    );
+
+    expect(document.querySelector(".pol-decision strong")?.textContent).toBe("Confirm with the screen lock");
+    fireEvent.click(screen.getByRole("button", { name: "Approve with screen lock" }));
+    expect(document.querySelector(".pol-resolution-badge")?.textContent).toBe("Confirmed and sent");
+
+    fireEvent.click(screen.getByRole("button", { name: /Send the payment again/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Attach debugger, then approve" }));
+    expect(document.querySelector(".pol-resolution-badge")?.textContent).toBe("Stopped by the app before signing");
+
+    fireEvent.click(screen.getByRole("button", { name: /Send the payment again/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel payment" }));
+    expect(document.querySelector(".pol-resolution-badge")?.textContent).toBe("Cancelled at confirmation");
+
+    fireEvent.click(key("Try a phone", "Five points of smaller checks"));
+    act(() => vi.advanceTimersByTime(500));
+    expect(document.querySelector(".pol-decision span")?.textContent).toMatch(/high risk, 5 points/);
+    expect(document.querySelector(".pol-decision strong")?.textContent).toBe("Blocked");
+
+    fireEvent.click(screen.getByRole("button", { name: "How TrustGate decided" }));
+    const proof = within(screen.getByRole("region", { name: "How TrustGate decided" }));
+    expect(proof.getByRole("link", { name: /RiskScorer\.kt/ }).getAttribute("href")).toContain("RiskScorer.kt");
+    expect(proof.getByRole("link", { name: /SensitiveActionGate\.kt/ }).getAttribute("href")).toContain("SensitiveActionGate.kt");
+  });
+
   it("scores the story's phone as the repo does, with no old-rules toggle, and returns to the story on request", () => {
     render(
       <WorkspaceManagerProvider>

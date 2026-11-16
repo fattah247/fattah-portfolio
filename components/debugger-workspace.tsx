@@ -345,6 +345,7 @@ export function DebuggerWorkspace({
   onSelectScenario,
   scenario,
   initialConditions,
+  initialTechnical = false,
   scrollContainerRef,
   workspaceWindowId,
 }: {
@@ -353,6 +354,8 @@ export function DebuggerWorkspace({
   onSelectScenario?: (slug: Scenario["slug"]) => void;
   scenario: Scenario;
   initialConditions: Conditions;
+  /** Whether Technical starts on (`?technical=1`), passed from the server so hydration matches. */
+  initialTechnical?: boolean;
   scrollContainerRef?: RefObject<HTMLElement | null>;
   workspaceWindowId?: WorkspaceWindowId;
 }) {
@@ -380,6 +383,10 @@ export function DebuggerWorkspace({
   const [statusMessage, setStatusMessage] = useState("Replay ready.");
   // The simulators run only the repo's rules; the comparison is drawn beside them, never switched to.
   const [approach, setApproach] = useState<ProjectionMode>("designed");
+  const [technical, setTechnical] = useState<boolean>(() => {
+    const saved = workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.technical;
+    return typeof saved === "boolean" ? saved : initialTechnical;
+  });
   const [evidence, setEvidence] = useState<Evidence | null>(null);
   const [activeSection, setActiveSection] = useState<CaseSectionId>("context");
   const [pageVisible, setPageVisible] = useState(true);
@@ -458,18 +465,19 @@ export function DebuggerWorkspace({
   const { readDocumentState, writeDocumentState } = workspace;
   useEffect(() => {
     if (previousScenarioSlugRef.current !== scenario.slug) return;
-    writeDocumentState("work", `case:${scenario.slug}`, { data: { approach, conditions: resolvedSelectedConditions } });
+    writeDocumentState("work", `case:${scenario.slug}`, { data: { approach, conditions: resolvedSelectedConditions, technical } });
     // A restored non-default selection must be addressable: keep the query in step so a refresh reconstructs it.
     if (window.location.pathname === `/case/${scenario.slug}`) {
       const params = new URLSearchParams();
       for (const control of scenario.controls) {
         if (resolvedSelectedConditions[control.key] !== scenario.defaults[control.key]) params.set(control.key, resolvedSelectedConditions[control.key]);
       }
+      if (technical) params.set("technical", "1");
       const query = params.toString();
       const next = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
       if (next !== `${window.location.pathname}${window.location.search}${window.location.hash}`) workspaceHistory.replaceState(null, "", next);
     }
-  }, [approach, resolvedSelectedConditions, scenario, writeDocumentState]);
+  }, [approach, resolvedSelectedConditions, scenario, technical, writeDocumentState]);
 
   useEffect(() => {
     // The host ApplicationFrame owns scroll records for embedded cases; only the
@@ -490,7 +498,8 @@ export function DebuggerWorkspace({
 
   useEffect(() => {
     if (previousScenarioSlugRef.current === scenario.slug) return;
-    const nextConditions = resolveScenarioConditions(scenario, (workspace.readDocumentState("work", `case:${scenario.slug}`)?.data?.conditions as Conditions) ?? initialConditions);
+    const savedData = workspace.readDocumentState("work", `case:${scenario.slug}`)?.data;
+    const nextConditions = resolveScenarioConditions(scenario, (savedData?.conditions as Conditions) ?? initialConditions);
     const resetTimer = window.setTimeout(() => {
       previousScenarioSlugRef.current = scenario.slug;
       timers.current.forEach(window.clearTimeout);
@@ -498,6 +507,7 @@ export function DebuggerWorkspace({
       targetConditions.current = nextConditions;
       setConditions(nextConditions);
       setSelectedConditions(nextConditions);
+      if (typeof savedData?.technical === "boolean") setTechnical(savedData.technical);
       setEvidence(null);
       setActiveSection("context");
       setStatusMessage("Replay ready.");
@@ -668,6 +678,7 @@ export function DebuggerWorkspace({
         params.set(control.key, next[control.key]);
       }
     }
+    if (technical) params.set("technical", "1");
     const query = params.toString();
     const hash = window.location.hash;
     workspaceHistory.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}${hash}`);
@@ -835,8 +846,10 @@ export function DebuggerWorkspace({
           onApproachChange={changeApproach}
           onChange={changeCondition}
           onReset={reset}
+          onTechnicalChange={setTechnical}
           scenario={scenario}
           selectedConditions={resolvedSelectedConditions}
+          technical={technical}
         />
 
         <p className="sr-only" role="status" aria-live="polite">{statusMessage}</p>

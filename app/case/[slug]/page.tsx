@@ -40,6 +40,7 @@ export default async function CasePage({ params, searchParams }: CasePageProps) 
         github={await getGithubProjects()}
         initialCaseConditions={initialConditions}
         initialCaseSlug={scenario.slug}
+        initialCaseTechnical={query.technical === "1"}
         key={scenario.slug}
       />
     </>

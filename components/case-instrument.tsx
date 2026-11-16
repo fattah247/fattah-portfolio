@@ -1,15 +1,31 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PlayIcon, ResetIcon } from "./icons";
+import { ArrowIcon, PlayIcon, ResetIcon } from "./icons";
 import { answerDelayMs, DeviceDiagram, ServiceDiagram, walkPace, type WalkTempo } from "./sim-diagrams";
 import { PayWorld } from "./pay-world";
 import { useSound } from "./sound-provider";
 import { type CueId } from "../lib/sound/engine";
-import { assessDevice, blockOnAnySignal, deviceChecks, deviceProfiles, HIGH_SCORE_THRESHOLD, MEDIUM_SCORE_THRESHOLD, SCREEN_LOCK, type DeviceAssessment, type GateDecision, type RiskLevel } from "../lib/device-risk";
+import {
+  assessDevice,
+  blockOnAnySignal,
+  cancelPayment,
+  confirmPayment,
+  deviceChecks,
+  deviceProfiles,
+  HIGH_SCORE_THRESHOLD,
+  MEDIUM_SCORE_THRESHOLD,
+  SCREEN_LOCK,
+  type ConfirmationResult,
+  type DeviceAssessment,
+  type GateDecision,
+} from "../lib/device-risk";
+import { deviceProofFor, trustgateCodeLink } from "../lib/device-proof";
+import { type Proof } from "../lib/pay-rounds";
 import { type Conditions, type ProjectionMode, type Scenario } from "../lib/scenarios";
 import { type FlowTone } from "../lib/payment-flow";
 import { alertFor, alertSeverity, clockOf, DEGRADED_AFTER_MS, firing, naiveTally, naiveView, runUptime, STORY_CHECKS, toUptimeConditions, type Tick } from "../lib/uptime";
+import { iyupCodeLink, uptimeProofFor } from "../lib/uptime-proof";
 
 
 /** Runs `effect` when `value` changes after the first render, with the value it changed from. */
@@ -99,8 +115,10 @@ export function CaseInstrument({
   onApproachChange,
   onChange,
   onReset,
+  onTechnicalChange,
   scenario,
   selectedConditions,
+  technical: controlledTechnical,
 }: {
   approach: ProjectionMode;
   conditions: Conditions;
@@ -110,15 +128,22 @@ export function CaseInstrument({
   onApproachChange: (mode: ProjectionMode) => void;
   onChange: (key: string, value: string) => void;
   onReset?: () => void;
+  onTechnicalChange?: (technical: boolean) => void;
   scenario: Scenario;
   selectedConditions: Conditions;
+  technical?: boolean;
 }) {
   const titleId = `${scenario.slug}-instrument-title`;
-  const [technical, setTechnical] = useState(false);
+  const [localTechnical, setLocalTechnical] = useState(false);
+  const technical = controlledTechnical ?? localTechnical;
+  const setTechnical = (next: boolean) => {
+    setLocalTechnical(next);
+    onTechnicalChange?.(next);
+  };
   const { play } = useSound();
   const shared = { approach, conditions, isDefault, onApproachChange, onChange, onReset, scenario, selectedConditions, technical };
   const technicalKey = (
-    <button aria-pressed={technical} className="instrument-technical" onClick={() => { play(technical ? "ui.key-off" : "ui.key-on"); setTechnical((value) => !value); }} type="button">
+    <button aria-pressed={technical} className="instrument-technical" onClick={() => { play(technical ? "ui.key-off" : "ui.key-on"); setTechnical(!technical); }} type="button">
       <i aria-hidden="true" />Technical details
     </button>
   );
@@ -240,10 +265,83 @@ function ShadowLane({ last, name, says, tally }: { last: string; name: string; s
   );
 }
 
+const shortFile = (file: string) => file.split("/").at(-1) ?? file;
+
+/**
+ * The engineer proof panel shared across simulators: what arrived, the exact repository lines that
+ * decided it, architectural notes, the system's answer, and the tests that hold it.
+ */
+function RepoProof({
+  answerLabel,
+  codeUrl,
+  compareNote,
+  inputLabel,
+  lead,
+  proof,
+  title,
+}: {
+  answerLabel: string;
+  codeUrl: (file: string, from: number, to?: number) => string;
+  compareNote: string;
+  inputLabel: string;
+  lead: string;
+  proof: Proof;
+  title: string;
+}) {
+  return (
+    <section aria-label={title} className="pw-proof">
+      <p className="pw-proof-lead">{lead}</p>
+      <p className="pw-proof-label">{inputLabel}</p>
+      <pre className="pw-proof-request">{proof.request.join("\n")}</pre>
+      <p className="pw-proof-label">The code that decided it</p>
+      {proof.code.map((excerpt) => (
+        <figure className="pw-code" key={`${excerpt.file}:${excerpt.from}`}>
+          <figcaption>
+            <a href={codeUrl(excerpt.file, excerpt.from, excerpt.from + excerpt.lines.length - 1)} rel="noreferrer" target="_blank">
+              {shortFile(excerpt.file)}:{excerpt.from}{excerpt.lines.length > 1 ? <>&ndash;{excerpt.from + excerpt.lines.length - 1}</> : null}
+              <span className="sr-only">, opens in a new tab</span>
+              <ArrowIcon />
+            </a>
+          </figcaption>
+          <pre>
+            <code>
+              {excerpt.lines.map((text, index) => (
+                <span className="pw-code-line" data-n={excerpt.from + index} key={index}>{text || " "}</span>
+              ))}
+            </code>
+          </pre>
+        </figure>
+      ))}
+      {proof.notes.map((note) => <p className="pw-proof-note" key={note}>{note}</p>)}
+      <p className="pw-proof-label">{answerLabel}</p>
+      <p className="pw-proof-result">{proof.result}</p>
+      <p className="pw-proof-label">The tests that hold it</p>
+      <ul className="pw-proof-tests">
+        {proof.tests.map((test) => (
+          <li key={test.name}>
+            <a href={codeUrl(test.file, test.line)} rel="noreferrer" target="_blank">
+              {shortFile(test.file)}:{test.line}<ArrowIcon />
+            </a>{" "}
+            <code>{test.name}</code>
+          </li>
+        ))}
+      </ul>
+      <p className="pw-proof-compare">{compareNote}</p>
+    </section>
+  );
+}
+
 /* ------------------------------------------------------------------ Service */
 
 const checkMs = 1000;
 const liveWindow = 12;
+
+const serviceSituations = [
+  { label: "Slow in both", value: "slow", conditions: { page: "slow", scope: "both", agent: "reporting" } },
+  { label: "One region down", value: "regional", conditions: { page: "error", scope: "lab-b", agent: "reporting" } },
+  { label: "Silent agent", value: "silent", conditions: { page: "quick", scope: "both", agent: "stopped" } },
+  { label: "Outage in both", value: "outage", conditions: { page: "error", scope: "both", agent: "reporting" } },
+] as const;
 
 /** Milliseconds as everyday seconds. */
 export const seconds = (ms: number) => `${(ms / 1000).toFixed(2)} s`;
@@ -303,6 +401,7 @@ function ServiceSim({ conditions, foreground, isDefault, onChange, onReset, scen
   const [ticks, setTicks] = useState<Tick[]>(() => runUptime(toUptimeConditions(conditions), 4));
   const [running, setRunning] = useState(true);
   const [pageVisible, setPageVisible] = useState(true);
+  const [proofOpen, setProofOpen] = useState<boolean | null>(null);
   const latestConditions = useRef(conditions);
   useEffect(() => { latestConditions.current = conditions; });
 
@@ -338,6 +437,27 @@ function ServiceSim({ conditions, foreground, isDefault, onChange, onReset, scen
   const naive = naiveView(now);
   const tally = naiveTally(ticks);
   const pending = now.alerts.filter((alert) => alert.pendingFor > 0 && !alert.firing);
+  const showProof = proofOpen ?? technical;
+  const proof = showProof ? uptimeProofFor(toUptimeConditions(conditions), now) : null;
+
+  const activeSituation = serviceSituations.find((situation) =>
+    Object.entries(situation.conditions).every(([key, value]) => selectedConditions[key] === value),
+  )?.value ?? "";
+
+  const applySituation = (value: string) => {
+    const found = serviceSituations.find((item) => item.value === value);
+    if (!found) return;
+    play("ui.key-on");
+    for (const [key, next] of Object.entries(found.conditions)) {
+      if (selectedConditions[key] !== next) onChange(key, next);
+    }
+  };
+
+  const skipToAlert = () => {
+    if (!pending.length) return;
+    const needed = Math.max(1, alertFor[pending[0].name] - pending[0].pendingFor);
+    setTicks((current) => runUptime(toUptimeConditions(latestConditions.current), needed, current).slice(-(STORY_CHECKS * 4)));
+  };
 
   const journal: JournalEntry[] = [];
   ticks.forEach((tick, index) => {
@@ -384,15 +504,40 @@ function ServiceSim({ conditions, foreground, isDefault, onChange, onReset, scen
         <div className="svc-transport">
           <button className="sim-secondary" onClick={() => { play(running ? "ui.key-off" : "ui.key-on"); setRunning((value) => !value); }} type="button"><PlayIcon paused={running} />{running ? "Pause" : "Run"}</button>
           <button className="sim-secondary" disabled={running} onClick={advance} type="button">Next check</button>
+          {pending.length ? (
+            <button className="sim-secondary" onClick={skipToAlert} type="button">
+              Skip to {alertFor[pending[0].name] / 2 >= 1 ? `${alertFor[pending[0].name] / 2} min` : "30 s"}
+            </button>
+          ) : null}
+          <button aria-expanded={showProof} className="sim-secondary" onClick={() => setProofOpen(!showProof)} type="button">How iYup decided</button>
           <StoryReset isDefault={isDefault} onReset={onReset} />
         </div>
       </div>
 
       <div className="sim-controls">
+        <Keys
+          hint="four situations the monitor is built for"
+          label="Try a situation"
+          onSelect={applySituation}
+          options={serviceSituations.map(({ label, value }) => ({ label, value }))}
+          selected={activeSituation}
+        />
         <ConditionKeys control="page" onChange={lever} scenario={scenario} selectedConditions={selectedConditions} />
         <ConditionKeys control="scope" onChange={lever} scenario={scenario} selectedConditions={selectedConditions} />
         <ConditionKeys control="agent" onChange={lever} scenario={scenario} selectedConditions={selectedConditions} />
       </div>
+
+      {proof ? (
+        <RepoProof
+          answerLabel="What iYup answered"
+          codeUrl={iyupCodeLink}
+          compareNote="The health-only monitor in one region is the site’s comparison, not code from the repo: it checks only whether lab-b answered and pages on the first failure."
+          inputLabel="What the agents and scrape saw"
+          lead="How iYup decided, from the iYup repo:"
+          proof={proof}
+          title="How iYup decided"
+        />
+      ) : null}
 
       <ShadowLane
         last={naive.why}
@@ -427,9 +572,15 @@ const logEvent: Record<GateDecision, string> = {
   "REQUIRE CONFIRMATION": "SENSITIVE_ACTION_REQUIRES_CONFIRMATION",
   BLOCK: "SENSITIVE_ACTION_BLOCKED",
 };
-const profileLabel: Record<RiskLevel, string> = { LOW: "Clean phone", MEDIUM: "A few weak signals", HIGH: "Rooted, debugger on" };
 
-type PaymentRecord = { n: number; run: DeviceAssessment; naive: GateDecision; hood: string };
+const devicePresets: Array<{ label: string; value: string; checks: string[] }> = [
+  { label: "Clean phone", value: "LOW", checks: deviceProfiles.LOW },
+  { label: "A few weak signals", value: "MEDIUM", checks: deviceProfiles.MEDIUM },
+  { label: "Rooted, debugger on", value: "HIGH", checks: deviceProfiles.HIGH },
+  { label: "Five points of smaller checks", value: "SCORE_HIGH", checks: ["emulator_fingerprint", "app_debuggable", "installer_source_unknown"] },
+];
+
+type PaymentRecord = { n: number; key: string; run: DeviceAssessment; naive: GateDecision; hood: string };
 
 const pointsText = (run: DeviceAssessment) => `${run.score} ${run.score === 1 ? "point" : "points"}`;
 /** A check's everyday name mid-sentence: only its first letter lowered, so "Android" keeps its capital. */
@@ -454,10 +605,36 @@ function plainReason(run: DeviceAssessment) {
     : "No check found anything, so the payment is signed and sent.";
 }
 
+function plainResolution(result: ConfirmationResult): { title: string; detail: string; tone: FlowTone } {
+  if (result.outcome === "SENT") {
+    return {
+      title: "Confirmed and sent",
+      detail: result.signing === "STEP-UP KEY"
+        ? "Unlocked with the screen lock: the hardware step-up key signed the challenge and the payment went through."
+        : "Confirmed with a tap: the device key signed the tap confirmation and the payment went through.",
+      tone: "confirmed",
+    };
+  }
+  if (result.outcome === "BLOCKED") {
+    return {
+      title: "Stopped by the app before signing",
+      detail: "Before signing, the phone checked itself again, found a debugger attached (high risk), and blocked the payment itself.",
+      tone: "adverse",
+    };
+  }
+  return {
+    title: "Cancelled at confirmation",
+    detail: "You backed out at the confirmation prompt, so nothing was signed.",
+    tone: "neutral",
+  };
+}
+
 function DeviceSim({ conditions, isDefault, onChange, onReset, selectedConditions, technical }: SimProps) {
   const run = useMemo(() => assessDevice(conditions), [conditions]);
   const [sends, setSends] = useState(0);
   const [history, setHistory] = useState<PaymentRecord[]>([]);
+  const [confirmations, setConfirmations] = useState<Record<string, ConfirmationResult>>({});
+  const [proofOpen, setProofOpen] = useState<boolean | null>(null);
   const requestKey = `${JSON.stringify(conditions)}:${sends}`;
   // The walk teaches at full pace on the first payment and on "Send again"; a check toggled after
   // that answers quickly, since the visitor has seen how the points add up.
@@ -489,27 +666,39 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
   useEffect(() => {
     if (lastKey.current === requestKey) return;
     lastKey.current = requestKey;
-    setHistory((current) => [{ n: (current[0]?.n ?? 0) + 1, run, naive: blockOnAnySignal(conditions), hood }, ...current].slice(0, 5));
+    setHistory((current) => [{ n: (current[0]?.n ?? 0) + 1, key: requestKey, run, naive: blockOnAnySignal(conditions), hood }, ...current].slice(0, 5));
   }, [conditions, hood, requestKey, run]);
 
   const reason = plainReason(run);
   const naive = blockOnAnySignal(conditions);
   const overBlocked = (record: PaymentRecord) => record.naive === "BLOCK" && record.run.decision !== "BLOCK";
-  const profile = (Object.keys(deviceProfiles) as RiskLevel[]).find((level) => deviceChecks.every((check) => (selectedConditions[check.id] === "found") === deviceProfiles[level].includes(check.id)));
-  const applyProfile = (level: string) => {
+  const profile = devicePresets.find((preset) => deviceChecks.every((check) => (selectedConditions[check.id] === "found") === preset.checks.includes(check.id)))?.value ?? "";
+  const applyProfile = (value: string) => {
+    const preset = devicePresets.find((item) => item.value === value);
+    if (!preset) return;
     for (const check of deviceChecks) {
-      const value = deviceProfiles[level as RiskLevel].includes(check.id) ? "found" : "clear";
-      if (selectedConditions[check.id] !== value) onChange(check.id, value);
+      const next = preset.checks.includes(check.id) ? "found" : "clear";
+      if (selectedConditions[check.id] !== next) onChange(check.id, next);
     }
   };
+
+  const currentConfirmation = confirmations[requestKey] ?? null;
+  const resolveConfirmation = (result: ConfirmationResult) => {
+    play(result.outcome === "SENT" ? "pol.let-through" : result.outcome === "BLOCKED" ? "pol.block" : "ui.key-off");
+    setConfirmations((current) => ({ ...current, [requestKey]: result }));
+  };
+
+  const showProof = proofOpen ?? technical;
+  const proof = showProof ? deviceProofFor(run, currentConfirmation) : null;
+  const resolutionView = currentConfirmation ? plainResolution(currentConfirmation) : null;
 
   return (
     <div className="sim" data-sim="trustgate">
       <DeviceDiagram requestKey={requestKey} run={run} technical={technical} tempo={tempo} />
-      <Wire technical={technical}>{hood}</Wire>
+      <Wire technical={technical}>{currentConfirmation ? `${hood} → confirm(${currentConfirmation.method}): ${currentConfirmation.outcome} · ${currentConfirmation.signing.toLowerCase()} · ${currentConfirmation.event}` : hood}</Wire>
 
       <div className="sim-controls">
-        <Keys hint="the repo's three test phones" label="Try a phone" onSelect={applyProfile} options={(Object.keys(deviceProfiles) as RiskLevel[]).map((level) => ({ label: profileLabel[level], value: level }))} selected={profile ?? ""} />
+        <Keys hint="four test phones to compare" label="Try a phone" onSelect={applyProfile} options={devicePresets.map(({ label, value }) => ({ label, value }))} selected={profile} />
         <fieldset className="instrument-control dev-checks">
           <legend>What the phone&rsquo;s checks find<small>each adds 1, 2, or 3 points by how serious it is</small></legend>
           <div className="dev-check-keys">
@@ -531,7 +720,39 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
         <span>Payment #{history[0]?.n ?? 1}: {run.level.toLowerCase()} risk, {pointsText(run)}. The server&rsquo;s answer</span>
         <strong>{plainAnswer(run)}</strong>
         <p>{reason}</p>
+        {run.decision === "REQUIRE CONFIRMATION" ? (
+          resolutionView ? (
+            <div className="pol-resolution" data-tone={resolutionView.tone}>
+              <span className="pol-resolution-badge"><i aria-hidden="true" />{resolutionView.title}</span>
+              <p>{resolutionView.detail}</p>
+            </div>
+          ) : (
+            <div aria-label="Confirm or cancel this payment" className="pol-confirm-actions" role="group">
+              <button className="sim-primary" onClick={() => resolveConfirmation(confirmPayment(run, run))} type="button">
+                {run.screenLock ? "Approve with screen lock" : "Approve with a tap"}
+              </button>
+              <button className="sim-secondary" onClick={() => resolveConfirmation(confirmPayment(run, assessDevice({ ...conditions, debugger_connected: "found" })))} type="button">
+                Attach debugger, then approve
+              </button>
+              <button className="sim-secondary" onClick={() => resolveConfirmation(cancelPayment(run))} type="button">
+                Cancel payment
+              </button>
+            </div>
+          )
+        ) : null}
       </div>
+
+      {proof ? (
+        <RepoProof
+          answerLabel="What TrustGate answered"
+          codeUrl={trustgateCodeLink}
+          compareNote="The gate that blocks on any signal is the site’s comparison, not code from the repo: it treats a single weak signal the same as a rooted phone."
+          inputLabel="What the phone collected"
+          lead="How TrustGate decided, from the TrustGate Android repo:"
+          proof={proof}
+          title="How TrustGate decided"
+        />
+      ) : null}
 
       <ShadowLane
         last={naive === "BLOCK" ? (run.decision === "BLOCK" ? "It blocks this one too." : run.decision === "REQUIRE CONFIRMATION" ? "It blocks a payment that only needed a confirmation." : "It blocks a low-risk payment over one weak signal.") : "Nothing was found, so it lets the payment through."}
@@ -545,23 +766,29 @@ function DeviceSim({ conditions, isDefault, onChange, onReset, selectedCondition
 
       <div className="sim-actions">
         <button className="sim-primary" onClick={() => { setTempo("teach"); setSends((value) => value + 1); }} type="button"><PlayIcon />Send the payment again</button>
+        <button aria-expanded={showProof} className="sim-secondary" onClick={() => setProofOpen(!showProof)} type="button">How TrustGate decided</button>
         <StoryReset isDefault={isDefault} onReset={onReset} />
         <p className="sim-compare">Confirm from {MEDIUM_SCORE_THRESHOLD} points, block from {HIGH_SCORE_THRESHOLD} or on any high-severity check.</p>
       </div>
 
       <Journal
         empty="Each payment you make is listed here, as the phone logs it."
-        entries={history.map((record) => ({
-          key: String(record.n),
-          badge: `#${record.n}`,
-          tone: decisionTone[record.run.decision],
-          plain: `${record.run.found.length ? foundText(record.run) : "Nothing found"} = ${pointsText(record.run)}: ${plainAnswer(record.run).toLowerCase()}.`,
-          contrast: overBlocked(record) ? "A gate that blocks on any signal would have blocked this payment." : undefined,
-          hood: record.hood,
-        }))}
+        entries={history.map((record) => {
+          const confirmed = confirmations[record.key];
+          const confirmedSummary = confirmed ? ` → ${plainResolution(confirmed).title.toLowerCase()}` : "";
+          const confirmedHood = confirmed ? ` → confirm(${confirmed.method}): ${confirmed.outcome} · ${confirmed.signing.toLowerCase()} · ${confirmed.event}` : "";
+          return {
+            key: String(record.n),
+            badge: `#${record.n}`,
+            tone: confirmed ? plainResolution(confirmed).tone : decisionTone[record.run.decision],
+            plain: `${record.run.found.length ? foundText(record.run) : "Nothing found"} = ${pointsText(record.run)}: ${plainAnswer(record.run).toLowerCase()}${confirmedSummary}.`,
+            contrast: overBlocked(record) ? "A gate that blocks on any signal would have blocked this payment." : undefined,
+            hood: `${record.hood}${confirmedHood}`,
+          };
+        })}
         technical={technical}
       />
-      <p aria-live="polite" className="sr-only">{`${plainAnswer(run)}. ${reason}`}</p>
+      <p aria-live="polite" className="sr-only">{`${plainAnswer(run)}. ${reason}${resolutionView ? ` ${resolutionView.title}. ${resolutionView.detail}` : ""}`}</p>
     </div>
   );
 }

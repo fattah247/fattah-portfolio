@@ -77,6 +77,7 @@ export function CounterfactualHome({
   githubProjectsSource: initialGithubProjectsSource = "fallback",
   initialCaseConditions,
   initialCaseSlug,
+  initialCaseTechnical,
   initialExperienceOpen,
   initialProductsOpen,
   initialGithubProjectId,
@@ -85,6 +86,7 @@ export function CounterfactualHome({
   githubProjectsSource?: GithubProjectsPayload["source"];
   initialCaseConditions?: Conditions;
   initialCaseSlug?: ScenarioSlug;
+  initialCaseTechnical?: boolean;
   initialExperienceOpen?: boolean;
   initialProductsOpen?: boolean;
   initialGithubProjectId?: string;
@@ -251,12 +253,14 @@ export function CounterfactualHome({
   /** The visible Work document's own address, including any restored non-default conditions. */
   function workDocumentRoute() {
     if (workView === "full-case") {
-      const saved = workspace.readDocumentState("work", `case:${selectedCaseSlug}`)?.data?.conditions as Conditions | undefined;
+      const savedData = workspace.readDocumentState("work", `case:${selectedCaseSlug}`)?.data;
+      const saved = savedData?.conditions as Conditions | undefined;
       const params = new URLSearchParams();
       for (const control of selectedScenarioFor(selectedCaseSlug).controls) {
         const value = saved?.[control.key];
         if (value && value !== selectedScenarioFor(selectedCaseSlug).defaults[control.key]) params.set(control.key, value);
       }
+      if (savedData?.technical === true) params.set("technical", "1");
       return { pathname: `/case/${selectedCaseSlug}`, search: params.toString(), title: portfolioTitle.for(caseDetails[selectedCaseSlug].area) };
     }
     if (workView === "github-project" && selectedGithubProjectId) {
@@ -757,6 +761,7 @@ export function CounterfactualHome({
               <DebuggerWorkspace
                 embedded
                 initialConditions={!initialConditionsConsumed.current && initialCaseSlug === selectedCaseSlug && initialCaseConditions ? initialCaseConditions : { ...selectedScenario.defaults }}
+                initialTechnical={!initialConditionsConsumed.current && initialCaseSlug === selectedCaseSlug && initialCaseTechnical === true}
                 onClose={() => closeDetailedCaseWindow(selectedCaseSlug)}
                 onSelectScenario={switchDetailedCase}
                 scenario={selectedScenario}

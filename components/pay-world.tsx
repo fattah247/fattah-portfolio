@@ -387,7 +387,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
   const answerId = round.answer(end);
   const right = guess === answerId;
   // The proof follows Technical details until the visitor opens or closes it themselves.
-  const showProof = phase === "result" && (proofOpen ?? technical);
+  const showProof = (phase === "result" || phase === "pick") && (proofOpen ?? technical);
 
   const stopAll = () => {
     clock.clear();
@@ -777,7 +777,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
             </div>
           ) : (
             <div className="pw-playing">
-              <p className="pw-band-note">{round.trick}</p>
+              <p className="pw-band-note">{round.trick} · tap the scene to step ahead</p>
               {/* Between beats Skip has nothing to skip, so it says so without losing the keyboard's place. */}
               <button className="sim-secondary" onClick={paused ? resume : pause} type="button">{paused ? "Resume" : "Pause"}</button>
               <button aria-disabled={(!line && !moves.length) || undefined} className="sim-secondary" onClick={skip} type="button">Skip ahead</button>
@@ -811,6 +811,7 @@ export function PayWorld({ conditions, isDefault, onChange, onReset, technical, 
 
       <div className="pw-actions">
         {phase !== "pick" ? <button className="sim-secondary" onClick={toTricks} type="button"><StartOverIcon />All tricks</button> : null}
+        {phase === "pick" ? <button aria-expanded={showProof} className="sim-secondary" onClick={() => setProofOpen(!showProof)} type="button">How Payflow decided</button> : null}
         {!isDefault && onReset ? <button className="sim-secondary" onClick={onReset} type="button"><ResetIcon />Reset</button> : null}
         {technicalKey}
       </div>
